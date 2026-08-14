@@ -39,3 +39,5 @@ coverage/
 
 # Editor / OS
 .DS_Store
+
+.super-review
