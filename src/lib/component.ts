@@ -1,4 +1,4 @@
-import { subscribe, Signal, type Getter, type Readable } from "./signal";
+import { subscribe, subscribeTracked, isReadable, type Getter, type Readable } from "./signal";
 import type { Unsubscribe } from "./types";
 
 export const HTML_TAGS = ["div", "button", "p"] as const;
@@ -21,15 +21,11 @@ type Handler = {
 	handler: EventListener;
 };
 
-type ContentOptions = {
-	dangerouslySetInnerHTML?: boolean;
-};
-
 type Props = {
 	id: string | null;
 	class: string | null;
 	content: string | null;
-	contentOptions: ContentOptions;
+	html: string | null;
 	key: string | number | null;
 };
 
@@ -38,9 +34,11 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		id: null,
 		class: null,
 		content: null,
-		contentOptions: {},
+		html: null,
 		key: null,
 	};
+
+	private contentKind: "text" | "html" | null = null;
 
 	protected handlers: Handler[] = [];
 	protected pendingSubscriptions: Array<() => Unsubscribe> = [];
@@ -50,7 +48,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 	/** The last parent this element was mounted to */
 	protected parent: HTMLElement | null = null;
 	protected parentComponent: Component<any> | null = null;
-	element: HTMLElement | null = null;
+	element: ElementOf<T> | null = null;
 	protected children: Component<any>[];
 
 	constructor(
@@ -94,24 +92,23 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 	}
 
 	id(id: string): this;
-	id<Signals extends readonly Signal<any>[]>(
+	id(id: Readable<string>): this;
+	id<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<string, Signals>,
 	): this;
-	id<Signals extends readonly Signal<any>[]>(
-		idOrSignals: string | readonly [...Signals],
+	id<Signals extends readonly Readable<any>[]>(
+		idOrSignals: string | Readable<string> | readonly [...Signals],
 		getter?: Getter<string, Signals>,
 	): this {
-		if (typeof idOrSignals === "string") {
-			this.props.id = idOrSignals;
-			return this;
-		}
-
-		this.bindSignals(idOrSignals, (...values) => {
-			this.props.id = getter!(...values);
-			this.setId();
-		});
-		return this;
+		return this.bindProperty(
+			(id) => {
+				this.props.id = id;
+				this.setId();
+			},
+			idOrSignals,
+			getter,
+		);
 	}
 
 	key(key: string | number): this {
@@ -125,24 +122,23 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 	}
 
 	classes(classes: string): this;
-	classes<Signals extends readonly Signal<any>[]>(
+	classes(classes: Readable<string>): this;
+	classes<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<string, Signals>,
 	): this;
-	classes<Signals extends readonly Signal<any>[]>(
-		classesOrSignals: string | readonly [...Signals],
+	classes<Signals extends readonly Readable<any>[]>(
+		classesOrSignals: string | Readable<string> | readonly [...Signals],
 		getter?: Getter<string, Signals>,
 	): this {
-		if (typeof classesOrSignals === "string") {
-			this.props.class = classesOrSignals;
-			return this;
-		}
-
-		this.bindSignals(classesOrSignals, (...values) => {
-			this.props.class = getter!(...values);
-			this.setClasses();
-		});
-		return this;
+		return this.bindProperty(
+			(classes) => {
+				this.props.class = classes;
+				this.setClasses();
+			},
+			classesOrSignals,
+			getter,
+		);
 	}
 
 	private setClasses() {
@@ -150,52 +146,63 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		this.element.className = this.props.class;
 	}
 
-	content(content: string, opts?: ContentOptions): this;
-	content(content: Readable<string>, opts?: ContentOptions): this;
+	content(content: string): this;
+	content(content: Readable<string>): this;
 	content<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<string, Signals>,
-		opts?: ContentOptions,
 	): this;
 	content<Signals extends readonly Readable<any>[]>(
 		contentOrSignals: string | Readable<string> | readonly [...Signals],
-		getterOrOpts?: Getter<string, Signals> | ContentOptions,
-		opts: ContentOptions = {},
+		getter?: Getter<string, Signals>,
 	): this {
-		if (typeof contentOrSignals === "string") {
-			this.props.content = contentOrSignals;
-			this.props.contentOptions = (getterOrOpts as ContentOptions | undefined) ?? {};
-			return this;
-		}
-
-		if (!Array.isArray(contentOrSignals)) {
-			const readable = contentOrSignals as Readable<string>;
-			const contentOpts = (getterOrOpts as ContentOptions | undefined) ?? {};
-			this.bindSignals([readable], (value) => {
-				this.props.content = value;
-				this.props.contentOptions = contentOpts;
+		return this.bindProperty(
+			(content) => {
+				this.contentKind = "text";
+				this.props.content = content;
 				this.setContent();
-			});
-			return this;
-		}
+			},
+			contentOrSignals,
+			getter,
+		);
+	}
 
-		const signals = contentOrSignals as readonly [...Signals];
-		const getter = getterOrOpts as Getter<string, Signals>;
-		this.bindSignals(signals, (...values) => {
-			this.props.content = getter(...values);
-			this.props.contentOptions = opts;
-			this.setContent();
-		});
-		return this;
+	html(html: string): this;
+	html(html: Readable<string>): this;
+	html<Signals extends readonly Readable<any>[]>(
+		signals: readonly [...Signals],
+		getter: Getter<string, Signals>,
+	): this;
+	html<Signals extends readonly Readable<any>[]>(
+		htmlOrSignals: string | Readable<string> | readonly [...Signals],
+		getter?: Getter<string, Signals>,
+	): this {
+		return this.bindProperty(
+			(html) => {
+				this.contentKind = "html";
+				this.props.html = html;
+				this.setHtml();
+			},
+			htmlOrSignals,
+			getter,
+		);
 	}
 
 	private setContent() {
-		if (!this.element) return;
-		if (this.props.contentOptions.dangerouslySetInnerHTML) {
-			this.element.innerHTML = this.props.content ?? "";
-		} else {
-			this.element.innerText = this.props.content ?? "";
-		}
+		if (!this.element || this.contentKind !== "text") return;
+		this.element.innerText = this.props.content ?? "";
+	}
+
+	private setHtml() {
+		if (!this.element || this.contentKind !== "html") return;
+		this.element.innerHTML = this.props.html ?? "";
+	}
+
+	protected applyProps() {
+		this.setId();
+		this.setClasses();
+		this.setContent();
+		this.setHtml();
 	}
 
 	on<E extends keyof HTMLElementEventMap>(
@@ -211,6 +218,42 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		callback: Getter<void, Signals>,
 	) {
 		this.pendingSubscriptions.push(() => subscribe(signals, callback));
+	}
+
+	protected bindProperty<V, Signals extends readonly Readable<any>[]>(
+		apply: (value: V) => void,
+		valueOrReadableOrSignals: V | Readable<V> | readonly [...Signals],
+		getter?: Getter<V, Signals>,
+	): this {
+		if (Array.isArray(valueOrReadableOrSignals)) {
+			this.bindSignals(valueOrReadableOrSignals as readonly [...Signals], (...values) => {
+				apply(getter!(...values));
+			});
+			return this;
+		}
+
+		if (isReadable<V>(valueOrReadableOrSignals)) {
+			this.bindSignals([valueOrReadableOrSignals], (value) => apply(value));
+			return this;
+		}
+
+		apply(valueOrReadableOrSignals as V);
+		return this;
+	}
+
+	protected bindTwoWay<V>(
+		get: () => V,
+		set: (value: V) => void,
+		event: keyof HTMLElementEventMap,
+		read: (el: ElementOf<T>) => V,
+		apply: (value: V) => void,
+	): this {
+		this.pendingSubscriptions.push(() => subscribeTracked(get, apply));
+		this.on(event, () => {
+			if (!this.element) return;
+			set(read(this.element));
+		});
+		return this;
 	}
 
 	protected connectSignals() {
@@ -229,9 +272,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		if (this.element) return this.element;
 
 		this.element = document.createElement(this.tag);
-		this.setId();
-		this.setClasses();
-		this.setContent();
+		this.applyProps();
 		this.connectSignals();
 
 		for (const handler of this.handlers) {

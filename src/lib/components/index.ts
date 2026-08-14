@@ -1,6 +1,6 @@
 // generated from ./scripts/seed-components.ts
 
-import { Component } from "./component";
+import { Component } from "../component";
 
 export class _a extends Component<"a"> {
 	constructor(...components: Component<any>[]) {
@@ -142,15 +142,7 @@ export function Br(...components: Component<any>[]) {
 	return new _br(...components);
 }
 
-export class _button extends Component<"button"> {
-	constructor(...components: Component<any>[]) {
-		super("button", ...components);
-	}
-}
-
-export function Button(...components: Component<any>[]) {
-	return new _button(...components);
-}
+export { _button, Button } from "./button";
 
 export class _canvas extends Component<"canvas"> {
 	constructor(...components: Component<any>[]) {
@@ -522,15 +514,7 @@ export function Img(...components: Component<any>[]) {
 	return new _img(...components);
 }
 
-export class _input extends Component<"input"> {
-	constructor(...components: Component<any>[]) {
-		super("input", ...components);
-	}
-}
-
-export function Input(...components: Component<any>[]) {
-	return new _input(...components);
-}
+export { _input, Input } from "./input";
 
 export class _ins extends Component<"ins"> {
 	constructor(...components: Component<any>[]) {

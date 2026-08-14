@@ -49,6 +49,69 @@ export interface Readable<T> {
 	subscribe(callback: Callback<T>): Unsubscribe;
 }
 
+export function isReadable<T = unknown>(value: unknown): value is Readable<T> {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"get" in value &&
+		"subscribe" in value &&
+		typeof value.get === "function" &&
+		typeof value.subscribe === "function"
+	);
+}
+
+export function isWritable<T = unknown>(value: unknown): value is Writable<T> {
+	return isReadable<T>(value) && "set" in value && typeof value.set === "function";
+}
+
+let activeTracker: Set<Readable<unknown>> | null = null;
+
+function noteRead(readable: Readable<unknown>) {
+	activeTracker?.add(readable);
+}
+
+/** Subscribe to every Readable that `getter` reads via `.get()`. */
+export function subscribeTracked<T>(getter: () => T, callback: (value: T) => void): Unsubscribe {
+	const current = new Map<Readable<unknown>, Unsubscribe>();
+	let disposed = false;
+
+	const run = () => {
+		if (disposed) return;
+
+		const tracker = new Set<Readable<unknown>>();
+		const prev = activeTracker;
+		activeTracker = tracker;
+		let value: T;
+		try {
+			value = getter();
+		} finally {
+			activeTracker = prev;
+		}
+
+		for (const dep of tracker) {
+			if (!current.has(dep)) {
+				current.set(dep, dep.subscribe(run));
+			}
+		}
+		for (const [dep, unsub] of current) {
+			if (!tracker.has(dep)) {
+				unsub();
+				current.delete(dep);
+			}
+		}
+
+		callback(value);
+	};
+
+	run();
+
+	return () => {
+		disposed = true;
+		for (const unsub of current.values()) unsub();
+		current.clear();
+	};
+}
+
 export class Signal<T> implements Writable<T> {
 	private value: T;
 	private subscriberId: number = 0;
@@ -59,6 +122,7 @@ export class Signal<T> implements Writable<T> {
 	}
 
 	get() {
+		noteRead(this);
 		return this.value;
 	}
 
@@ -131,12 +195,9 @@ export class Signal<T> implements Writable<T> {
 	}
 
 	subscribe(callback: Callback<T>): Unsubscribe {
-		this.subscriberId++;
-
-		this.subscribers.set(this.subscriberId, callback);
-
-		// unsubscribe
-		return () => this.subscribers.delete(this.subscriberId);
+		const id = ++this.subscriberId;
+		this.subscribers.set(id, callback);
+		return () => this.subscribers.delete(id);
 	}
 }
 
@@ -156,6 +217,7 @@ export class Derived<T, Signals extends readonly Signal<any>[]> implements Reada
 	}
 
 	get() {
+		noteRead(this);
 		return this.value;
 	}
 
@@ -166,11 +228,8 @@ export class Derived<T, Signals extends readonly Signal<any>[]> implements Reada
 	}
 
 	subscribe(callback: Callback<T>): Unsubscribe {
-		this.subscriberId++;
-
-		this.subscribers.set(this.subscriberId, callback);
-
-		// unsubscribe
-		return () => this.subscribers.delete(this.subscriberId);
+		const id = ++this.subscriberId;
+		this.subscribers.set(id, callback);
+		return () => this.subscribers.delete(id);
 	}
 }

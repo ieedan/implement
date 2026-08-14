@@ -19,14 +19,13 @@ function submit(e: SubmitEvent) {
 	const title = search.get();
 	if (title === "") return;
 	items.push({ title, timestamp: Date.now() });
+	search.set("");
 }
 
 Div(
 	Form(
-		Input()
-			.id("search")
-			.on("input", (e) => search.set(e.target.value)),
-		Button().id("submit").content("Create"),
+		Input().id("search").type("text").value(search),
+		Button().id("submit").type("submit").content("Create"),
 	)
 		.classes("search-area")
 		.on("submit", submit),
@@ -37,6 +36,7 @@ Div(
 		ForEach(items, ([item, i]) =>
 			Div(
 				Button()
+					.type("button")
 					.content("Delete")
 					.on("click", () => items.splice(i, 1)),
 			)
