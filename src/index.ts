@@ -1,49 +1,30 @@
-import { Div, P, Input, Button } from "./lib/components";
+import { Div, P, Input, Button, Form } from "./lib/components";
+import { ForEach, Fragment } from "./lib/helper-components";
 import { Derived, Signal, watch } from "./lib/signal";
 
 const root = document.getElementById("root")!;
 
-const count = new Signal(0);
-const input = new Signal("");
-const dialogOpen = new Signal(false);
+const search = new Signal("");
+const items = new Signal<{ title: string, timestamp: number }[]>([{ title: "Finish the app", timestamp: Date.now() }]);
 
-const greeting = new Derived([input], (name) => `Hello ${name}, nice to meet you!`);
+const totalText = new Derived([items], (items) => `There are ${items.length} things you need to do.`)
 
-watch([count], (count) => {
-	if (count > 10) {
-		console.log("Count is greater than 10!");
-		input.set("clickmaster!");
-	}
-});
+function submit(e: SubmitEvent) {
+    e.preventDefault();
+    const title = search.get();
+    if (title === "") return;
+    items.push({ title, timestamp: Date.now() });
+}
 
 Div(
-	Button()
-		.id("counter")
-		.content("Click me!")
-		.on("click", () => {
-			count.increment();
-		}),
-	P().content([count], (count) => `Clicked ${count} times!`),
-	Button()
-		.content("Reset")
-		.on("click", () => {
-			count.set(0);
-		}),
+    Form(
+        Input().id('search').on('input', (e) => search.set(e.target.value)),
+        Button().id('submit').content("Create")
+    ).classes('search-area').on('submit', submit),
 
-	Input().on("input", (e) => {
-		input.set(e.target.value);
-	}),
-	P().content(greeting),
+    P().content(totalText),
 
-	Button()
-		.content("Toggle Dialog")
-		.classes([dialogOpen], (dialogOpen) => `${dialogOpen ? "dialog-open" : ""}`)
-		.on("click", () => {
-			dialogOpen.toggle();
-		}),
-)
-	.id("app")
-	.classes("bg-background")
-	.mount(root);
-
-Div().content("Hello there!").renderIf(dialogOpen).mount(root);
+    Div(
+        ForEach(items, ([item, i]) => Div().key(i).content(item.title))
+    ).id('list')
+).id('list-wrapper').mount(root);

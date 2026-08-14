@@ -30,32 +30,33 @@ type Props = {
 	class: string | null;
 	content: string | null;
 	contentOptions: ContentOptions;
+	key: string | number | null;
 };
 
 export class Component<T extends keyof HTMLElementTagNameMap> {
-	#props: Props = {
+	props: Props = {
 		id: null,
 		class: null,
 		content: null,
 		contentOptions: {},
+		key: null,
 	};
 
-	handlers: Handler[] = [];
-	signalUnsubscribers: Unsubscribe[] = [];
-	eventUnsubscribers: Unsubscribe[] = [];
-
-	renderConditions: boolean[] = [];
+	protected handlers: Handler[] = [];
+	protected pendingSubscriptions: Array<() => Unsubscribe> = [];
+	protected signalUnsubscribers: Unsubscribe[] = [];
+	protected eventUnsubscribers: Unsubscribe[] = [];
 
 	/** The last parent this element was mounted to */
-	#parent: HTMLElement | null = null;
-	#element: HTMLElement | null = null;
-	#children: Component<any>[];
+	protected parent: HTMLElement | null = null;
+	element: HTMLElement | null = null;
+	protected children: Component<any>[];
 
 	constructor(
 		readonly tag: T,
-		...children: Component<any>[]
+		...children: (Component<any> | Component<any>[])[]
 	) {
-		this.#children = children;
+		this.children = children.flat();
 	}
 
 	id(id: string): this;
@@ -68,22 +69,25 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		getter?: Getter<string, Signals>,
 	): this {
 		if (typeof idOrSignals === "string") {
-			this.#props.id = idOrSignals;
+			this.props.id = idOrSignals;
 			return this;
 		}
 
-		this.signalUnsubscribers.push(
-			subscribe(idOrSignals, (...values) => {
-				this.#props.id = getter!(...values);
-				this.setId();
-			}),
-		);
+		this.bindSignals(idOrSignals, (...values) => {
+			this.props.id = getter!(...values);
+			this.setId();
+		});
+		return this;
+	}
+
+	key(key: string | number): this {
+		this.props.key = key;
 		return this;
 	}
 
 	private setId() {
-		if (!this.#element || this.#props.id === null) return;
-		this.#element.id = this.#props.id;
+		if (!this.element || this.props.id === null) return;
+		this.element.id = this.props.id;
 	}
 
 	classes(classes: string): this;
@@ -96,22 +100,20 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		getter?: Getter<string, Signals>,
 	): this {
 		if (typeof classesOrSignals === "string") {
-			this.#props.class = classesOrSignals;
+			this.props.class = classesOrSignals;
 			return this;
 		}
 
-		this.signalUnsubscribers.push(
-			subscribe(classesOrSignals, (...values) => {
-				this.#props.class = getter!(...values);
-				this.setClasses();
-			}),
-		);
+		this.bindSignals(classesOrSignals, (...values) => {
+			this.props.class = getter!(...values);
+			this.setClasses();
+		});
 		return this;
 	}
 
 	private setClasses() {
-		if (!this.#element || this.#props.class === null) return;
-		this.#element.className = this.#props.class;
+		if (!this.element || this.props.class === null) return;
+		this.element.className = this.props.class;
 	}
 
 	content(content: string, opts?: ContentOptions): this;
@@ -127,42 +129,38 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		opts: ContentOptions = {},
 	): this {
 		if (typeof contentOrSignals === "string") {
-			this.#props.content = contentOrSignals;
-			this.#props.contentOptions = (getterOrOpts as ContentOptions | undefined) ?? {};
+			this.props.content = contentOrSignals;
+			this.props.contentOptions = (getterOrOpts as ContentOptions | undefined) ?? {};
 			return this;
 		}
 
 		if (!Array.isArray(contentOrSignals)) {
 			const readable = contentOrSignals as Readable<string>;
 			const contentOpts = (getterOrOpts as ContentOptions | undefined) ?? {};
-			this.signalUnsubscribers.push(
-				subscribe([readable], (value) => {
-					this.#props.content = value;
-					this.#props.contentOptions = contentOpts;
-					this.setContent();
-				}),
-			);
+			this.bindSignals([readable], (value) => {
+				this.props.content = value;
+				this.props.contentOptions = contentOpts;
+				this.setContent();
+			});
 			return this;
 		}
 
 		const signals = contentOrSignals as readonly [...Signals];
 		const getter = getterOrOpts as Getter<string, Signals>;
-		this.signalUnsubscribers.push(
-			subscribe(signals, (...values) => {
-				this.#props.content = getter(...values);
-				this.#props.contentOptions = opts;
-				this.setContent();
-			}),
-		);
+		this.bindSignals(signals, (...values) => {
+			this.props.content = getter(...values);
+			this.props.contentOptions = opts;
+			this.setContent();
+		});
 		return this;
 	}
 
 	private setContent() {
-		if (!this.#element) return;
-		if (this.#props.contentOptions.dangerouslySetInnerHTML) {
-			this.#element.innerHTML = this.#props.content ?? "";
+		if (!this.element) return;
+		if (this.props.contentOptions.dangerouslySetInnerHTML) {
+			this.element.innerHTML = this.props.content ?? "";
 		} else {
-			this.#element.innerText = this.#props.content ?? "";
+			this.element.innerText = this.props.content ?? "";
 		}
 	}
 
@@ -174,81 +172,65 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		return this;
 	}
 
-	renderIf(signal: Signal<boolean>): this;
-	renderIf<Signals extends readonly Signal<any>[]>(
+	protected bindSignals<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
-		getter: Getter<boolean, Signals>,
-	): this;
-	renderIf<Signals extends readonly Signal<any>[]>(
-		signalOrSignals: Signal<boolean> | readonly [...Signals],
-		getter?: Getter<boolean, Signals>,
-	): this {
-		if (signalOrSignals instanceof Signal) {
-			return this.renderIf([signalOrSignals], (value) => value);
+		callback: Getter<void, Signals>,
+	) {
+		this.pendingSubscriptions.push(() => subscribe(signals, callback));
+	}
+
+	protected connectSignals() {
+		this.disconnectSignals();
+		for (const create of this.pendingSubscriptions) {
+			this.signalUnsubscribers.push(create());
 		}
-
-		const index = this.renderConditions.length;
-		this.renderConditions.push(false);
-		this.signalUnsubscribers.push(
-			subscribe(signalOrSignals, (...values) => {
-				this.renderConditions[index] = getter!(...values);
-
-				if (this.shouldRender && this.isNotRendered) {
-					if (this.#parent) this.mount(this.#parent);
-				} else if (this.isRendered && this.shouldNotRender) {
-					this.unmount({ disconnectSignals: false });
-				}
-			}),
-		);
-
-		return this;
 	}
 
-	private get shouldRender() {
-		return this.renderConditions.reduce((prev, curr) => prev && curr, true);
+	protected disconnectSignals() {
+		this.signalUnsubscribers.forEach((unsubscribe) => unsubscribe());
+		this.signalUnsubscribers = [];
 	}
 
-	private get shouldNotRender() {
-		return !this.shouldRender;
-	}
+	create() {
+		if (this.element) return this.element;
 
-	private get isRendered() {
-		return this.#element !== null;
-	}
-
-	private get isNotRendered() {
-		return !this.isRendered;
-	}
-
-	mount(parent: HTMLElement) {
-		this.#parent = parent;
-		if (this.shouldNotRender) return;
-		this.#element = document.createElement(this.tag);
+		this.element = document.createElement(this.tag);
 		this.setId();
 		this.setClasses();
 		this.setContent();
+		this.connectSignals();
 
 		for (const handler of this.handlers) {
-			this.#element.addEventListener(handler.event, handler.handler);
+			this.element.addEventListener(handler.event, handler.handler);
 			this.eventUnsubscribers.push(() =>
-				this.#element?.removeEventListener(handler.event, handler.handler),
+				this.element?.removeEventListener(handler.event, handler.handler),
 			);
 		}
 
-		this.#parent.appendChild(this.#element);
-
-		for (const child of this.#children) {
-			child.mount(this.#element);
+		for (const child of this.children) {
+			child.mount(this.element);
 		}
+
+		return this.element
 	}
 
-	unmount({ disconnectSignals = true }: { disconnectSignals?: boolean } = {}) {
+	mount(parent: HTMLElement) {
+		this.parent = parent;
+		const element = this.create();
+
+		this.parent.appendChild(element);
+	}
+
+	unmount() {
+		this.disconnectSignals();
 		this.eventUnsubscribers.forEach((unsubscribe) => unsubscribe());
+		this.eventUnsubscribers = [];
 
-		if (disconnectSignals) this.signalUnsubscribers.forEach((unsubscribe) => unsubscribe());
+		for (const child of this.children) {
+			child.unmount();
+		}
 
-		this.#element?.remove();
-
-		this.#element = null;
+		this.element?.remove();
+		this.element = null;
 	}
 }

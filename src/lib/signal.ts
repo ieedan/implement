@@ -1,3 +1,4 @@
+import equal from "fast-deep-equal";
 import type { Unsubscribe } from "./types";
 
 export type Callback<T> = (value: T) => void;
@@ -62,7 +63,8 @@ export class Signal<T> implements Writable<T> {
 	}
 
 	set(value: T) {
-		const changed = this.value !== value;
+		// keep an eye on this one I have a feeling it's gonna fuck us later
+		const changed = this.value !== value || equal(this.value, value);
 		if (!changed) return;
 		this.value = value;
 		this.notify(value);
@@ -78,6 +80,43 @@ export class Signal<T> implements Writable<T> {
 
 	decrement(this: Signal<number>, step = 1) {
 		this.set(this.get() - step);
+	}
+
+	push<Item>(this: Signal<Item[]>, ...items: Item[]): number {
+		const next = [...this.get(), ...items];
+		this.set(next);
+		return next.length;
+	}
+
+	pop<Item>(this: Signal<Item[]>): Item | undefined {
+		const current = this.get();
+		if (current.length === 0) return undefined;
+		this.set(current.slice(0, -1));
+		return current[current.length - 1];
+	}
+
+	unshift<Item>(this: Signal<Item[]>, ...items: Item[]): number {
+		const next = [...items, ...this.get()];
+		this.set(next);
+		return next.length;
+	}
+
+	shift<Item>(this: Signal<Item[]>): Item | undefined {
+		const current = this.get();
+		if (current.length === 0) return undefined;
+		const [first, ...rest] = current;
+		this.set(rest);
+		return first;
+	}
+
+	splice<Item>(this: Signal<Item[]>, start: number, deleteCount?: number, ...items: Item[]): Item[] {
+		const next = this.get().slice();
+		const deleted =
+			deleteCount === undefined && items.length === 0
+				? next.splice(start)
+				: next.splice(start, deleteCount ?? 0, ...items);
+		this.set(next);
+		return deleted;
 	}
 
 	private notify(value: T) {
