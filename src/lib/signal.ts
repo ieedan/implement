@@ -109,7 +109,12 @@ export class Signal<T> implements Writable<T> {
 		return first;
 	}
 
-	splice<Item>(this: Signal<Item[]>, start: number, deleteCount?: number, ...items: Item[]): Item[] {
+	splice<Item>(
+		this: Signal<Item[]>,
+		start: number,
+		deleteCount?: number,
+		...items: Item[]
+	): Item[] {
 		const next = this.get().slice();
 		const deleted =
 			deleteCount === undefined && items.length === 0

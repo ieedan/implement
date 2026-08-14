@@ -54,9 +54,9 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 
 	constructor(
 		readonly tag: T,
-		...children: (Component<any> | Component<any>[])[]
+		...children: Component<any>[]
 	) {
-		this.children = children.flat();
+		this.children = children;
 	}
 
 	id(id: string): this;
@@ -211,7 +211,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 			child.mount(this.element);
 		}
 
-		return this.element
+		return this.element;
 	}
 
 	mount(parent: HTMLElement) {
