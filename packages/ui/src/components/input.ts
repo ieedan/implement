@@ -1,4 +1,5 @@
 import { Component } from "../component";
+import type { Mountable } from "../mountable";
 import { isWritable, type Getter, type Readable, type Writable } from "../signal";
 
 export type InputType =
@@ -30,7 +31,7 @@ export class _input extends Component<"input"> {
 	private valueProp: string | null = null;
 	private checkedProp: boolean | null = null;
 
-	constructor(...components: Component<any>[]) {
+	constructor(...components: Mountable[]) {
 		super("input", ...components);
 	}
 
@@ -163,6 +164,6 @@ export class _input extends Component<"input"> {
 	}
 }
 
-export function Input(...components: Component<any>[]) {
+export function Input(...components: Mountable[]) {
 	return new _input(...components);
 }

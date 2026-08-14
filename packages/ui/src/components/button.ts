@@ -1,4 +1,5 @@
 import { Component } from "../component";
+import type { Mountable } from "../mountable";
 import type { Getter, Readable } from "../signal";
 
 export type ButtonType = "submit" | "reset" | "button";
@@ -6,7 +7,7 @@ export type ButtonType = "submit" | "reset" | "button";
 export class _button extends Component<"button"> {
 	private typeValue: ButtonType | null = null;
 
-	constructor(...components: Component<any>[]) {
+	constructor(...components: Mountable[]) {
 		super("button", ...components);
 	}
 
@@ -41,6 +42,6 @@ export class _button extends Component<"button"> {
 	}
 }
 
-export function Button(...components: Component<any>[]) {
+export function Button(...components: Mountable[]) {
 	return new _button(...components);
 }

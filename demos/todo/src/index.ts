@@ -7,9 +7,9 @@ const root = document.getElementById("root")!;
 const search = new Signal("");
 const items = new Signal<Todo[]>([]);
 
-void api.todos.list().then(({ data }) => {
+api.todos.list().then(({ data }) => {
 	if (data) items.set(data);
-});
+})
 
 const totalText = new Derived(
 	[items],
@@ -36,26 +36,33 @@ Div(
 
 	If([items], (items) => items.length > 0, P().content(totalText)),
 
-	Div(
-		ForEach(items, ([item]) =>
-			Div(
-				Button()
-					.type("button")
-					.content("Delete")
-					.classes("rounded border px-2 py-1")
-					.on("click", async () => {
-						const { error } = await api.todos.delete({ id: item.id });
-						if (error) return;
-						items.set(items.get().filter((todo) => todo.id !== item.id));
-					}),
-			)
-				.key(item.id)
-				.classes("flex items-center gap-2")
-				.content(item.title),
-		),
-	)
-		.id("list")
-		.classes("flex flex-col gap-2"),
+	Await(
+		api.todos.list()
+	).WhileLoading(
+		Div().content("Loading...")
+	).
+	.Then((items) => 
+		Div(
+			ForEach(items, ([item]) =>
+				Div(
+					Button()
+						.type("button")
+						.content("Delete")
+						.classes("rounded border px-2 py-1")
+						.on("click", async () => {
+							const { error } = await api.todos.delete({ id: item.id });
+							if (error) return;
+							items.set(items.get().filter((todo) => todo.id !== item.id));
+						}),
+				)
+					.key(item.id)
+					.classes("flex items-center gap-2")
+					.content(item.title),
+			),
+		)
+			.id("list")
+			.classes("flex flex-col gap-2")
+	).Catch((error) => Div().content(error.message)),
 )
 	.id("list-wrapper")
 	.classes("flex flex-col gap-4 p-4")

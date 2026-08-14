@@ -123,6 +123,7 @@ const CUSTOM_COMPONENTS: Record<string, string> = {
 let content = `// generated from ./scripts/seed-components.ts
 
 import { Component } from "../component";
+import type { Mountable } from "../mountable";
 
 `;
 
@@ -135,12 +136,12 @@ for (const tag of HTML_TAGS) {
 
 	const newName = `${tag.slice(0, 1).toUpperCase()}${tag.slice(1)}`;
 	content += `export class _${tag} extends Component<"${tag}"> {
-	constructor(...components: Component<any>[]) {
+	constructor(...components: Mountable[]) {
 		super("${tag}", ...components);
 	}
 }
 
-export function ${newName}(...components: Component<any>[]) {
+export function ${newName}(...components: Mountable[]) {
 	return new _${tag}(...components);
 }
 
