@@ -123,10 +123,14 @@ import { Component } from "./component";
 
 for (const tag of HTML_TAGS) {
     const newName = `${tag.slice(0, 1).toUpperCase()}${tag.slice(1)}`
-    content += `export class ${newName} extends Component<"${tag}"> {
+    content += `export class _${tag} extends Component<"${tag}"> {
     constructor(...components: Component<any>[]) {
         super("${tag}", ...components)
     }
+}
+
+export function ${newName}(...components: Component<any>[]) {
+    return new _${tag}(...components);
 }
 
 `
