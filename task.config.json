@@ -7,6 +7,10 @@
 					"color": "blue",
 					"command": "pnpm dev:lib"
 				},
+				"css": {
+					"color": "magenta",
+					"command": "pnpm dev:css"
+				},
 				"www": {
 					"color": "green",
 					"command": "pnpm dev:www"

@@ -1,4 +1,5 @@
-.dialog-open {
-	background-color: blue;
-	color: white;
-}
+@import "tailwindcss";
+
+@source "./src";
+@source "./examples";
+@source "./index.html";

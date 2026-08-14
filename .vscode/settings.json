@@ -7,5 +7,6 @@
 	"oxc.fmt.configPath": "oxfmt.config.ts",
 	"[typescript][javascript][json][jsonc][html]": {
 		"editor.defaultFormatter": "oxc.oxc-vscode"
-	}
+	},
+	"tailwindCSS.classFunctions": ["classes"]
 }

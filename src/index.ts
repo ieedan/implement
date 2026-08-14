@@ -24,10 +24,10 @@ function submit(e: SubmitEvent) {
 
 Div(
 	Form(
-		Input().id("search").type("text").value(search),
-		Button().id("submit").type("submit").content("Create"),
+		Input().id("search").type("text").value(search).classes("rounded border px-2 py-1"),
+		Button().id("submit").type("submit").content("Create").classes("rounded border px-3 py-1"),
 	)
-		.classes("search-area")
+		.classes("search-area flex gap-2")
 		.on("submit", submit),
 
 	If([items], (items) => items.length > 0, P().content(totalText)),
@@ -38,12 +38,17 @@ Div(
 				Button()
 					.type("button")
 					.content("Delete")
+					.classes("rounded border px-2 py-1")
 					.on("click", () => items.splice(i, 1)),
 			)
 				.key(i)
+				.classes("flex items-center gap-2")
 				.content(item.title),
 		),
-	).id("list"),
+	)
+		.id("list")
+		.classes("flex flex-col gap-2"),
 )
 	.id("list-wrapper")
+	.classes("flex flex-col gap-4 p-4")
 	.mount(root);
