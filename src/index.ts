@@ -30,9 +30,8 @@ const div = Div(
     })
 )
     .id('app')
-    .classes('bg-background');
+    .classes('bg-background').mount(root);
 
 Div().content('Hello there!')
     .renderIf([dialogOpen], (dialogOpen) => dialogOpen).mount(root);
 
-div.mount(root);
