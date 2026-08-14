@@ -113,12 +113,17 @@ const deleteTodoRoute = createRoute({
 });
 
 export const app = $(
-	new OpenAPIHono().use(
-		"*",
-		cors({
-			origin: "http://localhost:3000",
+	new OpenAPIHono()
+		.use(
+			"*",
+			cors({
+				origin: "http://localhost:3000",
+			}),
+		)
+		.use("*", async (_c, next) => {
+			await new Promise((resolve) => setTimeout(resolve, 250));
+			await next();
 		}),
-	),
 );
 
 app.openapi(listTodosRoute, (c) => c.json(todos, 200));
