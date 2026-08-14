@@ -1,13 +1,24 @@
-import { useSubscribe, Signal, type Getter } from "./signal";
+import { subscribe, Signal, type Getter, type Readable } from "./signal";
 import type { Unsubscribe } from "./types";
 
 export const HTML_TAGS = ["div", "button", "p"] as const;
 
 export type HTMLTag = keyof HTMLElementTagNameMap;
 
-type Handler<E extends keyof HTMLElementEventMap> = {
-	event: E;
-	handler: (ev: HTMLElementEventMap[E]) => void;
+type ElementOf<Tag extends HTMLTag> = HTMLElementTagNameMap[Tag];
+
+/** Event with `target` / `currentTarget` narrowed to the component's element. */
+type TypedEvent<E extends keyof HTMLElementEventMap, El extends HTMLElement> = Omit<
+	HTMLElementEventMap[E],
+	"target" | "currentTarget"
+> & {
+	readonly target: El;
+	readonly currentTarget: El;
+};
+
+type Handler = {
+	event: string;
+	handler: EventListener;
 };
 
 type ContentOptions = {
@@ -29,7 +40,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		contentOptions: {},
 	};
 
-	handlers: Handler<any>[] = [];
+	handlers: Handler[] = [];
 	signalUnsubscribers: Unsubscribe[] = [];
 	eventUnsubscribers: Unsubscribe[] = [];
 
@@ -62,7 +73,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		}
 
 		this.signalUnsubscribers.push(
-			useSubscribe(idOrSignals, (...values) => {
+			subscribe(idOrSignals, (...values) => {
 				this.#props.id = getter!(...values);
 				this.setId();
 			}),
@@ -90,7 +101,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		}
 
 		this.signalUnsubscribers.push(
-			useSubscribe(classesOrSignals, (...values) => {
+			subscribe(classesOrSignals, (...values) => {
 				this.#props.class = getter!(...values);
 				this.setClasses();
 			}),
@@ -104,13 +115,14 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 	}
 
 	content(content: string, opts?: ContentOptions): this;
-	content<Signals extends readonly Signal<any>[]>(
+	content(content: Readable<string>, opts?: ContentOptions): this;
+	content<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<string, Signals>,
 		opts?: ContentOptions,
 	): this;
-	content<Signals extends readonly Signal<any>[]>(
-		contentOrSignals: string | readonly [...Signals],
+	content<Signals extends readonly Readable<any>[]>(
+		contentOrSignals: string | Readable<string> | readonly [...Signals],
 		getterOrOpts?: Getter<string, Signals> | ContentOptions,
 		opts: ContentOptions = {},
 	): this {
@@ -120,9 +132,23 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 			return this;
 		}
 
+		if (!Array.isArray(contentOrSignals)) {
+			const readable = contentOrSignals as Readable<string>;
+			const contentOpts = (getterOrOpts as ContentOptions | undefined) ?? {};
+			this.signalUnsubscribers.push(
+				subscribe([readable], (value) => {
+					this.#props.content = value;
+					this.#props.contentOptions = contentOpts;
+					this.setContent();
+				}),
+			);
+			return this;
+		}
+
+		const signals = contentOrSignals as readonly [...Signals];
 		const getter = getterOrOpts as Getter<string, Signals>;
 		this.signalUnsubscribers.push(
-			useSubscribe(contentOrSignals, (...values) => {
+			subscribe(signals, (...values) => {
 				this.#props.content = getter(...values);
 				this.#props.contentOptions = opts;
 				this.setContent();
@@ -142,9 +168,9 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 
 	on<E extends keyof HTMLElementEventMap>(
 		event: E,
-		handler: (ev: HTMLElementEventMap[E]) => void,
+		handler: (ev: TypedEvent<E, ElementOf<T>>) => void,
 	): this {
-		this.handlers.push({ event, handler });
+		this.handlers.push({ event, handler: handler as EventListener });
 		return this;
 	}
 
@@ -164,7 +190,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		const index = this.renderConditions.length;
 		this.renderConditions.push(false);
 		this.signalUnsubscribers.push(
-			useSubscribe(signalOrSignals, (...values) => {
+			subscribe(signalOrSignals, (...values) => {
 				this.renderConditions[index] = getter!(...values);
 
 				if (this.shouldRender && this.isNotRendered) {

@@ -1,18 +1,27 @@
 import { Div, P, Input, Button } from "./lib/components";
-import { Signal } from "./lib/signal";
+import { Derived, Signal, watch } from "./lib/signal";
 
 const root = document.getElementById("root")!;
 
-let count = new Signal(0);
-let input = new Signal("");
-let dialogOpen = new Signal(false);
+const count = new Signal(0);
+const input = new Signal("");
+const dialogOpen = new Signal(false);
+
+const greeting = new Derived([input], (name) => `Hello ${name}, nice to meet you!`);
+
+watch([count], (count) => {
+	if (count > 10) {
+		console.log("Count is greater than 10!");
+		input.set("clickmaster!");
+	}
+});
 
 Div(
 	Button()
 		.id("counter")
 		.content("Click me!")
 		.on("click", () => {
-			count.set(count.get() + 1);
+			count.increment();
 		}),
 	P().content([count], (count) => `Clicked ${count} times!`),
 	Button()
@@ -22,22 +31,19 @@ Div(
 		}),
 
 	Input().on("input", (e) => {
-		const target = e.target as HTMLInputElement;
-		input.set(target.value);
+		input.set(e.target.value);
 	}),
-	P().content([input], (input) => `You typed: ${input}`),
+	P().content(greeting),
 
 	Button()
 		.content("Toggle Dialog")
+		.classes([dialogOpen], (dialogOpen) => `${dialogOpen ? "dialog-open" : ""}`)
 		.on("click", () => {
-			dialogOpen.set(!dialogOpen.get());
+			dialogOpen.toggle();
 		}),
 )
 	.id("app")
 	.classes("bg-background")
 	.mount(root);
 
-Div()
-	.content("Hello there!")
-	.renderIf(dialogOpen)
-	.mount(root);
+Div().content("Hello there!").renderIf(dialogOpen).mount(root);
