@@ -30,8 +30,13 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
     };
 
     handlers: Handler<any>[] = []
-    unsubscribers: Unsubscribe[] = [];
+    signalUnsubscribers: Unsubscribe[] = [];
+    eventUnsubscribers: Unsubscribe[] = [];
 
+    renderConditions: boolean[] = []
+
+    /** The last parent this element was mounted to */
+    #parent: HTMLElement | null = null;
     #element: HTMLElement | null = null;
     #children: Component<any>[]
 
@@ -53,7 +58,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
             return this;
         }
 
-        this.unsubscribers.push(useSubscribe(idOrSignals, (...values) => {
+        this.signalUnsubscribers.push(useSubscribe(idOrSignals, (...values) => {
             this.#props.id = getter!(...values);
             this.setId();
         }));
@@ -79,7 +84,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
             return this;
         }
 
-        this.unsubscribers.push(useSubscribe(classesOrSignals, (...values) => {
+        this.signalUnsubscribers.push(useSubscribe(classesOrSignals, (...values) => {
             this.#props.class = getter!(...values);
             this.setClasses();
         }));
@@ -109,7 +114,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
         }
 
         const getter = getterOrOpts as Getter<string, Signals>;
-        this.unsubscribers.push(useSubscribe(contentOrSignals, (...values) => {
+        this.signalUnsubscribers.push(useSubscribe(contentOrSignals, (...values) => {
             this.#props.content = getter(...values);
             this.#props.contentOptions = opts;
             this.setContent();
@@ -131,25 +136,65 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
         return this;
     }
 
+    renderIf<Signals extends readonly Signal<any>[]>(signals: readonly [...Signals], getter: Getter<boolean, Signals>): this {
+        const index = this.renderConditions.length;
+        this.renderConditions.push(false);
+        this.signalUnsubscribers.push(useSubscribe(signals, (...values) => {
+            this.renderConditions[index] = getter(...values);
+
+            if (this.shouldRender && this.isNotRendered) {
+                if (this.#parent) this.mount(this.#parent)
+            } else if (this.isRendered && this.shouldNotRender) {
+                this.unmount({ disconnectSignals: false });
+            }
+        }));
+
+        return this;
+    }
+
+    private get shouldRender() {
+        return this.renderConditions.reduce((prev, curr) =>  prev && curr, true)
+    }
+
+    private get shouldNotRender() {
+        return !this.shouldRender;
+    }
+
+    private get isRendered() {
+        return this.#element !== null;
+    }
+
+    private get isNotRendered() {
+        return !this.isRendered;
+    }
+
     mount(parent: HTMLElement) {
+        this.#parent = parent;
+        if (this.shouldNotRender) return;
         this.#element = document.createElement(this.tag)
         this.setId();
         this.setClasses();
         this.setContent();
+
         for (const handler of this.handlers) {
             this.#element.addEventListener(handler.event, handler.handler);
-            this.unsubscribers.push(() => this.#element?.removeEventListener(handler.event, handler.handler));
+            this.eventUnsubscribers.push(() => this.#element?.removeEventListener(handler.event, handler.handler));
         }
-        parent.appendChild(this.#element);
+
+        this.#parent.appendChild(this.#element);
 
         for (const child of this.#children) {
             child.mount(this.#element)
         }
     }
 
-    unmount() {
-        this.unsubscribers.forEach((unsubsribe) => unsubsribe());
+    unmount({ disconnectSignals = true }: { disconnectSignals?: boolean } = {}) {
+        this.eventUnsubscribers.forEach((unsubscribe) => unsubscribe());
+
+        if (disconnectSignals) this.signalUnsubscribers.forEach((unsubscribe) => unsubscribe());
 
         this.#element?.remove();
+
+        this.#element = null;
     }
 }

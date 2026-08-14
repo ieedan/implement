@@ -5,6 +5,7 @@ const root = document.getElementById('root')!;
 
 let count = new Signal(0);
 let input = new Signal('');
+let dialogOpen = new Signal(false);
 
 const div = Div(
     Button()
@@ -22,9 +23,16 @@ const div = Div(
         const target = e.target as HTMLInputElement;
         input.set(target.value);
     }),
-    P().content([input], (input) => `You typed: ${input}`)
+    P().content([input], (input) => `You typed: ${input}`),
+
+    Button().content('Toggle Dialog').on('click', () => {
+        dialogOpen.set(!dialogOpen.get())
+    })
 )
     .id('app')
     .classes('bg-background');
+
+Div().content('Hello there!')
+    .renderIf([dialogOpen], (dialogOpen) => dialogOpen).mount(root);
 
 div.mount(root);
