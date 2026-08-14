@@ -13,10 +13,7 @@ const div = Div(
         .on('click', () => {
             count.set(count.get() + 1);
         }),
-    P().content({
-        signals: [count],
-        value: (count) => `Clicked ${count} times!`
-    }),
+    P().content([count], (count) => `Clicked ${count} times!`),
     Button().content('Reset').on('click', () => {
         count.set(0);
     }),
@@ -25,10 +22,7 @@ const div = Div(
         const target = e.target as HTMLInputElement;
         input.set(target.value);
     }),
-    P().content({
-        signals: [input],
-        value: (input) => `You typed: ${input}`
-    })
+    P().content([input], (input) => `You typed: ${input}`)
 )
     .id('app')
     .classes('bg-background');
