@@ -1,7 +1,7 @@
 import equal from "fast-deep-equal";
 import { Component } from "./component";
 import { MountNode, type Mountable } from "./mountable";
-import { isReadable, subscribe, type Getter, type Readable, type Signal } from "./signal";
+import { isReadable, Signal, subscribe, type Getter, type Readable } from "./signal";
 import type { Unsubscribe } from "./types";
 
 function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | null) {
@@ -238,4 +238,124 @@ class _fragment extends MountNode {
 
 export function Fragment(...children: Mountable[]) {
 	return new _fragment(...children);
+}
+
+function toError(error: unknown): Error {
+	if (error instanceof Error) return error;
+	if (
+		typeof error === "object" &&
+		error !== null &&
+		"message" in error &&
+		typeof error.message === "string"
+	) {
+		return new Error(error.message);
+	}
+	return new Error(String(error));
+}
+
+type AwaitState<T> =
+	| { status: "pending" }
+	| { status: "resolved"; value: Signal<T> }
+	| { status: "rejected"; error: Error };
+
+class _await<T> extends MountNode {
+	private state: AwaitState<T> = { status: "pending" };
+	private loadingChild: Mountable | null = null;
+	private thenRender: ((value: Signal<T>) => Mountable) | null = null;
+	private catchRender: ((error: Error) => Mountable) | null = null;
+	private thenChild: Mountable | null = null;
+	private catchChild: Mountable | null = null;
+	private current: Mountable | null = null;
+	private mounted = false;
+
+	constructor(promise: PromiseLike<T>) {
+		super();
+		void promise.then(
+			(value) => {
+				this.state = { status: "resolved", value: new Signal(value) };
+				this.thenChild = null;
+				this.sync();
+			},
+			(error) => {
+				this.state = { status: "rejected", error: toError(error) };
+				this.catchChild = null;
+				this.sync();
+			},
+		);
+	}
+
+	WhileLoading(child: Mountable): this {
+		this.loadingChild = child;
+		this.sync();
+		return this;
+	}
+
+	Then(render: (value: Signal<T>) => Mountable): this {
+		this.thenRender = render;
+		this.thenChild = null;
+		this.sync();
+		return this;
+	}
+
+	Catch(render: (error: Error) => Mountable): this {
+		this.catchRender = render;
+		this.catchChild = null;
+		this.sync();
+		return this;
+	}
+
+	mount(parent: HTMLElement) {
+		this.parent = parent;
+		this.mounted = true;
+		this.current = null;
+		this.sync();
+	}
+
+	override unmount() {
+		this.mounted = false;
+		this.current = null;
+		super.unmount();
+	}
+
+	private childForState(): Mountable | null {
+		if (this.state.status === "pending") {
+			return this.loadingChild;
+		}
+
+		if (this.state.status === "resolved") {
+			if (!this.thenChild && this.thenRender) {
+				try {
+					this.thenChild = this.thenRender(this.state.value);
+				} catch (error) {
+					this.state = { status: "rejected", error: toError(error) };
+					return this.childForState();
+				}
+			}
+			return this.thenChild;
+		}
+
+		if (!this.catchChild && this.catchRender) {
+			this.catchChild = this.catchRender(this.state.error);
+		}
+		return this.catchChild;
+	}
+
+	private sync() {
+		if (!this.mounted || !this.parent) return;
+
+		const next = this.childForState();
+		if (this.current === next) return;
+
+		this.current?.unmount();
+		this.current = next;
+		this.children = next ? [next] : [];
+		if (next) {
+			this.adopt(next);
+			next.mount(this.parent);
+		}
+	}
+}
+
+export function Await<T>(promise: PromiseLike<T>): _await<T> {
+	return new _await(promise);
 }
