@@ -1,7 +1,11 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-	entry: ["src/lib/index.ts", "src/index.ts"],
+	entry: ["src/index.ts"],
 	outDir: "dist",
 	target: "es2022",
+	deps: {
+		alwaysBundle: ["@packages/ui"],
+		onlyBundle: false,
+	},
 });

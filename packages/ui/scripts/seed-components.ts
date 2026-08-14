@@ -147,4 +147,4 @@ export function ${newName}(...components: Component<any>[]) {
 `;
 }
 
-fs.writeFileSync("./src/lib/components/index.ts", content);
+fs.writeFileSync("./src/components/index.ts", content);

@@ -1,0 +1,5 @@
+packages:
+  - "packages/*"
+  - "demos/*"
+allowBuilds:
+  '@parcel/watcher': true

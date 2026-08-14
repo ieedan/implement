@@ -5,15 +5,40 @@
 			"tasks": {
 				"lib": {
 					"color": "blue",
-					"command": "pnpm dev:lib"
+					"command": "pnpm --filter @packages/ui dev"
 				},
-				"css": {
-					"color": "magenta",
-					"command": "pnpm dev:css"
+				"todo": {
+					"tasks": {
+						"js": {
+							"color": "cyan",
+							"command": "pnpm --filter @demos/todo dev:js"
+						},
+						"css": {
+							"color": "magenta",
+							"command": "pnpm --filter @demos/todo dev:css"
+						},
+						"www": {
+							"color": "green",
+							"command": "pnpm --filter @demos/todo dev:www"
+						}
+					}
 				},
-				"www": {
-					"color": "green",
-					"command": "pnpm dev:www"
+				"kitchen": {
+					"optional": true,
+					"tasks": {
+						"js": {
+							"color": "yellow",
+							"command": "pnpm --filter @demos/kitchen dev:js"
+						},
+						"css": {
+							"color": "white",
+							"command": "pnpm --filter @demos/kitchen dev:css"
+						},
+						"www": {
+							"color": "red",
+							"command": "pnpm --filter @demos/kitchen dev:www"
+						}
+					}
 				}
 			}
 		},

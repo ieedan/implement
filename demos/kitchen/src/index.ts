@@ -1,7 +1,6 @@
-import { Div, P, Input, Button } from "./lib/components";
-import { Derived, Signal, watch } from "./lib/signal";
+import { Div, P, Input, Button, Derived, Signal, watch } from "@packages/ui";
 
-const root = document.getElementById("root");
+const root = document.getElementById("root")!;
 
 const count = new Signal(0);
 const input = new Signal("");
@@ -47,7 +46,7 @@ Div(
 	Button()
 		.type("button")
 		.content("Toggle Dialog")
-		.classes([dialogOpen], (dialogOpen) => `${dialogOpen ? "dialog-open" : ""}`)
+		.classes([dialogOpen], (dialogOpen) => (dialogOpen ? "dialog-open" : ""))
 		.on("click", () => {
 			dialogOpen.toggle();
 		}),

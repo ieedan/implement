@@ -1,6 +1,4 @@
-import { Div, P, Input, Button, Form } from "./lib/components";
-import { ForEach, If } from "./lib/helper-components";
-import { Derived, Signal } from "./lib/signal";
+import { Div, P, Input, Button, Form, ForEach, If, Derived, Signal } from "@packages/ui";
 
 const root = document.getElementById("root")!;
 

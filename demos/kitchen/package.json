@@ -1,0 +1,26 @@
+{
+	"name": "@demos/kitchen",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "concurrently -n js,css,www -c yellow,white,red \"pnpm dev:js\" \"pnpm dev:css\" \"pnpm dev:www\"",
+		"dev:js": "tsdown --watch",
+		"dev:css": "tailwindcss -i ./app.css -o ./dist/app.css --watch=always",
+		"dev:www": "serve -l 3001 --no-port-switching",
+		"build": "tsdown && pnpm build:css",
+		"build:css": "tailwindcss -i ./app.css -o ./dist/app.css --minify",
+		"check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@packages/ui": "workspace:*"
+	},
+	"devDependencies": {
+		"@tailwindcss/cli": "^4.3.3",
+		"concurrently": "^10.0.4",
+		"serve": "^14.2.6",
+		"tailwindcss": "^4.3.3",
+		"tsdown": "^0.22.14",
+		"typescript": "^7.0.2"
+	}
+}
