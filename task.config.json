@@ -1,0 +1,32 @@
+{
+	"$schema": "https://getbizi.dev/schemas/task.config.json",
+	"tasks": {
+		"dev": {
+			"tasks": {
+				"lib": {
+					"color": "blue",
+					"command": "pnpm dev:lib"
+				},
+				"www": {
+					"color": "green",
+					"command": "pnpm dev:www"
+				}
+			}
+		},
+		"ci": {
+			"tasks": {
+				"format": {
+					"command": "pnpm format"
+				},
+				"lint": {
+					"command": "pnpm lint",
+					"dependsOn": ["ci:format"]
+				},
+				"check": {
+					"command": "pnpm check",
+					"dependsOn": ["ci:lint"]
+				}
+			}
+		}
+	}
+}

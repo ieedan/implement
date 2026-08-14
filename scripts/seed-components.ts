@@ -1,4 +1,4 @@
-import fs from 'node:fs'
+import fs from "node:fs";
 
 export const HTML_TAGS = [
 	"a",
@@ -119,11 +119,11 @@ let content = `// generated from ./scripts/seed-components.ts
 
 import { Component } from "./component";
 
-`
+`;
 
 for (const tag of HTML_TAGS) {
-    const newName = `${tag.slice(0, 1).toUpperCase()}${tag.slice(1)}`
-    content += `export class _${tag} extends Component<"${tag}"> {
+	const newName = `${tag.slice(0, 1).toUpperCase()}${tag.slice(1)}`;
+	content += `export class _${tag} extends Component<"${tag}"> {
     constructor(...components: Component<any>[]) {
         super("${tag}", ...components)
     }
@@ -133,7 +133,7 @@ export function ${newName}(...components: Component<any>[]) {
     return new _${tag}(...components);
 }
 
-`
+`;
 }
 
-fs.writeFileSync("./src/lib/components.ts", content)
+fs.writeFileSync("./src/lib/components.ts", content);
