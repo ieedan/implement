@@ -49,6 +49,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 
 	/** The last parent this element was mounted to */
 	protected parent: HTMLElement | null = null;
+	protected parentComponent: Component<any> | null = null;
 	element: HTMLElement | null = null;
 	protected children: Component<any>[];
 
@@ -57,6 +58,39 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		...children: Component<any>[]
 	) {
 		this.children = children;
+		for (const child of children) {
+			this.adopt(child);
+		}
+	}
+
+	protected adopt(child: Component<any>) {
+		child.parentComponent = this;
+	}
+
+	getFirstDomNode(): Node | null {
+		if (this.element) return this.element;
+		for (const child of this.children) {
+			const node = child.getFirstDomNode();
+			if (node) return node;
+		}
+		return null;
+	}
+
+	protected getInsertBeforeNode(): Node | null {
+		const parent = this.parentComponent;
+		if (!parent) return null;
+
+		const siblings = parent.children;
+		const index = siblings.indexOf(this);
+		if (index !== -1) {
+			for (let i = index + 1; i < siblings.length; i++) {
+				const node = siblings[i]!.getFirstDomNode();
+				if (node) return node;
+			}
+		}
+
+		if (parent.element) return null;
+		return parent.getInsertBeforeNode();
 	}
 
 	id(id: string): this;
@@ -218,7 +252,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		this.parent = parent;
 		const element = this.create();
 
-		this.parent.appendChild(element);
+		parent.insertBefore(element, this.getInsertBeforeNode());
 	}
 
 	unmount() {

@@ -3,6 +3,17 @@ import { Component } from "./component";
 import { subscribe, type Getter, type Readable, type Signal } from "./signal";
 import type { Unsubscribe } from "./types";
 
+function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | null) {
+	let cursor: Node | null = before;
+	for (let i = nodes.length - 1; i >= 0; i--) {
+		const node = nodes[i]!;
+		if (node.nextSibling !== cursor) {
+			parent.insertBefore(node, cursor);
+		}
+		cursor = node;
+	}
+}
+
 class _forEach<T> extends Component<"div"> {
 	private signal: Signal<T[]>;
 	private render: Getter<Component<any>, [Signal<[T, number]>]>;
@@ -14,11 +25,23 @@ class _forEach<T> extends Component<"div"> {
 		this.render = render;
 	}
 
+	override getFirstDomNode(): Node | null {
+		let first: { component: Component<any>; index: number } | null = null;
+		for (const entry of this.rendered.values()) {
+			if (!first || entry.index < first.index) first = entry;
+		}
+		return first?.component.getFirstDomNode() ?? null;
+	}
+
 	// we override mount so that we don't render anything. This is essentially a fragment
 	override mount(parent: HTMLElement) {
 		this.unsubscribe?.();
+		this.parent = parent;
+
 		this.unsubscribe = subscribe([this.signal], (value) => {
-			let mountedKeys = new Set<string>();
+			const mountedKeys = new Set<string>();
+			const ordered: Component<any>[] = [];
+
 			for (let i = 0; i < value.length; i++) {
 				const currentVal = value[i]!;
 				const child = this.render([currentVal, i]);
@@ -33,22 +56,25 @@ class _forEach<T> extends Component<"div"> {
 				mountedKeys.add(key);
 				const existing = this.rendered.get(key);
 				if (existing) {
-					// if the position and data has not changed then we know the component doesn't need to re-render
-					if (existing.index === i && equal(existing.value, currentVal)) {
+					if (equal(existing.value, currentVal)) {
+						if (existing.index !== i) {
+							this.rendered.set(key, {
+								component: existing.component,
+								index: i,
+								value: currentVal,
+							});
+						}
+						ordered.push(existing.component);
 						continue;
 					}
 
-					// otherwise we are going to replace the old
-					existing.component.create().replaceWith(child.create());
-					updateRendered();
-					continue;
+					existing.component.unmount();
 				}
 
-				// mount brand new it doesn't exist yet
-				// however we do need to maintain order so this is will interesting
-
+				this.adopt(child);
 				child.mount(parent);
 				updateRendered();
+				ordered.push(child);
 			}
 
 			for (const [key, { component }] of this.rendered.entries()) {
@@ -57,7 +83,23 @@ class _forEach<T> extends Component<"div"> {
 					this.rendered.delete(key);
 				}
 			}
+
+			syncDomOrder(
+				parent,
+				ordered.map((component) => component.create()),
+				this.getInsertBeforeNode(),
+			);
 		});
+	}
+
+	override unmount() {
+		this.unsubscribe?.();
+		this.unsubscribe = null;
+		for (const { component } of this.rendered.values()) {
+			component.unmount();
+		}
+		this.rendered.clear();
+		super.unmount();
 	}
 }
 
@@ -74,6 +116,7 @@ class _if extends Component<"div"> {
 	private signals: readonly Readable<any>[];
 	private getCondition: IfConditionGetter;
 	private unsubscribe: Unsubscribe | null = null;
+	private showing = false;
 
 	constructor(condition: boolean, ...children: Component<any>[]);
 	constructor(signal: Readable<boolean>, ...children: Component<any>[]);
@@ -114,15 +157,30 @@ class _if extends Component<"div"> {
 	// we override mount so that we don't render anything. This is essentially a fragment
 	override mount(parent: HTMLElement) {
 		this.unsubscribe?.();
+		this.children.forEach((child) => child.unmount());
+		this.showing = false;
+		this.parent = parent;
+
 		this.unsubscribe = subscribe(this.signals, (...values) => {
 			const value = this.getCondition(...values);
 
 			if (value) {
+				if (this.showing) return;
+				this.showing = true;
 				this.children.forEach((child) => child.mount(parent));
 			} else {
+				if (!this.showing) return;
+				this.showing = false;
 				this.children.forEach((child) => child.unmount());
 			}
 		});
+	}
+
+	override unmount() {
+		this.unsubscribe?.();
+		this.unsubscribe = null;
+		this.showing = false;
+		super.unmount();
 	}
 }
 
@@ -152,6 +210,7 @@ class _fragment extends Component<"div"> {
 
 	// we override mount here so that we don't actually create a component and we don't do any binding
 	override mount(parent: HTMLElement) {
+		this.parent = parent;
 		for (const child of this.children) {
 			child.mount(parent);
 		}
