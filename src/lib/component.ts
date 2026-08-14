@@ -1,4 +1,4 @@
-import { useSubscribe, type Getter, type Signal } from "./signal";
+import { useSubscribe, Signal, type Getter } from "./signal";
 import type { Unsubscribe } from "./types";
 
 export const HTML_TAGS = ["div", "button", "p"] as const;
@@ -148,15 +148,24 @@ export class Component<T extends keyof HTMLElementTagNameMap> {
 		return this;
 	}
 
+	renderIf(signal: Signal<boolean>): this;
 	renderIf<Signals extends readonly Signal<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<boolean, Signals>,
+	): this;
+	renderIf<Signals extends readonly Signal<any>[]>(
+		signalOrSignals: Signal<boolean> | readonly [...Signals],
+		getter?: Getter<boolean, Signals>,
 	): this {
+		if (signalOrSignals instanceof Signal) {
+			return this.renderIf([signalOrSignals], (value) => value);
+		}
+
 		const index = this.renderConditions.length;
 		this.renderConditions.push(false);
 		this.signalUnsubscribers.push(
-			useSubscribe(signals, (...values) => {
-				this.renderConditions[index] = getter(...values);
+			useSubscribe(signalOrSignals, (...values) => {
+				this.renderConditions[index] = getter!(...values);
 
 				if (this.shouldRender && this.isNotRendered) {
 					if (this.#parent) this.mount(this.#parent);

@@ -39,5 +39,5 @@ Div(
 
 Div()
 	.content("Hello there!")
-	.renderIf([dialogOpen], (dialogOpen) => dialogOpen)
+	.renderIf(dialogOpen)
 	.mount(root);
