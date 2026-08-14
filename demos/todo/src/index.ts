@@ -1,22 +1,28 @@
-import { Div, P, Input, Button, Form, ForEach, If, Derived, Signal } from "@packages/ui";
+import { Button, Derived, Div, ForEach, Form, If, Input, P, Signal } from "@packages/ui";
+import { Api, type Todo } from "./api";
 
+const api = new Api();
 const root = document.getElementById("root")!;
 
 const search = new Signal("");
-const items = new Signal<{ title: string; timestamp: number }[]>([
-	{ title: "Finish the app", timestamp: Date.now() },
-]);
+const items = new Signal<Todo[]>([]);
+
+void api.todos.list().then(({ data }) => {
+	if (data) items.set(data);
+});
 
 const totalText = new Derived(
 	[items],
 	(items) => `There are ${items.length} things you need to do.`,
 );
 
-function submit(e: SubmitEvent) {
+async function submit(e: SubmitEvent) {
 	e.preventDefault();
 	const title = search.get();
 	if (title === "") return;
-	items.push({ title, timestamp: Date.now() });
+	const { data } = await api.todos.create({ title });
+	if (!data) return;
+	items.push(data);
 	search.set("");
 }
 
@@ -31,15 +37,19 @@ Div(
 	If([items], (items) => items.length > 0, P().content(totalText)),
 
 	Div(
-		ForEach(items, ([item, i]) =>
+		ForEach(items, ([item]) =>
 			Div(
 				Button()
 					.type("button")
 					.content("Delete")
 					.classes("rounded border px-2 py-1")
-					.on("click", () => items.splice(i, 1)),
+					.on("click", async () => {
+						const { error } = await api.todos.delete({ id: item.id });
+						if (error) return;
+						items.set(items.get().filter((todo) => todo.id !== item.id));
+					}),
 			)
-				.key(i)
+				.key(item.id)
 				.classes("flex items-center gap-2")
 				.content(item.title),
 		),

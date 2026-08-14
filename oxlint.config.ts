@@ -13,10 +13,10 @@ export default defineConfig({
 		// Signal callbacks commonly reuse the signal name for the unwrapped value.
 		"no-shadow": "off",
 	},
-	ignorePatterns: ["dist/**"],
+	ignorePatterns: ["dist/**", "demos/todo/src/api/**"],
 	overrides: [
 		{
-			files: ["packages/ui/scripts/**/*.ts"],
+			files: ["packages/ui/scripts/**/*.ts", "demos/todo/server/**/*.ts"],
 			env: {
 				node: true,
 			},

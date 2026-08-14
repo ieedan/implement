@@ -10,6 +10,9 @@ pnpm-debug.log*
 node_modules/
 jspm_packages/
 
+# Generated API client
+demos/todo/src/api/
+
 # Build output
 dist/
 build/

@@ -9,9 +9,14 @@
 				},
 				"todo": {
 					"tasks": {
+						"generate": {
+							"color": "white",
+							"command": "pnpm --filter @demos/todo generate"
+						},
 						"js": {
 							"color": "cyan",
-							"command": "pnpm --filter @demos/todo dev:js"
+							"command": "pnpm --filter @demos/todo dev:js",
+							"dependsOn": ["dev:todo:generate"]
 						},
 						"css": {
 							"color": "magenta",
@@ -20,6 +25,10 @@
 						"www": {
 							"color": "green",
 							"command": "pnpm --filter @demos/todo dev:www"
+						},
+						"api": {
+							"color": "blue",
+							"command": "pnpm --filter @demos/todo dev:api"
 						}
 					}
 				},
