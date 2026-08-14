@@ -46,11 +46,11 @@ Div(
 	Button()
 		.type("button")
 		.content("Toggle Dialog")
-		.classes([dialogOpen], (dialogOpen) => (dialogOpen ? "dialog-open" : ""))
+		.className([dialogOpen], (dialogOpen) => (dialogOpen ? "dialog-open" : ""))
 		.on("click", () => {
 			dialogOpen.toggle();
 		}),
 )
 	.id("app")
-	.classes("bg-background")
+	.className("bg-background")
 	.mount(root);

@@ -30,6 +30,7 @@ export class _input extends Component<"input"> {
 	private typeValue: InputType | null = null;
 	private valueProp: string | null = null;
 	private checkedProp: boolean | null = null;
+	private placeholderValue: string | null = null;
 
 	constructor(...components: Mountable[]) {
 		super("input", ...components);
@@ -51,6 +52,26 @@ export class _input extends Component<"input"> {
 				this.setType();
 			},
 			typeOrSignals,
+			getter,
+		);
+	}
+
+	placeholder(placeholder: string): this;
+	placeholder(placeholder: Readable<string>): this;
+	placeholder<Signals extends readonly Readable<any>[]>(
+		signals: readonly [...Signals],
+		getter: Getter<string, Signals>,
+	): this;
+	placeholder<Signals extends readonly Readable<any>[]>(
+		placeholderOrSignals: string | Readable<string> | readonly [...Signals],
+		getter?: Getter<string, Signals>,
+	): this {
+		return this.bindProperty(
+			(placeholder) => {
+				this.placeholderValue = placeholder;
+				this.setPlaceholder();
+			},
+			placeholderOrSignals,
 			getter,
 		);
 	}
@@ -144,6 +165,7 @@ export class _input extends Component<"input"> {
 		this.setType();
 		this.setValue();
 		this.setChecked();
+		this.setPlaceholder();
 	}
 
 	private setType() {
@@ -161,6 +183,11 @@ export class _input extends Component<"input"> {
 		if (!this.element || this.checkedProp === null) return;
 		if (this.element.checked === this.checkedProp) return;
 		this.element.checked = this.checkedProp;
+	}
+
+	private setPlaceholder() {
+		if (!this.element || this.placeholderValue === null) return;
+		this.element.placeholder = this.placeholderValue;
 	}
 }
 

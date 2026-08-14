@@ -201,6 +201,13 @@ export class Signal<T> implements Writable<T> {
 	}
 }
 
+/** Writable that starts as `null`, for binding a component's element without an initial value. */
+export class Ref<T> extends Signal<T | null> {
+	constructor() {
+		super(null);
+	}
+}
+
 export class Derived<T, Signals extends readonly Signal<any>[]> implements Readable<T> {
 	private value: T;
 	private subscriberId: number = 0;

@@ -1,5 +1,12 @@
 import { MountNode, type Mountable } from "./mountable";
-import { subscribe, subscribeTracked, isReadable, type Getter, type Readable } from "./signal";
+import {
+	subscribe,
+	subscribeTracked,
+	isReadable,
+	type Getter,
+	type Readable,
+	type Writable,
+} from "./signal";
 import type { Unsubscribe } from "./types";
 
 export const HTML_TAGS = ["div", "button", "p"] as const;
@@ -47,6 +54,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 	protected eventUnsubscribers: Unsubscribe[] = [];
 
 	element: ElementOf<T> | null = null;
+	private boundRef: ((el: ElementOf<T> | null) => void) | null = null;
 
 	constructor(
 		readonly tag: T,
@@ -84,32 +92,44 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 		return this;
 	}
 
+	ref(ref: Writable<ElementOf<T> | null>): this;
+	ref(set: (el: ElementOf<T> | null) => void): this;
+	ref(refOrSet: Writable<ElementOf<T> | null> | ((el: ElementOf<T> | null) => void)): this {
+		this.boundRef = typeof refOrSet === "function" ? refOrSet : (el) => refOrSet.set(el);
+		this.syncRef();
+		return this;
+	}
+
+	private syncRef() {
+		this.boundRef?.(this.element);
+	}
+
 	private setId() {
 		if (!this.element || this.props.id === null) return;
 		this.element.id = this.props.id;
 	}
 
-	classes(classes: string): this;
-	classes(classes: Readable<string>): this;
-	classes<Signals extends readonly Readable<any>[]>(
+	className(className: string): this;
+	className(className: Readable<string>): this;
+	className<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<string, Signals>,
 	): this;
-	classes<Signals extends readonly Readable<any>[]>(
-		classesOrSignals: string | Readable<string> | readonly [...Signals],
+	className<Signals extends readonly Readable<any>[]>(
+		classNameOrSignals: string | Readable<string> | readonly [...Signals],
 		getter?: Getter<string, Signals>,
 	): this {
 		return this.bindProperty(
-			(classes) => {
-				this.props.class = classes;
-				this.setClasses();
+			(className) => {
+				this.props.class = className;
+				this.setClassName();
 			},
-			classesOrSignals,
+			classNameOrSignals,
 			getter,
 		);
 	}
 
-	private setClasses() {
+	private setClassName() {
 		if (!this.element || this.props.class === null) return;
 		this.element.className = this.props.class;
 	}
@@ -168,7 +188,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 
 	protected applyProps() {
 		this.setId();
-		this.setClasses();
+		this.setClassName();
 		this.setContent();
 		this.setHtml();
 	}
@@ -262,6 +282,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 		const element = this.create();
 
 		parent.insertBefore(element, this.getInsertBeforeNode());
+		this.syncRef();
 	}
 
 	unmount() {
@@ -273,5 +294,6 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 
 		this.element?.remove();
 		this.element = null;
+		this.syncRef();
 	}
 }

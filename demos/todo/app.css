@@ -3,3 +3,15 @@
 @source "./src";
 @source not "./src/api";
 @source "./index.html";
+
+html {
+	color-scheme: dark;
+}
+
+body {
+	@apply min-h-dvh bg-zinc-950 text-zinc-100 antialiased;
+}
+
+::selection {
+	@apply bg-zinc-700 text-zinc-50;
+}
