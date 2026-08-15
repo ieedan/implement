@@ -104,7 +104,9 @@ in for a real `Dynamic(signal, render)` / `Match` primitive.
 ## 7. If has no Else ✅ Done
 
 > Implemented: the API is now `If(cond).Then(...components).Else(...components)`
-> (children are no longer constructor args). `If` also accepts
+> (children are no longer constructor args), with
+> `.ElseIf(cond).Then(...components)` chains in between — the first branch whose
+> condition holds is mounted. `If`/`ElseIf` also accept
 > `boolean | Readable<unknown>` in one overload — a lone signal is checked for
 > truthiness, so `If(user)` covers the `user !== null` case — plus the
 > `[signals, getter]` form. A `Match`/`Switch` for enums is still open.

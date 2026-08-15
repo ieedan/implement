@@ -141,44 +141,63 @@ export function ForEach<T>(itemsOrSignal: readonly T[] | Readable<T[]>, render: 
 
 type IfConditionGetter = (...values: any[]) => boolean;
 
-class _if extends MountNode {
-	private signals: readonly Readable<any>[];
-	private getCondition: IfConditionGetter;
-	private unsubscribe: Unsubscribe | null = null;
-	private thenChildren: Mountable[] = [];
-	private elseChildren: Mountable[] = [];
-	private showing: "then" | "else" | null = null;
+type IfCondition = boolean | Readable<unknown> | readonly Readable<any>[];
 
-	constructor(
-		conditionOrSignalOrSignals: boolean | Readable<unknown> | readonly Readable<any>[],
-		getter?: IfConditionGetter,
-	) {
-		super();
+type IfBranch = {
+	signals: readonly Readable<any>[];
+	getCondition: IfConditionGetter;
+	children: Mountable[];
+};
 
-		if (typeof conditionOrSignalOrSignals === "boolean") {
-			this.signals = [];
-			this.getCondition = () => conditionOrSignalOrSignals;
-			return;
-		}
-
-		if (!Array.isArray(conditionOrSignalOrSignals)) {
-			this.signals = [conditionOrSignalOrSignals as Readable<unknown>];
-			this.getCondition = (value: unknown) => Boolean(value);
-			return;
-		}
-
-		this.signals = conditionOrSignalOrSignals;
-		this.getCondition = getter as IfConditionGetter;
+function toBranch(condition: IfCondition, getter?: IfConditionGetter): IfBranch {
+	if (typeof condition === "boolean") {
+		return { signals: [], getCondition: () => condition, children: [] };
 	}
 
-	/** Children mounted while the condition is true. */
+	if (!Array.isArray(condition)) {
+		return {
+			signals: [condition as Readable<unknown>],
+			getCondition: (value: unknown) => Boolean(value),
+			children: [],
+		};
+	}
+
+	return { signals: condition, getCondition: getter as IfConditionGetter, children: [] };
+}
+
+class _if extends MountNode {
+	private branches: IfBranch[];
+	private elseChildren: Mountable[] = [];
+	private unsubscribe: Unsubscribe | null = null;
+	private showing: number | "else" | null = null;
+
+	constructor(condition: IfCondition, getter?: IfConditionGetter) {
+		super();
+		this.branches = [toBranch(condition, getter)];
+	}
+
+	/** Children mounted while the preceding `If`/`ElseIf` condition is true. */
 	Then(...children: Mountable[]): this {
-		this.thenChildren = children;
+		this.branches[this.branches.length - 1]!.children = children;
 		this.syncChildren();
 		return this;
 	}
 
-	/** Children mounted while the condition is false. */
+	/**
+	 * Adds a branch checked when every preceding condition is false. Accepts
+	 * the same forms as `If`; chain `.Then(...)` to give it children.
+	 */
+	ElseIf(condition: boolean | Readable<unknown>): this;
+	ElseIf<Signals extends readonly Readable<any>[]>(
+		signals: readonly [...Signals],
+		getter: Getter<boolean, Signals>,
+	): this;
+	ElseIf(condition: IfCondition, getter?: IfConditionGetter): this {
+		this.branches.push(toBranch(condition, getter));
+		return this;
+	}
+
+	/** Children mounted while every condition is false. */
 	Else(...children: Mountable[]): this {
 		this.elseChildren = children;
 		this.syncChildren();
@@ -186,10 +205,14 @@ class _if extends MountNode {
 	}
 
 	private syncChildren() {
-		this.children = [...this.thenChildren, ...this.elseChildren];
+		this.children = [...this.branches.flatMap((branch) => branch.children), ...this.elseChildren];
 		for (const child of this.children) {
 			this.adopt(child);
 		}
+	}
+
+	private childrenFor(target: number | "else"): Mountable[] {
+		return target === "else" ? this.elseChildren : this.branches[target]!.children;
 	}
 
 	mount(parent: HTMLElement) {
@@ -198,16 +221,24 @@ class _if extends MountNode {
 		this.showing = null;
 		this.parent = parent;
 
-		this.unsubscribe = subscribe(this.signals, (...values) => {
-			const target = this.getCondition(...values) ? "then" : "else";
+		const signals = this.branches.flatMap((branch) => branch.signals);
+		this.unsubscribe = subscribe(signals, () => {
+			let target: number | "else" = "else";
+			for (let i = 0; i < this.branches.length; i++) {
+				const branch = this.branches[i]!;
+				if (branch.getCondition(...branch.signals.map((signal) => signal.get()))) {
+					target = i;
+					break;
+				}
+			}
 			if (this.showing === target) return;
 
-			if (this.showing === "then") this.thenChildren.forEach((child) => child.unmount());
-			if (this.showing === "else") this.elseChildren.forEach((child) => child.unmount());
+			if (this.showing !== null) {
+				this.childrenFor(this.showing).forEach((child) => child.unmount());
+			}
 
 			this.showing = target;
-			const branch = target === "then" ? this.thenChildren : this.elseChildren;
-			branch.forEach((child) => child.mount(parent));
+			this.childrenFor(target).forEach((child) => child.mount(parent));
 		});
 	}
 
@@ -222,20 +253,20 @@ class _if extends MountNode {
 /**
  * A signal passed on its own is checked for truthiness, so
  * `If(user)` is enough when the intent is `user !== null`.
+ *
+ * Branches chain: `If(a).Then(...).ElseIf(b).Then(...).Else(...)` mounts the
+ * first branch whose condition holds.
  */
 export function If(condition: boolean | Readable<unknown>): _if;
 export function If<Signals extends readonly Readable<any>[]>(
 	signals: readonly [...Signals],
 	getter: Getter<boolean, Signals>,
 ): _if;
-export function If(
-	conditionOrSignalOrSignals: boolean | Readable<unknown> | readonly Readable<any>[],
-	getter?: IfConditionGetter,
-) {
-	return new (_if as new (
-		conditionOrSignalOrSignals: boolean | Readable<unknown> | readonly Readable<any>[],
-		getter?: IfConditionGetter,
-	) => _if)(conditionOrSignalOrSignals, getter);
+export function If(condition: IfCondition, getter?: IfConditionGetter) {
+	return new (_if as new (condition: IfCondition, getter?: IfConditionGetter) => _if)(
+		condition,
+		getter,
+	);
 }
 
 class _fragment extends MountNode {
