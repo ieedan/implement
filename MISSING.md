@@ -80,7 +80,13 @@ Every app needs one. Tracker hand-rolls a hash router in ~25 lines
 but a first-class router with typed routes, a `Link` component (blocked on
 `href` support, see #1), and scroll/focus handling belongs in the framework.
 
-## 6. A way to re-render a subtree when data changes ("Switch"/keyed dynamic)
+## 6. A way to re-render a subtree when data changes ("Switch"/keyed dynamic) ✅ Done
+
+> Implemented as `Key(signal | [signals], (…values) => Mountable | null)` —
+> tears down and rebuilds the returned subtree whenever the watched signal(s)
+> change (`null` renders nothing). Tracker's `IssueDetailHost` now uses it
+> instead of the single-item ForEach hack. A `Match`/`Switch` sugar for enums
+> is still open (see #7).
 
 `If` mounts/unmounts pre-built children; `ForEach` is list-shaped. There is
 nothing for "render this function of a signal, rebuilding when it changes" —
@@ -113,7 +119,14 @@ a `Match`/`Switch` for enums like issue status — would remove a lot of noise.
 strings injected via `.html()` — no type safety, no per-part reactivity, and
 `innerHTML` re-parses on every change.
 
-## 9. Portals + floating positioning
+## 9. Portals + floating positioning — Portal ✅ Done
+
+> Implemented: `Portal(...children).To(target)` mounts children into `target`
+> (`document.body` when `.To()` is omitted) while keeping them in the logical
+> tree — context,
+> unmounting, and lifecycle hooks behave as if rendered in place. Tracker's
+> `Dialog` now portals to body, so it no longer depends on ancestor stacking
+> contexts. Collision-aware floating positioning for menus is still open.
 
 Dialogs and menus render in place. The modal works only because it can use
 `position: fixed` and nothing above it creates a stacking context — that's

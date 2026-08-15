@@ -247,6 +247,114 @@ export function Fragment(...children: Mountable[]) {
 	return new _fragment(...children);
 }
 
+class _portal extends MountNode {
+	private target: HTMLElement | null = null;
+
+	/** Sets the element the children mount into. Without it, `document.body`. */
+	To(target: HTMLElement): this {
+		this.target = target;
+		return this;
+	}
+
+	override getFirstDomNode(): Node | null {
+		// the portal's DOM lives in the target, so logical siblings must never
+		// use it as an insertion anchor
+		return null;
+	}
+
+	protected override getInsertBeforeNode(): Node | null {
+		// children append to the target; never anchor against the logical tree
+		return null;
+	}
+
+	mount(_parent: HTMLElement) {
+		const target = this.target ?? document.body;
+		this.parent = target;
+		for (const child of this.children) {
+			child.mount(target);
+		}
+	}
+}
+
+/**
+ * Mounts its children into another element — `Portal(...children).To(target)`,
+ * or `document.body` when no `.To()` is given — escaping ancestor
+ * stacking/overflow contexts. The children stay part of the logical tree, so
+ * context lookup and unmounting (e.g. from a wrapping `If`) behave as if they
+ * were rendered in place.
+ */
+export function Portal(...children: Mountable[]): _portal {
+	return new _portal(...children);
+}
+
+type KeyRender = (...values: any[]) => Mountable | null;
+
+class _key extends MountNode {
+	private signals: readonly Readable<any>[];
+	private render: KeyRender;
+	private unsubscribe: Unsubscribe | null = null;
+	private current: Mountable | null = null;
+
+	constructor(signalOrSignals: Readable<any> | readonly Readable<any>[], render: KeyRender) {
+		super();
+		this.signals = Array.isArray(signalOrSignals)
+			? signalOrSignals
+			: [signalOrSignals as Readable<any>];
+		this.render = render;
+	}
+
+	mount(parent: HTMLElement) {
+		this.unsubscribe?.();
+		this.current?.unmount();
+		this.current = null;
+		this.parent = parent;
+
+		this.unsubscribe = subscribe(this.signals, (...values) => {
+			this.current?.unmount();
+			const child = this.render(...values);
+			this.current = child;
+			this.children = child ? [child] : [];
+			if (child) {
+				this.adopt(child);
+				child.mount(parent);
+			}
+		});
+	}
+
+	override unmount() {
+		this.unsubscribe?.();
+		this.unsubscribe = null;
+		super.unmount();
+		this.current = null;
+		this.children = [];
+	}
+}
+
+/**
+ * Rebuilds its child from scratch whenever the watched signal(s) change —
+ * the render callback receives the current value(s) and returns the new
+ * subtree (or `null` to render nothing).
+ *
+ * ```ts
+ * Key(route, (route) => PageFor(route));
+ * Key([route, issues], (route, issues) => ...);
+ * ```
+ */
+export function Key<T>(signal: Readable<T>, render: (value: T) => Mountable | null): _key;
+export function Key<Signals extends readonly Readable<any>[]>(
+	signals: readonly [...Signals],
+	render: Getter<Mountable | null, Signals>,
+): _key;
+export function Key(
+	signalOrSignals: Readable<any> | readonly Readable<any>[],
+	render: KeyRender,
+): _key {
+	return new (_key as new (
+		signalOrSignals: Readable<any> | readonly Readable<any>[],
+		render: KeyRender,
+	) => _key)(signalOrSignals, render);
+}
+
 function toError(error: unknown): Error {
 	if (error instanceof Error) return error;
 	if (

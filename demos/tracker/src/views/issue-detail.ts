@@ -6,6 +6,7 @@ import {
 	ForEach,
 	If,
 	Input,
+	Key,
 	P,
 	Signal,
 	Span,
@@ -310,27 +311,19 @@ function IssueDetailView(issue: Issue) {
 			).className("flex min-w-0 flex-1 flex-col"),
 			PropertiesPanel(issue),
 		)
-			// the view is built from a snapshot, so the key includes every mutable
-			// field's fingerprint — any change gets a fresh child instead of a patch
-			.key(`${issue.id}:${issue.updatedAt}:${issue.commentCount}`)
 			.className("flex min-h-0 flex-1")
 	);
 }
 
 /**
- * Renders the detail view for the routed issue. Uses a single-item ForEach as
- * a "dynamic component" — the framework has no built-in way to re-render a
- * subtree when a signal's value changes shape.
+ * Renders the detail view for the routed issue. The view is built from a
+ * plain snapshot, so `Key` rebuilds it whenever the routed issue changes.
  */
 export function IssueDetailHost() {
-	const current = new Derived([route, issues], (route, issues): Issue[] => {
-		if (route.name !== "issue") return [];
-		const issue = issues.find((issue) => issue.id === route.id);
-		return issue ? [issue] : [];
+	const current = new Derived([route, issues], (route, issues): Issue | null => {
+		if (route.name !== "issue") return null;
+		return issues.find((issue) => issue.id === route.id) ?? null;
 	});
 
-	return ForEach(current, (entry) => {
-		const [issue] = entry.get();
-		return IssueDetailView(issue);
-	});
+	return Key(current, (issue) => (issue ? IssueDetailView(issue) : null));
 }
