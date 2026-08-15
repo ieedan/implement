@@ -27,6 +27,27 @@ export abstract class MountNode implements Mountable {
 		}
 	}
 
+	/** True when this node provides a value for `key`. */
+	protected hasContext(_key: symbol): boolean {
+		return false;
+	}
+
+	protected getProvidedContext(_key: symbol): unknown {
+		return undefined;
+	}
+
+	/** Walk ancestors for a matching `Provide`. Does not include this node. */
+	protected lookupProvided(key: symbol): { found: true; value: unknown } | { found: false } {
+		let node: MountNode | null = this.parentNode;
+		while (node) {
+			if (node.hasContext(key)) {
+				return { found: true, value: node.getProvidedContext(key) };
+			}
+			node = node.parentNode;
+		}
+		return { found: false };
+	}
+
 	/** Real DOM element owned by this node, if any. Fragments leave this null. */
 	protected getHostElement(): HTMLElement | null {
 		return null;

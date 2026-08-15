@@ -1,6 +1,7 @@
 import {
 	Await,
 	Button,
+	Context,
 	Derived,
 	Div,
 	ForEach,
@@ -36,6 +37,35 @@ async function submit(e: SubmitEvent) {
 	if (!data) return;
 	items.push(data);
 	search.set("");
+}
+
+const Todos = new Context<Signal<Todo[]>>();
+
+export function ItemList() {
+	return Todos.Use((items) =>
+		Div(
+			ForEach(items, ([item]) =>
+				Div(
+					Span().content(item.title).className("min-w-0 flex-1 text-sm text-zinc-200"),
+					Button()
+						.type("button")
+						.content("Delete")
+						.className(
+							"rounded-md px-2 py-1 text-sm text-zinc-500 transition-colors duration-150 ease-out hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50",
+						)
+						.on("click", async () => {
+							const { error } = await api.todos.delete({ id: item.id });
+							if (error) return;
+							items.set(items.get().filter((todo) => todo.id !== item.id));
+						}),
+				)
+					.key(item.id)
+					.className("flex items-center gap-3 py-3"),
+			),
+		)
+			.id("list")
+			.className("flex flex-col divide-y divide-zinc-800/80"),
+	);
 }
 
 Div(
@@ -77,28 +107,7 @@ Div(
 		.Then((todos) => {
 			items.set(todos.get());
 			ready.set(true);
-			return Div(
-				ForEach(items, ([item]) =>
-					Div(
-						Span().content(item.title).className("min-w-0 flex-1 text-sm text-zinc-200"),
-						Button()
-							.type("button")
-							.content("Delete")
-							.className(
-								"rounded-md px-2 py-1 text-sm text-zinc-500 transition-colors duration-150 ease-out hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50",
-							)
-							.on("click", async () => {
-								const { error } = await api.todos.delete({ id: item.id });
-								if (error) return;
-								items.set(items.get().filter((todo) => todo.id !== item.id));
-							}),
-					)
-						.key(item.id)
-						.className("flex items-center gap-3 py-3"),
-				),
-			)
-				.id("list")
-				.className("flex flex-col divide-y divide-zinc-800/80");
+			return Todos.Provide(items).To(ItemList());
 		})
 		.Catch((error) => P().content(error.message).className("text-sm text-red-400")),
 )
