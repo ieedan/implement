@@ -105,8 +105,9 @@ in for a real `Dynamic(signal, render)` / `Match` primitive.
 
 > Implemented: the API is now `If(cond).Then(...components).Else(...components)`
 > (children are no longer constructor args). `If` also accepts
-> `boolean | Readable<boolean>` in one overload, plus the `[signals, getter]`
-> form. A `Match`/`Switch` for enums is still open.
+> `boolean | Readable<unknown>` in one overload — a lone signal is checked for
+> truthiness, so `If(user)` covers the `user !== null` case — plus the
+> `[signals, getter]` form. A `Match`/`Switch` for enums is still open.
 
 Binary states need two `If` nodes with inverted conditions (double
 subscription, easy to let them drift). `If(cond, ...).Else(...)` — and ideally

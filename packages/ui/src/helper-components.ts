@@ -150,7 +150,7 @@ class _if extends MountNode {
 	private showing: "then" | "else" | null = null;
 
 	constructor(
-		conditionOrSignalOrSignals: boolean | Readable<boolean> | readonly Readable<any>[],
+		conditionOrSignalOrSignals: boolean | Readable<unknown> | readonly Readable<any>[],
 		getter?: IfConditionGetter,
 	) {
 		super();
@@ -162,8 +162,8 @@ class _if extends MountNode {
 		}
 
 		if (!Array.isArray(conditionOrSignalOrSignals)) {
-			this.signals = [conditionOrSignalOrSignals as Readable<boolean>];
-			this.getCondition = (value: boolean) => value;
+			this.signals = [conditionOrSignalOrSignals as Readable<unknown>];
+			this.getCondition = (value: unknown) => Boolean(value);
 			return;
 		}
 
@@ -219,17 +219,21 @@ class _if extends MountNode {
 	}
 }
 
-export function If(condition: boolean | Readable<boolean>): _if;
+/**
+ * A signal passed on its own is checked for truthiness, so
+ * `If(user)` is enough when the intent is `user !== null`.
+ */
+export function If(condition: boolean | Readable<unknown>): _if;
 export function If<Signals extends readonly Readable<any>[]>(
 	signals: readonly [...Signals],
 	getter: Getter<boolean, Signals>,
 ): _if;
 export function If(
-	conditionOrSignalOrSignals: boolean | Readable<boolean> | readonly Readable<any>[],
+	conditionOrSignalOrSignals: boolean | Readable<unknown> | readonly Readable<any>[],
 	getter?: IfConditionGetter,
 ) {
 	return new (_if as new (
-		conditionOrSignalOrSignals: boolean | Readable<boolean> | readonly Readable<any>[],
+		conditionOrSignalOrSignals: boolean | Readable<unknown> | readonly Readable<any>[],
 		getter?: IfConditionGetter,
 	) => _if)(conditionOrSignalOrSignals, getter);
 }
