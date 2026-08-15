@@ -3,6 +3,16 @@ import type { Unsubscribe } from "./types";
 
 export type Callback<T> = (value: T) => void;
 
+/** True when `next` should replace `prev` and notify subscribers. */
+function hasChanged<T>(prev: T, next: T): boolean {
+	if (prev === next) return false;
+	// fast-deep-equal treats Map/Set as empty objects, so a new collection is always a change
+	if (prev instanceof Map || prev instanceof Set || next instanceof Map || next instanceof Set) {
+		return true;
+	}
+	return !equal(prev, next);
+}
+
 export type Getter<T, Signals extends readonly Readable<any>[]> = (
 	...values: SignalValues<Signals>
 ) => T;
@@ -127,23 +137,25 @@ export class Signal<T> implements Writable<T> {
 	}
 
 	set(value: T) {
-		// keep an eye on this one I have a feeling it's gonna fuck us later
-		const changed = this.value !== value || equal(this.value, value);
-		if (!changed) return;
+		if (!hasChanged(this.value, value)) return;
 		this.value = value;
 		this.notify(value);
 	}
 
+	update(fn: (current: T) => T) {
+		this.set(fn(this.get()));
+	}
+
 	toggle(this: Signal<boolean>) {
-		this.set(!this.get());
+		this.update((value) => !value);
 	}
 
 	increment(this: Signal<number>, step = 1) {
-		this.set(this.get() + step);
+		this.update((value) => value + step);
 	}
 
 	decrement(this: Signal<number>, step = 1) {
-		this.set(this.get() - step);
+		this.update((value) => value - step);
 	}
 
 	push<Item>(this: Signal<Item[]>, ...items: Item[]): number {
@@ -208,7 +220,7 @@ export class Ref<T> extends Signal<T | null> {
 	}
 }
 
-export class Derived<T, Signals extends readonly Signal<any>[]> implements Readable<T> {
+export class Derived<T, Signals extends readonly Readable<any>[]> implements Readable<T> {
 	private value: T;
 	private subscriberId: number = 0;
 	private subscribers: Map<number, Callback<T>> = new Map();
@@ -217,7 +229,7 @@ export class Derived<T, Signals extends readonly Signal<any>[]> implements Reada
 		this.value = getter(...(signals.map((signal) => signal.get()) as SignalValues<Signals>));
 		subscribe(signals, (...values) => {
 			const next = getter(...values);
-			if (this.value === next) return;
+			if (!hasChanged(this.value, next)) return;
 			this.value = next;
 			this.notify(next);
 		});

@@ -29,6 +29,23 @@ type Handler = {
 	handler: EventListener;
 };
 
+/** String-valued, writable CSS properties (drops methods, `length`, `parentRule`, …). */
+type StyleProperty = {
+	[K in keyof CSSStyleDeclaration]: CSSStyleDeclaration[K] extends string
+		? K extends string
+			? K
+			: never
+		: never;
+}[keyof CSSStyleDeclaration];
+
+/**
+ * Inline styles keyed by camelCase CSS property (or a `--custom` property).
+ * Pass a Readable value to keep that property reactive.
+ */
+export type Styles = { [K in StyleProperty]?: string | Readable<string> } & {
+	[custom: `--${string}`]: string | Readable<string> | undefined;
+};
+
 type Props = {
 	id: string | null;
 	class: string | null;
@@ -47,6 +64,15 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 	};
 
 	private contentKind: "text" | "html" | null = null;
+	private styles: Map<string, string> = new Map();
+
+	private beforeMountCallbacks: Array<() => void> = [];
+	private afterMountCallbacks: Array<(el: ElementOf<T>) => void> = [];
+	private beforeUnmountCallbacks: Array<(el: ElementOf<T>) => void> = [];
+	private afterUnmountCallbacks: Array<() => void> = [];
+
+	/** Children are mounted once per create cycle, after the host element is inserted. */
+	private childrenPending = false;
 
 	protected handlers: Handler[] = [];
 	protected pendingSubscriptions: Array<() => Unsubscribe> = [];
@@ -134,6 +160,43 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 		this.element.className = this.props.class;
 	}
 
+	/**
+	 * Inline styles as an object of typed CSS properties. Values can be plain
+	 * strings or Readables for reactive styles. Repeated calls merge.
+	 *
+	 * ```ts
+	 * Span().style({ backgroundColor: label.color, "--depth": depthSignal });
+	 * ```
+	 */
+	style(styles: Styles): this {
+		for (const [property, value] of Object.entries(styles)) {
+			if (value === undefined) continue;
+			this.bindProperty<string, readonly Readable<any>[]>((resolved) => {
+				this.styles.set(property, resolved);
+				this.setStyle(property);
+			}, value);
+		}
+		return this;
+	}
+
+	private setStyle(property: string) {
+		if (!this.element) return;
+		const value = this.styles.get(property);
+		if (value === undefined) return;
+		// custom properties and kebab-case need setProperty; camelCase is a direct assignment
+		if (property.includes("-")) {
+			this.element.style.setProperty(property, value);
+		} else {
+			(this.element.style as unknown as Record<string, string>)[property] = value;
+		}
+	}
+
+	private setStyles() {
+		for (const property of this.styles.keys()) {
+			this.setStyle(property);
+		}
+	}
+
 	content(content: string): this;
 	content(content: Readable<string>): this;
 	content<Signals extends readonly Readable<any>[]>(
@@ -178,7 +241,7 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 
 	private setContent() {
 		if (!this.element || this.contentKind !== "text") return;
-		this.element.innerText = this.props.content ?? "";
+		this.element.textContent = this.props.content ?? "";
 	}
 
 	private setHtml() {
@@ -191,6 +254,31 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 		this.setClassName();
 		this.setContent();
 		this.setHtml();
+		this.setStyles();
+	}
+
+	/** Runs before the element is created and inserted, once per mount cycle. */
+	beforeMount(callback: () => void): this {
+		this.beforeMountCallbacks.push(callback);
+		return this;
+	}
+
+	/** Runs after the element is inserted into its parent, once per mount cycle. */
+	afterMount(callback: (el: ElementOf<T>) => void): this {
+		this.afterMountCallbacks.push(callback);
+		return this;
+	}
+
+	/** Runs before the element is removed, while it is still in the DOM. */
+	beforeUnmount(callback: (el: ElementOf<T>) => void): this {
+		this.beforeUnmountCallbacks.push(callback);
+		return this;
+	}
+
+	/** Runs after the element has been removed and cleaned up. */
+	afterUnmount(callback: () => void): this {
+		this.afterUnmountCallbacks.push(callback);
+		return this;
 	}
 
 	on<E extends keyof HTMLElementEventMap>(
@@ -270,22 +358,42 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 			);
 		}
 
-		for (const child of this.children) {
-			child.mount(this.element);
-		}
+		// children mount in mount(), after the element is inserted, so nested
+		// afterMount hooks fire while their element is attached
+		this.childrenPending = true;
 
 		return this.element;
 	}
 
 	mount(parent: HTMLElement) {
 		this.parent = parent;
-		const element = this.create();
+		const creating = !this.element;
+		if (creating) {
+			for (const callback of this.beforeMountCallbacks) callback();
+		}
 
+		const element = this.create();
 		parent.insertBefore(element, this.getInsertBeforeNode());
+
+		if (this.childrenPending) {
+			this.childrenPending = false;
+			for (const child of this.children) {
+				child.mount(element);
+			}
+		}
+
 		this.syncRef();
+		if (creating) {
+			for (const callback of this.afterMountCallbacks) callback(element);
+		}
 	}
 
 	unmount() {
+		const element = this.element;
+		if (element) {
+			for (const callback of this.beforeUnmountCallbacks) callback(element);
+		}
+
 		this.disconnectSignals();
 		this.eventUnsubscribers.forEach((unsubscribe) => unsubscribe());
 		this.eventUnsubscribers = [];
@@ -295,5 +403,9 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 		this.element?.remove();
 		this.element = null;
 		this.syncRef();
+
+		if (element) {
+			for (const callback of this.afterUnmountCallbacks) callback();
+		}
 	}
 }

@@ -837,15 +837,7 @@ export function Section(...components: Mountable[]) {
 	return new _section(...components);
 }
 
-export class _select extends Component<"select"> {
-	constructor(...components: Mountable[]) {
-		super("select", ...components);
-	}
-}
-
-export function Select(...components: Mountable[]) {
-	return new _select(...components);
-}
+export { _select, Select } from "./select";
 
 export class _slot extends Component<"slot"> {
 	constructor(...components: Mountable[]) {
@@ -977,15 +969,7 @@ export function Template(...components: Mountable[]) {
 	return new _template(...components);
 }
 
-export class _textarea extends Component<"textarea"> {
-	constructor(...components: Mountable[]) {
-		super("textarea", ...components);
-	}
-}
-
-export function Textarea(...components: Mountable[]) {
-	return new _textarea(...components);
-}
+export { _textarea, Textarea } from "./textarea";
 
 export class _tfoot extends Component<"tfoot"> {
 	constructor(...components: Mountable[]) {

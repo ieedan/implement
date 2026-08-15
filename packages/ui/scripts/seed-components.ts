@@ -118,6 +118,8 @@ export const HTML_TAGS = [
 const CUSTOM_COMPONENTS: Record<string, string> = {
 	button: `export { _button, Button } from "./button";\n\n`,
 	input: `export { _input, Input } from "./input";\n\n`,
+	select: `export { _select, Select } from "./select";\n\n`,
+	textarea: `export { _textarea, Textarea } from "./textarea";\n\n`,
 };
 
 let content = `// generated from ./scripts/seed-components.ts

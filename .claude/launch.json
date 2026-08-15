@@ -1,0 +1,31 @@
+{
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "tracker",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["--filter", "@demos/tracker", "dev"],
+			"port": 3001
+		},
+		{
+			"name": "todo",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["--filter", "@demos/todo", "dev"],
+			"port": 3000
+		},
+		{
+			"name": "tracker-static",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": [
+				"--filter",
+				"@demos/tracker",
+				"exec",
+				"serve",
+				"-l",
+				"3005",
+				"--no-port-switching"
+			],
+			"port": 3005
+		}
+	]
+}

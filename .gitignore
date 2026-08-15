@@ -11,7 +11,12 @@ node_modules/
 jspm_packages/
 
 # Generated API client
-demos/todo/src/api/
+demos/*/src/api/
+
+# Local SQLite databases
+*.db
+*.db-shm
+*.db-wal
 
 # Build output
 dist/

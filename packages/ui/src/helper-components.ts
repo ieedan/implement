@@ -22,14 +22,22 @@ function getKey(child: Mountable, index: number): string {
 	return index.toString();
 }
 
-type ForEachRender<T> = Getter<Mountable, [Signal<[T, number]>]>;
+/** Receives a live `[item, index]` entry that ForEach patches in place on later updates. */
+type ForEachRender<T> = (entry: Readable<[T, number]>) => Mountable;
+
+type RenderedEntry<T> = {
+	child: Mountable;
+	entry: Signal<[T, number]>;
+	value: T;
+	index: number;
+};
 
 class _forEach<T> extends MountNode {
 	private signals: readonly Readable<any>[];
 	private getItems: (...values: any[]) => readonly T[];
 	private render: ForEachRender<T>;
 	private unsubscribe: Unsubscribe | null = null;
-	private rendered: Map<string, { child: Mountable; value: T; index: number }> = new Map();
+	private rendered: Map<string, RenderedEntry<T>> = new Map();
 
 	constructor(items: readonly T[], render: ForEachRender<T>);
 	constructor(signal: Readable<T[]>, render: ForEachRender<T>);
@@ -66,9 +74,11 @@ class _forEach<T> extends MountNode {
 
 			for (let i = 0; i < value.length; i++) {
 				const currentVal = value[i]!;
-				const child = this.render([currentVal, i]);
-
-				const updateRendered = () => this.rendered.set(key, { child, index: i, value: currentVal });
+				// render with a fresh entry signal to learn the child's key; if the
+				// key is already mounted the fresh child is discarded and the
+				// existing child's entry signal is patched instead
+				const entry = new Signal<[T, number]>([currentVal, i]);
+				const child = this.render(entry);
 
 				const key = getKey(child, i);
 				if (mountedKeys.has(key)) {
@@ -77,24 +87,18 @@ class _forEach<T> extends MountNode {
 				mountedKeys.add(key);
 				const existing = this.rendered.get(key);
 				if (existing) {
-					if (equal(existing.value, currentVal)) {
-						if (existing.index !== i) {
-							this.rendered.set(key, {
-								child: existing.child,
-								index: i,
-								value: currentVal,
-							});
-						}
-						ordered.push(existing.child);
-						continue;
+					if (!equal(existing.value, currentVal) || existing.index !== i) {
+						existing.value = currentVal;
+						existing.index = i;
+						existing.entry.set([currentVal, i]);
 					}
-
-					existing.child.unmount();
+					ordered.push(existing.child);
+					continue;
 				}
 
 				this.adopt(child);
 				child.mount(parent);
-				updateRendered();
+				this.rendered.set(key, { child, entry, index: i, value: currentVal });
 				ordered.push(child);
 			}
 
@@ -141,27 +145,15 @@ class _if extends MountNode {
 	private signals: readonly Readable<any>[];
 	private getCondition: IfConditionGetter;
 	private unsubscribe: Unsubscribe | null = null;
-	private showing = false;
+	private thenChildren: Mountable[] = [];
+	private elseChildren: Mountable[] = [];
+	private showing: "then" | "else" | null = null;
 
-	constructor(condition: boolean, ...children: Mountable[]);
-	constructor(signal: Readable<boolean>, ...children: Mountable[]);
-	constructor(
-		signals: readonly Readable<any>[],
-		getter: IfConditionGetter,
-		...children: Mountable[]
-	);
 	constructor(
 		conditionOrSignalOrSignals: boolean | Readable<boolean> | readonly Readable<any>[],
-		getterOrFirstChild?: IfConditionGetter | Mountable,
-		...restChildren: Mountable[]
+		getter?: IfConditionGetter,
 	) {
-		const children = Array.isArray(conditionOrSignalOrSignals)
-			? restChildren
-			: getterOrFirstChild != null
-				? [getterOrFirstChild as Mountable, ...restChildren]
-				: restChildren;
-
-		super(...children);
+		super();
 
 		if (typeof conditionOrSignalOrSignals === "boolean") {
 			this.signals = [];
@@ -176,55 +168,70 @@ class _if extends MountNode {
 		}
 
 		this.signals = conditionOrSignalOrSignals;
-		this.getCondition = getterOrFirstChild as IfConditionGetter;
+		this.getCondition = getter as IfConditionGetter;
+	}
+
+	/** Children mounted while the condition is true. */
+	Then(...children: Mountable[]): this {
+		this.thenChildren = children;
+		this.syncChildren();
+		return this;
+	}
+
+	/** Children mounted while the condition is false. */
+	Else(...children: Mountable[]): this {
+		this.elseChildren = children;
+		this.syncChildren();
+		return this;
+	}
+
+	private syncChildren() {
+		this.children = [...this.thenChildren, ...this.elseChildren];
+		for (const child of this.children) {
+			this.adopt(child);
+		}
 	}
 
 	mount(parent: HTMLElement) {
 		this.unsubscribe?.();
 		this.children.forEach((child) => child.unmount());
-		this.showing = false;
+		this.showing = null;
 		this.parent = parent;
 
 		this.unsubscribe = subscribe(this.signals, (...values) => {
-			const value = this.getCondition(...values);
+			const target = this.getCondition(...values) ? "then" : "else";
+			if (this.showing === target) return;
 
-			if (value) {
-				if (this.showing) return;
-				this.showing = true;
-				this.children.forEach((child) => child.mount(parent));
-			} else {
-				if (!this.showing) return;
-				this.showing = false;
-				this.children.forEach((child) => child.unmount());
-			}
+			if (this.showing === "then") this.thenChildren.forEach((child) => child.unmount());
+			if (this.showing === "else") this.elseChildren.forEach((child) => child.unmount());
+
+			this.showing = target;
+			const branch = target === "then" ? this.thenChildren : this.elseChildren;
+			branch.forEach((child) => child.mount(parent));
 		});
 	}
 
 	override unmount() {
 		this.unsubscribe?.();
 		this.unsubscribe = null;
-		this.showing = false;
+		this.showing = null;
 		super.unmount();
 	}
 }
 
-export function If(condition: boolean, ...children: Mountable[]): _if;
-export function If(signal: Readable<boolean>, ...children: Mountable[]): _if;
+export function If(condition: boolean | Readable<boolean>): _if;
 export function If<Signals extends readonly Readable<any>[]>(
 	signals: readonly [...Signals],
 	getter: Getter<boolean, Signals>,
-	...children: Mountable[]
 ): _if;
 export function If(
 	conditionOrSignalOrSignals: boolean | Readable<boolean> | readonly Readable<any>[],
-	getterOrFirstChild?: IfConditionGetter | Mountable,
-	...restChildren: Mountable[]
+	getter?: IfConditionGetter,
 ) {
 	return new (_if as new (
 		conditionOrSignalOrSignals: boolean | Readable<boolean> | readonly Readable<any>[],
-		getterOrFirstChild?: IfConditionGetter | Mountable,
-		...restChildren: Mountable[]
-	) => _if)(conditionOrSignalOrSignals, getterOrFirstChild, ...restChildren);
+		getter?: IfConditionGetter,
+	) => _if)(conditionOrSignalOrSignals, getter);
 }
 
 class _fragment extends MountNode {

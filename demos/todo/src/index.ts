@@ -44,9 +44,12 @@ const Todos = new Context<Signal<Todo[]>>();
 export function ItemList() {
 	return Todos.Use((items) =>
 		Div(
-			ForEach(items, ([item]) =>
-				Div(
-					Span().content(item.title).className("min-w-0 flex-1 text-sm text-zinc-200"),
+			ForEach(items, (entry) => {
+				const [item] = entry.get();
+				return Div(
+					Span()
+						.content([entry], ([item]) => item.title)
+						.className("min-w-0 flex-1 text-sm text-zinc-200"),
 					Button()
 						.type("button")
 						.content("Delete")
@@ -56,12 +59,12 @@ export function ItemList() {
 						.on("click", async () => {
 							const { error } = await api.todos.delete({ id: item.id });
 							if (error) return;
-							items.set(items.get().filter((todo) => todo.id !== item.id));
+							items.update((todos) => todos.filter((todo) => todo.id !== item.id));
 						}),
 				)
 					.key(item.id)
-					.className("flex items-center gap-3 py-3"),
-			),
+					.className("flex items-center gap-3 py-3");
+			}),
 		)
 			.id("list")
 			.className("flex flex-col divide-y divide-zinc-800/80"),
