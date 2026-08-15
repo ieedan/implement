@@ -269,6 +269,138 @@ export function If(condition: IfCondition, getter?: IfConditionGetter) {
 	);
 }
 
+type SwitchSubjectGetter = (...values: any[]) => unknown;
+
+type SwitchCase = {
+	value: unknown;
+	children: Mountable[];
+};
+
+class _switch<T, Remaining extends T = T> extends MountNode {
+	// type-only field pinning `Remaining` covariant so `Exhaustive`'s
+	// `this: _switch<T, never>` constraint actually rejects unhandled members
+	declare private __remaining: Remaining;
+	private signals: readonly Readable<any>[];
+	private getSubject: SwitchSubjectGetter;
+	private cases: SwitchCase[] = [];
+	private defaultChildren: Mountable[] = [];
+	private unsubscribe: Unsubscribe | null = null;
+	private showing: number | "default" | null = null;
+
+	constructor(
+		signalOrSignals: Readable<T> | readonly Readable<any>[],
+		getter?: SwitchSubjectGetter,
+	) {
+		super();
+
+		if (!Array.isArray(signalOrSignals)) {
+			this.signals = [signalOrSignals as Readable<T>];
+			this.getSubject = (value: unknown) => value;
+			return;
+		}
+
+		this.signals = signalOrSignals;
+		this.getSubject = getter as SwitchSubjectGetter;
+	}
+
+	/**
+	 * Children mounted while the subject deep-equals `value`. Each `Case`
+	 * narrows the remaining union, so handled members stop being offered
+	 * (and duplicates are type errors).
+	 */
+	Case<V extends Remaining>(value: V, ...children: Mountable[]): _switch<T, Exclude<Remaining, V>> {
+		this.cases.push({ value, children });
+		this.syncChildren();
+		return this as _switch<T, Exclude<Remaining, V>>;
+	}
+
+	/** Children mounted while no case matches. */
+	Default(...children: Mountable[]): this {
+		this.defaultChildren = children;
+		this.syncChildren();
+		return this;
+	}
+
+	/**
+	 * Compile-time assertion that every member of the subject's union has a
+	 * `Case`. Only callable once the remaining union is empty.
+	 */
+	Exhaustive(this: _switch<T, never>): _switch<T, never> {
+		return this;
+	}
+
+	private syncChildren() {
+		this.children = [...this.cases.flatMap((c) => c.children), ...this.defaultChildren];
+		for (const child of this.children) {
+			this.adopt(child);
+		}
+	}
+
+	private childrenFor(target: number | "default"): Mountable[] {
+		return target === "default" ? this.defaultChildren : this.cases[target]!.children;
+	}
+
+	mount(parent: HTMLElement) {
+		this.unsubscribe?.();
+		this.children.forEach((child) => child.unmount());
+		this.showing = null;
+		this.parent = parent;
+
+		this.unsubscribe = subscribe(this.signals, (...values) => {
+			const subject = this.getSubject(...values);
+			let target: number | "default" = "default";
+			for (let i = 0; i < this.cases.length; i++) {
+				if (equal(subject, this.cases[i]!.value)) {
+					target = i;
+					break;
+				}
+			}
+			if (this.showing === target) return;
+
+			if (this.showing !== null) {
+				this.childrenFor(this.showing).forEach((child) => child.unmount());
+			}
+
+			this.showing = target;
+			this.childrenFor(target).forEach((child) => child.mount(parent));
+		});
+	}
+
+	override unmount() {
+		this.unsubscribe?.();
+		this.unsubscribe = null;
+		this.showing = null;
+		super.unmount();
+	}
+}
+
+/**
+ * Mounts the first `Case` whose value deep-equals the subject, falling back
+ * to `Default` children. Conditions live in `If`/`ElseIf`; `Switch` matches
+ * values.
+ *
+ * ```ts
+ * Switch(status)
+ * 	.Case("todo", Icon("circle"))
+ * 	.Case("done", Icon("check"))
+ * 	.Default(Icon("question"));
+ * ```
+ */
+export function Switch<T>(signal: Readable<T>): _switch<T>;
+export function Switch<T, Signals extends readonly Readable<any>[]>(
+	signals: readonly [...Signals],
+	getter: Getter<T, Signals>,
+): _switch<T>;
+export function Switch<T>(
+	signalOrSignals: Readable<T> | readonly Readable<any>[],
+	getter?: SwitchSubjectGetter,
+): _switch<T> {
+	return new (_switch as new (
+		signalOrSignals: Readable<T> | readonly Readable<any>[],
+		getter?: SwitchSubjectGetter,
+	) => _switch<T>)(signalOrSignals, getter);
+}
+
 class _fragment extends MountNode {
 	mount(parent: HTMLElement) {
 		this.parent = parent;

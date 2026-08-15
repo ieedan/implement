@@ -109,7 +109,11 @@ in for a real `Dynamic(signal, render)` / `Match` primitive.
 > condition holds is mounted. `If`/`ElseIf` also accept
 > `boolean | Readable<unknown>` in one overload — a lone signal is checked for
 > truthiness, so `If(user)` covers the `user !== null` case — plus the
-> `[signals, getter]` form. A `Match`/`Switch` for enums is still open.
+> `[signals, getter]` form. For enums there is now
+> `Switch(subject).Case(value, ...components).Default(...components)` — cases
+> match by deep equality, each `Case` narrows the remaining union (duplicates
+> are type errors), and a terminal `.Exhaustive()` fails to compile until every
+> member of the union has a case.
 
 Binary states need two `If` nodes with inverted conditions (double
 subscription, easy to let them drift). `If(cond, ...).Else(...)` — and ideally
