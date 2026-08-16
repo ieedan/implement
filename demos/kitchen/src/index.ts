@@ -1,4 +1,4 @@
-import { Div, P, Input, Button, Derived, Signal, watch } from "@packages/ui";
+import { Div, P, Input, Button, Derived, Signal, Switch, watch } from "@packages/ui";
 
 const root = document.getElementById("root")!;
 
@@ -8,6 +8,12 @@ const dialogOpen = new Signal(false);
 const subscribed = new Signal(false);
 
 const greeting = new Derived([input], (name) => `Hello ${name}, nice to meet you!`);
+
+const clickLevel = new Derived([count], (count): "idle" | "warming" | "cooking" => {
+	if (count === 0) return "idle";
+	if (count < 5) return "warming";
+	return "cooking";
+});
 
 watch([count], (count) => {
 	if (count > 10) {
@@ -25,6 +31,11 @@ Div(
 			count.increment();
 		}),
 	P().content([count], (count) => `Clicked ${count} times!`),
+	Switch(clickLevel)
+		.Case("idle", P().content("No clicks yet."))
+		.Case("warming", P().content("Warming up…"))
+		.Case("cooking", P().content("Now we're cooking!"))
+		.Exhaustive(),
 	Button()
 		.type("button")
 		.content("Reset")

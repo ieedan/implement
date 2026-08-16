@@ -39,7 +39,7 @@ export function Avatar(user: User | null, size: keyof typeof SIZES = "sm") {
 export function ReactiveAvatar(user: Readable<User | null>, size: keyof typeof SIZES = "sm") {
 	const color = new Derived([user], (user) => user?.color ?? "transparent");
 
-	return If([user], (user) => user !== null)
+	return If(user)
 		.Then(
 			Div()
 				.content([user], (user) => initials(user?.name ?? ""))

@@ -274,45 +274,42 @@ function IssueDetailView(issue: Issue) {
 		void updateIssue(issue.id, { description: description.get() });
 	};
 
-	return (
+	return Div(
 		Div(
+			DetailHeader(issue),
 			Div(
-				DetailHeader(issue),
+				Input()
+					.type("text")
+					.value(title)
+					.placeholder("Issue title")
+					.className(
+						"w-full bg-transparent text-xl font-semibold text-zinc-50 placeholder:text-zinc-600 focus:outline-none",
+					)
+					.on("blur", saveTitle)
+					.on("keydown", (e) => {
+						if (e.key === "Enter") e.target.blur();
+					}),
 				Div(
-					Input()
-						.type("text")
-						.value(title)
-						.placeholder("Issue title")
-						.className(
-							"w-full bg-transparent text-xl font-semibold text-zinc-50 placeholder:text-zinc-600 focus:outline-none",
-						)
-						.on("blur", saveTitle)
-						.on("keydown", (e) => {
-							if (e.key === "Enter") e.target.blur();
-						}),
-					Div(
-						TextArea({
-							value: description,
-							placeholder: "Add a description…",
-							rows: 5,
-						}),
-						If([description], (draft) => draft !== issue.description).Then(
-							Div(
-								GhostButton(Span().content("Discard")).on("click", () =>
-									description.set(issue.description),
-								),
-								PrimaryButton(Span().content("Save")).on("click", saveDescription),
-							).className("flex justify-end gap-2"),
-						),
-					).className("flex flex-col gap-2"),
-					Div().className("border-t border-zinc-800/80"),
-					CommentsSection(issue),
-				).className("flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-6"),
-			).className("flex min-w-0 flex-1 flex-col"),
-			PropertiesPanel(issue),
-		)
-			.className("flex min-h-0 flex-1")
-	);
+					TextArea({
+						value: description,
+						placeholder: "Add a description…",
+						rows: 5,
+					}),
+					If([description], (draft) => draft !== issue.description).Then(
+						Div(
+							GhostButton(Span().content("Discard")).on("click", () =>
+								description.set(issue.description),
+							),
+							PrimaryButton(Span().content("Save")).on("click", saveDescription),
+						).className("flex justify-end gap-2"),
+					),
+				).className("flex flex-col gap-2"),
+				Div().className("border-t border-zinc-800/80"),
+				CommentsSection(issue),
+			).className("flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-6"),
+		).className("flex min-w-0 flex-1 flex-col"),
+		PropertiesPanel(issue),
+	).className("flex min-h-0 flex-1");
 }
 
 /**
