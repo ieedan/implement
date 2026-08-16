@@ -76,7 +76,8 @@ export function isWritable<T = unknown>(value: unknown): value is Writable<T> {
 
 let activeTracker: Set<Readable<unknown>> | null = null;
 
-function noteRead(readable: Readable<unknown>) {
+/** Report a `.get()` to the active tracker so `subscribeTracked` can subscribe to it. */
+export function noteRead(readable: Readable<unknown>) {
 	activeTracker?.add(readable);
 }
 
