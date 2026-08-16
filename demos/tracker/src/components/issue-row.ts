@@ -1,4 +1,4 @@
-import { Button, Derived, Div, ForEach, If, Span, type Readable } from "@packages/ui";
+import { Button, Derived, Div, ForEach, If, properties, Span, type Readable } from "@packages/ui";
 import type { Issue, Label } from "../api";
 import { cx } from "../lib/cx";
 import { PRIORITY_META, STATUS_META } from "../lib/meta";
@@ -22,39 +22,38 @@ const pickerTrigger =
 export function IssueRow(entry: Readable<[Issue, number]>) {
 	const [initial] = entry.get();
 
-	const priority = new Derived([entry], ([issue]) => issue.priority);
-	const status = new Derived([entry], ([issue]) => issue.status);
-	const assignee = new Derived([entry], ([issue]) =>
-		issue.assigneeId ? (usersById.get().get(issue.assigneeId) ?? null) : null,
+	const issue = properties(entry, ([issue]) => issue);
+	const assignee = new Derived([issue.assigneeId, usersById], (assigneeId, users) =>
+		assigneeId ? (users.get(assigneeId) ?? null) : null,
 	);
-	const issueLabels = new Derived([entry], ([issue]): Label[] =>
-		issue.labelIds.map((id) => labelsById.get().get(id)).filter((label) => label !== undefined),
+	const issueLabels = new Derived([issue.labelIds, labelsById], (labelIds, labels): Label[] =>
+		labelIds.map((id) => labels.get(id)).filter((label) => label !== undefined),
 	);
 
 	const priorityMenu = Menu({
 		trigger: Button(
 			ReactiveIcon(
-				priority,
+				issue.priority,
 				(priority) => PRIORITY_META[priority].icon,
 				(priority) => cx("h-4 w-4", PRIORITY_META[priority].class),
 			),
 		)
 			.type("button")
 			.className(pickerTrigger),
-		items: priorityMenuItems(priority, (priority) => updateIssue(initial.id, { priority })),
+		items: priorityMenuItems(issue.priority, (priority) => updateIssue(initial.id, { priority })),
 	});
 
 	const statusMenu = Menu({
 		trigger: Button(
 			ReactiveIcon(
-				status,
+				issue.status,
 				(status) => STATUS_META[status].icon,
 				(status) => cx("h-4 w-4", STATUS_META[status].class),
 			),
 		)
 			.type("button")
 			.className(pickerTrigger),
-		items: statusMenuItems(status, (status) => updateIssue(initial.id, { status })),
+		items: statusMenuItems(issue.status, (status) => updateIssue(initial.id, { status })),
 	});
 
 	return Div(
@@ -63,19 +62,17 @@ export function IssueRow(entry: Readable<[Issue, number]>) {
 			.content(initial.identifier)
 			.className("w-14 shrink-0 text-xs tabular-nums text-zinc-500"),
 		statusMenu,
-		Span()
-			.content([entry], ([issue]) => issue.title)
-			.className("min-w-0 flex-1 truncate text-[13px] text-zinc-100"),
+		Span().content(issue.title).className("min-w-0 flex-1 truncate text-[13px] text-zinc-100"),
 		Div(
 			ForEach(issueLabels, (labelEntry) => {
 				const [label] = labelEntry.get();
 				return LabelBadge(label).key(label.id);
 			}),
 		).className("hidden shrink-0 items-center gap-1.5 lg:flex"),
-		If([entry], ([issue]) => issue.commentCount > 0).Then(
+		If([issue.commentCount], (count) => count > 0).Then(
 			Span(
 				Icon("comment", "h-3.5 w-3.5"),
-				Span().content([entry], ([issue]) => `${issue.commentCount}`),
+				Span().content([issue.commentCount], (count) => `${count}`),
 			).className("flex shrink-0 items-center gap-1 text-xs text-zinc-500"),
 		),
 		ReactiveAvatar(assignee),

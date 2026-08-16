@@ -146,6 +146,11 @@ even minimal collision-aware positioning would cover 90% of real menus.
 
 - ✅ Done: `Derived` now accepts `Signals extends readonly Readable<any>[]`, so
   deriving from a `Derived` (or any `Readable`, e.g. a ForEach entry) typechecks.
+- ✅ Done: `properties(source, pick?)` gives reactive property access — each
+  property of an object Readable as its own lazily-created, cached `Readable`
+  (`const issue = properties(entry, ([i]) => i); …content(issue.title)`),
+  replacing the per-field `new Derived([entry], ([issue]) => issue.status)`
+  dance in tracker's `IssueRow`/`GroupSection`.
 - `Derived` subscribes to its sources forever; there is no way to dispose one.
   Creating Deriveds inside per-row/per-view components (as tracker does for
   menu selection state) leaks subscriptions on every rebuild.

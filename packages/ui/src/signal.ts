@@ -213,6 +213,52 @@ export class Signal<T> implements Writable<T> {
 	}
 }
 
+/** Each property of `T` exposed as its own `Readable`. */
+export type PropertySignals<T> = {
+	readonly [K in keyof T]-?: Readable<T[K]>;
+};
+
+/**
+ * Reactive property access for an object Readable: reading `issue.status` off
+ * the returned proxy gives a `Readable` of that property, usable anywhere a
+ * Readable is accepted — instead of `new Derived([entry], ([issue]) => issue.status)`.
+ *
+ * The optional `pick` narrows the source first (e.g. a ForEach entry tuple):
+ *
+ * ```ts
+ * const issue = properties(entry, ([issue]) => issue);
+ * Span().content(issue.title);
+ * If([issue.commentCount], (count) => count > 0);
+ * ```
+ *
+ * Property Readables are created lazily and cached per key, and only notify
+ * when that property's value actually changes (same equality guard as
+ * `Derived`). Like any `Derived`, each one stays subscribed to the source for
+ * the source's lifetime.
+ */
+export function properties<T extends object>(source: Readable<T>): PropertySignals<T>;
+export function properties<T, U extends object>(
+	source: Readable<T>,
+	pick: (value: T) => U,
+): PropertySignals<U>;
+export function properties(
+	source: Readable<any>,
+	pick?: (value: any) => any,
+): PropertySignals<any> {
+	const base: Readable<any> = pick ? new Derived([source], pick) : source;
+	const cache = new Map<PropertyKey, Readable<unknown>>();
+	return new Proxy({} as PropertySignals<any>, {
+		get(_, key) {
+			let property = cache.get(key);
+			if (!property) {
+				property = new Derived([base], (value) => value?.[key]);
+				cache.set(key, property);
+			}
+			return property;
+		},
+	});
+}
+
 /** Writable that starts as `null`, for binding a component's element without an initial value. */
 export class Ref<T> extends Signal<T | null> {
 	constructor() {

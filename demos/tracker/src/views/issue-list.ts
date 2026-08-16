@@ -1,4 +1,15 @@
-import { Button, Derived, Div, ForEach, H1, If, Input, Span, type Readable } from "@packages/ui";
+import {
+	Button,
+	Derived,
+	Div,
+	ForEach,
+	H1,
+	If,
+	Input,
+	properties,
+	Span,
+	type Readable,
+} from "@packages/ui";
 import type { Issue, Status } from "../api";
 import { IssueRow } from "../components/issue-row";
 import { Icon } from "../components/ui/icon";
@@ -38,14 +49,14 @@ function GroupSection(entry: Readable<[Group, number]>) {
 	// the issue list and count are patched through the entry
 	const [group] = entry.get();
 	const meta = STATUS_META[group.status];
-	const groupIssues = new Derived([entry], ([group]) => group.issues);
+	const { issues: groupIssues } = properties(entry, ([group]) => group);
 
 	return Div(
 		Div(
 			Icon(meta.icon, `h-4 w-4 ${meta.class}`),
 			Span().content(meta.label).className("text-[13px] font-medium text-zinc-200"),
 			Span()
-				.content([entry], ([group]) => `${group.issues.length}`)
+				.content([groupIssues], (issues) => `${issues.length}`)
 				.className("text-xs tabular-nums text-zinc-500"),
 			Div().className("flex-1"),
 			Button(Icon("plus", "h-3.5 w-3.5"))
