@@ -1,4 +1,4 @@
-import { Derived, Div, If, type Readable } from "@packages/ui";
+import { Computed, Derived, Div, If, type Readable } from "@packages/ui";
 import type { User } from "../../api";
 import { cx } from "../../lib/cx";
 import { Icon } from "./icon";
@@ -35,8 +35,12 @@ export function Avatar(user: User | null, size: keyof typeof SIZES = "sm") {
 		.className(circleClass(size));
 }
 
-/** Avatar that tracks a readable user (for rows that patch in place). */
-export function ReactiveAvatar(user: Readable<User | null>, size: keyof typeof SIZES = "sm") {
+/** Avatar that tracks a readable user or tracked getter (for rows that patch in place). */
+export function ReactiveAvatar(
+	source: Readable<User | null> | (() => User | null),
+	size: keyof typeof SIZES = "sm",
+) {
+	const user = typeof source === "function" ? new Computed(source) : source;
 	const color = new Derived([user], (user) => user?.color ?? "transparent");
 
 	return If(user)

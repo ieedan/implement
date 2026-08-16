@@ -1,7 +1,7 @@
 import equal from "fast-deep-equal";
 import { Component } from "./component";
 import { MountNode, type Mountable } from "./mountable";
-import { isReadable, Signal, subscribe, type Getter, type Readable } from "./signal";
+import { Computed, isReadable, Signal, subscribe, type Getter, type Readable } from "./signal";
 import type { Unsubscribe } from "./types";
 
 function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | null) {
@@ -41,9 +41,23 @@ class _forEach<T> extends MountNode {
 
 	constructor(items: readonly T[], render: ForEachRender<T>);
 	constructor(signal: Readable<T[]>, render: ForEachRender<T>);
-	constructor(itemsOrSignal: readonly T[] | Readable<T[]>, render: ForEachRender<T>) {
+	constructor(getItems: () => readonly T[], render: ForEachRender<T>);
+	constructor(
+		itemsOrSignal: readonly T[] | Readable<T[]> | (() => readonly T[]),
+		render: ForEachRender<T>,
+	) {
 		super();
 		this.render = render;
+
+		if (typeof itemsOrSignal === "function") {
+			// the spread runs inside the tracked getter, so the array's contents
+			// (length and indices) are dependencies rather than just the
+			// reference that holds them — in-place growth re-renders too
+			const items = new Computed<T[]>(() => [...itemsOrSignal()]);
+			this.signals = [items];
+			this.getItems = (value: T[]) => value;
+			return;
+		}
 
 		if (isReadable<T[]>(itemsOrSignal)) {
 			this.signals = [itemsOrSignal];
@@ -132,16 +146,20 @@ class _forEach<T> extends MountNode {
 
 export function ForEach<T>(items: readonly T[], render: ForEachRender<T>): _forEach<T>;
 export function ForEach<T>(signal: Readable<T[]>, render: ForEachRender<T>): _forEach<T>;
-export function ForEach<T>(itemsOrSignal: readonly T[] | Readable<T[]>, render: ForEachRender<T>) {
+export function ForEach<T>(getItems: () => readonly T[], render: ForEachRender<T>): _forEach<T>;
+export function ForEach<T>(
+	itemsOrSignal: readonly T[] | Readable<T[]> | (() => readonly T[]),
+	render: ForEachRender<T>,
+) {
 	return new (_forEach as new (
-		itemsOrSignal: readonly T[] | Readable<T[]>,
+		itemsOrSignal: readonly T[] | Readable<T[]> | (() => readonly T[]),
 		render: ForEachRender<T>,
 	) => _forEach<T>)(itemsOrSignal, render);
 }
 
 type IfConditionGetter = (...values: any[]) => boolean;
 
-type IfCondition = boolean | Readable<unknown> | readonly Readable<any>[];
+type IfCondition = boolean | Readable<unknown> | (() => unknown) | readonly Readable<any>[];
 
 type IfBranch = {
 	signals: readonly Readable<any>[];
@@ -152,6 +170,15 @@ type IfBranch = {
 function toBranch(condition: IfCondition, getter?: IfConditionGetter): IfBranch {
 	if (typeof condition === "boolean") {
 		return { signals: [], getCondition: () => condition, children: [] };
+	}
+
+	// a tracked getter: whatever it reads becomes the branch's dependencies
+	if (typeof condition === "function") {
+		return {
+			signals: [new Computed(condition)],
+			getCondition: (value: unknown) => Boolean(value),
+			children: [],
+		};
 	}
 
 	if (!Array.isArray(condition)) {
@@ -187,7 +214,7 @@ class _if extends MountNode {
 	 * Adds a branch checked when every preceding condition is false. Accepts
 	 * the same forms as `If`; chain `.Then(...)` to give it children.
 	 */
-	ElseIf(condition: boolean | Readable<unknown>): this;
+	ElseIf(condition: boolean | Readable<unknown> | (() => unknown)): this;
 	ElseIf<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<boolean, Signals>,
@@ -252,12 +279,14 @@ class _if extends MountNode {
 
 /**
  * A signal passed on its own is checked for truthiness, so
- * `If(user)` is enough when the intent is `user !== null`.
+ * `If(user)` is enough when the intent is `user !== null`. A plain function
+ * is a tracked getter — `If(() => issue.commentCount > 0)` re-evaluates when
+ * whatever it read changes.
  *
  * Branches chain: `If(a).Then(...).ElseIf(b).Then(...).Else(...)` mounts the
  * first branch whose condition holds.
  */
-export function If(condition: boolean | Readable<unknown>): _if;
+export function If(condition: boolean | Readable<unknown> | (() => unknown)): _if;
 export function If<Signals extends readonly Readable<any>[]>(
 	signals: readonly [...Signals],
 	getter: Getter<boolean, Signals>,

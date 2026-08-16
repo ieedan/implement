@@ -1,21 +1,20 @@
-import { Button, Derived, Div, Span } from "@packages/ui";
+import { Button, Div, Span } from "@packages/ui";
 import { cx } from "../lib/cx";
 import { navigate } from "../lib/router";
-import { currentUser, issues } from "../state/store";
+import { store } from "../state/store";
 import { activeView, openCreateDialog, VIEWS, type ViewMeta } from "../state/ui";
 import { Avatar } from "./ui/avatar";
 import { Icon } from "./ui/icon";
 
 function NavItem(view: ViewMeta) {
-	const count = new Derived([issues, currentUser], (issues, me) => {
-		return issues.filter((issue) => view.filter(issue, me?.id ?? null)).length;
-	});
-
 	return Button(
 		Icon(view.icon, "h-4 w-4"),
 		Span().content(view.label).className("min-w-0 flex-1 truncate text-left"),
 		Span()
-			.content([count], (count) => `${count}`)
+			.content(
+				() =>
+					`${store.issues.filter((issue) => view.filter(issue, store.currentUser?.id ?? null)).length}`,
+			)
 			.className("text-xs tabular-nums text-zinc-500"),
 	)
 		.type("button")
@@ -58,9 +57,9 @@ export function Sidebar() {
 		Div().className("flex-1"),
 
 		Div(
-			Avatar(currentUser.get(), "md"),
+			Avatar(store.currentUser, "md"),
 			Span()
-				.content(currentUser.get()?.name ?? "Anonymous")
+				.content(store.currentUser?.name ?? "Anonymous")
 				.className("min-w-0 flex-1 truncate text-[13px] text-zinc-300"),
 		).className("flex items-center gap-2.5 border-t border-zinc-800/80 px-4 py-3"),
 	).className("flex w-60 shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-900/30");

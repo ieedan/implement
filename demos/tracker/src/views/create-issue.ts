@@ -11,7 +11,7 @@ import { Menu } from "../components/ui/menu";
 import { TextArea } from "../components/ui/textarea";
 import { cx } from "../lib/cx";
 import { PRIORITY_META, STATUS_META } from "../lib/meta";
-import { createIssue, usersById } from "../state/store";
+import { createIssue, store } from "../state/store";
 import { createDialogOpen, createForm } from "../state/ui";
 
 const chip =
@@ -65,7 +65,7 @@ export function CreateIssueDialog() {
 		trigger: Button(
 			Icon("user", "h-4 w-4 text-zinc-500"),
 			Span().content([createForm.assigneeId], (id) =>
-				id === null ? "Assignee" : (usersById.get().get(id)?.name ?? "Assignee"),
+				id === null ? "Assignee" : (store.usersById.get(id)?.name ?? "Assignee"),
 			),
 		)
 			.type("button")

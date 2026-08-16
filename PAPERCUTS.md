@@ -130,7 +130,13 @@ would make userland components first-class citizens.
 `innerText` reads force layout and honor CSS (`text-transform`, `display`) in
 surprising ways; `textContent` is almost always what a framework wants here.
 
-## 13. Coarse re-rendering shows up as UX bugs, not just perf
+## 13. Coarse re-rendering shows up as UX bugs, not just perf ✅ Mostly fixed
+
+**Mostly fixed by reactive stores.** Issues are live store objects mutated in
+place, so the detail view keeps its identity across field edits (`Key` only
+rebuilds on navigation): the labels menu stays open across toggles, comment
+drafts survive status changes, and comments no longer refetch after unrelated
+field edits — without restructuring state into per-field signals.
 
 Because any change to an issue rebuilds the whole detail view (see MISSING #6/#11):
 

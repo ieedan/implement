@@ -1,12 +1,12 @@
 import {
 	Button,
+	Computed,
 	Derived,
 	Div,
 	ForEach,
 	H1,
 	If,
 	Input,
-	properties,
 	Span,
 	type Readable,
 } from "@packages/ui";
@@ -14,7 +14,7 @@ import type { Issue, Status } from "../api";
 import { IssueRow } from "../components/issue-row";
 import { Icon } from "../components/ui/icon";
 import { PRIORITY_META, STATUS_META, STATUS_ORDER } from "../lib/meta";
-import { currentUser, issues } from "../state/store";
+import { store } from "../state/store";
 import { activeView, openCreateDialog, searchQuery, VIEWS } from "../state/ui";
 
 type Group = { status: Status; issues: Issue[] };
@@ -23,40 +23,37 @@ function byPriorityThenNumber(a: Issue, b: Issue): number {
 	return PRIORITY_META[a.priority].rank - PRIORITY_META[b.priority].rank || b.number - a.number;
 }
 
-const groups = new Derived(
-	[issues, activeView, searchQuery, currentUser],
-	(issues, view, query, me): Group[] => {
-		const viewMeta = VIEWS.find((v) => v.id === view)!;
-		const q = query.trim().toLowerCase();
+const groups = new Computed((): Group[] => {
+	const viewMeta = VIEWS.find((v) => v.id === activeView.get())!;
+	const q = searchQuery.get().trim().toLowerCase();
+	const me = store.currentUser;
 
-		const filtered = issues.filter(
-			(issue) =>
-				viewMeta.filter(issue, me?.id ?? null) &&
-				(q === "" ||
-					issue.title.toLowerCase().includes(q) ||
-					issue.identifier.toLowerCase().includes(q)),
-		);
+	const filtered = store.issues.filter(
+		(issue) =>
+			viewMeta.filter(issue, me?.id ?? null) &&
+			(q === "" ||
+				issue.title.toLowerCase().includes(q) ||
+				issue.identifier.toLowerCase().includes(q)),
+	);
 
-		return STATUS_ORDER.map((status) => ({
-			status,
-			issues: filtered.filter((issue) => issue.status === status).sort(byPriorityThenNumber),
-		})).filter((group) => group.issues.length > 0);
-	},
-);
+	return STATUS_ORDER.map((status) => ({
+		status,
+		issues: filtered.filter((issue) => issue.status === status).sort(byPriorityThenNumber),
+	})).filter((group) => group.issues.length > 0);
+});
 
 function GroupSection(entry: Readable<[Group, number]>) {
 	// the group's status is its ForEach key, so it never changes for this child;
 	// the issue list and count are patched through the entry
 	const [group] = entry.get();
 	const meta = STATUS_META[group.status];
-	const { issues: groupIssues } = properties(entry, ([group]) => group);
 
 	return Div(
 		Div(
 			Icon(meta.icon, `h-4 w-4 ${meta.class}`),
 			Span().content(meta.label).className("text-[13px] font-medium text-zinc-200"),
 			Span()
-				.content([groupIssues], (issues) => `${issues.length}`)
+				.content(() => `${entry.get()[0].issues.length}`)
 				.className("text-xs tabular-nums text-zinc-500"),
 			Div().className("flex-1"),
 			Button(Icon("plus", "h-3.5 w-3.5"))
@@ -66,7 +63,9 @@ function GroupSection(entry: Readable<[Group, number]>) {
 				)
 				.on("click", () => openCreateDialog({ status: group.status })),
 		).className("flex items-center gap-2 border-y border-zinc-800/60 bg-zinc-900/50 px-6 py-1.5"),
-		Div(ForEach(groupIssues, IssueRow)).className("flex flex-col divide-y divide-zinc-800/40"),
+		Div(ForEach(() => entry.get()[0].issues, IssueRow)).className(
+			"flex flex-col divide-y divide-zinc-800/40",
+		),
 	).key(group.status);
 }
 

@@ -1,7 +1,7 @@
 import {
 	Await,
 	Button,
-	Derived,
+	Computed,
 	Div,
 	ForEach,
 	If,
@@ -12,33 +12,24 @@ import {
 	Span,
 	type Mountable,
 } from "@packages/ui";
-import type { Comment, Issue } from "../api";
+import type { Comment, Issue, Label } from "../api";
 import {
 	assigneeMenuItems,
 	labelMenuItems,
 	priorityMenuItems,
 	statusMenuItems,
 } from "../components/pickers";
-import { Avatar } from "../components/ui/avatar";
+import { Avatar, ReactiveAvatar } from "../components/ui/avatar";
 import { LabelBadge } from "../components/ui/badge";
 import { GhostButton, PrimaryButton } from "../components/ui/button";
-import { Icon } from "../components/ui/icon";
+import { Icon, ReactiveIcon } from "../components/ui/icon";
 import { Menu } from "../components/ui/menu";
 import { TextArea } from "../components/ui/textarea";
 import { cx } from "../lib/cx";
 import { PRIORITY_META, STATUS_META } from "../lib/meta";
 import { navigate, route } from "../lib/router";
 import { formatAgo, formatRelative } from "../lib/time";
-import {
-	api,
-	bumpCommentCount,
-	currentUser,
-	deleteIssue,
-	labelsById,
-	updateIssue,
-	usersById,
-} from "../state/store";
-import { issues } from "../state/store";
+import { api, bumpCommentCount, deleteIssue, store, updateIssue } from "../state/store";
 
 const propertyTrigger =
 	"flex h-7 select-none items-center gap-2 rounded-md px-2 text-[13px] text-zinc-200 transition-colors duration-100 hover:bg-zinc-800 focus:outline-none";
@@ -51,44 +42,55 @@ function PropertyRow(label: string, control: Mountable) {
 }
 
 function PropertiesPanel(issue: Issue) {
-	const statusMeta = STATUS_META[issue.status];
-	const priorityMeta = PRIORITY_META[issue.priority];
-	const assignee = issue.assigneeId ? (usersById.get().get(issue.assigneeId) ?? null) : null;
-	const issueLabels = issue.labelIds
-		.map((id) => labelsById.get().get(id))
-		.filter((label) => label !== undefined);
+	const assignee = () =>
+		issue.assigneeId ? (store.usersById.get(issue.assigneeId) ?? null) : null;
 
 	const statusMenu = Menu({
 		trigger: Button(
-			Icon(statusMeta.icon, cx("h-4 w-4", statusMeta.class)),
-			Span().content(statusMeta.label),
+			ReactiveIcon(
+				() => issue.status,
+				(status) => STATUS_META[status].icon,
+				(status) => cx("h-4 w-4", STATUS_META[status].class),
+			),
+			Span().content(() => STATUS_META[issue.status].label),
 		)
 			.type("button")
 			.className(propertyTrigger),
-		items: statusMenuItems(issue.status, (status) => updateIssue(issue.id, { status })),
+		items: statusMenuItems(
+			() => issue.status,
+			(status) => updateIssue(issue.id, { status }),
+		),
 		align: "right",
 	});
 
 	const priorityMenu = Menu({
 		trigger: Button(
-			Icon(priorityMeta.icon, cx("h-4 w-4", priorityMeta.class)),
-			Span().content(priorityMeta.label),
+			ReactiveIcon(
+				() => issue.priority,
+				(priority) => PRIORITY_META[priority].icon,
+				(priority) => cx("h-4 w-4", PRIORITY_META[priority].class),
+			),
+			Span().content(() => PRIORITY_META[issue.priority].label),
 		)
 			.type("button")
 			.className(propertyTrigger),
-		items: priorityMenuItems(issue.priority, (priority) => updateIssue(issue.id, { priority })),
+		items: priorityMenuItems(
+			() => issue.priority,
+			(priority) => updateIssue(issue.id, { priority }),
+		),
 		align: "right",
 	});
 
 	const assigneeMenu = Menu({
 		trigger: Button(
-			assignee ? Avatar(assignee) : Icon("userDashed", "h-4 w-4 text-zinc-500"),
-			Span().content(assignee?.name ?? "Unassigned"),
+			ReactiveAvatar(assignee),
+			Span().content(() => assignee()?.name ?? "Unassigned"),
 		)
 			.type("button")
 			.className(propertyTrigger),
-		items: assigneeMenuItems(issue.assigneeId, (assigneeId) =>
-			updateIssue(issue.id, { assigneeId }),
+		items: assigneeMenuItems(
+			() => issue.assigneeId,
+			(assigneeId) => updateIssue(issue.id, { assigneeId }),
 		),
 		align: "right",
 	});
@@ -106,7 +108,10 @@ function PropertiesPanel(issue: Issue) {
 			.className(
 				"flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-zinc-700 text-zinc-500 transition-colors duration-100 hover:border-zinc-500 hover:text-zinc-300 focus:outline-none",
 			),
-		items: labelMenuItems((labelId) => issue.labelIds.includes(labelId), toggleLabel),
+		items: labelMenuItems(
+			(labelId) => new Computed(() => issue.labelIds.includes(labelId)),
+			toggleLabel,
+		),
 		align: "right",
 	});
 
@@ -119,14 +124,24 @@ function PropertiesPanel(issue: Issue) {
 		PropertyRow("Assignee", assigneeMenu),
 		PropertyRow(
 			"Labels",
-			Div(...issueLabels.map((label) => LabelBadge(label)), labelsMenu).className(
-				"flex min-w-0 flex-1 flex-wrap items-center gap-1.5 pt-0.5",
-			),
+			Div(
+				ForEach(
+					() =>
+						issue.labelIds
+							.map((id) => store.labelsById.get(id))
+							.filter((label): label is Label => label !== undefined),
+					(entry) => {
+						const [label] = entry.get();
+						return LabelBadge(label).key(label.id);
+					},
+				),
+				labelsMenu,
+			).className("flex min-w-0 flex-1 flex-wrap items-center gap-1.5 pt-0.5"),
 		),
 		Div().className("border-t border-zinc-800/80"),
 		Div(
 			Span().content(`Created ${formatAgo(issue.createdAt)}`),
-			Span().content(`Updated ${formatAgo(issue.updatedAt)}`),
+			Span().content(() => `Updated ${formatAgo(issue.updatedAt)}`),
 		).className("flex flex-col gap-1 text-xs text-zinc-500"),
 	).className(
 		"flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-800/80 px-5 py-5",
@@ -134,7 +149,7 @@ function PropertiesPanel(issue: Issue) {
 }
 
 function CommentItem(issue: Issue, comment: Comment) {
-	const author = usersById.get().get(comment.authorId) ?? null;
+	const author = store.usersById.get(comment.authorId) ?? null;
 
 	const remove = async () => {
 		const { error } = await api.comments.delete({ id: comment.id });
@@ -172,7 +187,7 @@ function CommentComposer(issue: Issue) {
 
 	const post = async () => {
 		const body = draft.get().trim();
-		const me = currentUser.get();
+		const me = store.currentUser;
 		if (body === "" || !me) return;
 		const { error } = await api.comments.create({ id: issue.id, authorId: me.id, body });
 		if (error) return;
@@ -295,7 +310,7 @@ function IssueDetailView(issue: Issue) {
 						placeholder: "Add a description…",
 						rows: 5,
 					}),
-					If([description], (draft) => draft !== issue.description).Then(
+					If(() => description.get() !== issue.description).Then(
 						Div(
 							GhostButton(Span().content("Discard")).on("click", () =>
 								description.set(issue.description),
@@ -313,13 +328,15 @@ function IssueDetailView(issue: Issue) {
 }
 
 /**
- * Renders the detail view for the routed issue. The view is built from a
- * plain snapshot, so `Key` rebuilds it whenever the routed issue changes.
+ * Renders the detail view for the routed issue. The issue is a live store
+ * object, so field edits update in place; `Key` rebuilds only when the routed
+ * issue itself changes (navigation, or the issue disappearing).
  */
 export function IssueDetailHost() {
-	const current = new Derived([route, issues], (route, issues): Issue | null => {
-		if (route.name !== "issue") return null;
-		return issues.find((issue) => issue.id === route.id) ?? null;
+	const current = new Computed((): Issue | null => {
+		const r = route.get();
+		if (r.name !== "issue") return null;
+		return store.issues.find((issue) => issue.id === r.id) ?? null;
 	});
 
 	return Key(current, (issue) => (issue ? IssueDetailView(issue) : null));

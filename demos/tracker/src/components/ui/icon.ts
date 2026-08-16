@@ -1,4 +1,4 @@
-import { Span, type Readable } from "@packages/ui";
+import { Computed, Span, type Readable } from "@packages/ui";
 import { cx } from "../../lib/cx";
 
 // The framework can only create HTML elements, so icons are raw SVG strings
@@ -78,15 +78,16 @@ export function Icon(name: IconName, className = "h-4 w-4") {
 		.className(cx("inline-flex shrink-0 items-center justify-center", className));
 }
 
-/** Icon whose glyph and classes track a readable value. */
+/** Icon whose glyph and classes track a readable value or tracked getter. */
 export function ReactiveIcon<T>(
-	source: Readable<T>,
+	source: Readable<T> | (() => T),
 	getIcon: (value: T) => IconName,
 	getClass: (value: T) => string,
 ) {
+	const value = typeof source === "function" ? new Computed(source) : source;
 	return Span()
-		.html([source], (value) => icons[getIcon(value)])
-		.className([source], (value) =>
+		.html([value], (value) => icons[getIcon(value)])
+		.className([value], (value) =>
 			cx("inline-flex shrink-0 items-center justify-center", getClass(value)),
 		);
 }

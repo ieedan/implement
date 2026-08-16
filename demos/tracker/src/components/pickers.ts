@@ -1,19 +1,23 @@
-import { Derived, isReadable, Span, type Readable } from "@packages/ui";
+import { Computed, Derived, isReadable, Span, type Readable } from "@packages/ui";
 import type { Priority, Status } from "../api";
 import { PRIORITY_META, PRIORITY_ORDER, STATUS_META, STATUS_ORDER } from "../lib/meta";
-import { labels, users } from "../state/store";
+import { store } from "../state/store";
 import { Avatar } from "./ui/avatar";
 import type { MenuItem } from "./ui/menu";
 
 /**
  * Item builders shared by every status/priority/assignee/label menu in the app.
- * `current` can be a plain value (for static UI) or any Readable (for
- * long-lived forms and rows that patch in place).
+ * `current` can be a plain value (for static UI), any Readable (for long-lived
+ * forms), or a tracked getter reading a store object (`() => issue.status`).
  */
 
-type MaybeReadable<T> = T | Readable<T>;
+type MaybeReactive<T> = T | Readable<T> | (() => T);
 
-function selectedFor<T>(current: MaybeReadable<T>, candidate: T): boolean | Readable<boolean> {
+function selectedFor<T>(current: MaybeReactive<T>, candidate: T): boolean | Readable<boolean> {
+	if (typeof current === "function") {
+		const get = current as () => T;
+		return new Computed(() => get() === candidate);
+	}
 	if (isReadable<T>(current)) {
 		return new Derived([current], (value) => value === candidate);
 	}
@@ -21,7 +25,7 @@ function selectedFor<T>(current: MaybeReadable<T>, candidate: T): boolean | Read
 }
 
 export function statusMenuItems(
-	current: MaybeReadable<Status>,
+	current: MaybeReactive<Status>,
 	onSelect: (status: Status) => void,
 ): MenuItem[] {
 	return STATUS_ORDER.map((status) => ({
@@ -35,7 +39,7 @@ export function statusMenuItems(
 }
 
 export function priorityMenuItems(
-	current: MaybeReadable<Priority>,
+	current: MaybeReactive<Priority>,
 	onSelect: (priority: Priority) => void,
 ): MenuItem[] {
 	return PRIORITY_ORDER.map((priority) => ({
@@ -49,7 +53,7 @@ export function priorityMenuItems(
 }
 
 export function assigneeMenuItems(
-	current: MaybeReadable<string | null>,
+	current: MaybeReactive<string | null>,
 	onSelect: (userId: string | null) => void,
 ): MenuItem[] {
 	const unassigned: MenuItem = {
@@ -63,7 +67,7 @@ export function assigneeMenuItems(
 
 	return [
 		unassigned,
-		...users.get().map((user): MenuItem => ({
+		...store.users.map((user): MenuItem => ({
 			id: user.id,
 			label: user.name,
 			leading: Avatar(user),
@@ -77,7 +81,7 @@ export function labelMenuItems(
 	isSelected: (labelId: string) => boolean | Readable<boolean>,
 	onToggle: (labelId: string) => void,
 ): MenuItem[] {
-	return labels.get().map((label): MenuItem => ({
+	return store.labels.map((label): MenuItem => ({
 		id: label.id,
 		label: label.name,
 		leading: Span()

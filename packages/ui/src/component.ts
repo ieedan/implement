@@ -42,8 +42,8 @@ type StyleProperty = {
  * Inline styles keyed by camelCase CSS property (or a `--custom` property).
  * Pass a Readable value to keep that property reactive.
  */
-export type Styles = { [K in StyleProperty]?: string | Readable<string> } & {
-	[custom: `--${string}`]: string | Readable<string> | undefined;
+export type Styles = { [K in StyleProperty]?: string | Readable<string> | (() => string) } & {
+	[custom: `--${string}`]: string | Readable<string> | (() => string) | undefined;
 };
 
 type Props = {
@@ -95,12 +95,13 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 
 	id(id: string): this;
 	id(id: Readable<string>): this;
+	id(get: () => string): this;
 	id<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<string, Signals>,
 	): this;
 	id<Signals extends readonly Readable<any>[]>(
-		idOrSignals: string | Readable<string> | readonly [...Signals],
+		idOrSignals: string | Readable<string> | (() => string) | readonly [...Signals],
 		getter?: Getter<string, Signals>,
 	): this {
 		return this.bindProperty(
@@ -137,12 +138,13 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 
 	className(className: string): this;
 	className(className: Readable<string>): this;
+	className(get: () => string): this;
 	className<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<string, Signals>,
 	): this;
 	className<Signals extends readonly Readable<any>[]>(
-		classNameOrSignals: string | Readable<string> | readonly [...Signals],
+		classNameOrSignals: string | Readable<string> | (() => string) | readonly [...Signals],
 		getter?: Getter<string, Signals>,
 	): this {
 		return this.bindProperty(
@@ -199,12 +201,13 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 
 	content(content: string): this;
 	content(content: Readable<string>): this;
+	content(get: () => string): this;
 	content<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<string, Signals>,
 	): this;
 	content<Signals extends readonly Readable<any>[]>(
-		contentOrSignals: string | Readable<string> | readonly [...Signals],
+		contentOrSignals: string | Readable<string> | (() => string) | readonly [...Signals],
 		getter?: Getter<string, Signals>,
 	): this {
 		return this.bindProperty(
@@ -220,12 +223,13 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 
 	html(html: string): this;
 	html(html: Readable<string>): this;
+	html(get: () => string): this;
 	html<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<string, Signals>,
 	): this;
 	html<Signals extends readonly Readable<any>[]>(
-		htmlOrSignals: string | Readable<string> | readonly [...Signals],
+		htmlOrSignals: string | Readable<string> | (() => string) | readonly [...Signals],
 		getter?: Getter<string, Signals>,
 	): this {
 		return this.bindProperty(
@@ -298,9 +302,18 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 
 	protected bindProperty<V, Signals extends readonly Readable<any>[]>(
 		apply: (value: V) => void,
-		valueOrReadableOrSignals: V | Readable<V> | readonly [...Signals],
+		valueOrReadableOrSignals: V | Readable<V> | (() => V) | readonly [...Signals],
 		getter?: Getter<V, Signals>,
 	): this {
+		// a plain function is a tracked getter: whatever Readables (or Store
+		// properties) it reads become the binding's dependencies
+		if (typeof valueOrReadableOrSignals === "function") {
+			this.pendingSubscriptions.push(() =>
+				subscribeTracked(valueOrReadableOrSignals as () => V, apply),
+			);
+			return this;
+		}
+
 		if (Array.isArray(valueOrReadableOrSignals)) {
 			this.bindSignals(valueOrReadableOrSignals as readonly [...Signals], (...values) => {
 				apply(getter!(...values));

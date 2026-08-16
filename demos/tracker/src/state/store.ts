@@ -1,4 +1,4 @@
-import { Derived, Signal } from "@packages/ui";
+import { Store } from "@packages/ui";
 import { Api, type Issue, type Label, type Priority, type Status, type User } from "../api";
 
 export const api = new Api();
@@ -7,22 +7,30 @@ export const api = new Api();
 // Workspace data
 // ---------------------------------------------------------------------------
 
-export const issues = new Signal<Issue[]>([]);
-export const users = new Signal<User[]>([]);
-export const labels = new Signal<Label[]>([]);
+/**
+ * Reactive store: reading `store.issues` — or any field of an issue pulled
+ * out of it — inside a tracked binding (`.content(() => …)`, `If(() => …)`,
+ * `new Computed(() => …)`) subscribes to exactly what was read, and mutating
+ * it notifies exactly those subscribers. No Signals at the call sites.
+ */
+class TrackerStore extends Store {
+	issues: Issue[] = [];
+	users: User[] = [];
+	labels: Label[] = [];
 
-/** The signed-in user. There is no auth; the seed's first user plays the part. */
-export const currentUser = new Signal<User | null>(null);
+	/** The signed-in user. There is no auth; the seed's first user plays the part. */
+	currentUser: User | null = null;
 
-export const usersById = new Derived(
-	[users],
-	(users) => new Map(users.map((user) => [user.id, user])),
-);
+	get usersById(): Map<string, User> {
+		return new Map(this.users.map((user) => [user.id, user]));
+	}
 
-export const labelsById = new Derived(
-	[labels],
-	(labels) => new Map(labels.map((label) => [label.id, label])),
-);
+	get labelsById(): Map<string, Label> {
+		return new Map(this.labels.map((label) => [label.id, label]));
+	}
+}
+
+export const store = new TrackerStore();
 
 /** Loads everything the app needs up front. The UI gates on this via Await. */
 export async function loadWorkspace(): Promise<void> {
@@ -35,10 +43,10 @@ export async function loadWorkspace(): Promise<void> {
 	const failed = issuesResult.error ?? usersResult.error ?? labelsResult.error;
 	if (failed) throw new Error("Failed to load workspace. Is the API running on :4001?");
 
-	issues.set(issuesResult.data ?? []);
-	users.set(usersResult.data ?? []);
-	labels.set(labelsResult.data ?? []);
-	currentUser.set(usersResult.data?.find((user) => user.name === "Aidan Bleser") ?? null);
+	store.issues = issuesResult.data ?? [];
+	store.users = usersResult.data ?? [];
+	store.labels = labelsResult.data ?? [];
+	store.currentUser = usersResult.data?.find((user) => user.name === "Aidan Bleser") ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,20 +63,20 @@ export type IssuePatch = {
 };
 
 export async function updateIssue(id: string, patch: IssuePatch): Promise<boolean> {
-	const previous = issues.get();
-	issues.set(
-		previous.map((issue) =>
-			issue.id === id ? { ...issue, ...patch, updatedAt: Date.now() } : issue,
-		),
-	);
+	const issue = store.issues.find((issue) => issue.id === id);
+	if (!issue) return false;
+
+	// mutating the issue in place notifies only the fields that changed
+	const previous = { ...issue };
+	Object.assign(issue, { ...patch, updatedAt: Date.now() });
 
 	const { data, error } = await api.issues.update({ id, ...patch });
 	if (error || !data) {
-		issues.set(previous);
+		Object.assign(issue, previous);
 		return false;
 	}
 
-	issues.update((list) => list.map((issue) => (issue.id === id ? data : issue)));
+	Object.assign(issue, data);
 	return true;
 }
 
@@ -84,17 +92,17 @@ export type CreateIssueInput = {
 export async function createIssue(input: CreateIssueInput): Promise<Issue | null> {
 	const { data, error } = await api.issues.create(input);
 	if (error || !data) return null;
-	issues.unshift(data);
+	store.issues = [data, ...store.issues];
 	return data;
 }
 
 export async function deleteIssue(id: string): Promise<boolean> {
-	const previous = issues.get();
-	issues.set(previous.filter((issue) => issue.id !== id));
+	const previous = store.issues;
+	store.issues = previous.filter((issue) => issue.id !== id);
 
 	const { error } = await api.issues.delete({ id });
 	if (error) {
-		issues.set(previous);
+		store.issues = previous;
 		return false;
 	}
 	return true;
@@ -105,9 +113,6 @@ export async function deleteIssue(id: string): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 export function bumpCommentCount(issueId: string, delta: number) {
-	issues.update((list) =>
-		list.map((issue) =>
-			issue.id === issueId ? { ...issue, commentCount: issue.commentCount + delta } : issue,
-		),
-	);
+	const issue = store.issues.find((issue) => issue.id === issueId);
+	if (issue) issue.commentCount += delta;
 }

@@ -213,56 +213,206 @@ export class Signal<T> implements Writable<T> {
 	}
 }
 
-/** Each property of `T` exposed as its own `Readable`. */
-export type PropertySignals<T> = {
-	readonly [K in keyof T]-?: Readable<T[K]>;
-};
-
-/**
- * Reactive property access for an object Readable: reading `issue.status` off
- * the returned proxy gives a `Readable` of that property, usable anywhere a
- * Readable is accepted — instead of `new Derived([entry], ([issue]) => issue.status)`.
- *
- * The optional `pick` narrows the source first (e.g. a ForEach entry tuple):
- *
- * ```ts
- * const issue = properties(entry, ([issue]) => issue);
- * Span().content(issue.title);
- * If([issue.commentCount], (count) => count > 0);
- * ```
- *
- * Property Readables are created lazily and cached per key, and only notify
- * when that property's value actually changes (same equality guard as
- * `Derived`). Like any `Derived`, each one stays subscribed to the source for
- * the source's lifetime.
- */
-export function properties<T extends object>(source: Readable<T>): PropertySignals<T>;
-export function properties<T, U extends object>(
-	source: Readable<T>,
-	pick: (value: T) => U,
-): PropertySignals<U>;
-export function properties(
-	source: Readable<any>,
-	pick?: (value: any) => any,
-): PropertySignals<any> {
-	const base: Readable<any> = pick ? new Derived([source], pick) : source;
-	const cache = new Map<PropertyKey, Readable<unknown>>();
-	return new Proxy({} as PropertySignals<any>, {
-		get(_, key) {
-			let property = cache.get(key);
-			if (!property) {
-				property = new Derived([base], (value) => value?.[key]);
-				cache.set(key, property);
-			}
-			return property;
-		},
-	});
-}
-
 /** Writable that starts as `null`, for binding a component's element without an initial value. */
 export class Ref<T> extends Signal<T | null> {
 	constructor() {
 		super(null);
+	}
+}
+
+/**
+ * A `Readable` computed from whatever its getter reads — Signals, other
+ * Computeds, and `Store` properties are captured automatically, no dependency
+ * list needed. The getter re-runs when any dependency changes, and subscribers
+ * are notified only when the computed value actually changed (same equality
+ * guard as `Derived`).
+ *
+ * ```ts
+ * const open = new Computed(() => store.issues.filter((issue) => issue.status !== "done"));
+ * ```
+ *
+ * Like `Derived`, a Computed stays subscribed to its dependencies for as long
+ * as they live.
+ */
+export class Computed<T> implements Readable<T> {
+	private value!: T;
+	private subscriberId: number = 0;
+	private subscribers: Map<number, Callback<T>> = new Map();
+
+	constructor(getter: () => T) {
+		let first = true;
+		subscribeTracked(getter, (value) => {
+			if (!first && !hasChanged(this.value, value)) return;
+			first = false;
+			this.value = value;
+			this.notify(value);
+		});
+	}
+
+	get() {
+		noteRead(this);
+		return this.value;
+	}
+
+	private notify(value: T) {
+		for (const [_, notifyCallback] of this.subscribers) {
+			notifyCallback(value);
+		}
+	}
+
+	subscribe(callback: Callback<T>): Unsubscribe {
+		const id = ++this.subscriberId;
+		this.subscribers.set(id, callback);
+		return () => this.subscribers.delete(id);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Reactive stores
+// ---------------------------------------------------------------------------
+
+/**
+ * One property of one reactive target, as a `Readable` over its live value.
+ * These are what tracked reads of store properties register as dependencies.
+ */
+class PropertyDep implements Readable<unknown> {
+	private subscriberId: number = 0;
+	private subscribers: Map<number, Callback<unknown>> = new Map();
+	private target: object;
+	private key: PropertyKey;
+
+	constructor(target: object, key: PropertyKey) {
+		this.target = target;
+		this.key = key;
+	}
+
+	get(): unknown {
+		return Reflect.get(this.target, this.key);
+	}
+
+	notify() {
+		const value = this.get();
+		for (const [_, notifyCallback] of this.subscribers) {
+			notifyCallback(value);
+		}
+	}
+
+	subscribe(callback: Callback<unknown>): Unsubscribe {
+		const id = ++this.subscriberId;
+		this.subscribers.set(id, callback);
+		return () => this.subscribers.delete(id);
+	}
+}
+
+const propertyDeps = new WeakMap<object, Map<PropertyKey, PropertyDep>>();
+const rawToProxy = new WeakMap<object, object>();
+const reactiveProxies = new WeakSet<object>();
+
+function trackedDep(target: object, key: PropertyKey): PropertyDep {
+	let deps = propertyDeps.get(target);
+	if (!deps) {
+		deps = new Map();
+		propertyDeps.set(target, deps);
+	}
+	let dep = deps.get(key);
+	if (!dep) {
+		dep = new PropertyDep(target, key);
+		deps.set(key, dep);
+	}
+	return dep;
+}
+
+function notifyDep(target: object, key: PropertyKey) {
+	propertyDeps.get(target)?.get(key)?.notify();
+}
+
+/** Only plain objects and arrays are wrapped; Maps, Sets, Dates, DOM nodes, and other class instances pass through untracked. */
+function isWrappable(value: object): boolean {
+	if (Array.isArray(value)) return true;
+	const proto = Object.getPrototypeOf(value);
+	return proto === Object.prototype || proto === null;
+}
+
+function toReactive(value: unknown): unknown {
+	if (typeof value !== "object" || value === null) return value;
+	if (reactiveProxies.has(value) || !isWrappable(value)) return value;
+	return createReactiveProxy(value);
+}
+
+const reactiveHandlers: ProxyHandler<object> = {
+	get(target, key, receiver) {
+		const value = Reflect.get(target, key, receiver);
+		if (typeof key === "symbol" || typeof value === "function") return value;
+		if (activeTracker) activeTracker.add(trackedDep(target, key));
+		return toReactive(value);
+	},
+	set(target, key, value, receiver) {
+		const prev = Reflect.get(target, key, receiver);
+		const prevLength = Array.isArray(target) ? target.length : -1;
+		const result = Reflect.set(target, key, value, receiver);
+		if (!result) return result;
+		if (typeof key !== "symbol" && hasChanged(prev, value)) {
+			notifyDep(target, key);
+		}
+		// setting an index past the end grows an array without an explicit
+		// length assignment, so length subscribers are notified here
+		if (Array.isArray(target) && key !== "length" && target.length !== prevLength) {
+			notifyDep(target, "length");
+		}
+		return result;
+	},
+	deleteProperty(target, key) {
+		const had = Reflect.has(target, key);
+		const result = Reflect.deleteProperty(target, key);
+		if (result && had && typeof key !== "symbol") {
+			notifyDep(target, key);
+		}
+		return result;
+	},
+};
+
+function createReactiveProxy<T extends object>(target: T): T {
+	const existing = rawToProxy.get(target);
+	if (existing) return existing as T;
+	const proxy = new Proxy(target, reactiveHandlers);
+	rawToProxy.set(target, proxy);
+	reactiveProxies.add(proxy);
+	return proxy as T;
+}
+
+/**
+ * Base class for reactive state. An instance of a `Store` subclass is a deep
+ * proxy over itself: reading a property inside a tracked context (`Computed`,
+ * `subscribeTracked`, or any component binding that takes a plain function)
+ * registers a dependency on exactly that property, and assigning to it
+ * notifies exactly those dependents. Plain objects and arrays read out of a
+ * store are reactive too, so an item pulled from `store.issues` keeps
+ * `issue.status` live wherever it's read — no Signals at the call sites.
+ *
+ * ```ts
+ * class AppStore extends Store {
+ * 	issues: Issue[] = [];
+ * 	get openCount() {
+ * 		return this.issues.filter((issue) => issue.status !== "done").length;
+ * 	}
+ * }
+ * const store = new AppStore();
+ *
+ * Span().content(() => `${store.openCount} open`);
+ * store.issues[0].status = "done"; // notifies only what read that field
+ * ```
+ *
+ * Getters compose: reading `store.openCount` tracks the fields the getter
+ * itself reads. Mutate nested objects freely — but for structural array
+ * changes prefer assigning a new array (`store.issues = [issue, ...store.issues]`)
+ * over `unshift`/`splice`, which notify subscribers mid-shift while the array
+ * holds intermediate duplicates.
+ */
+export class Store {
+	constructor() {
+		// subclass field initializers run against the returned proxy, so every
+		// declared field lands on the tracked target
+		return createReactiveProxy(this);
 	}
 }
 

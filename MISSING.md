@@ -146,16 +146,18 @@ even minimal collision-aware positioning would cover 90% of real menus.
 
 - ✅ Done: `Derived` now accepts `Signals extends readonly Readable<any>[]`, so
   deriving from a `Derived` (or any `Readable`, e.g. a ForEach entry) typechecks.
-- ✅ Done: `properties(source, pick?)` gives reactive property access — each
-  property of an object Readable as its own lazily-created, cached `Readable`
-  (`const issue = properties(entry, ([i]) => i); …content(issue.title)`),
-  replacing the per-field `new Derived([entry], ([issue]) => issue.status)`
-  dance in tracker's `IssueRow`/`GroupSection`.
-- `Derived` subscribes to its sources forever; there is no way to dispose one.
-  Creating Deriveds inside per-row/per-view components (as tracker does for
-  menu selection state) leaks subscriptions on every rebuild.
-- No function-style auto-tracked derived (`new Computed(() => ...)`) even
-  though `subscribeTracked` already implements the tracking.
+- ✅ Done: `new Computed(() => ...)` is the function-style auto-tracked derived,
+  built on `subscribeTracked`.
+- ✅ Done: reactive stores. A `Store` subclass instance is a deep proxy —
+  property reads inside tracked contexts subscribe to exactly that property,
+  writes notify exactly those subscribers, and objects/arrays pulled out of a
+  store stay live. Component props, `If`, and `ForEach` accept plain tracked
+  getters, so `issue.status` works where it's needed with no per-field
+  Deriveds: `.content(() => issue.title)`, `If(() => issue.commentCount > 0)`.
+  Tracker's workspace state is a `TrackerStore` now.
+- `Derived` subscribes to its sources forever; there is no way to dispose one
+  (`Computed` and store property deps share the same fate). Creating them
+  inside per-row/per-view components leaks subscriptions on every rebuild.
 
 ## 11. Fine-grained list updates ✅ Done
 
