@@ -3,6 +3,9 @@ import type { Unsubscribe } from "./types";
 
 export type Callback<T> = (value: T) => void;
 
+/** Called when a signal's value changes. Does not run with the current value. */
+export type ChangeCallback<T> = (value: T, previous: T) => void;
+
 /** True when `next` should replace `prev` and notify subscribers. */
 function hasChanged<T>(prev: T, next: T): boolean {
 	if (prev === next) return false;
@@ -48,15 +51,32 @@ export function watch<Signals extends readonly Readable<any>[]>(
 	return subscribe(signals, getter);
 }
 
+function bindOnChange<T>(
+	initial: T,
+	subscribeTo: (callback: Callback<T>) => Unsubscribe,
+	callback: ChangeCallback<T>,
+): Unsubscribe {
+	let previous = initial;
+	return subscribeTo((value) => {
+		const prev = previous;
+		previous = value;
+		callback(value, prev);
+	});
+}
+
 export interface Writable<T> {
 	get(): T;
 	set(value: T): void;
 	subscribe(callback: Callback<T>): Unsubscribe;
+	/** Subscribe to later updates. Unlike `watch`, this does not run with the current value. */
+	onChange(callback: ChangeCallback<T>): Unsubscribe;
 }
 
 export interface Readable<T> {
 	get(): T;
 	subscribe(callback: Callback<T>): Unsubscribe;
+	/** Subscribe to later updates. Unlike `watch`, this does not run with the current value. */
+	onChange(callback: ChangeCallback<T>): Unsubscribe;
 }
 
 export function isReadable<T = unknown>(value: unknown): value is Readable<T> {
@@ -211,6 +231,10 @@ export class Signal<T> implements Writable<T> {
 		this.subscribers.set(id, callback);
 		return () => this.subscribers.delete(id);
 	}
+
+	onChange(callback: ChangeCallback<T>): Unsubscribe {
+		return bindOnChange(this.value, (cb) => this.subscribe(cb), callback);
+	}
 }
 
 /** Writable that starts as `null`, for binding a component's element without an initial value. */
@@ -250,5 +274,9 @@ export class Derived<T, Signals extends readonly Readable<any>[]> implements Rea
 		const id = ++this.subscriberId;
 		this.subscribers.set(id, callback);
 		return () => this.subscribers.delete(id);
+	}
+
+	onChange(callback: ChangeCallback<T>): Unsubscribe {
+		return bindOnChange(this.value, (cb) => this.subscribe(cb), callback);
 	}
 }
