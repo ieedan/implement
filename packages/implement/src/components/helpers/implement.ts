@@ -1,6 +1,7 @@
 import type { Mountable } from "../types";
 import { Boundary } from "./boundary";
 import { globalEvents, type DocumentProps, type WindowProps } from "./global-events";
+import { Head } from "./head";
 import { Lifecycle } from "./lifecycle";
 
 /**
@@ -42,6 +43,8 @@ export const Implement = {
 	},
 
 	Boundary,
+
+	Head,
 
 	Lifecycle,
 };

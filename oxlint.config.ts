@@ -13,7 +13,7 @@ export default defineConfig({
 		// Signal callbacks commonly reuse the signal name for the unwrapped value.
 		"no-shadow": "off",
 	},
-	ignorePatterns: ["dist/**", "demos/*/src/api/**"],
+	ignorePatterns: ["dist/**", "demos/*/src/api/**", ".velite/**"],
 	overrides: [
 		{
 			files: ["packages/implement/scripts/**/*.ts", "demos/*/server/**/*.ts"],

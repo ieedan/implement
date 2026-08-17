@@ -98,7 +98,7 @@ type GlobalAttributes = {
 	nonce?: Bindable<string>;
 	part?: Bindable<string>;
 	popover?: Bindable<"" | "auto" | "manual" | "hint" | boolean>;
-	role?: Bindable<string>;
+	role?: Bindable<AriaRole>;
 	slot?: Bindable<string>;
 	spellcheck?: Bindable<boolean>;
 	style?: Bindable<string> | Styles;
@@ -134,15 +134,230 @@ export type InputType =
 	| "url"
 	| "week";
 
+/**
+ * Browsing context name. Keywords get autocomplete; any string is allowed for
+ * named frames (`target="foo"`).
+ */
+export type AnchorTarget = "_self" | "_blank" | "_parent" | "_top" | (string & {});
+
+export type ReferrerPolicy =
+	| ""
+	| "no-referrer"
+	| "no-referrer-when-downgrade"
+	| "origin"
+	| "origin-when-cross-origin"
+	| "same-origin"
+	| "strict-origin"
+	| "strict-origin-when-cross-origin"
+	| "unsafe-url";
+
+export type CrossOrigin = "" | "anonymous" | "use-credentials";
+
+export type FormMethod = "get" | "post" | "dialog";
+
+export type FormEnctype =
+	| "application/x-www-form-urlencoded"
+	| "multipart/form-data"
+	| "text/plain";
+
+export type LinkAs =
+	| "audio"
+	| "document"
+	| "embed"
+	| "fetch"
+	| "font"
+	| "image"
+	| "object"
+	| "script"
+	| "style"
+	| "track"
+	| "video"
+	| "worker";
+
+/** Single tokens autocomplete; space-separated lists are still valid. */
+export type RelType =
+	| "alternate"
+	| "author"
+	| "bookmark"
+	| "canonical"
+	| "dns-prefetch"
+	| "external"
+	| "help"
+	| "icon"
+	| "license"
+	| "manifest"
+	| "modulepreload"
+	| "next"
+	| "nofollow"
+	| "noopener"
+	| "noreferrer"
+	| "opener"
+	| "pingback"
+	| "preconnect"
+	| "prefetch"
+	| "preload"
+	| "prev"
+	| "privacy-policy"
+	| "search"
+	| "stylesheet"
+	| "tag"
+	| "terms-of-service"
+	| (string & {});
+
+export type AutoComplete = "on" | "off" | (string & {});
+
+export type HttpEquiv =
+	| "content-security-policy"
+	| "content-type"
+	| "default-style"
+	| "refresh"
+	| "x-ua-compatible"
+	| (string & {});
+
+export type MetaName =
+	| "application-name"
+	| "author"
+	| "color-scheme"
+	| "description"
+	| "generator"
+	| "keywords"
+	| "referrer"
+	| "robots"
+	| "theme-color"
+	| "viewport"
+	| (string & {});
+
+/** Single tokens autocomplete; space-separated lists are still valid. */
+export type Sandbox =
+	| "allow-downloads"
+	| "allow-forms"
+	| "allow-modals"
+	| "allow-orientation-lock"
+	| "allow-pointer-lock"
+	| "allow-popups"
+	| "allow-popups-to-escape-sandbox"
+	| "allow-presentation"
+	| "allow-same-origin"
+	| "allow-scripts"
+	| "allow-storage-access-by-user-activation"
+	| "allow-top-navigation"
+	| "allow-top-navigation-by-user-activation"
+	| "allow-top-navigation-to-custom-protocols"
+	| (string & {});
+
+export type AriaRole =
+	| "alert"
+	| "alertdialog"
+	| "application"
+	| "article"
+	| "banner"
+	| "blockquote"
+	| "button"
+	| "caption"
+	| "cell"
+	| "checkbox"
+	| "code"
+	| "columnheader"
+	| "combobox"
+	| "comment"
+	| "complementary"
+	| "contentinfo"
+	| "definition"
+	| "deletion"
+	| "dialog"
+	| "directory"
+	| "document"
+	| "emphasis"
+	| "feed"
+	| "figure"
+	| "form"
+	| "generic"
+	| "grid"
+	| "gridcell"
+	| "group"
+	| "heading"
+	| "img"
+	| "image"
+	| "insertion"
+	| "link"
+	| "list"
+	| "listbox"
+	| "listitem"
+	| "log"
+	| "main"
+	| "mark"
+	| "marquee"
+	| "math"
+	| "menu"
+	| "menubar"
+	| "menuitem"
+	| "menuitemcheckbox"
+	| "menuitemradio"
+	| "meter"
+	| "navigation"
+	| "none"
+	| "note"
+	| "option"
+	| "paragraph"
+	| "presentation"
+	| "progressbar"
+	| "radio"
+	| "radiogroup"
+	| "region"
+	| "row"
+	| "rowgroup"
+	| "rowheader"
+	| "scrollbar"
+	| "search"
+	| "searchbox"
+	| "separator"
+	| "slider"
+	| "spinbutton"
+	| "status"
+	| "strong"
+	| "subscript"
+	| "suggestion"
+	| "superscript"
+	| "switch"
+	| "tab"
+	| "table"
+	| "tablist"
+	| "tabpanel"
+	| "term"
+	| "textbox"
+	| "time"
+	| "timer"
+	| "toolbar"
+	| "tooltip"
+	| "tree"
+	| "treegrid"
+	| "treeitem";
+
+type PreserveAspectRatioAlign =
+	| "xMinYMin"
+	| "xMidYMin"
+	| "xMaxYMin"
+	| "xMinYMid"
+	| "xMidYMid"
+	| "xMaxYMid"
+	| "xMinYMax"
+	| "xMidYMax"
+	| "xMaxYMax";
+
+export type PreserveAspectRatio =
+	| "none"
+	| PreserveAspectRatioAlign
+	| `${PreserveAspectRatioAlign} ${"meet" | "slice"}`;
+
 type TagAttributeMap = {
 	a: {
 		download?: Bindable<string | boolean>;
 		href?: Bindable<string>;
 		hreflang?: Bindable<string>;
 		ping?: Bindable<string>;
-		referrerPolicy?: Bindable<string>;
-		rel?: Bindable<string>;
-		target?: Bindable<string>;
+		referrerPolicy?: Bindable<ReferrerPolicy>;
+		rel?: Bindable<RelType>;
+		target?: Bindable<AnchorTarget>;
 		type?: Bindable<string>;
 	};
 	area: {
@@ -152,15 +367,15 @@ type TagAttributeMap = {
 		href?: Bindable<string>;
 		hreflang?: Bindable<string>;
 		ping?: Bindable<string>;
-		referrerPolicy?: Bindable<string>;
-		rel?: Bindable<string>;
+		referrerPolicy?: Bindable<ReferrerPolicy>;
+		rel?: Bindable<RelType>;
 		shape?: Bindable<"rect" | "circle" | "poly" | "default">;
-		target?: Bindable<string>;
+		target?: Bindable<AnchorTarget>;
 	};
 	audio: MediaAttributes;
 	base: {
 		href?: Bindable<string>;
-		target?: Bindable<string>;
+		target?: Bindable<AnchorTarget>;
 	};
 	blockquote: {
 		cite?: Bindable<string>;
@@ -169,10 +384,10 @@ type TagAttributeMap = {
 		disabled?: Bindable<boolean>;
 		form?: Bindable<string>;
 		formAction?: Bindable<string>;
-		formEnctype?: Bindable<string>;
-		formMethod?: Bindable<string>;
+		formEnctype?: Bindable<FormEnctype>;
+		formMethod?: Bindable<FormMethod>;
 		formNoValidate?: Bindable<boolean>;
-		formTarget?: Bindable<string>;
+		formTarget?: Bindable<AnchorTarget>;
 		name?: Bindable<string>;
 		popoverTarget?: Bindable<string>;
 		popoverTargetAction?: Bindable<"hide" | "show" | "toggle">;
@@ -217,13 +432,13 @@ type TagAttributeMap = {
 	form: {
 		acceptCharset?: Bindable<string>;
 		action?: Bindable<string>;
-		autocomplete?: Bindable<string>;
-		enctype?: Bindable<string>;
-		method?: Bindable<string>;
+		autocomplete?: Bindable<"on" | "off">;
+		enctype?: Bindable<FormEnctype>;
+		method?: Bindable<FormMethod>;
 		name?: Bindable<string>;
 		noValidate?: Bindable<boolean>;
-		rel?: Bindable<string>;
-		target?: Bindable<string>;
+		rel?: Bindable<RelType>;
+		target?: Bindable<AnchorTarget>;
 	};
 	iframe: {
 		allow?: Bindable<string>;
@@ -231,21 +446,21 @@ type TagAttributeMap = {
 		height?: Bindable<number | string>;
 		loading?: Bindable<"eager" | "lazy">;
 		name?: Bindable<string>;
-		referrerPolicy?: Bindable<string>;
-		sandbox?: Bindable<string>;
+		referrerPolicy?: Bindable<ReferrerPolicy>;
+		sandbox?: Bindable<Sandbox>;
 		src?: Bindable<string>;
 		srcdoc?: Bindable<string>;
 		width?: Bindable<number | string>;
 	};
 	img: {
 		alt?: Bindable<string>;
-		crossOrigin?: Bindable<string>;
+		crossOrigin?: Bindable<CrossOrigin>;
 		decoding?: Bindable<"sync" | "async" | "auto">;
 		fetchPriority?: Bindable<"high" | "low" | "auto">;
 		height?: Bindable<number | string>;
 		isMap?: Bindable<boolean>;
 		loading?: Bindable<"eager" | "lazy">;
-		referrerPolicy?: Bindable<string>;
+		referrerPolicy?: Bindable<ReferrerPolicy>;
 		sizes?: Bindable<string>;
 		src?: Bindable<string>;
 		srcset?: Bindable<string>;
@@ -255,17 +470,17 @@ type TagAttributeMap = {
 	input: {
 		accept?: Bindable<string>;
 		alt?: Bindable<string>;
-		autocomplete?: Bindable<string>;
-		capture?: Bindable<string | boolean>;
+		autocomplete?: Bindable<AutoComplete>;
+		capture?: Bindable<boolean | "user" | "environment">;
 		checked?: Bindable<boolean>;
 		dirname?: Bindable<string>;
 		disabled?: Bindable<boolean>;
 		form?: Bindable<string>;
 		formAction?: Bindable<string>;
-		formEnctype?: Bindable<string>;
-		formMethod?: Bindable<string>;
+		formEnctype?: Bindable<FormEnctype>;
+		formMethod?: Bindable<FormMethod>;
 		formNoValidate?: Bindable<boolean>;
-		formTarget?: Bindable<string>;
+		formTarget?: Bindable<AnchorTarget>;
 		height?: Bindable<number | string>;
 		list?: Bindable<string>;
 		max?: Bindable<string | number>;
@@ -300,15 +515,15 @@ type TagAttributeMap = {
 		value?: Bindable<number>;
 	};
 	link: {
-		as?: Bindable<string>;
-		crossOrigin?: Bindable<string>;
+		as?: Bindable<LinkAs>;
+		crossOrigin?: Bindable<CrossOrigin>;
 		disabled?: Bindable<boolean>;
 		href?: Bindable<string>;
 		hreflang?: Bindable<string>;
 		integrity?: Bindable<string>;
 		media?: Bindable<string>;
-		referrerPolicy?: Bindable<string>;
-		rel?: Bindable<string>;
+		referrerPolicy?: Bindable<ReferrerPolicy>;
+		rel?: Bindable<RelType>;
 		sizes?: Bindable<string>;
 		type?: Bindable<string>;
 	};
@@ -322,6 +537,15 @@ type TagAttributeMap = {
 		min?: Bindable<number>;
 		optimum?: Bindable<number>;
 		value?: Bindable<number>;
+	};
+	meta: {
+		charset?: Bindable<string>;
+		content?: Bindable<string>;
+		httpEquiv?: Bindable<HttpEquiv>;
+		media?: Bindable<string>;
+		name?: Bindable<MetaName>;
+		/** RDFa name (`og:title`, `og:image`, …), written as the `property` attribute. */
+		property?: Bindable<string>;
 	};
 	object: {
 		data?: Bindable<string>;
@@ -362,16 +586,16 @@ type TagAttributeMap = {
 	};
 	script: {
 		async?: Bindable<boolean>;
-		crossOrigin?: Bindable<string>;
+		crossOrigin?: Bindable<CrossOrigin>;
 		defer?: Bindable<boolean>;
 		integrity?: Bindable<string>;
 		noModule?: Bindable<boolean>;
-		referrerPolicy?: Bindable<string>;
+		referrerPolicy?: Bindable<ReferrerPolicy>;
 		src?: Bindable<string>;
 		type?: Bindable<string>;
 	};
 	select: {
-		autocomplete?: Bindable<string>;
+		autocomplete?: Bindable<AutoComplete>;
 		disabled?: Bindable<boolean>;
 		form?: Bindable<string>;
 		multiple?: Bindable<boolean>;
@@ -402,7 +626,7 @@ type TagAttributeMap = {
 		rowSpan?: Bindable<number>;
 	};
 	textarea: {
-		autocomplete?: Bindable<string>;
+		autocomplete?: Bindable<AutoComplete>;
 		cols?: Bindable<number>;
 		dirname?: Bindable<string>;
 		disabled?: Bindable<boolean>;
@@ -445,7 +669,7 @@ type TagAttributeMap = {
 type MediaAttributes = {
 	autoplay?: Bindable<boolean>;
 	controls?: Bindable<boolean>;
-	crossOrigin?: Bindable<string>;
+	crossOrigin?: Bindable<CrossOrigin>;
 	currentTime?: Bindable<number>;
 	loop?: Bindable<boolean>;
 	muted?: Bindable<boolean>;
@@ -531,8 +755,8 @@ export type SvgProps = SvgEventHandlers &
 		height?: Bindable<number | string>;
 		id?: Bindable<string>;
 		opacity?: Bindable<number | string>;
-		preserveAspectRatio?: Bindable<string>;
-		role?: Bindable<string>;
+		preserveAspectRatio?: Bindable<PreserveAspectRatio>;
+		role?: Bindable<AriaRole>;
 		stroke?: Bindable<string>;
 		"stroke-dasharray"?: Bindable<number | string>;
 		"stroke-dashoffset"?: Bindable<number | string>;
@@ -792,7 +1016,10 @@ function bindClassProp(el: Element, value: unknown): Unsubscribe {
 	};
 }
 
-function bindStyleObject(el: HTMLElement | SVGElement, styles: Record<string, unknown>): Unsubscribe {
+function bindStyleObject(
+	el: HTMLElement | SVGElement,
+	styles: Record<string, unknown>,
+): Unsubscribe {
 	const unsubscribers: Unsubscribe[] = [];
 	for (const [property, value] of Object.entries(styles)) {
 		if (value === undefined) continue;

@@ -4,5 +4,5 @@
 		"types": ["node"],
 		"allowImportingTsExtensions": true
 	},
-	"include": ["src/**/*.ts", "*.config.ts"]
+	"include": ["src/**/*.ts", "*.config.ts", ".velite/**/*.d.ts"]
 }

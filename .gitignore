@@ -18,6 +18,9 @@ demos/*/src/api/
 *.db-shm
 *.db-wal
 
+# Generated content collections
+.velite
+
 # Build output
 dist/
 build/

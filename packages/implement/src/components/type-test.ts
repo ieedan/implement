@@ -1,4 +1,5 @@
-import { Br, Div, Img, Input } from "./elements";
+import { A, Br, Button, Div, Form, Img, Input, Link } from "./elements";
+import { Implement } from "./helpers/implement";
 import { Svg } from "./helpers/svg";
 import { Ref, signal } from "../signal";
 
@@ -36,6 +37,24 @@ Input({ type: "text" });
 Img({ src: "/x.png", alt: "" });
 Br();
 
+A({ href: "/", target: "_blank", rel: "noopener", referrerPolicy: "no-referrer" });
+A({ href: "/", target: "other-frame", rel: "noopener noreferrer" });
+Button({ formMethod: "post", formEnctype: "multipart/form-data", formTarget: "_blank" });
+Form({ method: "dialog", enctype: "text/plain", autocomplete: "on" });
+Img({ src: "/x.png", alt: "", crossOrigin: "anonymous", referrerPolicy: "origin" });
+Input({ capture: "user", autocomplete: "email" });
+Link({ rel: "preload", as: "style", crossOrigin: "anonymous" });
+Div({ role: "navigation" });
+
+// @ts-expect-error unknown form method
+Form({ method: "put" });
+// @ts-expect-error unknown referrer policy
+A({ referrerPolicy: "nope" });
+// @ts-expect-error unknown aria role
+Div({ role: "not-a-role" });
+// @ts-expect-error unknown input capture
+Input({ capture: "front" });
+
 // @ts-expect-error input cannot have children
 Input({ type: "text" }, "nope");
 // @ts-expect-error input cannot have a children prop
@@ -52,6 +71,7 @@ Svg(glyph, {
 	width: 20,
 	height: "1.5rem",
 	viewBox: "0 0 16 16",
+	preserveAspectRatio: "xMidYMid meet",
 	fill: signal("currentColor"),
 	"stroke-width": 1.5,
 	class: ["icon", { active }],
@@ -70,3 +90,32 @@ Svg(glyph, { this: div });
 Svg(glyph, { strokeWidth: 1.5 });
 // @ts-expect-error svg content is authored in the string, not via children
 Svg(glyph, {}, "nope");
+
+const title = signal("Tracker");
+Implement.Head(
+	Implement.Head.Title(title),
+	Implement.Head.Title("Tracker"),
+	Implement.Head.Meta({ name: "description", content: title }),
+	Implement.Head.Meta({ property: "og:title", content: "Tracker" }),
+	Implement.Head.Meta({ charset: "utf-8" }),
+	Implement.Head.Link({ rel: "icon", href: "/favicon.svg" }),
+	Implement.Head.Script({ src: "/analytics.js", async: true }),
+	Implement.Head.Script(
+		{ type: "application/ld+json" },
+		title.bind((t) => `{"name":"${t}"}`),
+	),
+	Implement.Head.Style(":root { color-scheme: dark; }"),
+);
+
+// @ts-expect-error only head-branded components slot into Implement.Head
+Implement.Head(Div());
+// @ts-expect-error text is not a head child
+Implement.Head("nope");
+// @ts-expect-error head components cannot render outside Implement.Head
+Div({}, Implement.Head.Meta({ name: "description", content: "nope" }));
+// @ts-expect-error head components are not regular children props
+Div({ children: Implement.Head.Title("nope") });
+// @ts-expect-error meta content cannot be a script prop bag
+Implement.Head.Meta({ src: "/nope.js" });
+// @ts-expect-error script content is the second argument, not a children prop
+Implement.Head.Script({ children: "nope" });

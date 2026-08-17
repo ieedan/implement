@@ -4,24 +4,28 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"dev": "concurrently -n js,css,www -c cyan,magenta,green \"pnpm dev:js\" \"pnpm dev:css\" \"pnpm dev:www\"",
+		"dev": "pnpm generate && concurrently -n velite,js,css,www -c yellow,cyan,magenta,green \"pnpm generate --watch\" \"pnpm dev:js\" \"pnpm dev:css\" \"pnpm dev:www\"",
 		"dev:js": "tsdown --watch",
 		"dev:css": "tailwindcss -i ./app.css -o ./dist/app.css --watch=always",
 		"dev:www": "serve -s -l 3004 --no-port-switching",
-		"build": "tsdown && pnpm build:css",
+		"generate": "velite",
+		"build": "pnpm generate && tsdown && pnpm build:css",
 		"build:css": "tailwindcss -i ./app.css -o ./dist/app.css --minify",
-		"check": "tsc --noEmit"
+		"check": "pnpm generate && tsc --noEmit"
 	},
 	"dependencies": {
 		"@packages/implement": "workspace:*"
 	},
 	"devDependencies": {
+		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/cli": "^4.3.3",
 		"@types/node": "^26.2.0",
 		"concurrently": "^10.0.4",
 		"serve": "^14.2.6",
+		"shiki": "^4.4.3",
 		"tailwindcss": "^4.3.3",
 		"tsdown": "^0.22.14",
-		"typescript": "^7.0.2"
+		"typescript": "^7.0.2",
+		"velite": "^0.4.0"
 	}
 }

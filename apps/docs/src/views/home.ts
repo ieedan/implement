@@ -1,22 +1,28 @@
-import { Div, H1, P, type Mountable } from "@packages/implement";
-import { router } from "../router";
+import { A, Div, H1, Implement, P, type Mountable } from "@packages/implement";
+import { Link } from "../router";
 
-export function HomeView(): Mountable {
+export function Home(): Mountable {
 	return Div(
-		{ class: "flex flex-col gap-4" },
-		H1({ class: "text-2xl font-semibold tracking-tight" }, "Introduction"),
-		P(
-			{ class: "text-sm leading-6 text-zinc-400" },
-			"implement is a signal-based UI framework with fine-grained reactivity, a typed router, and no compiler.",
+		{ class: "mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-4 px-6" },
+		Implement.Head(
+			Implement.Head.Title("implement ~ A dead simple ui framework"),
+			Implement.Head.Meta({ name: "description", content: "A signal based UI framework with fine-grained reactivity, good ergonomics, and no compiler." }),
 		),
+
+		H1({ class: "text-3xl font-semibold tracking-tight" }, "implement"),
 		P(
-			{ class: "text-sm leading-6 text-zinc-400" },
-			"Head to ",
-			router.Link(
-				{ to: "/docs/getting-started", class: "text-zinc-100 underline underline-offset-4" },
-				"Getting Started",
+			{ class: "text-foreground/60" },
+			"A signal-based UI framework with fine-grained reactivity, good ergonomics, and no compiler.",
+		),
+		Div({ class: "flex items-center gap-4" },
+			Link(
+				{ to: "/docs", class: "text-foreground underline underline-offset-4" },
+				"Read the docs",
 			),
-			" to build your first app.",
-		),
+			A(
+				{ href: "https://github.com/ieedan/implement", target: "_blank", class: "text-foreground/60 hover:underline underline-offset-4" },
+				"View on GitHub →",
+			),
+		)
 	);
 }

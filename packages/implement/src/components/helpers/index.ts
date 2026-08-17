@@ -3,6 +3,14 @@ export { type BoundaryHelper } from "./boundary";
 export { ForEach } from "./foreach";
 export { Fragment, type FragmentProps } from "./fragment";
 export { type DocumentProps, type WindowProps } from "./global-events";
+export {
+	type HeadChild,
+	type HeadHelper,
+	type HeadLinkProps,
+	type MetaProps,
+	type ScriptProps,
+	type StyleProps,
+} from "./head";
 export { Html } from "./html";
 export { If, type IfHelper } from "./if";
 export { Key } from "./key";
