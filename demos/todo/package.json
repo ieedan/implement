@@ -4,14 +4,11 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"dev": "pnpm generate && concurrently -n js,css,www,api -c cyan,magenta,green,blue \"pnpm dev:js\" \"pnpm dev:css\" \"pnpm dev:www\" \"pnpm dev:api\"",
-		"dev:js": "tsdown --watch",
-		"dev:css": "tailwindcss -i ./app.css -o ./dist/app.css --watch=always",
-		"dev:www": "serve -l 3002 --no-port-switching",
+		"dev": "pnpm generate && concurrently -n web,api -c cyan,blue \"vite\" \"pnpm dev:api\"",
 		"dev:api": "tsx watch server/index.ts",
 		"generate": "openapi-ts",
-		"build": "pnpm generate && tsdown && pnpm build:css",
-		"build:css": "tailwindcss -i ./app.css -o ./dist/app.css --minify",
+		"build": "pnpm generate && vite build",
+		"preview": "vite preview",
 		"check": "pnpm generate && tsc --noEmit"
 	},
 	"dependencies": {
@@ -23,13 +20,12 @@
 	},
 	"devDependencies": {
 		"@hey-api/openapi-ts": "0.0.0-next-20260813201118",
-		"@tailwindcss/cli": "^4.3.3",
+		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",
 		"concurrently": "^10.0.4",
-		"serve": "^14.2.6",
 		"tailwindcss": "^4.3.3",
-		"tsdown": "^0.22.14",
 		"tsx": "^4.23.12",
-		"typescript": "^7.0.2"
+		"typescript": "^7.0.2",
+		"vite": "^7.3.0"
 	}
 }

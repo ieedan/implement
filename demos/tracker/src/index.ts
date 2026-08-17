@@ -1,6 +1,7 @@
 import { App, Await, Div, P, Span, type Mountable } from "@packages/implement";
 import { router } from "./router";
 import { loadWorkspace } from "./state/store";
+import "../app.css";
 
 const app = App({ target: document.getElementById("root")! });
 
@@ -15,7 +16,7 @@ function CenteredMessage(...lines: string[]): Mountable {
 	);
 }
 
-app.render(
+const unmount = app.render(
 	Await(loadWorkspace())
 		.WhileLoading(CenteredMessage("Loading workspace…"))
 		.Then(() => router)
@@ -23,3 +24,8 @@ app.render(
 			CenteredMessage(error.message, "Start it with: pnpm --filter @demos/tracker dev"),
 		),
 );
+
+if (import.meta.hot) {
+	import.meta.hot.accept();
+	import.meta.hot.dispose(() => unmount());
+}

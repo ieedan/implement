@@ -1,7 +1,7 @@
 {
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
-		"types": ["node"],
+		"types": ["node", "vite/client"],
 		"allowImportingTsExtensions": true
 	},
 	"include": ["src/**/*.ts", "*.config.ts", ".velite/**/*.d.ts"]

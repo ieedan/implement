@@ -176,8 +176,14 @@ export function App(options: { target: HTMLElement }) {
 	const { target } = options;
 
 	return {
+		/** Mounts `children` into the target and returns an unmount function. */
 		render: (...children: Child[]) => {
-			children.forEach((child) => mountChild(toMountable(child)(), target));
+			const instances = children.map((child) => {
+				const instance = toMountable(child)();
+				mountChild(instance, target);
+				return instance;
+			});
+			return () => instances.forEach((instance) => instance.unmount());
 		},
 	};
 }

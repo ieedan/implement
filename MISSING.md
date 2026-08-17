@@ -110,9 +110,14 @@ No headless renderer, so none of tracker is tested except by clicking.
 The router's matching/param logic is pure and would unit-test trivially if
 mounting didn't require a real DOM.
 
-## 11. Dev loop
+## 11. Dev loop **(fixed)**
 
-Four processes (tsdown, tailwind, static server, API) and full manual
-reloads. Every demo copies the same scaffold with only ports changed,
-including generalizing the `serve` invocation to `-s` for SPA fallback. A
-`create-app` template or dev-server package would end the copying.
+Was four processes (tsdown, tailwind, static server, API) and full manual
+reloads per demo. The apps are Vite projects now: one `vite` process serves
+`index.html` with SPA fallback, compiles the framework straight from its
+workspace source, and runs Tailwind through `@tailwindcss/vite` — only the
+API server runs alongside. `App().render()` returns an unmount function, so
+each entry hot-remounts via `import.meta.hot` (edits patch the page without
+a reload; CSS hot-swaps). `vite build` emits a hashed static `dist/` per
+app. Still open: every demo copies the same scaffold with only ports
+changed — a `create-app` template would end the copying.

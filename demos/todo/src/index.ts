@@ -14,12 +14,18 @@ import {
 	type Signal,
 } from "@packages/implement";
 import { Api, type Todo } from "./api";
+import "../app.css";
 
 const api = new Api();
 const app = App({ target: document.body });
 const TodosContext = Context<Signal<Todo[]>>();
 
-app.render(TodoApp());
+const unmount = app.render(TodoApp());
+
+if (import.meta.hot) {
+	import.meta.hot.accept();
+	import.meta.hot.dispose(() => unmount());
+}
 
 function TodoApp() {
 	const items = signal<Todo[]>([]);

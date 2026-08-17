@@ -27,8 +27,9 @@ export default defineConfig({
 	strict: true,
 	output: {
 		data: ".velite",
-		assets: "dist/static",
-		base: "/dist/static/",
+		// Vite copies public/ into dist on build (dist itself is wiped by every build).
+		assets: "public/static",
+		base: "/static/",
 		clean: true,
 	},
 	collections: { pages },

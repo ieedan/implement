@@ -20,6 +20,7 @@ demos/*/src/api/
 
 # Generated content collections
 .velite
+apps/docs/public/static/
 
 # Build output
 dist/
