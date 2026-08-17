@@ -12,7 +12,8 @@
 	"scripts": {
 		"dev": "tsdown --watch",
 		"build": "tsdown",
-		"check": "tsc --noEmit"
+		"seed": "node --experimental-strip-types scripts/seed-components.ts",
+		"check": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json"
 	},
 	"devDependencies": {
 		"@types/node": "^26.2.0",

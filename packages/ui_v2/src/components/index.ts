@@ -1,123 +1,150 @@
-export interface IMountable {
-    mount: (parent: HTMLElement) => void;
-    unmount: () => void;
+import { isReadable } from "../signal";
+import { mountChild } from "../tree";
+import type { Unsubscribe } from "../types";
+import { applyElementProps, syncValueProp, type ElementProps } from "./props";
+import type { Child, IMountable, Mountable, PrimitiveChild, ReadableChild } from "./types";
+
+export type { Child, IMountable, Mountable, PrimitiveChild, ReadableChild } from "./types";
+export type { Bindable, ElementProps, InputType, Props, Styles } from "./props";
+
+export type ComponentFactory<T extends keyof HTMLElementTagNameMap = keyof HTMLElementTagNameMap> =
+	() => Component<T>;
+
+function toText(value: PrimitiveChild): string {
+	if (value == null || value === false) return "";
+	return typeof value === "string" ? value : `${value}`;
 }
 
-export type Mountable = () => IMountable;
-
-export type Child = Mountable | string; // in the future we can also accept signals with .toString() available...
-
-export type Props = {
-    children?: Child[] | Child;
-    [key: string]: unknown;
-};
-
-function isChild(value: unknown): value is Child {
-    return typeof value === "function" || typeof value === "string";
+function text(content: PrimitiveChild): Mountable {
+	const initial = toText(content);
+	return () => {
+		let node: Text | null = null;
+		return {
+			mount(parent: HTMLElement) {
+				node = document.createTextNode(initial);
+				parent.appendChild(node);
+			},
+			unmount() {
+				node?.remove();
+				node = null;
+			},
+			getFirstDomNode() {
+				return node;
+			},
+		};
+	};
 }
 
-function text(content: string): Mountable {
-    return () => {
-        let node: Text | null = null;
-        return {
-            mount(parent: HTMLElement) {
-                node = document.createTextNode(content);
-                parent.appendChild(node);
-            },
-            unmount() {
-                node?.remove();
-                node = null;
-            },
-        };
-    };
+function readableText(content: ReadableChild): Mountable {
+	return () => {
+		let node: Text | null = null;
+		let unsubscribe: Unsubscribe | null = null;
+		return {
+			mount(parent: HTMLElement) {
+				node = document.createTextNode(toText(content.get()));
+				parent.appendChild(node);
+				unsubscribe = content.subscribe((value) => {
+					if (node) node.data = toText(value);
+				});
+			},
+			unmount() {
+				unsubscribe?.();
+				unsubscribe = null;
+				node?.remove();
+				node = null;
+			},
+			getFirstDomNode() {
+				return node;
+			},
+		};
+	};
 }
 
 function toMountable(child: Child): Mountable {
-    return typeof child === "string" ? text(child) : child;
+	if (typeof child === "function") return child;
+	if (child !== null && typeof child === "object" && isReadable<PrimitiveChild>(child)) {
+		return readableText(child);
+	}
+	return text(child as PrimitiveChild);
 }
 
-export function component<T extends keyof HTMLElementTagNameMap>(tag: T, props: Props = {}, ...children: Child[]): () => Component<T> {
-    return () => new Component(tag, props, ...children);
+export function component<T extends keyof HTMLElementTagNameMap>(
+	tag: T,
+	props: ElementProps<T> = {} as ElementProps<T>,
+	...children: Child[]
+): ComponentFactory<T> {
+	return () => new Component(tag, props, ...children);
 }
 
-function reconcileChildren(props: Props, ...children: Child[]): Mountable[] {
-    const fromProps = props.children
-        ? Array.isArray(props.children)
-            ? props.children
-            : [props.children]
-        : [];
-    return [...fromProps, ...children].map(toMountable);
+export function element<T extends keyof HTMLElementTagNameMap>(tag: T) {
+	return (
+		props: ElementProps<T> = {} as ElementProps<T>,
+		...children: Child[]
+	): ComponentFactory<T> => component(tag, props, ...children);
+}
+
+export function reconcileChildren(
+	props: { children?: Child | Child[] },
+	...children: Child[]
+): Mountable[] {
+	const fromProps = props.children
+		? Array.isArray(props.children)
+			? props.children
+			: [props.children]
+		: [];
+	return [...fromProps, ...children].map(toMountable);
 }
 
 class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
-    #element: HTMLElement | null = null;
-    #tag: T;
-    #props: Omit<Props, "children">;
-    #children: Mountable[];
-    #mountedChildren: IMountable[] = [];
+	#element: HTMLElementTagNameMap[T] | null = null;
+	#tag: T;
+	#props: ElementProps<T>;
+	#children: Mountable[];
+	#mountedChildren: IMountable[] = [];
+	#unsubscribeProps: Unsubscribe | null = null;
 
-    constructor(tag: T, props: Props, ...children: Child[]) {
-        this.#tag = tag;
-        this.#props = props;
-        this.#children = reconcileChildren(props, ...children);
-    }
+	constructor(tag: T, props: ElementProps<T>, ...children: Child[]) {
+		this.#tag = tag;
+		this.#props = props;
+		this.#children = reconcileChildren(props, ...children);
+	}
 
-    mount(parent: HTMLElement): void {
-        this.#element = document.createElement(this.#tag);
-        this.#children.forEach(child => {
-            const createdChild = child();
-            this.#mountedChildren.push(createdChild);
-            createdChild.mount(this.#element!);
-        });
-        parent.appendChild(this.#element!);
-    }
+	mount(parent: HTMLElement): void {
+		this.#element = document.createElement(this.#tag);
+		this.#unsubscribeProps = applyElementProps(
+			this.#element,
+			this.#tag,
+			this.#props as Record<string, unknown>,
+		);
+		this.#children.forEach((child) => {
+			const createdChild = child();
+			this.#mountedChildren.push(createdChild);
+			mountChild(createdChild, this.#element!);
+		});
+		syncValueProp(this.#element, this.#props as Record<string, unknown>);
+		parent.appendChild(this.#element);
+	}
 
-    unmount(): void {
-        this.#mountedChildren.forEach(child => child.unmount());
-        this.#element?.remove();
-        this.#element = null;
-    }
-}
+	unmount(): void {
+		this.#unsubscribeProps?.();
+		this.#unsubscribeProps = null;
+		this.#mountedChildren.forEach((child) => child.unmount());
+		this.#mountedChildren = [];
+		this.#element?.remove();
+		this.#element = null;
+	}
 
-export function Fragment(...children: Child[]): Child;
-export function Fragment(props: Props, ...children: Child[]): Child;
-export function Fragment(propsOrChild?: Props | Child, ...children: Child[]): Child {
-    return () => {
-        const props = isChild(propsOrChild) || propsOrChild === undefined ? {} : propsOrChild;
-        const rest = isChild(propsOrChild) ? [propsOrChild, ...children] : children;
-        const childrenArray = reconcileChildren(props, ...rest);
-        const mountedChildren: IMountable[] = [];
-        return {
-            mount: (parent: HTMLElement) => {
-                childrenArray.forEach(child => {
-                    const createdChild = child();
-                    mountedChildren.push(createdChild);
-                    createdChild.mount(parent);
-                });
-            },
-            unmount: () => {
-                mountedChildren.forEach(child => child.unmount());
-            }
-        }
-    }
-}
-
-export function Div(...children: Child[]): () => Component<"div">;
-export function Div(props: Props, ...children: Child[]): () => Component<"div">;
-export function Div(propsOrChild?: Props | Child, ...children: Child[]): () => Component<"div"> {
-    if (isChild(propsOrChild)) {
-        return component("div", {}, propsOrChild, ...children);
-    }
-
-    return component("div", propsOrChild ?? {}, ...children);
+	getFirstDomNode(): Node | null {
+		return this.#element;
+	}
 }
 
 export function App(options: { target: HTMLElement }) {
-    const { target } = options;
+	const { target } = options;
 
-    return {
-        render: (...children: Child[]) => {
-            children.forEach(child => toMountable(child)().mount(target));
-        }
-    }
+	return {
+		render: (...children: Child[]) => {
+			children.forEach((child) => mountChild(toMountable(child)(), target));
+		},
+	};
 }

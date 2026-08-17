@@ -64,19 +64,74 @@ function bindOnChange<T>(
 	});
 }
 
-export interface Writable<T> {
-	get(): T;
-	set(value: T): void;
-	subscribe(callback: Callback<T>): Unsubscribe;
-	/** Subscribe to later updates. Unlike `watch`, this does not run with the current value. */
-	onChange(callback: ChangeCallback<T>): Unsubscribe;
-}
+/** True when `T` should not be walked for dotted bind paths. */
+type PathLeaf<T> = T extends
+	| string
+	| number
+	| boolean
+	| bigint
+	| symbol
+	| null
+	| undefined
+	| Date
+	| Map<unknown, unknown>
+	| Set<unknown>
+	| ((...args: never[]) => unknown)
+	| readonly unknown[]
+	? true
+	: false;
+
+type PrevBindDepth = [never, 0, 1, 2, 3, 4, 5];
+
+type PathsOf<T, D extends number> = [D] extends [never]
+	? never
+	: T extends object
+		? {
+				[K in keyof T & string]: PathLeaf<NonNullable<T[K]>> extends true
+					? K
+					: K | `${K}.${PathsOf<NonNullable<T[K]>, PrevBindDepth[D]>}`;
+			}[keyof T & string]
+		: never;
+
+/** Dotted paths into a plain object, e.g. `"title"` or `"author.name"`. */
+export type BindableKeys<T> =
+	NonNullable<T> extends readonly unknown[] ? never : PathsOf<NonNullable<T>, 5>;
+
+/** Value at a {@link BindableKeys} path. */
+export type BindPathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
+	? K extends keyof NonNullable<T>
+		? BindPathValue<NonNullable<T>[K], Rest>
+		: never
+	: P extends keyof NonNullable<T>
+		? NonNullable<T>[P]
+		: never;
+
+export type BindUpdate<T, U> = (prev: T, next: U) => T | void;
 
 export interface Readable<T> {
 	get(): T;
 	subscribe(callback: Callback<T>): Unsubscribe;
 	/** Subscribe to later updates. Unlike `watch`, this does not run with the current value. */
 	onChange(callback: ChangeCallback<T>): Unsubscribe;
+	/** One-way binding of a (possibly dotted) path, e.g. `todo.bind("author.name")`. */
+	bind<P extends BindableKeys<T>>(path: P): Readable<BindPathValue<T, P>>;
+	/** One-way derived value, e.g. `todo.bind((value) => value.title)`. */
+	bind<U>(selector: (value: T) => U): Readable<U>;
+}
+
+export interface Writable<T> extends Readable<T> {
+	set(value: T): void;
+	/** Notify subscribers of the current value. Used after in-place mutation. */
+	flush(): void;
+	/** Two-way binding of a (possibly dotted) path, e.g. `todo.bind("author.name")`. */
+	bind<P extends BindableKeys<T>>(path: P): Writable<BindPathValue<T, P>>;
+	/** One-way derived value, e.g. `todo.bind((value) => value.title)`. */
+	bind<U>(selector: (value: T) => U): Readable<U>;
+	/**
+	 * Two-way derived value. `update` writes `next` back into `prev`.
+	 * Return a new parent, or mutate `prev` in place and return nothing.
+	 */
+	bind<U>(selector: (value: T) => U, update: BindUpdate<T, U>): Writable<U>;
 }
 
 export function isReadable<T = unknown>(value: unknown): value is Readable<T> {
@@ -111,6 +166,10 @@ export class Signal<T> implements Writable<T> {
 		if (!hasChanged(this.value, value)) return;
 		this.value = value;
 		this.notify(value);
+	}
+
+	flush() {
+		this.notify(this.value);
 	}
 
 	update(fn: (current: T) => T) {
@@ -186,6 +245,16 @@ export class Signal<T> implements Writable<T> {
 	onChange(callback: ChangeCallback<T>): Unsubscribe {
 		return bindOnChange(this.value, (cb) => this.subscribe(cb), callback);
 	}
+
+	bind<P extends BindableKeys<T>>(path: P): Writable<BindPathValue<T, P>>;
+	bind<U>(selector: (value: T) => U): Readable<U>;
+	bind<U>(selector: (value: T) => U, update: BindUpdate<T, U>): Writable<U>;
+	bind(
+		keyOrSelector: PropertyKey | ((value: T) => unknown),
+		update?: BindUpdate<T, unknown>,
+	): Readable<unknown> | Writable<unknown> {
+		return createBinding(this, keyOrSelector, update);
+	}
 }
 
 /** Writable that starts as `null`, for binding a component's element without an initial value. */
@@ -258,6 +327,12 @@ abstract class LazyReadable<T> implements Readable<T> {
 		return bindOnChange(this.value, (cb) => this.subscribe(cb), callback);
 	}
 
+	bind<P extends BindableKeys<T>>(path: P): Readable<BindPathValue<T, P>>;
+	bind<U>(selector: (value: T) => U): Readable<U>;
+	bind(keyOrSelector: PropertyKey | ((value: T) => unknown)): Readable<unknown> {
+		return createBinding(this, keyOrSelector) as Readable<unknown>;
+	}
+
 	/** Stop watching sources and drop subscribers. Safe to call more than once. */
 	dispose() {
 		if (this.disposed) return;
@@ -284,4 +359,162 @@ export class Derived<T, Signals extends readonly Readable<any>[]> extends LazyRe
 	protected watch(onValue: (value: T) => void): Unsubscribe {
 		return subscribe(this.signals, (...values) => onValue(this.getter(...values)));
 	}
+}
+
+function getAtPath(obj: unknown, path: string): unknown {
+	let current = obj;
+	for (const key of path.split(".")) {
+		if (current == null) {
+			throw new Error(`Cannot read "${path}" from ${String(current)}`);
+		}
+		current = (current as Record<string, unknown>)[key];
+	}
+	return current;
+}
+
+function setAtPath(obj: unknown, path: string, value: unknown): unknown {
+	const keys = path.split(".");
+	return setAtKeys(obj, keys, value, path);
+}
+
+function setAtKeys(obj: unknown, keys: readonly string[], value: unknown, path: string): unknown {
+	if (obj == null || typeof obj !== "object") {
+		throw new Error(`Cannot set "${path}" on ${String(obj)}`);
+	}
+	const head = keys[0];
+	if (head === undefined) return value;
+	const rest = keys.slice(1);
+	if (Array.isArray(obj)) {
+		const next = obj.slice();
+		const index = Number(head);
+		next[index] = rest.length === 0 ? value : setAtKeys(obj[index], rest, value, path);
+		return next;
+	}
+	return {
+		...(obj as object),
+		[head]:
+			rest.length === 0
+				? value
+				: setAtKeys((obj as Record<string, unknown>)[head], rest, value, path),
+	};
+}
+
+/**
+ * Two-way view of a (possibly dotted) path. `set` writes an updated parent
+ * object so `todo.bind("author.name")` updates the nested field.
+ */
+class BoundPath<T> implements Writable<unknown> {
+	constructor(
+		private readonly source: Writable<T>,
+		private readonly path: string,
+	) {}
+
+	get(): unknown {
+		return getAtPath(this.source.get(), this.path);
+	}
+
+	set(value: unknown) {
+		const parent = this.source.get();
+		if (Object.is(getAtPath(parent, this.path), value)) return;
+		this.source.set(setAtPath(parent, this.path, value) as T);
+	}
+
+	flush() {
+		this.source.flush();
+	}
+
+	subscribe(callback: Callback<unknown>): Unsubscribe {
+		let current = this.get();
+		return this.source.subscribe(() => {
+			const next = this.get();
+			if (!hasChanged(current, next)) return;
+			current = next;
+			callback(next);
+		});
+	}
+
+	onChange(callback: ChangeCallback<unknown>): Unsubscribe {
+		return bindOnChange(this.get(), (cb) => this.subscribe(cb), callback);
+	}
+
+	bind<P extends BindableKeys<unknown>>(path: P): Writable<BindPathValue<unknown, P>>;
+	bind<U>(selector: (value: unknown) => U): Readable<U>;
+	bind<U>(selector: (value: unknown) => U, update: BindUpdate<unknown, U>): Writable<U>;
+	bind(
+		keyOrSelector: PropertyKey | ((value: unknown) => unknown),
+		update?: BindUpdate<unknown, unknown>,
+	): Readable<unknown> | Writable<unknown> {
+		return createBinding(this, keyOrSelector, update);
+	}
+}
+
+class BoundSelector<T, U> implements Writable<U> {
+	constructor(
+		private readonly source: Writable<T>,
+		private readonly selector: (value: T) => U,
+		private readonly update: BindUpdate<T, U>,
+	) {}
+
+	get(): U {
+		return this.selector(this.source.get());
+	}
+
+	set(next: U) {
+		const prev = this.source.get();
+		const result = this.update(prev, next);
+		if (result !== undefined) {
+			this.source.set(result);
+			return;
+		}
+		this.source.flush();
+	}
+
+	flush() {
+		this.source.flush();
+	}
+
+	subscribe(callback: Callback<U>): Unsubscribe {
+		let current = this.get();
+		return this.source.subscribe(() => {
+			const next = this.get();
+			if (!hasChanged(current, next)) return;
+			current = next;
+			callback(next);
+		});
+	}
+
+	onChange(callback: ChangeCallback<U>): Unsubscribe {
+		return bindOnChange(this.get(), (cb) => this.subscribe(cb), callback);
+	}
+
+	bind<P extends BindableKeys<U>>(path: P): Writable<BindPathValue<U, P>>;
+	bind<V>(selector: (value: U) => V): Readable<V>;
+	bind<V>(selector: (value: U) => V, update: BindUpdate<U, V>): Writable<V>;
+	bind(
+		keyOrSelector: PropertyKey | ((value: U) => unknown),
+		update?: BindUpdate<U, unknown>,
+	): Readable<unknown> | Writable<unknown> {
+		return createBinding(this, keyOrSelector, update);
+	}
+}
+
+function createBinding<T>(
+	source: Readable<T>,
+	keyOrSelector: PropertyKey | ((value: T) => unknown),
+	update?: BindUpdate<T, unknown>,
+): Readable<unknown> | Writable<unknown> {
+	if (typeof keyOrSelector === "function") {
+		if (update) {
+			if (!isWritable<T>(source)) {
+				throw new Error("bind(selector, update) requires a writable source");
+			}
+			return new BoundSelector(source, keyOrSelector, update);
+		}
+		return new Derived([source], keyOrSelector);
+	}
+	const path = String(keyOrSelector);
+	if (isWritable<T>(source)) {
+		return new BoundPath(source, path);
+	}
+	return new Derived([source], (value) => getAtPath(value, path));
 }
