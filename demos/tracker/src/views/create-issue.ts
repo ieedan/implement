@@ -1,12 +1,22 @@
-import { Button, Derived, Div, Input, Span } from "@packages/ui";
+import {
+	Button,
+	derived,
+	Div,
+	Input,
+	Ref,
+	Span,
+	Implement,
+	type Mountable,
+} from "@packages/implement";
 import {
 	assigneeMenuItems,
 	labelMenuItems,
 	priorityMenuItems,
 	statusMenuItems,
 } from "../components/pickers";
-import { Icon, ReactiveIcon } from "../components/ui/icon";
+import { PrimaryButton } from "../components/ui/button";
 import { Dialog } from "../components/ui/dialog";
+import { Icon, ReactiveIcon } from "../components/ui/icon";
 import { Menu } from "../components/ui/menu";
 import { TextArea } from "../components/ui/textarea";
 import { cx } from "../lib/cx";
@@ -17,7 +27,9 @@ import { createDialogOpen, createForm } from "../state/ui";
 const chip =
 	"flex h-7 select-none items-center gap-1.5 rounded-md border border-zinc-700/80 bg-zinc-900 px-2 text-[13px] text-zinc-300 transition-colors duration-100 hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none";
 
-export function CreateIssueDialog() {
+export function CreateIssueDialog(): Mountable {
+	const titleInput = new Ref<HTMLInputElement>();
+
 	const submit = async () => {
 		const title = createForm.title.get().trim();
 		if (title === "") return;
@@ -34,42 +46,51 @@ export function CreateIssueDialog() {
 	};
 
 	const statusMenu = Menu({
-		trigger: Button(
-			ReactiveIcon(
-				createForm.status,
-				(s) => STATUS_META[s].icon,
-				(s) => cx("h-4 w-4", STATUS_META[s].class),
+		trigger: (toggle) =>
+			Button(
+				{ type: "button", class: chip, onClick: toggle },
+				ReactiveIcon(
+					createForm.status,
+					(status) => STATUS_META[status].icon,
+					(status) => cx("h-4 w-4", STATUS_META[status].class),
+				),
+				Span(
+					{},
+					derived([createForm.status], (status) => STATUS_META[status].label),
+				),
 			),
-			Span().content([createForm.status], (status) => STATUS_META[status].label),
-		)
-			.type("button")
-			.className(chip),
 		items: statusMenuItems(createForm.status, (status) => createForm.status.set(status)),
 	});
 
 	const priorityMenu = Menu({
-		trigger: Button(
-			ReactiveIcon(
-				createForm.priority,
-				(p) => PRIORITY_META[p].icon,
-				(p) => cx("h-4 w-4", PRIORITY_META[p].class),
+		trigger: (toggle) =>
+			Button(
+				{ type: "button", class: chip, onClick: toggle },
+				ReactiveIcon(
+					createForm.priority,
+					(priority) => PRIORITY_META[priority].icon,
+					(priority) => cx("h-4 w-4", PRIORITY_META[priority].class),
+				),
+				Span(
+					{},
+					derived([createForm.priority], (priority) => PRIORITY_META[priority].label),
+				),
 			),
-			Span().content([createForm.priority], (priority) => PRIORITY_META[priority].label),
-		)
-			.type("button")
-			.className(chip),
 		items: priorityMenuItems(createForm.priority, (priority) => createForm.priority.set(priority)),
 	});
 
 	const assigneeMenu = Menu({
-		trigger: Button(
-			Icon("user", "h-4 w-4 text-zinc-500"),
-			Span().content([createForm.assigneeId], (id) =>
-				id === null ? "Assignee" : (usersById.get().get(id)?.name ?? "Assignee"),
+		trigger: (toggle) =>
+			Button(
+				{ type: "button", class: chip, onClick: toggle },
+				Icon("user", "h-4 w-4 text-zinc-500"),
+				Span(
+					{},
+					derived([createForm.assigneeId, usersById], (id, users) =>
+						id === null ? "Assignee" : (users.get(id)?.name ?? "Assignee"),
+					),
+				),
 			),
-		)
-			.type("button")
-			.className(chip),
 		items: assigneeMenuItems(createForm.assigneeId, (id) => createForm.assigneeId.set(id)),
 	});
 
@@ -80,16 +101,19 @@ export function CreateIssueDialog() {
 	};
 
 	const labelsMenu = Menu({
-		trigger: Button(
-			Icon("tag", "h-4 w-4 text-zinc-500"),
-			Span().content([createForm.labelIds], (ids) =>
-				ids.length === 0 ? "Labels" : `${ids.length} label${ids.length === 1 ? "" : "s"}`,
+		trigger: (toggle) =>
+			Button(
+				{ type: "button", class: chip, onClick: toggle },
+				Icon("tag", "h-4 w-4 text-zinc-500"),
+				Span(
+					{},
+					derived([createForm.labelIds], (ids) =>
+						ids.length === 0 ? "Labels" : `${ids.length} label${ids.length === 1 ? "" : "s"}`,
+					),
+				),
 			),
-		)
-			.type("button")
-			.className(chip),
 		items: labelMenuItems(
-			(labelId) => new Derived([createForm.labelIds], (ids) => ids.includes(labelId)),
+			(labelId) => derived([createForm.labelIds], (ids) => ids.includes(labelId)),
 			toggleLabel,
 		),
 	});
@@ -98,53 +122,63 @@ export function CreateIssueDialog() {
 		createDialogOpen,
 		"max-w-xl",
 		Div(
-			Span().content("New issue").className("text-[13px] font-medium text-zinc-300"),
-			Div().className("flex-1"),
-			Button(Icon("x", "h-4 w-4"))
-				.type("button")
-				.className(
-					"flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition-colors duration-100 hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none",
-				)
-				.on("click", () => createDialogOpen.set(false)),
-		).className("flex items-center border-b border-zinc-800/80 px-4 py-3"),
+			{ class: "flex items-center border-b border-zinc-800/80 px-4 py-3" },
+			Span({ class: "text-[13px] font-medium text-zinc-300" }, "New issue"),
+			Div({ class: "flex-1" }),
+			Button(
+				{
+					type: "button",
+					class:
+						"flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition-colors duration-100 hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none",
+					onClick: () => createDialogOpen.set(false),
+				},
+				Icon("x", "h-4 w-4"),
+			),
+		),
 
 		Div(
-			Input()
-				.type("text")
-				.placeholder("Issue title")
-				.value(createForm.title)
-				// the dialog subtree is remounted on every open, so this focuses
-				// the title field each time
-				.afterMount((el) => el.focus())
-				.className(
+			{ class: "flex flex-col gap-3 px-4 py-4" },
+			Input({
+				this: titleInput,
+				type: "text",
+				placeholder: "Issue title",
+				value: createForm.title,
+				class:
 					"w-full bg-transparent text-lg font-medium text-zinc-50 placeholder:text-zinc-600 focus:outline-none",
-				)
-				.on("keydown", (e) => {
-					if (e.key === "Enter") void submit();
-				}),
+				onKeydown: (event) => {
+					if (event.key === "Enter") void submit();
+				},
+			}),
+			// the dialog subtree is remounted on every open; `onMount` waits until
+			// the tree is connected, so focus works
+			Implement.Lifecycle({ onMount: () => titleInput.get()?.focus() }),
 			TextArea({
 				value: createForm.description,
 				placeholder: "Add a description…",
 				rows: 4,
-			}).on("keydown", (e) => {
-				if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void submit();
+				onKeydown: (event) => {
+					if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void submit();
+				},
 			}),
-			Div(statusMenu, priorityMenu, assigneeMenu, labelsMenu).className(
-				"flex flex-wrap items-center gap-2",
+			Div(
+				{ class: "flex flex-wrap items-center gap-2" },
+				statusMenu,
+				priorityMenu,
+				assigneeMenu,
+				labelsMenu,
 			),
-		).className("flex flex-col gap-3 px-4 py-4"),
+		),
 
 		Div(
-			Div().className("flex-1"),
-			Button(Span().content("Create issue"))
-				.type("button")
-				.className([createForm.title], (title) =>
-					cx(
-						"inline-flex h-8 select-none items-center rounded-md bg-indigo-500 px-3 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60",
-						title.trim() === "" && "pointer-events-none opacity-40",
-					),
-				)
-				.on("click", submit),
-		).className("flex items-center border-t border-zinc-800/80 px-4 py-3"),
+			{ class: "flex items-center border-t border-zinc-800/80 px-4 py-3" },
+			Div({ class: "flex-1" }),
+			PrimaryButton(
+				{
+					disabled: derived([createForm.title], (title) => title.trim() === ""),
+					onClick: () => void submit(),
+				},
+				"Create issue",
+			),
+		),
 	);
 }

@@ -42,6 +42,9 @@ out/
 coverage/
 .nyc_output/
 
+# jscpd
+report/
+
 # Editor / OS
 .DS_Store
 

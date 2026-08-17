@@ -1,0 +1,10 @@
+{
+	"path": ["packages/implement"],
+	"format": ["typescript"],
+	"reporters": ["console"],
+	"ignore": ["**/node_modules/**", "**/dist/**", "**/elements.ts", "**/scripts/**"],
+	"absolute": true,
+	"minLines": 5,
+	"minTokens": 50,
+	"threshold": 6
+}

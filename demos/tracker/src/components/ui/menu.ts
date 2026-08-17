@@ -1,14 +1,15 @@
 import {
 	Button,
-	Component,
 	Div,
 	If,
-	Signal,
+	Ref,
 	Span,
-	UIFramework,
+	Implement,
+	signal,
+	type Child,
 	type Mountable,
 	type Readable,
-} from "@packages/ui";
+} from "@packages/implement";
 import { cx } from "../../lib/cx";
 import { Icon, type IconName } from "./icon";
 
@@ -18,7 +19,7 @@ export type MenuItem = {
 	icon?: IconName;
 	iconClass?: string;
 	/** Custom leading content (e.g. an avatar). Takes precedence over `icon`. */
-	leading?: Mountable;
+	leading?: Child;
 	/** Marks the item with a trailing check. Pass a Readable for reactive menus. */
 	selected?: boolean | Readable<boolean>;
 	danger?: boolean;
@@ -28,94 +29,78 @@ export type MenuItem = {
 };
 
 export type MenuOptions = {
-	/**
-	 * The element that toggles the menu. A click handler is attached to it.
-	 * Typed `Component<any>` because Component is invariant in its tag — there
-	 * is no usable "any component" supertype.
-	 */
-	// oxlint-disable-next-line no-explicit-any
-	trigger: Component<any>;
+	/** Renders the element that toggles the menu on click. */
+	trigger: (toggle: () => void) => Child;
 	items: MenuItem[];
 	align?: "left" | "right";
 	/** Width class for the panel. */
 	widthClass?: string;
 };
 
-function MenuRow(item: MenuItem, close: () => void) {
-	const selected = item.selected ?? false;
-	const checkNode = If(selected).Then(Icon("check", "ml-auto h-3.5 w-3.5 text-indigo-400"));
-
+function MenuRow(item: MenuItem, close: () => void): Mountable {
 	const leading =
 		item.leading ?? (item.icon ? Icon(item.icon, cx("h-4 w-4", item.iconClass)) : null);
 
 	return Button(
-		...(leading ? [leading] : []),
-		Span().content(item.label).className("min-w-0 flex-1 truncate text-left"),
-		checkNode,
-	)
-		.type("button")
-		.className(
-			cx(
+		{
+			type: "button",
+			class: cx(
 				"flex w-full select-none items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-100 hover:bg-zinc-800 focus:outline-none",
 				item.danger ? "text-red-400 hover:text-red-300" : "text-zinc-200",
 			),
-		)
-		.on("click", (e) => {
-			e.stopPropagation();
-			item.onSelect();
-			if (!item.keepOpen) close();
-		});
+			onClick(event) {
+				event.stopPropagation();
+				item.onSelect();
+				if (!item.keepOpen) close();
+			},
+		},
+		...(leading ? [leading] : []),
+		Span({ class: "min-w-0 flex-1 truncate text-left" }, item.label),
+		If(item.selected ?? false).Then(Icon("check", "ml-auto h-3.5 w-3.5 text-indigo-400")),
+	);
 }
 
 /**
  * Dropdown menu. Owns its open state; closes on outside click, Escape, or
- * selection. The document listeners live in the `If(open)` branch, so they
- * attach while the menu is open and detach when it closes or unmounts.
+ * selection. Outside-click uses `this` + `contains()`, so inside clicks do
+ * not have to stop propagation.
  */
-export function Menu(options: MenuOptions) {
-	const open = new Signal(false);
-	let containerEl: HTMLElement | null = null;
-
-	function close() {
-		open.set(false);
-	}
-
-	options.trigger.on("click", (e) => {
-		e.stopPropagation();
-		open.set(!open.get());
-	});
-
-	const panel = Div(...options.items.map((item) => MenuRow(item, close))).className(
-		cx(
-			"absolute top-full z-50 mt-1 flex flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 p-1 shadow-xl shadow-black/40",
-			options.align === "right" ? "right-0" : "left-0",
-			options.widthClass ?? "min-w-44",
-		),
-	);
+export function Menu(options: MenuOptions): Mountable {
+	const open = signal(false);
+	const root = new Ref<HTMLDivElement>();
+	const close = () => open.set(false);
+	const toggle = () => open.toggle();
 
 	return Div(
-		options.trigger,
+		{
+			this: root,
+			class: "relative inline-flex",
+		},
+		options.trigger(toggle),
 		If(open).Then(
-			panel,
-			UIFramework.Document()
-				.on("mousedown", (e) => {
-					if (!containerEl || !containerEl.contains(e.target as Node)) close();
-				})
-				.on(
-					"keydown",
-					(e) => {
-						if (e.key === "Escape") {
-							e.stopPropagation();
-							close();
-						}
-					},
-					{ capture: true },
-				),
+			Div(
+				{
+					class: cx(
+						"absolute top-full z-50 mt-1 flex flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 p-1 shadow-xl shadow-black/40",
+						options.align === "right" ? "right-0" : "left-0",
+						options.widthClass ?? "min-w-44",
+					),
+				},
+				...options.items.map((item) => MenuRow(item, close)),
+			),
+			Implement.Document({
+				onMousedown: (event) => {
+					const node = root.get();
+					if (node && event.target instanceof Node && node.contains(event.target)) return;
+					close();
+				},
+				onKeydownCapture: (event) => {
+					if (event.key === "Escape") {
+						event.stopPropagation();
+						close();
+					}
+				},
+			}),
 		),
-	)
-		.className("relative inline-flex")
-		.ref((el) => {
-			containerEl = el;
-		})
-		.afterUnmount(() => close());
+	);
 }

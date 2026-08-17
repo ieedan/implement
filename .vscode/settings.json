@@ -8,5 +8,11 @@
 	"[typescript][javascript][json][jsonc][html]": {
 		"editor.defaultFormatter": "oxc.oxc-vscode"
 	},
-	"tailwindCSS.classFunctions": ["classes"]
+	"editor.quickSuggestions": {
+		"other": "on",
+		"comments": "off",
+		"strings": "on"
+	},
+	"tailwindCSS.classFunctions": ["classes"],
+	"tailwindCSS.experimental.classRegex": [["(?:class(?:Name)?)\\s*:\\s*['\"`]([^'\"`]*)['\"`]"]]
 }

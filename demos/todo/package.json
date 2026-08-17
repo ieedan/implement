@@ -7,7 +7,7 @@
 		"dev": "pnpm generate && concurrently -n js,css,www,api -c cyan,magenta,green,blue \"pnpm dev:js\" \"pnpm dev:css\" \"pnpm dev:www\" \"pnpm dev:api\"",
 		"dev:js": "tsdown --watch",
 		"dev:css": "tailwindcss -i ./app.css -o ./dist/app.css --watch=always",
-		"dev:www": "serve -l 3000 --no-port-switching",
+		"dev:www": "serve -l 3002 --no-port-switching",
 		"dev:api": "tsx watch server/index.ts",
 		"generate": "openapi-ts",
 		"build": "pnpm generate && tsdown && pnpm build:css",
@@ -17,7 +17,7 @@
 	"dependencies": {
 		"@hono/node-server": "^2.1.1",
 		"@hono/zod-openapi": "^1.6.0",
-		"@packages/ui": "workspace:*",
+		"@packages/implement": "workspace:*",
 		"hono": "^4.13.2",
 		"zod": "^4.4.3"
 	},

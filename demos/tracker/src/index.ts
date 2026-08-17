@@ -1,24 +1,25 @@
-import { Await, Div, P, Span } from "@packages/ui";
+import { App, Await, Div, P, Span, type Mountable } from "@packages/implement";
+import { router } from "./router";
 import { loadWorkspace } from "./state/store";
-import { App } from "./views/app";
 
-const root = document.getElementById("root")!;
+const app = App({ target: document.getElementById("root")! });
 
-function CenteredMessage(...lines: string[]) {
+function CenteredMessage(...lines: string[]): Mountable {
 	return Div(
+		{ class: "flex h-dvh flex-col items-center justify-center gap-2" },
 		...lines.map((line, i) =>
 			i === 0
-				? Span().content(line).className("text-sm font-medium text-zinc-300")
-				: P().content(line).className("text-[13px] text-zinc-500"),
+				? Span({ class: "text-sm font-medium text-zinc-300" }, line)
+				: P({ class: "text-[13px] text-zinc-500" }, line),
 		),
-	).className("flex h-dvh flex-col items-center justify-center gap-2");
+	);
 }
 
-Div(
+app.render(
 	Await(loadWorkspace())
 		.WhileLoading(CenteredMessage("Loading workspace…"))
-		.Then(() => App())
+		.Then(() => router)
 		.Catch((error) =>
 			CenteredMessage(error.message, "Start it with: pnpm --filter @demos/tracker dev"),
 		),
-).mount(root);
+);

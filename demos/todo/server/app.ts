@@ -1,7 +1,7 @@
 import { $, createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 
-export const API_PORT = 4000;
+export const API_PORT = 4002;
 
 export const openapiConfig = {
 	openapi: "3.1.0",
@@ -117,7 +117,7 @@ export const app = $(
 		.use(
 			"*",
 			cors({
-				origin: "http://localhost:3000",
+				origin: "http://localhost:3002",
 			}),
 		)
 		.use("*", async (_c, next) => {

@@ -1,8 +1,9 @@
 # Tracker
 
-A Linear-style issue tracker built to stress-test `@packages/ui` end to end:
-signals, keyed lists, dropdown menus, a modal dialog, inline editing, routing,
-and a real database behind a typed API.
+A Linear-style issue tracker built on `@packages/implement` to exercise the
+router end to end: typed route params as `Readable`s, typed
+`Link`/`href`/`navigate`, a root layout that survives navigation, in-place
+param patching, and URL-synced search.
 
 Findings from building it live at the repo root in
 [MISSING.md](../../MISSING.md) and [PAPERCUTS.md](../../PAPERCUTS.md).
@@ -13,49 +14,51 @@ Findings from building it live at the repo root in
 pnpm --filter @demos/tracker dev
 ```
 
-- App: http://localhost:3001
-- API: http://localhost:4001 (OpenAPI doc at `/openapi.json`)
+- App: http://localhost:3003 (served with `serve -s` so deep links like
+  `/issues/:id` reload correctly)
+- API: http://localhost:4003 (OpenAPI doc at `/openapi.json`)
 
-The API stores data in SQLite via `node:sqlite` (zero native deps) at
-`server/tracker.db`, seeded on first run. Delete the file to reseed.
+The API is Hono + zod-openapi over `node:sqlite`. Delete
+`server/tracker.db` to reseed.
 
-## Features
-
-- Issues grouped by status, sorted by priority, with search and sidebar views
-  (All / My Issues / Active / Backlog) with live counts
-- Inline status/priority pickers on every row; full properties panel
-  (status, priority, assignee, labels) on the detail view
-- Editable title (save on blur/Enter) and description (dirty-state save/discard)
-- Comments: list, post (Cmd+Enter), delete
-- Create-issue dialog — `c` shortcut or the sidebar button, with reactive
-  status/priority/assignee/label pickers
-- Optimistic updates with rollback on API failure
-- Hash routing (`#/`, `#/issue/:id`) with working browser back/forward
-
-## Structure & patterns
+## Routes
 
 ```
-server/            Hono + zod-openapi API over node:sqlite (db.ts = schema/seed)
-src/api/           generated HeyAPI client (pnpm generate)
-src/state/store.ts workspace data: signals + optimistic mutation actions
-src/state/ui.ts    view state: active view, search, create-form signals
-src/lib/           router, cx, time formatting, dom helpers
-src/components/ui/ generic primitives: Icon, buttons, Menu, Dialog, Avatar,
-                   LabelBadge, TextArea
-src/components/    app pieces: Sidebar, IssueRow, picker item builders
-src/views/         IssueListView, IssueDetail, CreateIssueDialog, App shell
+/                 all issues        (layout: sidebar shell)
+/views/:view      filtered list     (:view → Readable<string>, ?q= search)
+/issues/:id       issue detail      (:id → Readable<string>)
+anything else     404 fallback      (rendered outside the layout)
 ```
 
-Conventions used throughout:
+The whole table lives in [src/router.ts](src/router.ts); every `Link` and
+`navigate` in the app typechecks against it — renaming a path breaks the
+stale call sites at compile time.
 
-- Components are `PascalCase` functions returning a `Mountable`; one component
-  per concern, styled inline with Tailwind class strings (`cx()` to compose).
-- Reactive derivations: `Derived` for shared state, `[signals] + getter`
-  bindings for per-element text/class.
-- List rows read plain values and rely on keyed `ForEach` rebuilds; long-lived
-  forms (the create dialog) bind signals instead.
-- Shared menu items for status/priority/assignee/labels come from
-  `components/pickers.ts` and accept either a plain value (row context) or a
-  `Signal` (form context).
-- The routed detail view is a single-item `ForEach` keyed by issue id — the
-  framework's stand-in for a dynamic subtree.
+## Router behaviors this app proves
+
+- **Persistent layout**: the sidebar's DOM nodes survive list ⇄ detail
+  navigation (the router swaps only the outlet content).
+- **Param patching**: prev/next in the detail header navigates
+  `/issues/:id → /issues/:id`; the view is not remounted — the same title
+  `<input>` survives while `id` patches through, and a
+  `Implement.Lifecycle`-owned `id.onChange` reseeds the draft.
+- **Await re-follow**: comments refetch by swapping the promise in a signal;
+  resolved values patch in place (stale list stays visible while loading).
+- **URL-synced search**: the search box binds `router.searchParam("q", "")` —
+  typing rewrites `?q=` (history replace), and a hard reload restores it.
+- **Active links**: `Link` sets `aria-current="page"`; the sidebar styles it
+  with Tailwind's `aria-[current=page]:` variant. No JS highlighting.
+- **History**: back/forward patch params through the location signal; deep
+  links hydrate after a full reload.
+
+## Structure
+
+```
+server/            tracker API, port 4003
+src/router.ts      the route table (layout + 3 routes + fallback)
+src/state/         workspace signals + optimistic mutations; dialog form
+src/components/ui/ Icon, Avatar, LabelBadge, buttons, Menu, Dialog, TextArea
+src/components/    Sidebar (router.Link nav), IssueRow, picker item builders
+src/views/         shell (root layout), issue-list, issue-detail,
+                   create-issue, not-found
+```

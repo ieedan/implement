@@ -16,7 +16,7 @@ export default defineConfig({
 	ignorePatterns: ["dist/**", "demos/*/src/api/**"],
 	overrides: [
 		{
-			files: ["packages/ui/scripts/**/*.ts", "demos/*/server/**/*.ts"],
+			files: ["packages/implement/scripts/**/*.ts", "demos/*/server/**/*.ts"],
 			env: {
 				node: true,
 			},

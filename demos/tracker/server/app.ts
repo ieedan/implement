@@ -2,7 +2,7 @@ import { $, createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { db } from "./db";
 
-export const API_PORT = 4001;
+export const API_PORT = 4003;
 
 export const openapiConfig = {
 	openapi: "3.1.0",

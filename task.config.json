@@ -5,7 +5,7 @@
 			"tasks": {
 				"lib": {
 					"color": "blue",
-					"command": "pnpm --filter @packages/ui dev"
+					"command": "pnpm --filter @packages/implement dev"
 				},
 				"todo": {
 					"tasks": {
@@ -32,20 +32,24 @@
 						}
 					}
 				},
-				"kitchen": {
+				"tracker": {
 					"optional": true,
 					"tasks": {
 						"js": {
-							"color": "yellow",
-							"command": "pnpm --filter @demos/kitchen dev:js"
+							"color": "cyan",
+							"command": "pnpm --filter @demos/tracker dev:js"
 						},
 						"css": {
-							"color": "white",
-							"command": "pnpm --filter @demos/kitchen dev:css"
+							"color": "magenta",
+							"command": "pnpm --filter @demos/tracker dev:css"
 						},
 						"www": {
-							"color": "red",
-							"command": "pnpm --filter @demos/kitchen dev:www"
+							"color": "green",
+							"command": "pnpm --filter @demos/tracker dev:www"
+						},
+						"api": {
+							"color": "blue",
+							"command": "pnpm --filter @demos/tracker dev:api"
 						}
 					}
 				}

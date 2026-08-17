@@ -1,4 +1,4 @@
-import { Derived, isReadable, Span, type Readable } from "@packages/ui";
+import { derived, isReadable, Span, type Readable } from "@packages/implement";
 import type { Priority, Status } from "../api";
 import { PRIORITY_META, PRIORITY_ORDER, STATUS_META, STATUS_ORDER } from "../lib/meta";
 import { labels, users } from "../state/store";
@@ -15,7 +15,7 @@ type MaybeReadable<T> = T | Readable<T>;
 
 function selectedFor<T>(current: MaybeReadable<T>, candidate: T): boolean | Readable<boolean> {
 	if (isReadable<T>(current)) {
-		return new Derived([current], (value) => value === candidate);
+		return derived([current], (value) => value === candidate);
 	}
 	return current === candidate;
 }
@@ -80,9 +80,10 @@ export function labelMenuItems(
 	return labels.get().map((label): MenuItem => ({
 		id: label.id,
 		label: label.name,
-		leading: Span()
-			.style({ backgroundColor: label.color })
-			.className("h-2.5 w-2.5 shrink-0 rounded-full"),
+		leading: Span({
+			class: "h-2.5 w-2.5 shrink-0 rounded-full",
+			style: { backgroundColor: label.color },
+		}),
 		selected: isSelected(label.id),
 		keepOpen: true,
 		onSelect: () => onToggle(label.id),

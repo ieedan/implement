@@ -1,13 +1,15 @@
 {
-	"name": "ui-framework",
+	"name": "implement",
 	"private": true,
 	"version": "1.0.0",
 	"description": "",
 	"type": "module",
 	"scripts": {
-		"dev": "pnpm --filter @packages/ui --filter @demos/todo --parallel dev",
+		"dev": "pnpm --filter @packages/implement --filter @demos/todo --parallel dev",
+		"dev:docs": "pnpm --filter @packages/implement --filter @apps/docs --parallel dev",
 		"build": "pnpm -r build",
 		"check": "pnpm -r check",
+		"jscpd": "jscpd --no-tips",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"format": "oxfmt",
@@ -19,6 +21,7 @@
 	"packageManager": "pnpm@10.32.1",
 	"devDependencies": {
 		"@types/node": "^26.2.0",
+		"jscpd": "^5.0.15",
 		"oxfmt": "^0.63.0",
 		"oxlint": "^1.78.0",
 		"oxlint-tsgolint": "^7.0.2001",
