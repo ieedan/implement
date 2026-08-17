@@ -8,7 +8,7 @@ export function DocsPage(page: Page): Mountable {
 			Implement.Head.Title(`${page.title} ~ implement`),
 			Implement.Head.Meta({ name: "description", content: page.description }),
 		),
-		
+
 		H1({ class: "text-3xl font-semibold tracking-tight" }, page.title),
 		P({ class: "text-lg text-foreground/60" }, page.description),
 		Div({ class: "typeset space-y-4" }, Html(page.content)),

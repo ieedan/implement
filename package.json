@@ -9,6 +9,7 @@
 		"dev:docs": "pnpm --filter @packages/implement --filter @apps/docs --parallel dev",
 		"build": "pnpm -r build",
 		"check": "pnpm -r check",
+		"generate": "pnpm -r generate",
 		"jscpd": "jscpd --no-tips",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
