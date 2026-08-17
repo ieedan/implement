@@ -7,7 +7,7 @@ import {
 	type Readable,
 	type Writable,
 } from "../../signal";
-import { asParent, mountChild } from "../../tree";
+import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder } from "../../utils";
 import type { IMountable, Mountable } from "../types";
@@ -237,7 +237,7 @@ export function ForEach<T>(
 
 				parent = p;
 				parent.appendChild(endMarker);
-				unsubscribe = subscribe(signals, reconcile);
+				unsubscribe = subscribe(signals, () => guarded(node, reconcile));
 			},
 			unmount() {
 				unsubscribe?.();

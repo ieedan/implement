@@ -6,11 +6,25 @@ export type Callback<T> = (value: T) => void;
 /** Called when a signal's value changes. Does not run with the current value. */
 export type ChangeCallback<T> = (value: T, previous: T) => void;
 
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"then" in value &&
+		typeof value.then === "function"
+	);
+}
+
 /** True when `next` should replace `prev` and notify subscribers. */
 function hasChanged<T>(prev: T, next: T): boolean {
 	if (prev === next) return false;
 	// fast-deep-equal treats Map/Set as empty objects, so a new collection is always a change
 	if (prev instanceof Map || prev instanceof Set || next instanceof Map || next instanceof Set) {
+		return true;
+	}
+	// promises also deep-equal as empty objects; a distinct promise is always a
+	// change or Await could never re-follow a readable promise source
+	if (isThenable(prev) || isThenable(next)) {
 		return true;
 	}
 	return !equal(prev, next);
@@ -288,7 +302,10 @@ export function signal<T>(initialValue: T): Signal<T> {
 	return new Signal(initialValue);
 }
 
-/** Writable that starts as `null`, for binding a component's element without an initial value. */
+/**
+ * Writable that starts as `null`. Pass to an element's `this` prop to bind
+ * the DOM node (`Div({ this: el })`); unmount writes `null` back.
+ */
 export class Ref<T> extends Signal<T | null> {
 	constructor() {
 		super(null);

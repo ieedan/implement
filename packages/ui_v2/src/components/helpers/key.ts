@@ -1,5 +1,5 @@
 import { isReadable, subscribe, type Readable } from "../../signal";
-import { asParent, mountChild } from "../../tree";
+import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder } from "../../utils";
 import { reconcileChildren } from "..";
@@ -16,13 +16,13 @@ import type { Child, IMountable, Mountable } from "../types";
  * Key([route, issues], PageFor(route, issues));
  * ```
  */
-export function Key(signal: Readable<unknown>, ...children: Child[]): Mountable;
-export function Key(signals: readonly Readable<unknown>[], ...children: Child[]): Mountable;
+export function Key(signal: Readable<any>, ...children: Child[]): Mountable;
+export function Key(signals: readonly Readable<any>[], ...children: Child[]): Mountable;
 export function Key(
-	signalOrSignals: Readable<unknown> | readonly Readable<unknown>[],
+	signalOrSignals: Readable<any> | readonly Readable<any>[],
 	...children: Child[]
 ): Mountable {
-	const signals: readonly Readable<unknown>[] = isReadable(signalOrSignals)
+	const signals: readonly Readable<any>[] = isReadable<any>(signalOrSignals)
 		? [signalOrSignals]
 		: signalOrSignals;
 
@@ -62,7 +62,7 @@ export function Key(
 				clear();
 				parent = p;
 				parent.appendChild(endMarker);
-				unsubscribe = subscribe(signals, remount);
+				unsubscribe = subscribe(signals, () => guarded(node, remount));
 			},
 			unmount() {
 				unsubscribe?.();

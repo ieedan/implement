@@ -1,3 +1,17 @@
+/** Normalize a thrown value into an `Error`. */
+export function toError(error: unknown): Error {
+	if (error instanceof Error) return error;
+	if (
+		typeof error === "object" &&
+		error !== null &&
+		"message" in error &&
+		typeof error.message === "string"
+	) {
+		return new Error(error.message);
+	}
+	return new Error(String(error));
+}
+
 /**
  * Inserts `nodes` as siblings immediately before `before`. Nodes already in
  * the right place are left alone.

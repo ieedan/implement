@@ -1,5 +1,5 @@
 import { isReadable, subscribe, type Readable } from "../../signal";
-import { asParent, mountChild } from "../../tree";
+import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder } from "../../utils";
 import { reconcileChildren } from "..";
@@ -106,7 +106,7 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 					const signals: Readable<unknown>[] = [];
 					if (isReadable(to)) signals.push(to);
 					if (isReadable(disabled)) signals.push(disabled);
-					unsubscribe = subscribe(signals, () => mountInto(targetOf()));
+					unsubscribe = subscribe(signals, () => guarded(node, () => mountInto(targetOf())));
 				},
 				unmount() {
 					unsubscribe?.();

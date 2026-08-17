@@ -1,9 +1,41 @@
-import { isReadable, isWritable, subscribe, type Readable } from "../signal";
+import { isReadable, isWritable, subscribe, type Readable, type Ref } from "../signal";
 import type { Unsubscribe } from "../types";
 import type { Child } from "./types";
 
-/** A static value or a signal. Every element prop accepts this. */
-export type Bindable<T> = T extends unknown ? T | Readable<T> : never;
+/**
+ * A static value or a signal. Every element prop accepts this. The union both
+ * distributes (so `Readable<string>` fits a `string | number` prop) and keeps
+ * the undistributed readable (so `Readable<boolean>` fits a `boolean` prop).
+ */
+export type Bindable<T> = T | Readable<T> | (T extends unknown ? Readable<T> : never);
+
+type ClassPrimitive = string | number | bigint | boolean | null | undefined;
+
+/** Conditionally applied classes: each key is included while its value is truthy. */
+export type ClassDictionary = Record<string, Bindable<ClassPrimitive>>;
+
+export type ClassArray = ClassValue[];
+
+/**
+ * Structural stand-in for `Readable<ClassValue>`. Matching on shape lets any
+ * readable of any class-value subset fit (e.g. `Readable<string | undefined>`),
+ * which `Readable<ClassValue>` itself rejects because of its `bind` overloads.
+ */
+export interface ClassReadable {
+	get(): ClassValue;
+	subscribe(callback: (value: any) => void): Unsubscribe;
+}
+
+/**
+ * A clsx-style `class` value: strings, `{ class: condition }` objects, and
+ * arrays of either, nested arbitrarily. Falsy entries are skipped, so
+ * `cond && "active"` works inline. A `Readable` fits anywhere a value does and
+ * the class list re-resolves when it changes.
+ *
+ * @example
+ * Div({ class: ["btn", { active: isActive }, large && "btn-lg"] })
+ */
+export type ClassValue = ClassPrimitive | ClassDictionary | ClassArray | ClassReadable;
 
 type StyleProperty = {
 	[K in keyof CSSStyleDeclaration]: CSSStyleDeclaration[K] extends string
@@ -44,8 +76,8 @@ type GlobalAttributes = {
 	accessKey?: Bindable<string>;
 	autocapitalize?: Bindable<"off" | "none" | "on" | "sentences" | "words" | "characters">;
 	autofocus?: Bindable<boolean>;
-	class?: Bindable<string | undefined | null>;
-	className?: Bindable<string | undefined | null>;
+	class?: ClassValue;
+	className?: ClassValue;
 	contentEditable?: Bindable<boolean | "true" | "false" | "plaintext-only" | "inherit">;
 	dir?: Bindable<"ltr" | "rtl" | "auto">;
 	draggable?: Bindable<boolean>;
@@ -427,17 +459,96 @@ type TagSpecific<T extends keyof HTMLElementTagNameMap> = T extends keyof TagAtt
 	? TagAttributeMap[T]
 	: {};
 
+/** HTML void elements cannot have children. */
+export type VoidHTMLElement =
+	| "area"
+	| "base"
+	| "br"
+	| "col"
+	| "embed"
+	| "hr"
+	| "img"
+	| "input"
+	| "link"
+	| "meta"
+	| "source"
+	| "track"
+	| "wbr";
+
+export type ElementChildArgs<T extends keyof HTMLElementTagNameMap> = T extends VoidHTMLElement
+	? []
+	: Child[];
+
+/**
+ * A `Ref` bound to a mounted element. `Ref<El>` is the usual value;
+ * `Ref<HTMLElement>` is also accepted so a shared ref can bind any tag.
+ */
+export type ElementThis<El extends HTMLElement> = Ref<El> | Ref<HTMLElement>;
+
 export type ElementProps<T extends keyof HTMLElementTagNameMap = keyof HTMLElementTagNameMap> =
 	GlobalAttributes &
 		EventHandlers<HTMLElementTagNameMap[T]> &
 		TagSpecific<T> &
 		AriaAttributes &
 		DataAttributes & {
-			children?: Child | Child[];
+			children?: T extends VoidHTMLElement ? never : Child | Child[];
+			/**
+			 * Bind the mounted element. Pass a `Ref`. Written after this node is
+			 * appended to its parent; `null` on unmount. The node may not be
+			 * connected yet (ancestors append after children).
+			 */
+			this?: ElementThis<HTMLElementTagNameMap[T]>;
 		};
 
 export type Props<T extends keyof HTMLElementTagNameMap = keyof HTMLElementTagNameMap> =
 	ElementProps<T>;
+
+type SvgTypedEvent<E extends keyof SVGElementEventMap> = Omit<
+	SVGElementEventMap[E],
+	"target" | "currentTarget"
+> & {
+	readonly target: SVGSVGElement;
+	readonly currentTarget: SVGSVGElement;
+};
+
+type SvgEventHandlers = {
+	[K in keyof SVGElementEventMap as `on${Capitalize<K>}`]?: Bindable<
+		(this: SVGSVGElement, ev: SvgTypedEvent<K>) => void
+	>;
+};
+
+/**
+ * Props for the root element of an `Svg` component. Keys are the literal SVG
+ * attribute names (`viewBox`, `stroke-width`) since everything is written as an
+ * attribute; content inside the root stays authored in the source string.
+ */
+export type SvgProps = SvgEventHandlers &
+	AriaAttributes &
+	DataAttributes & {
+		class?: ClassValue;
+		className?: ClassValue;
+		fill?: Bindable<string>;
+		height?: Bindable<number | string>;
+		id?: Bindable<string>;
+		opacity?: Bindable<number | string>;
+		preserveAspectRatio?: Bindable<string>;
+		role?: Bindable<string>;
+		stroke?: Bindable<string>;
+		"stroke-dasharray"?: Bindable<number | string>;
+		"stroke-dashoffset"?: Bindable<number | string>;
+		"stroke-linecap"?: Bindable<"butt" | "round" | "square">;
+		"stroke-linejoin"?: Bindable<"miter" | "miter-clip" | "round" | "bevel" | "arcs">;
+		"stroke-width"?: Bindable<number | string>;
+		style?: Bindable<string> | Styles;
+		tabIndex?: Bindable<number>;
+		viewBox?: Bindable<string>;
+		width?: Bindable<number | string>;
+		/**
+		 * Bind the mounted root element. Written after the root is inserted;
+		 * `null` on unmount (and re-written when a reactive source swaps it).
+		 */
+		this?: Ref<SVGSVGElement> | Ref<SVGElement>;
+	};
 
 const ATTR_ALIASES: Record<string, string> = {
 	class: "className",
@@ -508,7 +619,7 @@ function toAttrString(value: unknown): string {
 	return "";
 }
 
-function setAttribute(el: HTMLElement, name: string, value: unknown, booleanAsString: boolean) {
+function setAttribute(el: Element, name: string, value: unknown, booleanAsString: boolean) {
 	if (value == null) {
 		el.removeAttribute(name);
 		return;
@@ -528,7 +639,7 @@ function setAttribute(el: HTMLElement, name: string, value: unknown, booleanAsSt
 	el.setAttribute(name, toAttrString(value));
 }
 
-function setStyleProperty(el: HTMLElement, property: string, value: string) {
+function setStyleProperty(el: HTMLElement | SVGElement, property: string, value: string) {
 	if (property.startsWith("--") || property.includes("-")) {
 		el.style.setProperty(property, value);
 		return;
@@ -537,10 +648,6 @@ function setStyleProperty(el: HTMLElement, property: string, value: string) {
 }
 
 function setDomValue(el: HTMLElement, key: string, value: unknown) {
-	if (key === "class" || key === "className") {
-		el.className = value == null || value === false ? "" : toAttrString(value);
-		return;
-	}
 	if (key === "style") {
 		el.style.cssText = value == null ? "" : toAttrString(value);
 		return;
@@ -595,7 +702,7 @@ function setDomValue(el: HTMLElement, key: string, value: unknown) {
 
 function noop() {}
 
-function bindEvent(el: HTMLElement, event: string, value: unknown): Unsubscribe {
+function bindEvent(el: Element, event: string, value: unknown): Unsubscribe {
 	const attach = (handler: unknown): Unsubscribe => {
 		if (typeof handler !== "function") return noop;
 		const listener = handler as EventListener;
@@ -618,7 +725,74 @@ function bindEvent(el: HTMLElement, event: string, value: unknown): Unsubscribe 
 	return attach(value);
 }
 
-function bindStyleObject(el: HTMLElement, styles: Record<string, unknown>): Unsubscribe {
+function resolveClassValue(value: unknown, found: Set<Readable<unknown>>, out: string[]) {
+	if (value == null || typeof value === "boolean" || value === "") return;
+	if (typeof value === "string") {
+		out.push(value);
+		return;
+	}
+	if (typeof value === "number" || typeof value === "bigint") {
+		out.push(`${value}`);
+		return;
+	}
+	if (isReadable(value)) {
+		found.add(value);
+		resolveClassValue(value.get(), found, out);
+		return;
+	}
+	if (Array.isArray(value)) {
+		for (const item of value) {
+			resolveClassValue(item, found, out);
+		}
+		return;
+	}
+	if (typeof value === "object") {
+		for (const [name, condition] of Object.entries(value)) {
+			let resolved = condition;
+			if (isReadable(condition)) {
+				found.add(condition);
+				resolved = condition.get();
+			}
+			if (resolved) {
+				out.push(name);
+			}
+		}
+	}
+}
+
+function bindClassProp(el: Element, value: unknown): Unsubscribe {
+	const subscriptions = new Map<Readable<unknown>, Unsubscribe>();
+	const apply = () => {
+		const found = new Set<Readable<unknown>>();
+		const parts: string[] = [];
+		resolveClassValue(value, found, parts);
+		// resubscribe only what changed: signals nested inside a readable's value
+		// can come and go, while stable ones must keep their subscription so a
+		// notifying signal is never re-added to its own in-flight notify loop
+		for (const [readable, unsubscribe] of subscriptions) {
+			if (!found.has(readable)) {
+				unsubscribe();
+				subscriptions.delete(readable);
+			}
+		}
+		for (const readable of found) {
+			if (!subscriptions.has(readable)) {
+				subscriptions.set(readable, readable.subscribe(apply));
+			}
+		}
+		// attribute write so SVG roots work too (their `className` is readonly)
+		el.setAttribute("class", parts.join(" "));
+	};
+	apply();
+	return () => {
+		for (const unsubscribe of subscriptions.values()) {
+			unsubscribe();
+		}
+		subscriptions.clear();
+	};
+}
+
+function bindStyleObject(el: HTMLElement | SVGElement, styles: Record<string, unknown>): Unsubscribe {
 	const unsubscribers: Unsubscribe[] = [];
 	for (const [property, value] of Object.entries(styles)) {
 		if (value === undefined) continue;
@@ -640,6 +814,10 @@ function bindDomProp(el: HTMLElement, tag: string, key: string, value: unknown):
 	const event = eventName(key);
 	if (event) return bindEvent(el, event, value);
 	if (key === "innerHTML") return noop;
+
+	if (key === "class" || key === "className") {
+		return bindClassProp(el, value);
+	}
 
 	if (key === "style" && value !== null && typeof value === "object" && !isReadable(value)) {
 		return bindStyleObject(el, value as Record<string, unknown>);
@@ -676,8 +854,55 @@ export function applyElementProps(
 ): Unsubscribe {
 	const unsubscribers: Unsubscribe[] = [];
 	for (const [key, value] of Object.entries(props)) {
-		if (key === "children" || value === undefined) continue;
+		if (key === "children" || key === "this" || value === undefined) continue;
 		unsubscribers.push(bindDomProp(el, tag, key, value));
+	}
+	return () => {
+		for (const unsub of unsubscribers) unsub();
+	};
+}
+
+const SVG_ATTR_ALIASES: Record<string, string> = {
+	className: "class",
+	tabIndex: "tabindex",
+};
+
+function bindSvgProp(el: SVGElement, key: string, value: unknown): Unsubscribe {
+	const event = eventName(key);
+	if (event) return bindEvent(el, event, value);
+
+	if (key === "class" || key === "className") {
+		return bindClassProp(el, value);
+	}
+
+	if (key === "style" && value !== null && typeof value === "object" && !isReadable(value)) {
+		return bindStyleObject(el, value as Record<string, unknown>);
+	}
+
+	// setAttribute does not lowercase names outside the HTML namespace, so
+	// camelCase SVG attributes (viewBox) pass through untouched.
+	const name = SVG_ATTR_ALIASES[key] ?? key;
+	const booleanAsString = key.startsWith("aria-") || key.startsWith("data-");
+	const apply = (resolved: unknown) => setAttribute(el, name, resolved, booleanAsString);
+
+	if (isReadable(value)) {
+		return subscribe([value], apply);
+	}
+
+	apply(value);
+	return noop;
+}
+
+/**
+ * Apply typed props (and signal subscriptions) to a mounted SVG root.
+ * Attribute-only: SVG DOM properties are readonly (`SVGAnimatedLength` etc.),
+ * so the HTML property path can never be reused here.
+ */
+export function applySvgProps(el: SVGElement, props: Record<string, unknown>): Unsubscribe {
+	const unsubscribers: Unsubscribe[] = [];
+	for (const [key, value] of Object.entries(props)) {
+		if (key === "this" || value === undefined) continue;
+		unsubscribers.push(bindSvgProp(el, key, value));
 	}
 	return () => {
 		for (const unsub of unsubscribers) unsub();

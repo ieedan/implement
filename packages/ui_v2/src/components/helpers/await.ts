@@ -1,22 +1,9 @@
 import { isReadable, signal, subscribe, type Readable, type Signal } from "../../signal";
-import { asParent, mountChild } from "../../tree";
+import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
-import { syncDomOrder } from "../../utils";
+import { syncDomOrder, toError } from "../../utils";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
-
-function toError(error: unknown): Error {
-	if (error instanceof Error) return error;
-	if (
-		typeof error === "object" &&
-		error !== null &&
-		"message" in error &&
-		typeof error.message === "string"
-	) {
-		return new Error(error.message);
-	}
-	return new Error(String(error));
-}
 
 type AwaitState<T> =
 	| { status: "pending" }
@@ -79,7 +66,9 @@ export function Await<T>(
 
 			let node: IMountable;
 
-			const sync = () => {
+			const sync = () => guarded(node, syncBranches);
+
+			const syncBranches = () => {
 				if (!parent) return;
 				if (showing === state.status) return;
 

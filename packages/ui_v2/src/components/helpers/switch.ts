@@ -1,6 +1,6 @@
 import equal from "fast-deep-equal";
 import { isReadable, subscribe, type Getter, type Readable } from "../../signal";
-import { asParent, mountChild } from "../../tree";
+import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder } from "../../utils";
 import { reconcileChildren } from "..";
@@ -111,7 +111,9 @@ export function Switch<T>(
 					showing = null;
 					parent = p;
 					parent.appendChild(endMarker);
-					unsubscribe = subscribe(signals, reconcile);
+					unsubscribe = subscribe(signals, (...values: unknown[]) =>
+						guarded(node, () => reconcile(...values)),
+					);
 				},
 				unmount() {
 					unsubscribe?.();

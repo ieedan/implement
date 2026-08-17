@@ -1,11 +1,29 @@
 import { isReadable } from "../signal";
 import { mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
-import { applyElementProps, syncValueProp, type ElementProps } from "./props";
+import {
+	applyElementProps,
+	syncValueProp,
+	type ElementChildArgs,
+	type ElementProps,
+} from "./props";
 import type { Child, IMountable, Mountable, PrimitiveChild, ReadableChild } from "./types";
 
 export type { Child, IMountable, Mountable, PrimitiveChild, ReadableChild } from "./types";
-export type { Bindable, ElementProps, InputType, Props, Styles } from "./props";
+export type {
+	Bindable,
+	ClassArray,
+	ClassDictionary,
+	ClassReadable,
+	ClassValue,
+	ElementChildArgs,
+	ElementProps,
+	ElementThis,
+	InputType,
+	Props,
+	Styles,
+	VoidHTMLElement,
+} from "./props";
 
 export type ComponentFactory<T extends keyof HTMLElementTagNameMap = keyof HTMLElementTagNameMap> =
 	() => Component<T>;
@@ -71,7 +89,7 @@ function toMountable(child: Child): Mountable {
 export function component<T extends keyof HTMLElementTagNameMap>(
 	tag: T,
 	props: ElementProps<T> = {} as ElementProps<T>,
-	...children: Child[]
+	...children: ElementChildArgs<T>
 ): ComponentFactory<T> {
 	return () => new Component(tag, props, ...children);
 }
@@ -79,7 +97,7 @@ export function component<T extends keyof HTMLElementTagNameMap>(
 export function element<T extends keyof HTMLElementTagNameMap>(tag: T) {
 	return (
 		props: ElementProps<T> = {} as ElementProps<T>,
-		...children: Child[]
+		...children: ElementChildArgs<T>
 	): ComponentFactory<T> => component(tag, props, ...children);
 }
 
@@ -103,7 +121,7 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	#mountedChildren: IMountable[] = [];
 	#unsubscribeProps: Unsubscribe | null = null;
 
-	constructor(tag: T, props: ElementProps<T>, ...children: Child[]) {
+	constructor(tag: T, props: ElementProps<T>, ...children: ElementChildArgs<T>) {
 		this.#tag = tag;
 		this.#props = props;
 		this.#children = reconcileChildren(props, ...children);
@@ -123,9 +141,11 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 		});
 		syncValueProp(this.#element, this.#props as Record<string, unknown>);
 		parent.appendChild(this.#element);
+		this.#props.this?.set(this.#element);
 	}
 
 	unmount(): void {
+		this.#props.this?.set(null);
 		this.#unsubscribeProps?.();
 		this.#unsubscribeProps = null;
 		this.#mountedChildren.forEach((child) => child.unmount());

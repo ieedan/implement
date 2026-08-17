@@ -1,14 +1,14 @@
 import { isReadable, subscribe, type Getter, type Readable } from "../../signal";
-import { asParent, mountChild } from "../../tree";
+import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder } from "../../utils";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
 
-type IfCondition = boolean | Readable<unknown> | readonly Readable<unknown>[];
+type IfCondition = boolean | Readable<any> | readonly Readable<any>[];
 
 type IfBranch = {
-	signals: readonly Readable<unknown>[];
+	signals: readonly Readable<any>[];
 	getCondition: () => boolean;
 	children: Child[];
 };
@@ -47,7 +47,7 @@ function parseBranch(
 		};
 	}
 
-	if (isReadable(condition)) {
+	if (isReadable<any>(condition)) {
 		return {
 			signals: [condition],
 			getCondition: () => Boolean(condition.get()),
@@ -67,7 +67,7 @@ function parseBranch(
 
 export type IfHelper = Mountable & {
 	Then(...children: Child[]): IfHelper;
-	ElseIf(condition: boolean | Readable<unknown>, ...children: Child[]): IfHelper;
+	ElseIf(condition: boolean | Readable<any>, ...children: Child[]): IfHelper;
 	ElseIf<Signals extends readonly Readable<any>[]>(
 		signals: readonly [...Signals],
 		getter: Getter<boolean, Signals>,
@@ -86,7 +86,7 @@ export type IfHelper = Mountable & {
  * Branches chain: `If(a, A()).ElseIf(b, B()).Else(C())` mounts the first
  * branch whose condition holds.
  */
-export function If(condition: boolean | Readable<unknown>, ...children: Child[]): IfHelper;
+export function If(condition: boolean | Readable<any>, ...children: Child[]): IfHelper;
 export function If<Signals extends readonly Readable<any>[]>(
 	signals: readonly [...Signals],
 	getter: Getter<boolean, Signals>,
@@ -154,7 +154,7 @@ export function If(condition: IfCondition, getterOrChild?: unknown, ...rest: Chi
 					parent.appendChild(endMarker);
 					unsubscribe = subscribe(
 						branches.flatMap((branch) => branch.signals),
-						reconcile,
+						() => guarded(node, reconcile),
 					);
 				},
 				unmount() {
