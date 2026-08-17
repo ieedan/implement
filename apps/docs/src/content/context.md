@@ -4,14 +4,14 @@ description: Pass a value down the tree without threading it through every compo
 order: 12
 ---
 
-Context carries a value from a provider to any descendant, however deep, without prop drilling.
+Context carries a value from a provider to any descendant, however deep, without prop drilling. `Context<T>()` creates one:
 
 ```ts
-import { createContext } from "@packages/implement";
+import { Context } from "@packages/implement";
 
 type Session = { user: Readable<User>; logout: () => void };
 
-export const SessionContext = createContext<Session>();
+export const SessionContext = Context<Session>();
 ```
 
 ## Provide
@@ -37,7 +37,7 @@ function UserBadge() {
 `Use` throws if no provider is above it. When a default makes sense, `UseOr` supplies one instead of throwing:
 
 ```ts
-const ThemeContext = createContext<"light" | "dark">();
+const ThemeContext = Context<"light" | "dark">();
 
 ThemeContext.UseOr((theme) => Icon(theme), "dark");
 ```
@@ -48,7 +48,7 @@ The provided value itself is fixed at mount — for values that change over time
 
 ```ts
 const theme = signal<"light" | "dark">("dark");
-const ThemeContext = createContext<Signal<"light" | "dark">>();
+const ThemeContext = Context<Signal<"light" | "dark">>();
 
 ThemeContext.Provide(theme).To(App());
 

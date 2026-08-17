@@ -2,7 +2,7 @@ import {
 	App,
 	Await,
 	Button,
-	createContext,
+	Context,
 	derived,
 	Div,
 	ForEach,
@@ -17,7 +17,7 @@ import { Api, type Todo } from "./api";
 
 const api = new Api();
 const app = App({ target: document.body });
-const TodosContext = createContext<Signal<Todo[]>>();
+const TodosContext = Context<Signal<Todo[]>>();
 
 app.render(TodoApp());
 

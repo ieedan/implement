@@ -64,7 +64,7 @@ export {
 	type SwitchHelper,
 	type WindowProps,
 } from "./components/helpers";
-export { createContext, type Context } from "./context";
+export { Context } from "./context";
 export {
 	navigateTo,
 	Router,

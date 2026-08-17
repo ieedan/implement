@@ -85,14 +85,7 @@ function contextUse<T>(
 	};
 }
 
-/**
- * Pass a value down the tree without props.
- *
- * `Provide(value).To(...children)` wraps a subtree. `Use(render)` reads the
- * nearest provided value and throws if missing. `UseOr(render, fallback)`
- * supplies a default.
- */
-export class Context<T> {
+class ContextStore<T> {
 	readonly #values = new WeakMap<IMountable, T>();
 
 	provide(node: IMountable, value: T): void {
@@ -121,7 +114,15 @@ export class Context<T> {
 	}
 }
 
-/** Create a context for passing a value down the tree without props. */
-export function createContext<T>(): Context<T> {
-	return new Context();
+export type Context<T> = ContextStore<T>;
+
+/**
+ * Create a context for passing a value down the tree without props.
+ *
+ * `Provide(value).To(...children)` wraps a subtree. `Use(render)` reads the
+ * nearest provided value and throws if missing. `UseOr(render, fallback)`
+ * supplies a default.
+ */
+export function Context<T>(): Context<T> {
+	return new ContextStore();
 }
