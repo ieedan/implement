@@ -1,17 +1,13 @@
-import { Div, If, Portal, Signal, type Mountable } from "@packages/ui";
+import { Div, If, Portal, Signal, UIFramework, type Mountable } from "@packages/ui";
 import { cx } from "../../lib/cx";
 
 /**
  * Modal dialog gated on `open`, rendered into `document.body` via Portal so
  * no ancestor stacking/overflow context can trap it. Closes on overlay click
- * and Escape. The Escape listener follows the overlay's lifecycle: attached
- * when the dialog mounts, removed when it unmounts.
+ * and Escape. The Escape listener lives in the `If` branch, so it is only
+ * attached while the dialog is open.
  */
 export function Dialog(open: Signal<boolean>, panelClass: string, ...children: Mountable[]) {
-	const onKeyDown = (e: KeyboardEvent) => {
-		if (e.key === "Escape") open.set(false);
-	};
-
 	return If(open).Then(
 		Portal(
 			Div(
@@ -25,9 +21,10 @@ export function Dialog(open: Signal<boolean>, panelClass: string, ...children: M
 					.on("click", (e) => e.stopPropagation()),
 			)
 				.className("fixed inset-0 z-50 flex items-start justify-center bg-black/60 px-4 pt-[14vh]")
-				.on("click", () => open.set(false))
-				.afterMount(() => document.addEventListener("keydown", onKeyDown))
-				.beforeUnmount(() => document.removeEventListener("keydown", onKeyDown)),
+				.on("click", () => open.set(false)),
 		),
+		UIFramework.Document().on("keydown", (e) => {
+			if (e.key === "Escape") open.set(false);
+		}),
 	);
 }

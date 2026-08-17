@@ -5,6 +5,7 @@ import {
 	If,
 	Signal,
 	Span,
+	UIFramework,
 	type Mountable,
 	type Readable,
 } from "@packages/ui";
@@ -68,47 +69,20 @@ function MenuRow(item: MenuItem, close: () => void) {
 
 /**
  * Dropdown menu. Owns its open state; closes on outside click, Escape, or
- * selection. Document listeners are only attached while open, and torn down
- * via afterUnmount if the menu is unmounted while open.
+ * selection. The document listeners live in the `If(open)` branch, so they
+ * attach while the menu is open and detach when it closes or unmounts.
  */
 export function Menu(options: MenuOptions) {
 	const open = new Signal(false);
 	let containerEl: HTMLElement | null = null;
 
-	const onDocumentMouseDown = (e: MouseEvent) => {
-		if (!containerEl || !containerEl.isConnected) {
-			close();
-			return;
-		}
-		if (!containerEl.contains(e.target as Node)) close();
-	};
-
-	const onDocumentKeyDown = (e: KeyboardEvent) => {
-		if (e.key === "Escape") {
-			e.stopPropagation();
-			close();
-		}
-	};
-
 	function close() {
 		open.set(false);
-		document.removeEventListener("mousedown", onDocumentMouseDown);
-		document.removeEventListener("keydown", onDocumentKeyDown, { capture: true });
-	}
-
-	function show() {
-		open.set(true);
-		document.addEventListener("mousedown", onDocumentMouseDown);
-		document.addEventListener("keydown", onDocumentKeyDown, { capture: true });
 	}
 
 	options.trigger.on("click", (e) => {
 		e.stopPropagation();
-		if (open.get()) {
-			close();
-		} else {
-			show();
-		}
+		open.set(!open.get());
 	});
 
 	const panel = Div(...options.items.map((item) => MenuRow(item, close))).className(
@@ -119,7 +93,26 @@ export function Menu(options: MenuOptions) {
 		),
 	);
 
-	return Div(options.trigger, If(open).Then(panel))
+	return Div(
+		options.trigger,
+		If(open).Then(
+			panel,
+			UIFramework.Document()
+				.on("mousedown", (e) => {
+					if (!containerEl || !containerEl.contains(e.target as Node)) close();
+				})
+				.on(
+					"keydown",
+					(e) => {
+						if (e.key === "Escape") {
+							e.stopPropagation();
+							close();
+						}
+					},
+					{ capture: true },
+				),
+		),
+	)
 		.className("relative inline-flex")
 		.ref((el) => {
 			containerEl = el;

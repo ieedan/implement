@@ -1,5 +1,5 @@
 import equal from "fast-deep-equal";
-import { Component } from "./component";
+import { Component, type KeyedComponent } from "./component";
 import { MountNode, type Mountable } from "./mountable";
 import { isReadable, Signal, subscribe, type Getter, type Readable } from "./signal";
 import type { Unsubscribe } from "./types";
@@ -15,18 +15,59 @@ function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | null) {
 	}
 }
 
-function getKey(child: Mountable, index: number): string {
-	if (child instanceof Component) {
-		return (child.props.key ?? index).toString();
+function stackFrames(stack: string): string {
+	const newline = stack.indexOf("\n");
+	if (newline === -1) return stack;
+	const first = stack.slice(0, newline).trim();
+	return first.startsWith("at") ? stack : stack.slice(newline + 1);
+}
+
+/** Stack starting at the caller of `skip` (the `ForEach(...)` site in user code). */
+function captureCallerStack(skip: (...args: never[]) => unknown): string | undefined {
+	const target: { stack?: string } = {};
+	const captureStackTrace = (
+		Error as typeof Error & {
+			captureStackTrace?: (target: object, constructorOpt?: (...args: never[]) => unknown) => void;
+		}
+	).captureStackTrace;
+	if (typeof captureStackTrace === "function") {
+		captureStackTrace(target, skip);
+		return target.stack;
 	}
-	return index.toString();
+
+	const stack = new Error().stack;
+	if (!stack) return undefined;
+	return stack
+		.split("\n")
+		.filter(
+			(line, i) =>
+				i > 0 && !line.includes("helper-components") && !line.includes("captureCallerStack"),
+		)
+		.join("\n");
+}
+
+function forEachError(message: string, createdAt: string | undefined): Error {
+	const error = new Error(message);
+	error.name = "ForEachError";
+	if (createdAt) {
+		const frames = stackFrames(createdAt);
+		if (frames) error.stack = `${error.name}: ${error.message}\n${frames}`;
+	}
+	return error;
+}
+
+function getKey(child: KeyedComponent, createdAt: string | undefined): string {
+	if (!(child instanceof Component) || child.props.key === null) {
+		throw forEachError("ForEach children must be a Component with .key() set", createdAt);
+	}
+	return child.props.key.toString();
 }
 
 /** Receives a live `[item, index]` entry that ForEach patches in place on later updates. */
-type ForEachRender<T> = (entry: Readable<[T, number]>) => Mountable;
+type ForEachRender<T> = (entry: Readable<[T, number]>) => KeyedComponent;
 
 type RenderedEntry<T> = {
-	child: Mountable;
+	child: KeyedComponent;
 	entry: Signal<[T, number]>;
 	value: T;
 	index: number;
@@ -36,14 +77,20 @@ class _forEach<T> extends MountNode {
 	private signals: readonly Readable<any>[];
 	private getItems: (...values: any[]) => readonly T[];
 	private render: ForEachRender<T>;
+	private createdAt: string | undefined;
 	private unsubscribe: Unsubscribe | null = null;
 	private rendered: Map<string, RenderedEntry<T>> = new Map();
 
-	constructor(items: readonly T[], render: ForEachRender<T>);
-	constructor(signal: Readable<T[]>, render: ForEachRender<T>);
-	constructor(itemsOrSignal: readonly T[] | Readable<T[]>, render: ForEachRender<T>) {
+	constructor(items: readonly T[], render: ForEachRender<T>, createdAt?: string);
+	constructor(signal: Readable<T[]>, render: ForEachRender<T>, createdAt?: string);
+	constructor(
+		itemsOrSignal: readonly T[] | Readable<T[]>,
+		render: ForEachRender<T>,
+		createdAt?: string,
+	) {
 		super();
 		this.render = render;
+		this.createdAt = createdAt;
 
 		if (isReadable<T[]>(itemsOrSignal)) {
 			this.signals = [itemsOrSignal];
@@ -69,8 +116,8 @@ class _forEach<T> extends MountNode {
 
 		this.unsubscribe = subscribe(this.signals, (...values) => {
 			const value = this.getItems(...values);
-			const mountedKeys = new Set<string>();
-			const ordered: Mountable[] = [];
+			const mountedKeys = new Map<string, number>();
+			const ordered: KeyedComponent[] = [];
 
 			for (let i = 0; i < value.length; i++) {
 				const currentVal = value[i]!;
@@ -80,11 +127,15 @@ class _forEach<T> extends MountNode {
 				const entry = new Signal<[T, number]>([currentVal, i]);
 				const child = this.render(entry);
 
-				const key = getKey(child, i);
-				if (mountedKeys.has(key)) {
-					throw new Error(`Duplicate key found in ForEach component: ${key}`);
+				const key = getKey(child, this.createdAt);
+				const previous = mountedKeys.get(key);
+				if (previous !== undefined) {
+					throw forEachError(
+						`Duplicate key "${key}" in ForEach at indices ${previous} and ${i}`,
+						this.createdAt,
+					);
 				}
-				mountedKeys.add(key);
+				mountedKeys.set(key, i);
 				const existing = this.rendered.get(key);
 				if (existing) {
 					if (!equal(existing.value, currentVal) || existing.index !== i) {
@@ -130,13 +181,19 @@ class _forEach<T> extends MountNode {
 	}
 }
 
+/**
+ * Renders a list. The callback must return a component with `.key()` so items
+ * can be reused and reordered across updates; unkeyed `Component`s, `Fragment`,
+ * and `If` are type errors.
+ */
 export function ForEach<T>(items: readonly T[], render: ForEachRender<T>): _forEach<T>;
 export function ForEach<T>(signal: Readable<T[]>, render: ForEachRender<T>): _forEach<T>;
 export function ForEach<T>(itemsOrSignal: readonly T[] | Readable<T[]>, render: ForEachRender<T>) {
 	return new (_forEach as new (
 		itemsOrSignal: readonly T[] | Readable<T[]>,
 		render: ForEachRender<T>,
-	) => _forEach<T>)(itemsOrSignal, render);
+		createdAt?: string,
+	) => _forEach<T>)(itemsOrSignal, render, captureCallerStack(ForEach));
 }
 
 type IfConditionGetter = (...values: any[]) => boolean;
@@ -537,33 +594,32 @@ function toError(error: unknown): Error {
 
 type AwaitState<T> =
 	| { status: "pending" }
-	| { status: "resolved"; value: Signal<T> }
+	| { status: "resolved"; value: T }
 	| { status: "rejected"; error: Error };
 
-class _await<T> extends MountNode {
+class _await<T, ThenArg> extends MountNode {
 	private state: AwaitState<T> = { status: "pending" };
+	private source: Readable<PromiseLike<T>> | null = null;
+	private promise: PromiseLike<T> | null = null;
+	private token = 0;
+	private valueSignal: Signal<T> | null = null;
+	private unsubscribe: Unsubscribe | null = null;
 	private loadingChild: Mountable | null = null;
-	private thenRender: ((value: Signal<T>) => Mountable) | null = null;
+	private thenRender: ((value: ThenArg) => Mountable) | null = null;
 	private catchRender: ((error: Error) => Mountable) | null = null;
 	private thenChild: Mountable | null = null;
 	private catchChild: Mountable | null = null;
 	private current: Mountable | null = null;
 	private mounted = false;
 
-	constructor(promise: PromiseLike<T>) {
+	constructor(source: PromiseLike<T> | Readable<PromiseLike<T>>) {
 		super();
-		void promise.then(
-			(value) => {
-				this.state = { status: "resolved", value: new Signal(value) };
-				this.thenChild = null;
-				this.sync();
-			},
-			(error) => {
-				this.state = { status: "rejected", error: toError(error) };
-				this.catchChild = null;
-				this.sync();
-			},
-		);
+		if (isReadable<PromiseLike<T>>(source)) {
+			this.source = source;
+			this.follow(source.get());
+			return;
+		}
+		this.follow(source);
 	}
 
 	WhileLoading(child: Mountable): this {
@@ -572,7 +628,7 @@ class _await<T> extends MountNode {
 		return this;
 	}
 
-	Then(render: (value: Signal<T>) => Mountable): this {
+	Then(render: (value: ThenArg) => Mountable): this {
 		this.thenRender = render;
 		this.thenChild = null;
 		this.sync();
@@ -590,13 +646,78 @@ class _await<T> extends MountNode {
 		this.parent = parent;
 		this.mounted = true;
 		this.current = null;
+
+		if (this.source) {
+			this.unsubscribe?.();
+			this.unsubscribe = subscribe([this.source], (promise) => this.follow(promise));
+		}
+
 		this.sync();
 	}
 
 	override unmount() {
+		this.unsubscribe?.();
+		this.unsubscribe = null;
 		this.mounted = false;
 		this.current = null;
 		super.unmount();
+	}
+
+	private follow(promise: PromiseLike<T>) {
+		if (promise === this.promise) return;
+		this.promise = promise;
+		const token = ++this.token;
+
+		// a retry from Catch has nothing useful to show; drop back to loading.
+		// resolved stays up with the stale value until the new promise settles.
+		if (this.state.status === "rejected") {
+			this.state = { status: "pending" };
+			this.catchChild = null;
+			this.sync();
+		}
+
+		void promise.then(
+			(value) => {
+				if (token !== this.token) return;
+				this.resolve(value);
+			},
+			(error) => {
+				if (token !== this.token) return;
+				this.reject(toError(error));
+			},
+		);
+	}
+
+	private resolve(value: T) {
+		if (this.source) {
+			if (this.valueSignal) this.valueSignal.set(value);
+			else this.valueSignal = new Signal(value);
+		}
+
+		if (this.state.status === "resolved") {
+			this.state = { status: "resolved", value };
+			return;
+		}
+
+		this.state = { status: "resolved", value };
+		this.thenChild = null;
+		this.sync();
+	}
+
+	private reject(error: Error) {
+		if (this.state.status === "rejected" && this.state.error === error) return;
+		this.state = { status: "rejected", error };
+		this.thenChild = null;
+		this.catchChild = null;
+		this.sync();
+	}
+
+	private thenArg(): ThenArg {
+		if (this.source) return this.valueSignal as unknown as ThenArg;
+		if (this.state.status !== "resolved") {
+			throw new Error("Await.Then ran without a resolved value");
+		}
+		return this.state.value as unknown as ThenArg;
 	}
 
 	private childForState(): Mountable | null {
@@ -607,9 +728,11 @@ class _await<T> extends MountNode {
 		if (this.state.status === "resolved") {
 			if (!this.thenChild && this.thenRender) {
 				try {
-					this.thenChild = this.thenRender(this.state.value);
+					this.thenChild = this.thenRender(this.thenArg());
 				} catch (error) {
 					this.state = { status: "rejected", error: toError(error) };
+					this.thenChild = null;
+					this.catchChild = null;
 					return this.childForState();
 				}
 			}
@@ -638,6 +761,18 @@ class _await<T> extends MountNode {
 	}
 }
 
-export function Await<T>(promise: PromiseLike<T>): _await<T> {
-	return new _await(promise);
+/**
+ * Renders from a promise's state: `WhileLoading`, `Then`, `Catch`.
+ *
+ * A plain promise hands `Then` the resolved value. A `Readable` of a promise
+ * hands `Then` a `Readable<T>` — never a writable `Signal` — and re-follows
+ * the source: status changes remount the matching branch, a new resolved
+ * value patches the readable in place.
+ */
+export function Await<T>(source: Readable<PromiseLike<T>>): _await<T, Readable<T>>;
+export function Await<T>(source: PromiseLike<T>): _await<T, T>;
+export function Await<T>(source: PromiseLike<T> | Readable<PromiseLike<T>>) {
+	return new (_await as new (
+		source: PromiseLike<T> | Readable<PromiseLike<T>>,
+	) => _await<T, T | Readable<T>>)(source);
 }

@@ -1,4 +1,4 @@
-import { Div, If } from "@packages/ui";
+import { Div, If, UIFramework } from "@packages/ui";
 import { Sidebar } from "../components/sidebar";
 import { route } from "../lib/router";
 import { createDialogOpen, openCreateDialog } from "../state/ui";
@@ -12,15 +12,14 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export function App() {
-	// Global shortcut: "c" opens the create dialog (matching Linear).
-	document.addEventListener("keydown", (e) => {
-		if (e.key !== "c" || e.metaKey || e.ctrlKey || e.altKey) return;
-		if (isTypingTarget(e.target) || createDialogOpen.get()) return;
-		e.preventDefault();
-		openCreateDialog();
-	});
-
 	return Div(
+		// Global shortcut: "c" opens the create dialog (matching Linear).
+		UIFramework.Document().on("keydown", (e) => {
+			if (e.key !== "c" || e.metaKey || e.ctrlKey || e.altKey) return;
+			if (isTypingTarget(e.target) || createDialogOpen.get()) return;
+			e.preventDefault();
+			openCreateDialog();
+		}),
 		Sidebar(),
 		Div(
 			If([route], (route) => route.name === "list").Then(IssueListView()),

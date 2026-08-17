@@ -108,7 +108,7 @@ Div(
 	)
 		.WhileLoading(P().content("Loading...").className("text-sm text-zinc-500"))
 		.Then((todos) => {
-			items.set(todos.get());
+			items.set(todos);
 			ready.set(true);
 			return Todos.Provide(items).To(ItemList());
 		})

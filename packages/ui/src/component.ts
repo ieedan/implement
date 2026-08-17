@@ -13,6 +13,17 @@ export const HTML_TAGS = ["div", "button", "p"] as const;
 
 export type HTMLTag = keyof HTMLElementTagNameMap;
 
+declare const KEYED: unique symbol;
+
+/**
+ * A component that has had `.key()` called. `ForEach` only accepts these, so
+ * forgetting `.key()` or returning a `Fragment`/`If` is a type error instead
+ * of a silent fallback to index keys.
+ */
+export type KeyedComponent<T extends HTMLTag = any> = Component<T> & {
+	readonly [KEYED]: true;
+};
+
 type ElementOf<Tag extends HTMLTag> = HTMLElementTagNameMap[Tag];
 
 /** Event with `target` / `currentTarget` narrowed to the component's element. */
@@ -27,6 +38,7 @@ type TypedEvent<E extends keyof HTMLElementEventMap, El extends HTMLElement> = O
 type Handler = {
 	event: string;
 	handler: EventListener;
+	options: AddEventListenerOptions | undefined;
 };
 
 /** String-valued, writable CSS properties (drops methods, `length`, `parentRule`, …). */
@@ -113,9 +125,10 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 		);
 	}
 
-	key(key: string | number): this {
+	/** Marks this component as a keyed `ForEach` child. Required by `ForEach`. */
+	key(key: string | number): this & KeyedComponent<T> {
 		this.props.key = key;
-		return this;
+		return this as this & KeyedComponent<T>;
 	}
 
 	ref(ref: Writable<ElementOf<T> | null>): this;
@@ -284,8 +297,9 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 	on<E extends keyof HTMLElementEventMap>(
 		event: E,
 		handler: (ev: TypedEvent<E, ElementOf<T>>) => void,
+		options?: AddEventListenerOptions,
 	): this {
-		this.handlers.push({ event, handler: handler as EventListener });
+		this.handlers.push({ event, handler: handler as EventListener, options });
 		return this;
 	}
 
@@ -352,9 +366,9 @@ export class Component<T extends keyof HTMLElementTagNameMap> extends MountNode 
 		this.connectSignals();
 
 		for (const handler of this.handlers) {
-			this.element.addEventListener(handler.event, handler.handler);
+			this.element.addEventListener(handler.event, handler.handler, handler.options);
 			this.eventUnsubscribers.push(() =>
-				this.element?.removeEventListener(handler.event, handler.handler),
+				this.element?.removeEventListener(handler.event, handler.handler, handler.options),
 			);
 		}
 

@@ -58,4 +58,4 @@ Conventions used throughout:
   `components/pickers.ts` and accept either a plain value (row context) or a
   `Signal` (form context).
 - The routed detail view is a single-item `ForEach` keyed by issue id — the
-  framework's stand-in for a dynamic subtree (see PAPERCUTS #3 / MISSING #6).
+  framework's stand-in for a dynamic subtree.

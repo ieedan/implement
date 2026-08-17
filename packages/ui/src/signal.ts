@@ -100,6 +100,17 @@ function noteRead(readable: Readable<unknown>) {
 	activeTracker?.add(readable);
 }
 
+/** Run `fn` without recording `.get()` calls into the surrounding tracker. */
+function untracked<T>(fn: () => T): T {
+	const prev = activeTracker;
+	activeTracker = null;
+	try {
+		return fn();
+	} finally {
+		activeTracker = prev;
+	}
+}
+
 /** Subscribe to every Readable that `getter` reads via `.get()`. */
 export function subscribeTracked<T>(getter: () => T, callback: (value: T) => void): Unsubscribe {
 	const current = new Map<Readable<unknown>, Unsubscribe>();
@@ -244,23 +255,28 @@ export class Ref<T> extends Signal<T | null> {
 	}
 }
 
-export class Derived<T, Signals extends readonly Readable<any>[]> implements Readable<T> {
-	private value: T;
+/**
+ * Cached readable that watches sources only while it has subscribers (or until
+ * {@link dispose}). Creating one inside a per-row factory no longer leaks a
+ * source subscription when the row is discarded or unmounted.
+ */
+abstract class LazyReadable<T> implements Readable<T> {
+	protected value!: T;
 	private subscriberId: number = 0;
 	private subscribers: Map<number, Callback<T>> = new Map();
+	private sourceUnsubscribe: Unsubscribe | null = null;
+	private disposed = false;
 
-	constructor(signals: readonly [...Signals], getter: Getter<T, Signals>) {
-		this.value = getter(...(signals.map((signal) => signal.get()) as SignalValues<Signals>));
-		subscribe(signals, (...values) => {
-			const next = getter(...values);
-			if (!hasChanged(this.value, next)) return;
-			this.value = next;
-			this.notify(next);
-		});
-	}
+	/** Compute the current value without subscribing to sources. */
+	protected abstract read(): T;
+	/** Subscribe to sources and report each new value, including the current one. */
+	protected abstract watch(onValue: (value: T) => void): Unsubscribe;
 
 	get() {
 		noteRead(this);
+		if (!this.disposed && !this.sourceUnsubscribe) {
+			this.value = this.read();
+		}
 		return this.value;
 	}
 
@@ -270,13 +286,89 @@ export class Derived<T, Signals extends readonly Readable<any>[]> implements Rea
 		}
 	}
 
+	private activate() {
+		if (this.sourceUnsubscribe || this.disposed) return;
+		this.value = this.read();
+		this.sourceUnsubscribe = this.watch((value) => {
+			if (!hasChanged(this.value, value)) return;
+			this.value = value;
+			this.notify(value);
+		});
+	}
+
+	private deactivate() {
+		this.sourceUnsubscribe?.();
+		this.sourceUnsubscribe = null;
+	}
+
 	subscribe(callback: Callback<T>): Unsubscribe {
+		if (this.disposed) return () => {};
+		this.activate();
 		const id = ++this.subscriberId;
 		this.subscribers.set(id, callback);
-		return () => this.subscribers.delete(id);
+		return () => {
+			this.subscribers.delete(id);
+			if (this.subscribers.size === 0) this.deactivate();
+		};
 	}
 
 	onChange(callback: ChangeCallback<T>): Unsubscribe {
+		if (!this.disposed && !this.sourceUnsubscribe) {
+			this.value = this.read();
+		}
 		return bindOnChange(this.value, (cb) => this.subscribe(cb), callback);
+	}
+
+	/** Stop watching sources and drop subscribers. Safe to call more than once. */
+	dispose() {
+		if (this.disposed) return;
+		this.disposed = true;
+		this.deactivate();
+		this.subscribers.clear();
+	}
+}
+
+export class Derived<T, Signals extends readonly Readable<any>[]> extends LazyReadable<T> {
+	constructor(
+		private readonly signals: readonly [...Signals],
+		private readonly getter: Getter<T, Signals>,
+	) {
+		super();
+		this.value = this.read();
+	}
+
+	protected read(): T {
+		return untracked(() => {
+			const values = this.signals.map((signal) => signal.get()) as SignalValues<Signals>;
+			return this.getter(...values);
+		});
+	}
+
+	protected watch(onValue: (value: T) => void): Unsubscribe {
+		return subscribe(this.signals, (...values) => onValue(this.getter(...values)));
+	}
+}
+
+/**
+ * Auto-tracked derived value. Re-runs `getter` when any Readable it `.get()`s
+ * changes. Same lifetime rules as {@link Derived}: source subscriptions last
+ * only while something is subscribed, and {@link dispose} tears them down.
+ *
+ * ```ts
+ * const fullName = new Computed(() => `${first.get()} ${last.get()}`);
+ * ```
+ */
+export class Computed<T> extends LazyReadable<T> {
+	constructor(private readonly getter: () => T) {
+		super();
+		this.value = this.read();
+	}
+
+	protected read(): T {
+		return untracked(this.getter);
+	}
+
+	protected watch(onValue: (value: T) => void): Unsubscribe {
+		return subscribeTracked(this.getter, onValue);
 	}
 }
