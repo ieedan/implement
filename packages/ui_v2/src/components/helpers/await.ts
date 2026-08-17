@@ -1,4 +1,4 @@
-import { isReadable, Signal, subscribe, type Readable } from "../../signal";
+import { isReadable, signal, subscribe, type Readable, type Signal } from "../../signal";
 import { asParent, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { reconcileChildren } from "..";
@@ -95,8 +95,9 @@ export function Await<T>(
 
 				let branch: AwaitBranch = state.status;
 				let children: Child[] = [];
-				if (branch === "pending") children = loading;
-				else if (branch === "resolved") {
+				if (branch === "pending") {
+					children = loading;
+				} else if (branch === "resolved") {
 					if (thenRender) {
 						try {
 							children = [thenRender(thenArg())];
@@ -129,8 +130,11 @@ export function Await<T>(
 
 			const resolve = (value: T) => {
 				if (readable) {
-					if (valueSignal) valueSignal.set(value);
-					else valueSignal = new Signal(value);
+					if (valueSignal) {
+						valueSignal.set(value);
+					} else {
+						valueSignal = signal(value);
+					}
 				}
 
 				if (state.status === "resolved") {
@@ -170,8 +174,11 @@ export function Await<T>(
 				);
 			};
 
-			if (readable) follow(source.get());
-			else follow(source);
+			if (readable) {
+				follow(source.get());
+			} else {
+				follow(source);
+			}
 
 			node = {
 				mount(p: HTMLElement) {

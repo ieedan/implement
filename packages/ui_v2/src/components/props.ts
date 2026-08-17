@@ -518,8 +518,11 @@ function setAttribute(el: HTMLElement, name: string, value: unknown, booleanAsSt
 			el.setAttribute(name, String(value));
 			return;
 		}
-		if (value) el.setAttribute(name, "");
-		else el.removeAttribute(name);
+		if (value) {
+			el.setAttribute(name, "");
+		} else {
+			el.removeAttribute(name);
+		}
 		return;
 	}
 	el.setAttribute(name, toAttrString(value));
@@ -622,8 +625,11 @@ function bindStyleObject(el: HTMLElement, styles: Record<string, unknown>): Unsu
 		const apply = (resolved: unknown) => {
 			setStyleProperty(el, property, resolved == null ? "" : toAttrString(resolved));
 		};
-		if (isReadable(value)) unsubscribers.push(subscribe([value], apply));
-		else apply(value);
+		if (isReadable(value)) {
+			unsubscribers.push(subscribe([value], apply));
+		} else {
+			apply(value);
+		}
 	}
 	return () => {
 		for (const unsub of unsubscribers) unsub();

@@ -2,6 +2,7 @@ import {
 	isReadable,
 	isWritable,
 	Signal,
+	signal,
 	subscribe,
 	type Readable,
 	type Writable,
@@ -212,7 +213,7 @@ export function ForEach<T>(
 						? (value: T) => writeListItem(items, getKey, key, value, createdAt)
 						: null;
 					const item = new ForEachItem<T>(currentVal, writeBack);
-					const index = new Signal(i);
+					const index = signal(i);
 					const instance = render(item, index)();
 					mountChild(instance, parent!);
 					rendered.set(key, { instance, item, index });

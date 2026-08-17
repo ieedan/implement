@@ -25,15 +25,17 @@ export {
 	type FragmentProps,
 	type IfHelper,
 } from "./components/helpers";
-export { Context } from "./context";
+export { createContext, type Context } from "./context";
 export {
-	Derived,
+	derived,
 	Ref,
-	Signal,
+	signal,
 	watch,
 	type BindableKeys,
 	type BindPathValue,
 	type BindUpdate,
+	type Derived,
 	type Readable,
+	type Signal,
 	type Writable,
 } from "./signal";

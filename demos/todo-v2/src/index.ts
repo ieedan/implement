@@ -2,25 +2,34 @@ import {
 	App,
 	Await,
 	Button,
-	Context,
+	createContext,
+	derived,
 	Div,
 	ForEach,
 	Form,
 	If,
 	Input,
-	Signal,
+	signal,
+	watch,
+	type Signal,
 } from "@packages/ui_v2";
 import { Api, type Todo } from "./api";
 
 const api = new Api();
 const app = App({ target: document.body });
-const Todos = new Context<Signal<Todo[]>>();
+const Todos = createContext<Signal<Todo[]>>();
 
 app.render(TodoApp());
 
 function TodoApp() {
-	const items = new Signal<Todo[]>([]);
-	const search = new Signal("");
+	const items = signal<Todo[]>([]);
+	const search = signal("");
+
+	const isNotEmpty = derived([items], (items) => items.length > 0);
+
+	watch([isNotEmpty], (isNotEmpty) => {
+		console.log(isNotEmpty);
+	});
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();

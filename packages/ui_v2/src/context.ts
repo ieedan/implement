@@ -55,9 +55,13 @@ function contextUse<T>(
 
 				const result = context.lookup(node);
 				let value: T;
-				if (result.found) value = result.value;
-				else if (fallback) value = fallback.value;
-				else throw new Error("Context.Use() was called without a matching Context.Provide()");
+				if (result.found) {
+					value = result.value;
+				} else if (fallback) {
+					value = fallback.value;
+				} else {
+					throw new Error("Context.Use() was called without a matching Context.Provide()");
+				}
 
 				for (const child of reconcileChildren({}, render(value))) {
 					const instance = child();
@@ -115,4 +119,9 @@ export class Context<T> {
 	UseOr(render: (value: T) => Child, fallback: T): Mountable {
 		return contextUse(this, render, { value: fallback });
 	}
+}
+
+/** Create a context for passing a value down the tree without props. */
+export function createContext<T>(): Context<T> {
+	return new Context();
 }

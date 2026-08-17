@@ -257,6 +257,11 @@ export class Signal<T> implements Writable<T> {
 	}
 }
 
+/** Create a writable signal. */
+export function signal<T>(initialValue: T): Signal<T> {
+	return new Signal(initialValue);
+}
+
 /** Writable that starts as `null`, for binding a component's element without an initial value. */
 export class Ref<T> extends Signal<T | null> {
 	constructor() {
@@ -359,6 +364,14 @@ export class Derived<T, Signals extends readonly Readable<any>[]> extends LazyRe
 	protected watch(onValue: (value: T) => void): Unsubscribe {
 		return subscribe(this.signals, (...values) => onValue(this.getter(...values)));
 	}
+}
+
+/** Create a readable derived from other signals. */
+export function derived<T, Signals extends readonly Readable<any>[]>(
+	signals: readonly [...Signals],
+	getter: Getter<T, Signals>,
+): Derived<T, Signals> {
+	return new Derived(signals, getter);
 }
 
 function getAtPath(obj: unknown, path: string): unknown {
