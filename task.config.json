@@ -7,6 +7,10 @@
 					"color": "blue",
 					"command": "pnpm --filter @packages/ui dev"
 				},
+				"lib-v2": {
+					"color": "cyan",
+					"command": "pnpm --filter @packages/ui_v2 dev"
+				},
 				"todo": {
 					"tasks": {
 						"generate": {
@@ -29,6 +33,23 @@
 						"api": {
 							"color": "blue",
 							"command": "pnpm --filter @demos/todo dev:api"
+						}
+					}
+				},
+				"todo-v2": {
+					"optional": true,
+					"tasks": {
+						"js": {
+							"color": "cyan",
+							"command": "pnpm --filter @demos/todo-v2 dev:js"
+						},
+						"css": {
+							"color": "magenta",
+							"command": "pnpm --filter @demos/todo-v2 dev:css"
+						},
+						"www": {
+							"color": "green",
+							"command": "pnpm --filter @demos/todo-v2 dev:www"
 						}
 					}
 				},

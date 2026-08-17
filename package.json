@@ -6,6 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "pnpm --filter @packages/ui --filter @demos/todo --parallel dev",
+		"dev:v2": "pnpm --filter @packages/ui_v2 --filter @demos/todo-v2 --parallel dev",
 		"build": "pnpm -r build",
 		"check": "pnpm -r check",
 		"lint": "oxlint",
