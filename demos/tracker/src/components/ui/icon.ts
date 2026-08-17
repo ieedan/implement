@@ -1,10 +1,10 @@
-import { Span, type Readable } from "@packages/ui";
+import { derived, Svg, type Mountable, type Readable } from "@packages/implement";
 import { cx } from "../../lib/cx";
 
-// The framework can only create HTML elements, so icons are raw SVG strings
-// injected with `.html()`. Every icon fills its wrapper (sized by the caller).
+// Icons are raw SVG strings handed to the Svg helper, which parses each one
+// once and clones it per mount. Size and color come from classes on the root.
 const svg = (body: string) =>
-	`<svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+	`<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
 
 const stroke = `stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"`;
 
@@ -71,11 +71,9 @@ export const icons = {
 
 export type IconName = keyof typeof icons;
 
-/** Inline icon. Size and color come from the wrapper classes (defaults to 16px). */
-export function Icon(name: IconName, className = "h-4 w-4") {
-	return Span()
-		.html(icons[name])
-		.className(cx("inline-flex shrink-0 items-center justify-center", className));
+/** Inline icon. Size and color come from the classes (defaults to 16px). */
+export function Icon(name: IconName, className = "h-4 w-4"): Mountable {
+	return Svg(icons[name], { class: cx("inline-block shrink-0", className) });
 }
 
 /** Icon whose glyph and classes track a readable value. */
@@ -83,10 +81,9 @@ export function ReactiveIcon<T>(
 	source: Readable<T>,
 	getIcon: (value: T) => IconName,
 	getClass: (value: T) => string,
-) {
-	return Span()
-		.html([source], (value) => icons[getIcon(value)])
-		.className([source], (value) =>
-			cx("inline-flex shrink-0 items-center justify-center", getClass(value)),
-		);
+): Mountable {
+	return Svg(
+		derived([source], (value) => icons[getIcon(value)]),
+		{ class: derived([source], (value) => cx("inline-block shrink-0", getClass(value))) },
+	);
 }

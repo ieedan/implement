@@ -5,11 +5,7 @@
 			"tasks": {
 				"lib": {
 					"color": "blue",
-					"command": "pnpm --filter @packages/ui dev"
-				},
-				"lib-v2": {
-					"color": "cyan",
-					"command": "pnpm --filter @packages/ui_v2 dev"
+					"command": "pnpm --filter @packages/implement dev"
 				},
 				"todo": {
 					"tasks": {
@@ -36,37 +32,24 @@
 						}
 					}
 				},
-				"todo-v2": {
+				"tracker": {
 					"optional": true,
 					"tasks": {
 						"js": {
 							"color": "cyan",
-							"command": "pnpm --filter @demos/todo-v2 dev:js"
+							"command": "pnpm --filter @demos/tracker dev:js"
 						},
 						"css": {
 							"color": "magenta",
-							"command": "pnpm --filter @demos/todo-v2 dev:css"
+							"command": "pnpm --filter @demos/tracker dev:css"
 						},
 						"www": {
 							"color": "green",
-							"command": "pnpm --filter @demos/todo-v2 dev:www"
-						}
-					}
-				},
-				"kitchen": {
-					"optional": true,
-					"tasks": {
-						"js": {
-							"color": "yellow",
-							"command": "pnpm --filter @demos/kitchen dev:js"
+							"command": "pnpm --filter @demos/tracker dev:www"
 						},
-						"css": {
-							"color": "white",
-							"command": "pnpm --filter @demos/kitchen dev:css"
-						},
-						"www": {
-							"color": "red",
-							"command": "pnpm --filter @demos/kitchen dev:www"
+						"api": {
+							"color": "blue",
+							"command": "pnpm --filter @demos/tracker dev:api"
 						}
 					}
 				}

@@ -1,4 +1,4 @@
-import { Derived, Signal } from "@packages/ui";
+import { derived, signal } from "@packages/implement";
 import { Api, type Issue, type Label, type Priority, type Status, type User } from "../api";
 
 export const api = new Api();
@@ -7,19 +7,16 @@ export const api = new Api();
 // Workspace data
 // ---------------------------------------------------------------------------
 
-export const issues = new Signal<Issue[]>([]);
-export const users = new Signal<User[]>([]);
-export const labels = new Signal<Label[]>([]);
+export const issues = signal<Issue[]>([]);
+export const users = signal<User[]>([]);
+export const labels = signal<Label[]>([]);
 
 /** The signed-in user. There is no auth; the seed's first user plays the part. */
-export const currentUser = new Signal<User | null>(null);
+export const currentUser = signal<User | null>(null);
 
-export const usersById = new Derived(
-	[users],
-	(users) => new Map(users.map((user) => [user.id, user])),
-);
+export const usersById = derived([users], (users) => new Map(users.map((user) => [user.id, user])));
 
-export const labelsById = new Derived(
+export const labelsById = derived(
 	[labels],
 	(labels) => new Map(labels.map((label) => [label.id, label])),
 );
@@ -33,7 +30,7 @@ export async function loadWorkspace(): Promise<void> {
 	]);
 
 	const failed = issuesResult.error ?? usersResult.error ?? labelsResult.error;
-	if (failed) throw new Error("Failed to load workspace. Is the API running on :4001?");
+	if (failed) throw new Error("Failed to load workspace. Is the API running on :4003?");
 
 	issues.set(issuesResult.data ?? []);
 	users.set(usersResult.data ?? []);

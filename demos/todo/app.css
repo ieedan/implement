@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 @source "./src";
-@source not "./src/api";
 @source "./index.html";
 
 html {

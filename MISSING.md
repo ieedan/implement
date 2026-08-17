@@ -1,72 +1,118 @@
 # Missing
 
-Things the framework does not have yet. Compiled while building `demos/tracker`
-(a Linear-style issue tracker: sidebar views, grouped/filtered lists, dropdown
-menus, a modal dialog, inline editing, comments). Roughly ordered by how much
-each one hurt.
+What `@packages/implement` does not have yet, compiled while building the router
+and `demos/tracker` (a Linear-style issue tracker: routed list/detail
+views, dropdown menus, a modal dialog, inline editing, comments). Roughly
+ordered by how much each one hurt. Sharp edges on things that _do_ exist are
+in [PAPERCUTS.md](PAPERCUTS.md).
 
-## 1. Arbitrary attribute bindings
+Already in place: arbitrary attributes (`href`, `disabled`, `aria-*`,
+`data-*` all work as typed props — links and accessible buttons are real),
+the router (typed params, typed `Link`/`href`/`navigate`, persistent
+layouts, URL-synced search params), element `this` bindings
+(`Div({ this: el })`), and `Implement.Document()` / `Window()`
+(mount-scoped global listeners).
 
-There is no `.attr()` (or per-attribute methods beyond `id`/`class`). Nothing can set:
+## 1. Element refs **(fixed)**
 
-- `href` / `target` on `A` — links are unusable; every "link" in tracker is a `Button` calling the router
-- `disabled` on buttons/inputs — faked with `pointer-events-none opacity-40` classes plus a guard in the click handler, which is wrong for keyboard users
-- `aria-*` / `role` — every icon-only button in tracker is nameless to assistive tech (the accessibility tree is just anonymous `button` after `button`); there is currently **no way to build an accessible app**
-- `title`, `tabindex`, `autocomplete`, `spellcheck`, `data-*`, `for` on labels, `colspan`, …
+Elements accept `this: Ref<El>` (or `Ref<HTMLElement>`). Mount writes the
+node after appending to the parent; unmount writes `null`.
+`Menu` now closes on outside click via `contains()`, and the create-dialog
+title focuses through a `Ref` instead of `querySelector`.
 
-Suggested shape, consistent with existing bindings:
-`.attr(name, value | Readable | [signals, getter])` plus `.aria(name, ...)` sugar.
+## 2. Lifecycle / effect ownership **(fixed)**
 
-## 2. A router
+`Implement.Lifecycle({ onMount, onUnmount }, ...children)` hooks
+mount/unmount at its tree position — standalone (renders nothing) or
+wrapping children it owns. `onMount` runs once the tree is connected
+(focus/measure work) and may return a cleanup, which is how subscriptions
+get scoped to the mounted lifetime: the detail view's `id.onChange`
+reseeds return their unsubscribe. `onUnmount` runs while children are
+still in the DOM. The demo's hand-rolled `Effect`/`AfterMount` mountables
+(`src/lib/dom.ts`) are deleted.
 
-Every app needs one. Tracker hand-rolls a hash router in ~25 lines
-(`src/lib/router.ts`) — a `Signal<Route>` fed by `hashchange`. Fine for a demo,
-but a first-class router with typed routes, a `Link` component (blocked on
-`href` support, see #1), and scroll/focus handling belongs in the framework.
+## 3. A data/query layer over `Await`
 
-## 3. SVG support
+The primitive now works: swap a promise in a signal and `Await` re-follows,
+patching resolved values in place (tracker's comments do exactly this).
+But everything around it is still hand-rolled — the refetch function, the
+"don't refetch on mount" dance (`onChange` vs `watch`), optimistic bumps.
+And the obvious composition — `derived([id], (id) => api.fetch(id))` — is
+wrong in practice because inactive deriveds recompute per `get()`
+(PAPERCUTS #6). A `query(() => promise)` returning
+`{ data, error, loading, refetch }` as readables would delete most of
+tracker's comments plumbing.
 
-`Component.create()` uses `document.createElement`, so SVG elements (which need
-`createElementNS`) can't be components. All 25+ icons in tracker are raw SVG
-strings injected via `.html()` — no type safety, no per-part reactivity, and
-`innerHTML` re-parses on every change.
+## 4. Router: the second 80%
 
-## 4. Collision-aware floating positioning
+The core is there (typed tree, params as readables, layouts that survive
+navigation, typed links, search params, fallback). What real apps ask for
+next, none of which exists:
 
-Menus position with `absolute top-full` and clip at the viewport edge (tracker's
-properties-panel menus had to be hard-coded `align: "right"` after one clipped
-off-screen). Collision-aware floating positioning for menus is still open and
-would cover 90% of real menus.
+- **Redirects** — `"/"` → `/issues` can only be expressed by duplicating the
+  render.
+- **Not-found within layouts** — the fallback replaces the whole tree
+  (PAPERCUTS #11); no catch-all segment.
+- **Navigation guards/blocking** — the detail view's dirty description is
+  silently lost on navigation; there is no "are you sure" hook.
+- **Code splitting** — route renders are eager imports; no lazy route form.
+- **Scroll restoration** — pushes scroll to top, but back/forward doesn't
+  restore the previous scroll position.
+- **`isActive` as a readable** — `Link` sets `aria-current` (enough for CSS),
+  but breadcrumbs/parent-section highlighting need prefix matching in code.
+- **Relative navigation** — every `Link`/`navigate` is absolute.
+- **Hash mode / base path** — history-mode-at-root only; deep links require
+  an SPA-fallback static server (`serve -s`) and absolute asset paths in
+  `index.html`, which cost a debugging round.
 
-## 5. Async/data-fetching story
+## 5. SVG support **(fixed)**
 
-`Await` still has no invalidation or mutation helpers. Passing a
-`Readable<PromiseLike<T>>` now re-follows the source (status changes remount,
-a new resolved value patches the readable), but tracker's comments section
-still refetches by _rebuilding the whole detail view_. A `refetchable(() =>
-promise)` returning `{ state, refetch }` would go a long way.
+`Svg(source, props)` builds an `<svg>` from trusted markup: each unique
+string parses once (cached template, cloned per mount) and typed props go on
+the root as attributes — `class`/`style`/events/`this` plus `viewBox`,
+`width`, `fill`, `stroke-*`, all bindable. Props override attributes baked
+into the string. `Icon` is now `Svg(icons[name], { class })` with no wrapper
+span, and `ReactiveIcon` swaps glyphs by driving a readable source.
 
-## 6. Class toggling
+## 6. Focus management
 
-`className` bindings replace the entire class string, so conditional styling
-means rebuilding long Tailwind strings in every getter (see the buttons in
-tracker). A `classToggle(name, condition)` or object syntax
-(`{ "opacity-40": disabled }`) would compose better.
+The dialog has no focus trap (Tab escapes into the page behind it) and
+nothing restores focus on close. Menus aren't keyboard-navigable (no arrow
+keys, no typeahead, no focus on open).
 
-## 7. Smaller gaps, noted in passing
+## 7. Collision-aware floating positioning
 
-- **Text nodes**: `content()` owns the whole element; mixing text and child
-  elements requires wrapper `Span()`s everywhere.
-- **Error boundaries**: an exception in a render callback (e.g. inside
-  `ForEach`) propagates to the subscriber that triggered it and can wedge the
-  app.
-- **Transitions**: no enter/exit animation hooks; menus/dialogs pop.
-- **Focus management**: no autofocus, no focus trap for dialogs (tab escapes
-  tracker's modal into the page behind it).
-- **Forms**: no submit-with-validation story; tracker guards every handler by
-  hand.
-- **Dev loop**: tsdown watch + `serve` + tailwind + tsx is four processes with
-  full-page manual reloads — no HMR, no error overlay. A `create-app` template
-  or dev-server package would remove the boilerplate every new demo copies
-  (tracker copied it from todo verbatim).
-- **Testing**: no way to render a component headlessly and assert on it.
+Menus are `absolute top-full` with a hardcoded `align: "right"` where they'd
+clip. Still the biggest visual-quality gap for real menus.
+
+## 8. Class toggling
+
+`class` bindings replace the whole string, so conditional styling is
+`derived` + `cx` template rebuilding everywhere. An object/array form
+(`{ "opacity-40": disabled }`) keeps coming up.
+
+## 9. Error boundaries **(fixed)**
+
+`Implement.Boundary(...children).Catch((error, reset) => ...)` isolates
+subtree failures: errors thrown while the subtree mounts, during any
+reactive helper's re-sync (`If`/`ForEach`/`Switch`/`Key`/`Await`/`Portal`),
+or in `Lifecycle.onMount` route to the nearest boundary, which swaps in the
+`Catch` branch (deferred a microtask, before paint). `reset` remounts the
+children from scratch; an error in the `Catch` branch itself escalates to
+the next boundary up instead of looping. Still uncaught by design: event
+handler errors (try/catch them yourself) and promise rejections
+(`Await.Catch`'s job) — and a derived getter that throws outside a guarded
+sync pass (e.g. from a plain `get()`) still propagates to its caller.
+
+## 10. Testing story
+
+No headless renderer, so none of tracker is tested except by clicking.
+The router's matching/param logic is pure and would unit-test trivially if
+mounting didn't require a real DOM.
+
+## 11. Dev loop
+
+Four processes (tsdown, tailwind, static server, API) and full manual
+reloads. Every demo copies the same scaffold with only ports changed,
+including generalizing the `serve` invocation to `-s` for SPA fallback. A
+`create-app` template or dev-server package would end the copying.

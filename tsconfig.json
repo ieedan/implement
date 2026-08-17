@@ -14,5 +14,5 @@
 		"noUncheckedSideEffectImports": true,
 		"types": []
 	},
-	"include": ["packages/**/*.ts", "demos/**/*.ts", "*.config.ts"]
+	"include": ["packages/**/*.ts", "demos/**/*.ts", "apps/**/*.ts", "*.config.ts"]
 }

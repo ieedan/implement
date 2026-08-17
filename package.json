@@ -1,12 +1,12 @@
 {
-	"name": "ui-framework",
+	"name": "implement",
 	"private": true,
 	"version": "1.0.0",
 	"description": "",
 	"type": "module",
 	"scripts": {
-		"dev": "pnpm --filter @packages/ui --filter @demos/todo --parallel dev",
-		"dev:v2": "pnpm --filter @packages/ui_v2 --filter @demos/todo-v2 --parallel dev",
+		"dev": "pnpm --filter @packages/implement --filter @demos/todo --parallel dev",
+		"dev:docs": "pnpm --filter @packages/implement --filter @apps/docs --parallel dev",
 		"build": "pnpm -r build",
 		"check": "pnpm -r check",
 		"jscpd": "jscpd --no-tips",

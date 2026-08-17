@@ -1,23 +1,16 @@
-import { Signal, Textarea } from "@packages/ui";
+import { Textarea, type ElementProps, type Mountable } from "@packages/implement";
 import { cx } from "../../lib/cx";
 
-export type TextAreaOptions = {
-	value: Signal<string>;
-	placeholder?: string;
-	rows?: number;
-	className?: string;
-};
+type TextAreaProps = Omit<ElementProps<"textarea">, "class"> & { class?: string };
 
-/** Two-way bound textarea over the framework's Textarea bindings. */
-export function TextArea(options: TextAreaOptions) {
-	return Textarea()
-		.className(
-			cx(
-				"w-full resize-none rounded-md bg-transparent text-[13px] leading-relaxed text-zinc-200 placeholder:text-zinc-600 focus:outline-none",
-				options.className,
-			),
-		)
-		.value(options.value)
-		.placeholder(options.placeholder ?? "")
-		.rows(options.rows ?? 3);
+/** Styled textarea; `value` two-way binds when given a writable signal. */
+export function TextArea(props: TextAreaProps): Mountable {
+	return Textarea({
+		rows: 3,
+		...props,
+		class: cx(
+			"w-full resize-none rounded-md bg-transparent text-[13px] leading-relaxed text-zinc-200 placeholder:text-zinc-600 focus:outline-none",
+			props.class,
+		),
+	});
 }

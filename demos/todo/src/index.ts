@@ -1,119 +1,127 @@
 import {
+	App,
 	Await,
 	Button,
-	Context,
-	Derived,
+	createContext,
+	derived,
 	Div,
 	ForEach,
 	Form,
-	H1,
+	If,
 	Input,
-	Label,
-	P,
-	Signal,
-	Span,
-} from "@packages/ui";
+	signal,
+	watch,
+	type Signal,
+} from "@packages/implement";
 import { Api, type Todo } from "./api";
 
 const api = new Api();
-const root = document.getElementById("root")!;
+const app = App({ target: document.body });
+const TodosContext = createContext<Signal<Todo[]>>();
 
-const search = new Signal("");
-const items = new Signal<Todo[]>([]);
-const ready = new Signal(false);
+app.render(TodoApp());
 
-const totalText = new Derived([ready, items], (ready, items) => {
-	if (!ready) return "\u00a0";
-	if (items.length === 0) return "Nothing left to do.";
-	if (items.length === 1) return "1 task.";
-	return `${items.length} tasks.`;
-});
+function TodoApp() {
+	const items = signal<Todo[]>([]);
+	const search = signal("");
 
-async function submit(e: SubmitEvent) {
-	e.preventDefault();
-	const title = search.get();
-	if (title === "") return;
-	const { data } = await api.todos.create({ title });
-	if (!data) return;
-	items.push(data);
-	search.set("");
-}
+	const isNotEmpty = derived([items], (items) => items.length > 0);
 
-const Todos = new Context<Signal<Todo[]>>();
+	watch([isNotEmpty], (isNotEmpty) => {
+		console.log(isNotEmpty);
+	});
 
-export function ItemList() {
-	return Todos.Use((items) =>
+	async function submit(e: SubmitEvent) {
+		e.preventDefault();
+		const title = search.get();
+		if (title === "") return;
+		const { data } = await api.todos.create({ title });
+		if (!data) return;
+		items.push(data);
+		search.set("");
+	}
+
+	return Div(
+		{ class: "flex flex-col items-center w-full antialiased" },
 		Div(
-			ForEach(items, (entry) => {
-				const [item] = entry.get();
-				return Div(
-					Span()
-						.content([entry], ([item]) => item.title)
-						.className("min-w-0 flex-1 text-sm text-zinc-200"),
-					Button()
-						.type("button")
-						.content("Delete")
-						.className(
-							"rounded-md px-2 py-1 text-sm text-zinc-500 transition-colors duration-150 ease-out hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50",
-						)
-						.on("click", async () => {
-							const { error } = await api.todos.delete({ id: item.id });
-							if (error) return;
-							items.update((todos) => todos.filter((todo) => todo.id !== item.id));
-						}),
-				)
-					.key(item.id)
-					.className("flex items-center gap-3 py-3");
-			}),
-		)
-			.id("list")
-			.className("flex flex-col divide-y divide-zinc-800/80"),
+			{ class: "flex flex-col items-center w-full max-w-2xl py-4" },
+			CreateForm({ onSubmit: submit, search }),
+			Await(
+				api.todos.list().then(({ data, error }) => {
+					if (error) throw error;
+					return data ?? [];
+				}),
+			)
+				.WhileLoading(Div({ class: "text-zinc-500 py-2" }, "Loading..."))
+				.Then((todos) => {
+					items.set(todos);
+					return TodosContext.Provide(items).To(List());
+				})
+				.Catch((error) => Div({ class: "text-red-400 py-2" }, error.message)),
+		),
 	);
 }
 
-Div(
-	Div(
-		H1().content("Todo").className("text-3xl font-semibold tracking-tight text-zinc-50"),
-		P().content(totalText).className("text-sm text-zinc-400"),
-	).className("flex flex-col gap-1"),
-
-	Form(
-		Label(
-			Span().content("New task").className("sr-only"),
-			Input()
-				.id("search")
-				.type("text")
-				.placeholder("Add a task")
-				.value(search)
-				.className(
-					"h-10 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 transition-colors duration-150 ease-out hover:border-zinc-700 focus:border-zinc-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60",
-				),
-		).className("min-w-0 flex-1"),
-		Button()
-			.id("submit")
-			.type("submit")
-			.content("Create")
-			.className(
-				"h-10 shrink-0 rounded-lg bg-zinc-100 px-4 text-sm font-medium text-zinc-950 transition-colors duration-150 ease-out hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60",
-			),
-	)
-		.className("search-area flex items-center gap-2")
-		.on("submit", submit),
-
-	Await(
-		api.todos.list().then(({ data, error }) => {
-			if (error) throw error;
-			return data ?? [];
+function CreateForm({
+	onSubmit,
+	search,
+}: {
+	onSubmit: (e: SubmitEvent) => void;
+	search: Signal<string>;
+}) {
+	return Form(
+		{ onSubmit, class: "flex items-center gap-2 w-full" },
+		Input({
+			value: search,
+			class: "border border-zinc-700 rounded-md h-9 px-2 w-full",
+			placeholder: "I need to...",
 		}),
-	)
-		.WhileLoading(P().content("Loading...").className("text-sm text-zinc-500"))
-		.Then((todos) => {
-			items.set(todos);
-			ready.set(true);
-			return Todos.Provide(items).To(ItemList());
-		})
-		.Catch((error) => P().content(error.message).className("text-sm text-red-400")),
-)
-	.id("list-wrapper")
-	.className("mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-8 px-6 py-16")
-	.mount(root);
+		Button(
+			{ type: "submit", class: "border bg-white text-black rounded-md px-2 py-1 h-9" },
+			"Create",
+		),
+	);
+}
+
+function List() {
+	return TodosContext.Use((items) =>
+		Div(
+			{ class: "py-2 w-full flex flex-col gap-2" },
+			If(items.bind((items) => items.length > 0)).Then(
+				Div(
+					{ class: "text-center text-zinc-500" },
+					items.bind((items) => `You have ${items.length} items to do.`),
+				),
+			),
+			ForEach(
+				items,
+				(item) => item.id,
+				(item) =>
+					Div(
+						{ class: "border border-zinc-700 rounded-md p-2 w-full flex items-center gap-2" },
+						Input({
+							value: item.bind(
+								(item) => item.title,
+								(prev, next) => {
+									prev.title = next;
+								},
+							),
+							class: "bg-transparent w-full h-9 px-2",
+						}),
+						Button(
+							{
+								type: "button",
+								class: "bg-red-500/50 text-red-500 rounded-md px-2 py-1 h-9",
+								onClick: async () => {
+									const { error } = await api.todos.delete({ id: item.get().id });
+									if (error) return;
+									items.update((todos) => todos.filter((todo) => todo.id !== item.get().id));
+								},
+							},
+							"Delete",
+						),
+					),
+			),
+		),
+	);
+}

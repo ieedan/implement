@@ -1,5 +1,5 @@
-import type { IconName } from "../components/ui/icon";
 import type { Priority, Status } from "../api";
+import type { IconName } from "../components/ui/icon";
 
 export type StatusMeta = {
 	label: string;

@@ -1,4 +1,4 @@
-import { Derived, Div, If, type Readable } from "@packages/ui";
+import { derived, Div, If, type Mountable, type Readable } from "@packages/implement";
 import type { User } from "../../api";
 import { cx } from "../../lib/cx";
 import { Icon } from "./icon";
@@ -24,27 +24,31 @@ const circleClass = (size: keyof typeof SIZES) =>
 	);
 
 /** Colored initials circle; a dashed placeholder when `user` is null. */
-export function Avatar(user: User | null, size: keyof typeof SIZES = "sm") {
+export function Avatar(user: User | null, size: keyof typeof SIZES = "sm"): Mountable {
 	if (!user) {
 		return Icon("userDashed", cx(SIZES[size], "text-zinc-500"));
 	}
 
-	return Div()
-		.content(initials(user.name))
-		.style({ backgroundColor: user.color })
-		.className(circleClass(size));
+	return Div(
+		{ class: circleClass(size), style: { backgroundColor: user.color } },
+		initials(user.name),
+	);
 }
 
 /** Avatar that tracks a readable user (for rows that patch in place). */
-export function ReactiveAvatar(user: Readable<User | null>, size: keyof typeof SIZES = "sm") {
-	const color = new Derived([user], (user) => user?.color ?? "transparent");
-
+export function ReactiveAvatar(
+	user: Readable<User | null>,
+	size: keyof typeof SIZES = "sm",
+): Mountable {
 	return If(user)
 		.Then(
-			Div()
-				.content([user], (user) => initials(user?.name ?? ""))
-				.style({ backgroundColor: color })
-				.className(circleClass(size)),
+			Div(
+				{
+					class: circleClass(size),
+					style: { backgroundColor: derived([user], (user) => user?.color ?? "transparent") },
+				},
+				derived([user], (user) => initials(user?.name ?? "")),
+			),
 		)
 		.Else(Icon("userDashed", cx(SIZES[size], "text-zinc-500")));
 }

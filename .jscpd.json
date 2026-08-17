@@ -1,5 +1,5 @@
 {
-	"path": ["packages/ui_v2"],
+	"path": ["packages/implement"],
 	"format": ["typescript"],
 	"reporters": ["console"],
 	"ignore": ["**/node_modules/**", "**/dist/**", "**/elements.ts", "**/scripts/**"],

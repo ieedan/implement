@@ -1,9 +1,10 @@
-import { Signal } from "@packages/ui";
+import { signal } from "@packages/implement";
 import type { Issue, Priority, Status } from "../api";
 import type { IconName } from "../components/ui/icon";
 
 // ---------------------------------------------------------------------------
-// Sidebar views
+// Sidebar views — the active view lives in the URL (`/` and `/views/:view`),
+// not in a signal; the router owns it.
 // ---------------------------------------------------------------------------
 
 export type ViewId = "all" | "mine" | "active" | "backlog";
@@ -37,22 +38,23 @@ export const VIEWS: ViewMeta[] = [
 	},
 ];
 
-export const activeView = new Signal<ViewId>("all");
-export const searchQuery = new Signal("");
+export function viewById(id: string): ViewMeta {
+	return VIEWS.find((view) => view.id === id) ?? VIEWS[0]!;
+}
 
 // ---------------------------------------------------------------------------
 // Create-issue dialog
 // ---------------------------------------------------------------------------
 
-export const createDialogOpen = new Signal(false);
+export const createDialogOpen = signal(false);
 
 export const createForm = {
-	title: new Signal(""),
-	description: new Signal(""),
-	status: new Signal<Status>("todo"),
-	priority: new Signal<Priority>("none"),
-	assigneeId: new Signal<string | null>(null),
-	labelIds: new Signal<string[]>([]),
+	title: signal(""),
+	description: signal(""),
+	status: signal<Status>("todo"),
+	priority: signal<Priority>("none"),
+	assigneeId: signal<string | null>(null),
+	labelIds: signal<string[]>([]),
 };
 
 export function openCreateDialog(preset?: { status?: Status }) {
