@@ -20,12 +20,7 @@ const api = new Api();
 const app = App({ target: document.body });
 const TodosContext = Context<Signal<Todo[]>>();
 
-const unmount = app.render(TodoApp());
-
-if (import.meta.hot) {
-	import.meta.hot.accept();
-	import.meta.hot.dispose(() => unmount());
-}
+app.render(TodoApp());
 
 function TodoApp() {
 	const items = signal<Todo[]>([]);

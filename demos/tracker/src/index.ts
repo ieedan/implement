@@ -16,7 +16,7 @@ function CenteredMessage(...lines: string[]): Mountable {
 	);
 }
 
-const unmount = app.render(
+app.render(
 	Await(loadWorkspace())
 		.WhileLoading(CenteredMessage("Loading workspace…"))
 		.Then(() => router)
@@ -24,8 +24,3 @@ const unmount = app.render(
 			CenteredMessage(error.message, "Start it with: pnpm --filter @demos/tracker dev"),
 		),
 );
-
-if (import.meta.hot) {
-	import.meta.hot.accept();
-	import.meta.hot.dispose(() => unmount());
-}

@@ -1,3 +1,4 @@
+import { registerRoot } from "../hmr";
 import { isReadable } from "../signal";
 import { mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
@@ -183,7 +184,17 @@ export function App(options: { target: HTMLElement }) {
 				mountChild(instance, target);
 				return instance;
 			});
-			return () => instances.forEach((instance) => instance.unmount());
+			const unmount = () => instances.forEach((instance) => instance.unmount());
+			// Under the Vite dev server only: track the root so the plugin's
+			// injected dispose hook can tear it down before a hot update.
+			if (import.meta.hot) {
+				const untrack = registerRoot(unmount);
+				return () => {
+					untrack();
+					unmount();
+				};
+			}
+			return unmount;
 		},
 	};
 }
