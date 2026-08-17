@@ -1,33 +1,54 @@
-import { App, Button, Context, Div, ForEach, Form, If, Input, Signal } from "@packages/ui_v2";
+import {
+	App,
+	Await,
+	Button,
+	Context,
+	Div,
+	ForEach,
+	Form,
+	If,
+	Input,
+	Signal,
+} from "@packages/ui_v2";
+import { Api, type Todo } from "./api";
 
+const api = new Api();
 const app = App({ target: document.body });
-
-const ItemsCtx = new Context<Signal<Item[]>>();
+const Todos = new Context<Signal<Todo[]>>();
 
 app.render(TodoApp());
 
-type Item = { id: number; text: string };
-
 function TodoApp() {
-	const items = new Signal<Item[]>([]);
+	const items = new Signal<Todo[]>([]);
 	const search = new Signal("");
 
-	function submit(e: SubmitEvent) {
+	async function submit(e: SubmitEvent) {
 		e.preventDefault();
-		const v = search.get();
-		if (v === "") return;
-		items.push({ id: Date.now(), text: v });
+		const title = search.get();
+		if (title === "") return;
+		const { data } = await api.todos.create({ title });
+		if (!data) return;
+		items.push(data);
 		search.set("");
 	}
 
-	return ItemsCtx.Provide(items).To(
+	return Div(
+		{ class: "flex flex-col items-center w-full antialiased" },
 		Div(
-			{ class: "flex flex-col items-center w-full antialiased" },
-			Div(
-				{ class: "flex flex-col items-center w-full max-w-2xl py-4" },
-				CreateForm({ onSubmit: submit, search }),
-				List(),
-			),
+			{ class: "flex flex-col items-center w-full max-w-2xl py-4" },
+			CreateForm({ onSubmit: submit, search }),
+			Await(
+				api.todos.list().then(({ data, error }) => {
+					if (error) throw error;
+					return data ?? [];
+				}),
+			)
+				.WhileLoading(Div({ class: "text-zinc-500 py-2" }, "Loading..."))
+				.Then((todos) => {
+					items.set(todos);
+					return Todos.Provide(items).To(List());
+				})
+				.Catch((error) => Div({ class: "text-red-400 py-2" }, error.message)),
 		),
 	);
 }
@@ -54,7 +75,7 @@ function CreateForm({
 }
 
 function List() {
-	return ItemsCtx.Use((items) =>
+	return Todos.Use((items) =>
 		Div(
 			{ class: "py-2 w-full flex flex-col gap-2" },
 			If(items.bind((items) => items.length > 0)).Then(
@@ -69,13 +90,15 @@ function List() {
 				(item) =>
 					Div(
 						{ class: "border border-zinc-700 rounded-md p-2 w-full flex items-center gap-2" },
-						Input({ value: item.bind("text"), class: "bg-transparent w-full h-9 px-2" }),
+						Input({ value: item.bind("title"), class: "bg-transparent w-full h-9 px-2" }),
 						Button(
 							{
 								type: "button",
 								class: "bg-red-500/50 text-red-500 rounded-md px-2 py-1 h-9",
-								onClick: () => {
-									items.update((items) => items.filter((t) => t.id !== item.get().id));
+								onClick: async () => {
+									const { error } = await api.todos.delete({ id: item.get().id });
+									if (error) return;
+									items.update((todos) => todos.filter((todo) => todo.id !== item.get().id));
 								},
 							},
 							"Delete",

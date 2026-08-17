@@ -16,10 +16,12 @@ export {
 } from "./components";
 export * from "./components/elements";
 export {
+	Await,
 	ForEach,
 	Fragment,
 	Html,
 	If,
+	type AwaitHelper,
 	type FragmentProps,
 	type IfHelper,
 } from "./components/helpers";
