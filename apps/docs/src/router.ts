@@ -11,4 +11,4 @@ export const router = Router(
 	{ fallback: () => NotFound() },
 );
 
-export const Link = router.Link;
+export const Link = router.Link.bind(router);
