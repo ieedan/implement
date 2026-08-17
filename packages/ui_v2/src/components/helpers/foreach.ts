@@ -9,18 +9,8 @@ import {
 } from "../../signal";
 import { asParent, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
+import { syncDomOrder } from "../../utils";
 import type { IMountable, Mountable } from "../types";
-
-function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | null) {
-	let cursor: Node | null = before;
-	for (let i = nodes.length - 1; i >= 0; i--) {
-		const node = nodes[i]!;
-		if (node.nextSibling !== cursor) {
-			parent.insertBefore(node, cursor);
-		}
-		cursor = node;
-	}
-}
 
 function stackFrames(stack: string): string {
 	const newline = stack.indexOf("\n");

@@ -1,19 +1,9 @@
 import { isReadable, signal, subscribe, type Readable, type Signal } from "../../signal";
 import { asParent, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
+import { syncDomOrder } from "../../utils";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
-
-function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | null) {
-	let cursor: Node | null = before;
-	for (let i = nodes.length - 1; i >= 0; i--) {
-		const node = nodes[i]!;
-		if (node.nextSibling !== cursor) {
-			parent.insertBefore(node, cursor);
-		}
-		cursor = node;
-	}
-}
 
 function toError(error: unknown): Error {
 	if (error instanceof Error) return error;

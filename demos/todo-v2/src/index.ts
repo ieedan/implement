@@ -17,7 +17,7 @@ import { Api, type Todo } from "./api";
 
 const api = new Api();
 const app = App({ target: document.body });
-const Todos = createContext<Signal<Todo[]>>();
+const TodosContext = createContext<Signal<Todo[]>>();
 
 app.render(TodoApp());
 
@@ -55,7 +55,7 @@ function TodoApp() {
 				.WhileLoading(Div({ class: "text-zinc-500 py-2" }, "Loading..."))
 				.Then((todos) => {
 					items.set(todos);
-					return Todos.Provide(items).To(List());
+					return TodosContext.Provide(items).To(List());
 				})
 				.Catch((error) => Div({ class: "text-red-400 py-2" }, error.message)),
 		),
@@ -84,7 +84,7 @@ function CreateForm({
 }
 
 function List() {
-	return Todos.Use((items) =>
+	return TodosContext.Use((items) =>
 		Div(
 			{ class: "py-2 w-full flex flex-col gap-2" },
 			If(items.bind((items) => items.length > 0)).Then(
@@ -99,7 +99,15 @@ function List() {
 				(item) =>
 					Div(
 						{ class: "border border-zinc-700 rounded-md p-2 w-full flex items-center gap-2" },
-						Input({ value: item.bind("title"), class: "bg-transparent w-full h-9 px-2" }),
+						Input({
+							value: item.bind(
+								(item) => item.title,
+								(prev, next) => {
+									prev.title = next;
+								},
+							),
+							class: "bg-transparent w-full h-9 px-2",
+						}),
 						Button(
 							{
 								type: "button",

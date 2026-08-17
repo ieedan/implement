@@ -113,9 +113,18 @@ export interface Readable<T> {
 	subscribe(callback: Callback<T>): Unsubscribe;
 	/** Subscribe to later updates. Unlike `watch`, this does not run with the current value. */
 	onChange(callback: ChangeCallback<T>): Unsubscribe;
-	/** One-way binding of a (possibly dotted) path, e.g. `todo.bind("author.name")`. */
+	/**
+	 * One-way binding of a (possibly dotted) path.
+	 * @example
+	 * todo.bind("author.name")
+	 * // same as: todo.bind((value) => value.author.name)
+	 */
 	bind<P extends BindableKeys<T>>(path: P): Readable<BindPathValue<T, P>>;
-	/** One-way derived value, e.g. `todo.bind((value) => value.title)`. */
+	/**
+	 * One-way derived value.
+	 * @example
+	 * todo.bind((value) => value.title.toUpperCase())
+	 */
 	bind<U>(selector: (value: T) => U): Readable<U>;
 }
 
@@ -123,13 +132,30 @@ export interface Writable<T> extends Readable<T> {
 	set(value: T): void;
 	/** Notify subscribers of the current value. Used after in-place mutation. */
 	flush(): void;
-	/** Two-way binding of a (possibly dotted) path, e.g. `todo.bind("author.name")`. */
+	/**
+	 * Two-way binding of a (possibly dotted) path.
+	 * @example
+	 * todo.bind("author.name")
+	 * // same as:
+	 * todo.bind(
+	 *   (value) => value.author.name,
+	 *   (prev, next) => ({ ...prev, author: { ...prev.author, name: next } }),
+	 * )
+	 */
 	bind<P extends BindableKeys<T>>(path: P): Writable<BindPathValue<T, P>>;
-	/** One-way derived value, e.g. `todo.bind((value) => value.title)`. */
+	/**
+	 * One-way derived value.
+	 * @example
+	 * todo.bind((value) => value.title.toUpperCase())
+	 */
 	bind<U>(selector: (value: T) => U): Readable<U>;
 	/**
 	 * Two-way derived value. `update` writes `next` back into `prev`.
 	 * Return a new parent, or mutate `prev` in place and return nothing.
+	 * @example
+	 * todo.bind((value) => value.title, (prev, next) => ({ ...prev, title: next }))
+	 * @example
+	 * todo.bind((value) => value.title, (prev, next) => { prev.title = next })
 	 */
 	bind<U>(selector: (value: T) => U, update: BindUpdate<T, U>): Writable<U>;
 }

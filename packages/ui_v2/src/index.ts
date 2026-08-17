@@ -21,9 +21,15 @@ export {
 	Fragment,
 	Html,
 	If,
+	Key,
+	Portal,
+	Switch,
 	type AwaitHelper,
 	type FragmentProps,
 	type IfHelper,
+	type PortalHelper,
+	type PortalProps,
+	type SwitchHelper,
 } from "./components/helpers";
 export { createContext, type Context } from "./context";
 export {
