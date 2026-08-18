@@ -14,6 +14,10 @@ export function SiteHeader(): Mountable {
 		[router.location],
 		(location) => location.path === "/tutorial" || location.path.startsWith("/tutorial/"),
 	);
+	const onRepl = derived(
+		[router.location],
+		(location) => location.path === "/repl" || location.path.startsWith("/repl/"),
+	);
 
 	return Header(
 		{ class: "flex h-12 shrink-0 items-center gap-6 border-b border-border px-4" },
@@ -24,6 +28,10 @@ export function SiteHeader(): Mountable {
 			router.Link(
 				{ to: "/tutorial", class: derived([onTutorial], (active) => navClass(active)) },
 				"Tutorial",
+			),
+			router.Link(
+				{ to: "/repl", class: derived([onRepl], (active) => navClass(active)) },
+				"REPL",
 			),
 		),
 	);

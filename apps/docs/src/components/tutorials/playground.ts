@@ -15,11 +15,18 @@ import { CodeEditor } from "./editor";
 import { icons } from "./icons";
 import { LessonPreview } from "./preview";
 
-export function Playground(code: Writable<string>): Mountable {
+export type PlaygroundOptions = {
+	/** Open the console panel initially. */
+	consoleOpen?: boolean;
+	/** Dock the console beside the preview instead of below it. */
+	splitRight?: boolean;
+};
+
+export function Playground(code: Writable<string>, options: PlaygroundOptions = {}): Mountable {
 	const tick = signal(0);
 	const logs = signal<ConsoleEntry[]>([]);
-	const consoleOpen = signal(false);
-	const splitRight = signal(false);
+	const consoleOpen = signal(options.consoleOpen ?? false);
+	const splitRight = signal(options.splitRight ?? false);
 
 	const hasErrors = derived([logs, consoleOpen], (entries, open) => {
 		return !open && entries.some((entry) => entry.level === "error");

@@ -48,7 +48,8 @@ type LayoutHandler<Params> = (child: Mountable, params: Params) => Child;
 
 /**
  * Function keys (`"/"` and `layout`) must not depend on `T[K]`, or TypeScript
- * will not contextually type the callbacks. Other path keys are nested tables.
+ * will not contextually type the callbacks. Other path keys are nested tables,
+ * or a bare handler as shorthand for `{ "/": handler }`.
  */
 type Routes<T, Params extends object = {}> = {
 	[K in keyof T]: K extends "layout"
@@ -56,13 +57,15 @@ type Routes<T, Params extends object = {}> = {
 		: K extends "/"
 			? RouteHandler<Params>
 			: K extends `/${string}` | `:${string}`
-				? Routes<T[K], Prettify<Params & PathParams<K & string>>>
+				? T[K] extends (...args: never) => unknown
+					? RouteHandler<Prettify<Params & PathParams<K & string>>>
+					: Routes<T[K], Prettify<Params & PathParams<K & string>>>
 				: never;
 };
 
 type NormalizeKey<K extends string> = K extends `/${string}` ? K : `/${K}`;
 
-/** Union of every full path in the tree that has a `"/"` render. */
+/** Union of every full path in the tree that has a render (`"/"` or bare handler). */
 type RoutePaths<T, Prefix extends string = ""> = {
 	[K in keyof T & string]: K extends "layout"
 		? never
@@ -70,7 +73,9 @@ type RoutePaths<T, Prefix extends string = ""> = {
 			? Prefix extends ""
 				? "/"
 				: Prefix
-			: RoutePaths<T[K], `${Prefix}${NormalizeKey<K>}`>;
+			: T[K] extends (...args: never) => unknown
+				? `${Prefix}${NormalizeKey<K>}`
+				: RoutePaths<T[K], `${Prefix}${NormalizeKey<K>}`>;
 }[keyof T & string];
 
 type HrefParams<P extends string> = { [K in PathParamNames<P>]: string | number };
@@ -155,6 +160,15 @@ function compileNode(
 		if (key === "layout") continue;
 		if (key === "/") {
 			out.push({ segments: prefix, layouts: scope, render: value as LeafRoute["render"] });
+			continue;
+		}
+		// A bare handler at a path key is shorthand for `{ "/": handler }`.
+		if (typeof value === "function") {
+			out.push({
+				segments: [...prefix, ...parseKey(key)],
+				layouts: scope,
+				render: value as LeafRoute["render"],
+			});
 			continue;
 		}
 		compileNode(value as Record<string, unknown>, [...prefix, ...parseKey(key)], scope, out);
@@ -279,7 +293,8 @@ const FALLBACK = Symbol("router.fallback");
  * A route-tree router. One nested object describes the whole app: keys are
  * path segments, `:param` segments surface as `Readable<string>`s at every
  * render below them, `"/"` renders a level, and `layout` wraps everything
- * beneath it (receiving the matched child).
+ * beneath it (receiving the matched child). A path key may also map straight
+ * to a handler — `"/about": () => About()` — shorthand for `{ "/": handler }`.
  *
  * The router is a `Mountable` — `app.render(router)` works, and so does
  * mounting one deep inside a layout. Navigating between children of a shared
@@ -289,10 +304,11 @@ const FALLBACK = Symbol("router.fallback");
  * ```ts
  * const router = Router({
  * 	"/": () => Home(),
+ * 	"/about": () => About(),
  * 	"/issues": {
  * 		layout: (child) => Shell(child),
  * 		"/": () => Issues(),
- * 		"/:id": { "/": ({ id }) => Issue({ id }) },
+ * 		"/:id": ({ id }) => Issue({ id }),
  * 	},
  * });
  * app.render(router);

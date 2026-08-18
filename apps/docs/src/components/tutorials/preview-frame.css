@@ -60,6 +60,25 @@ textarea {
 	font-weight: 600;
 	letter-spacing: -0.025em;
 	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The handful of utility classes lesson code uses. Tailwind can't reach
+   inside the frame, so they're defined here by hand. */
+.tutorial-preview .flex {
+	display: flex;
+}
+
+.tutorial-preview .items-center {
+	align-items: center;
+}
+
+.tutorial-preview .gap-2 {
+	gap: 0.5rem;
+}
+
+.tutorial-preview .gap-6 {
+	gap: 1.5rem;
 }
 
 .tutorial-preview h2 {
