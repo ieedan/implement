@@ -96,7 +96,13 @@ function IssueView(issue: Readable<Issue>) {
 		Implement.Head(Implement.Head.Title(issue.bind((i) => `${i.name} — Tracker`))),
 		H1(issue.bind("name")),
 		P(issue.bind("description")),
-		Ul(ForEach(comments, (c) => c.id, (comment) => CommentRow(comment))),
+		Ul(
+			ForEach(
+				comments,
+				(c) => c.id,
+				(comment) => CommentRow(comment),
+			),
+		),
 	);
 }
 ```

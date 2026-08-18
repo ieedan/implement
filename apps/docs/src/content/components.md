@@ -9,11 +9,7 @@ Now that you can build elements you will want to group them into reusable pieces
 
 ```ts
 function UserCard(user: User) {
-	return Div(
-		{ class: "card" },
-		Img({ src: user.avatarUrl, alt: "" }),
-		Div(user.name),
-	);
+	return Div({ class: "card" }, Img({ src: user.avatarUrl, alt: "" }), Div(user.name));
 }
 ```
 

@@ -1,4 +1,14 @@
-import { A, Article, Div, H1, Implement, navigateTo, P, Span, type Mountable } from "@implementjs/core";
+import {
+	A,
+	Article,
+	Div,
+	H1,
+	Implement,
+	navigateTo,
+	P,
+	Span,
+	type Mountable,
+} from "@implementjs/core";
 import { Typeset } from "../components/docs/typeset";
 import { pages, type Page } from "../lib/content";
 

@@ -102,7 +102,7 @@ function formatValue(value: unknown, depth: number, seen: Set<object>): string {
 
 	const tag = Object.prototype.toString.call(obj);
 	if (tag === "[object Date]") return (obj as Date).toString();
-	if (tag === "[object RegExp]") return String(obj);
+	if (tag === "[object RegExp]") return (obj as RegExp).toString();
 	if (tag === "[object Map]") return `Map(${(obj as Map<unknown, unknown>).size})`;
 	if (tag === "[object Set]") return `Set(${(obj as Set<unknown>).size})`;
 	if (tag === "[object Promise]") return "Promise";

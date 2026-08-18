@@ -6,7 +6,7 @@ section: Control flow
 
 Context is a necessary part of any ui framework. Context allows you to scope state to a specific part of the component tree and create state shared between components without it being global to every instance of that component.
 
-In implement we create context with the `Context()` function. 
+In implement we create context with the `Context()` function.
 
 ```ts
 const MyContext = Context<MyContextType>();
@@ -19,7 +19,7 @@ Context is then used in 2 stages.
 You provide the context to child components using the `MyContext.Provide()` method:
 
 ```ts
-MyContext.Provide(state).To(/* children */)
+MyContext.Provide(state).To(/* children */);
 ```
 
 ### 2. Using the context
@@ -28,8 +28,8 @@ Once you need the context wrap your components in `MyContext.Use()` to get the c
 
 ```ts
 MyContext.Use((state) => {
-	return /* children */
-})
+	return; /* children */
+});
 ```
 
 In the example on the right we have a `PlantList` that has been nested within a `PlantListWrapper` to create a prop drilling situation.
@@ -45,9 +45,7 @@ const PlantListContext = Context<Signal<string[]>>();
 Next let's provide that context to our components:
 
 ```ts
-PlantListContext
-	.Provide(vegetables)
-	.To(PlantListWrapper())
+PlantListContext.Provide(vegetables).To(PlantListWrapper());
 ```
 
 Finally we need to use that context in our `PlantList`:
@@ -56,12 +54,12 @@ Finally we need to use that context in our `PlantList`:
 PlantListContext.Use((items) => {
 	return Ul(
 		ForEach(
-			items, 
-			(_, index) => index, 
-			(item) => Li(item)
-		)
-	)
-})
+			items,
+			(_, index) => index,
+			(item) => Li(item),
+		),
+	);
+});
 ```
 
 Now we can remove all the props fromm `PlantListWrapper` and `PlantList` and everything should still work as it did before but without the prop drilling.

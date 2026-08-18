@@ -13,7 +13,14 @@ export default defineConfig({
 		// Signal callbacks commonly reuse the signal name for the unwrapped value.
 		"no-shadow": "off",
 	},
-	ignorePatterns: ["dist/**", "demos/*/src/api/**", ".velite/**"],
+	ignorePatterns: [
+		"dist/**",
+		"demos/*/src/api/**",
+		".velite/**",
+		// Lesson starter/solution/test sidecars are teaching content shown in the
+		// tutorial editor; they intentionally import things the learner will use.
+		"apps/docs/src/content/lessons/**",
+	],
 	overrides: [
 		{
 			files: ["packages/core/scripts/**/*.ts", "demos/*/server/**/*.ts"],

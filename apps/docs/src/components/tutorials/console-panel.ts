@@ -31,8 +31,7 @@ const badgeClass: Record<ConsoleLevel, string> = {
 	error: "bg-red-500/25 text-red-200",
 };
 
-const iconButton =
-	"rounded-md p-1 text-foreground/50 hover:bg-foreground/5 hover:text-foreground";
+const iconButton = "rounded-md p-1 text-foreground/50 hover:bg-foreground/5 hover:text-foreground";
 
 export function ConsolePanel(
 	logs: Signal<ConsoleEntry[]>,
