@@ -11,6 +11,13 @@ const markdown = s.object({
 	content: s.markdown(),
 });
 
+function stripOrderPrefixes(path: string): string {
+	return path
+		.split("/")
+		.map((segment) => segment.replace(/^\d+_/, ""))
+		.join("/");
+}
+
 function toPermalink(fileSlug: string, prefix: string, folder?: string) {
 	let slug = fileSlug;
 	if (folder != null) {
@@ -18,6 +25,7 @@ function toPermalink(fileSlug: string, prefix: string, folder?: string) {
 		else if (slug.startsWith(`${folder}/`)) slug = slug.slice(folder.length + 1);
 	}
 	slug = slug === "index" ? "" : slug.replace(/\/index$/, "");
+	slug = stripOrderPrefixes(slug);
 	return {
 		slug,
 		permalink: slug === "" ? prefix : `${prefix}/${slug}`,
