@@ -10,10 +10,10 @@ Events can be accessed from the component props object:
 
 ```ts
 Button(
-    { 
-        onClick: () => alert('Clicked!') 
-    },
-    "Click me"
+	{
+		onClick: () => alert("Clicked!"),
+	},
+	"Click me",
 );
 ```
 

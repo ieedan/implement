@@ -9,6 +9,6 @@ export default function App() {
 
 	return Div(
 		Button({ onClick: addItem }, "Add Item"),
-		P(items.bind((items) => JSON.stringify(items)))
+		P(items.bind((items) => JSON.stringify(items))),
 	);
 }

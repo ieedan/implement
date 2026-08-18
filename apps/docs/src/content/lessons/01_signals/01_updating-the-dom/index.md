@@ -20,6 +20,6 @@ To demonstrate this, why don't we use the button onClick event to update the val
 
 ```ts
 function handleClick() {
-    count.increment();
+	count.increment();
 }
 ```

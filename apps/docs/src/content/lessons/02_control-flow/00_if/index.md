@@ -11,5 +11,5 @@ The `If` component accepts a readable signal which it checks subscribes to and c
 You render components inside of it conditionally by using the chained `.Then()`, `.Else()`, and `.ElseIf()` methods.
 
 ```ts
-If(open).Then(P("I'm open"))
+If(open).Then(P("I'm open"));
 ```

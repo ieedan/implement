@@ -151,7 +151,9 @@ export const screen = {
 	get(selector: string, description?: string): HTMLElement {
 		const el = root().querySelector<HTMLElement>(selector);
 		if (el == null) {
-			throw new Error(`Expected ${description ?? `a \`${selector}\` element`}, but couldn't find one.`);
+			throw new Error(
+				`Expected ${description ?? `a \`${selector}\` element`}, but couldn't find one.`,
+			);
 		}
 		return el;
 	},
@@ -349,8 +351,7 @@ function buildMatchers(actual: unknown, negated: boolean, message: string | unde
 		},
 		toHaveAttribute: (name, value) => {
 			const el = asElement("toHaveAttribute");
-			const passed =
-				value === undefined ? el.hasAttribute(name) : el.getAttribute(name) === value;
+			const passed = value === undefined ? el.hasAttribute(name) : el.getAttribute(name) === value;
 			const detail = value === undefined ? "" : ` with value ${fmt(value)}`;
 			assert(passed, `to have attribute ${fmt(name)}${detail}`);
 		},

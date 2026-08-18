@@ -4,6 +4,7 @@ import {
 	type Page,
 	type Tutorial as GeneratedTutorial,
 } from "../../.velite";
+import { stripLessonSource } from "./lesson-source";
 
 export { pages, type Page };
 
@@ -47,5 +48,5 @@ function sidecar(
 	if (source == null) {
 		throw new Error(`Missing ${filename} next to lessons/${lessonDir}/index.md`);
 	}
-	return source;
+	return stripLessonSource(source);
 }

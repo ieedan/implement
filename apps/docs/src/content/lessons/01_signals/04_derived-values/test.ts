@@ -31,15 +31,12 @@ export default async function test() {
 	await userEvent.click(screen.getByRole("button"));
 
 	const countAfter = read(COUNT, 'The page should show the count as "Count: <number>".');
-	expect(countAfter, "Clicking the button should still increment the count.").toBe(
-		countBefore + 1,
-	);
+	expect(countAfter, "Clicking the button should still increment the count.").toBe(countBefore + 1);
 
 	const derivedAfter = read(usesComputed ? COMPUTED : DOUBLED, missingDerived);
 	if (usesComputed) {
 		// The multiplier isn't dictated by the lesson, so infer it instead.
-		const multiplier =
-			countBefore !== 0 ? derivedBefore / countBefore : derivedAfter / countAfter;
+		const multiplier = countBefore !== 0 ? derivedBefore / countBefore : derivedAfter / countAfter;
 		expect(
 			derivedAfter,
 			"Computed should follow the count — it should equal count × multiplyBy after each change.",

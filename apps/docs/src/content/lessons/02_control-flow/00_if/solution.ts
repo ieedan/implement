@@ -6,6 +6,6 @@ export default function App() {
 	return Div(
 		H1("If"),
 		Button({ onClick: () => open.toggle() }, "Toggle"),
-		If(open).Then(P("I'm open!"))
+		If(open).Then(P("I'm open!")),
 	);
 }

@@ -6,14 +6,14 @@ section: Signals
 
 To update properties of components you will need to know how to bind signals.
 
-There are two types of bindings that you will need to use, **Readable**, and **Writable**. 
+There are two types of bindings that you will need to use, **Readable**, and **Writable**.
 
 **Readable** bindings allow the component to read your signal but don't allow it to write to it; For example `class`. **Writable** bindings allow the component to read and write to your signal; For example `value`.
 
 Let's bind `name` to the value of this input so that we can update it:
 
 ```ts
-Input({ value: name, placeholder: "Enter your name" })
+Input({ value: name, placeholder: "Enter your name" });
 ```
 
 That's good but we can't be sure that it's working so let's display "My name is: <name>" in the UI.
@@ -27,7 +27,7 @@ This feature is useful for object typed signals because it allows us to access `
 In this case let's us it to construct a template string to display in the UI:
 
 ```ts
-P(name.bind((name) => `Hello my name is, ${name}!`))
+P(name.bind((name) => `Hello my name is, ${name}!`));
 ```
 
 > This isn't the only (or even the best way) to do this but it works for demonstrating how you can use `.bind()`
@@ -35,13 +35,13 @@ P(name.bind((name) => `Hello my name is, ${name}!`))
 Bind can also be used to create **Writable** bindings by passing a setter function as the second argument. For example if we wanted the users name to always be uppercase:
 
 ```ts
-Input({ 
+Input({
 	value: name.bind(
-		(name) => name, 
-		(prev, next) => { 
+		(name) => name,
+		(prev, next) => {
 			prev = next.toUpperCase()
 			return prev
 		}
 	),
-}), 
+}),
 ```

@@ -18,7 +18,8 @@ export default function App() {
 
 	return Div(
 		H1("ForEach"),
-		Form({onSubmit: addTodo, class: "flex gap-2"},
+		Form(
+			{ onSubmit: addTodo, class: "flex gap-2" },
 			Input({ value: search, placeholder: "What do you need to do..." }),
 			Button({ type: "submit" }, "Add"),
 		),

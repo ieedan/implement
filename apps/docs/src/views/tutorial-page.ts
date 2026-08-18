@@ -41,8 +41,14 @@ function LessonLink(lesson: Tutorial, direction: "prev" | "next"): Mountable {
 				navigateTo(lesson.permalink);
 			},
 		},
-		Span({ class: "text-xs text-foreground/40 group-hover:text-foreground/60" }, isNext ? "Next" : "Previous"),
-		Span({ class: "truncate text-sm text-foreground/80 group-hover:text-foreground" }, lesson.title),
+		Span(
+			{ class: "text-xs text-foreground/40 group-hover:text-foreground/60" },
+			isNext ? "Next" : "Previous",
+		),
+		Span(
+			{ class: "truncate text-sm text-foreground/80 group-hover:text-foreground" },
+			lesson.title,
+		),
 	);
 }
 
@@ -92,25 +98,27 @@ export function TutorialPage(lesson: Tutorial): Mountable {
 				Span({ class: "text-foreground" }, lesson.title),
 			),
 			lesson.test != null &&
-			If(
-				dirty,
-			).Then(
-				Button(
-				{
-					size: "sm",
-					disabled: derived([check], (state) => state.status === "running" || state.status === "pass"),
-					onClick: runCheck,
-				},
-				derived([check], (state) =>
-					state.status === "pass"
-						? "Correct!"
-						: state.status === "fail"
-							? "Failed"
-							: state.status === "running"
-								? "Checking…"
-								: "Check",
+				If(dirty).Then(
+					Button(
+						{
+							size: "sm",
+							disabled: derived(
+								[check],
+								(state) => state.status === "running" || state.status === "pass",
+							),
+							onClick: runCheck,
+						},
+						derived([check], (state) =>
+							state.status === "pass"
+								? "Correct!"
+								: state.status === "fail"
+									? "Failed"
+									: state.status === "running"
+										? "Checking…"
+										: "Check",
+						),
+					),
 				),
-			)),
 			Button(
 				{
 					variant: "ghost",
@@ -142,9 +150,7 @@ export function TutorialPage(lesson: Tutorial): Mountable {
 				Div(
 					{ class: "flex shrink-0 items-center border-t border-border px-3 py-2" },
 					prev && LessonLink(prev, "prev"),
-					next
-						? LessonLink(next, "next")
-						: Span({ class: "ms-auto px-2 py-1 text-sm text-foreground/25" }, "Done"),
+					next && LessonLink(next, "next"),
 				),
 			),
 			Playground(code),

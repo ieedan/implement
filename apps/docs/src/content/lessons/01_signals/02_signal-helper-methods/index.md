@@ -23,6 +23,6 @@ Try using the `.push()` method to add an item to `items` when we click the butto
 
 ```ts
 function addItem() {
-	items.push('new item');
+	items.push("new item");
 }
 ```

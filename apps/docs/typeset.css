@@ -442,11 +442,7 @@
 			border-inline-start: 1px solid var(--typeset-rule);
 		}
 		&:where(tr:nth-child(even) :is(th, td)) {
-			background-color: color-mix(
-				in oklab,
-				var(--color-foreground, currentColor) 11%,
-				transparent
-			);
+			background-color: color-mix(in oklab, var(--color-foreground, currentColor) 11%, transparent);
 		}
 		&:where(th[align="center"], td[align="center"]) {
 			text-align: center;

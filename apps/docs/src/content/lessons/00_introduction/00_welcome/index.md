@@ -4,11 +4,11 @@ description: Building your first component with implement.
 section: Introduction
 ---
 
-Welcome to the implementjs tutorial playground! 
+Welcome to the implementjs tutorial playground!
 
 We have taken inspiration from the [Svelte](https://svelte.dev/tutorial) tutorial playground to help you learn implement in an interactive way.
 
-Let's start with a little tour. 
+Let's start with a little tour.
 
 On the right you will have the code editor you can edit the code to see the preview (below the code editor) change.
 
