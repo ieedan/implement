@@ -75,4 +75,4 @@ A binding subscribes to its **source** and only notifies when its own slice actu
 
 Bindings also chain. `todo.bind("author").bind("name")` behaves like `todo.bind("author.name")`, and everything here composes with `ForEach`, whose rows are themselves signals you can `bind` into.
 
-That wraps up reactivity. You can hold state, derive from it, and zoom into it. The next part is about changing the **shape** of the DOM when state changes, starting with [If](/docs/if).
+One kind of state still fights the replace-the-value model: sets and maps you'd rather mutate in place. That's what [reactive collections](/docs/reactive-collections) are for, up next.

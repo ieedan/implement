@@ -1,28 +1,38 @@
 ---
 title: Reactive collections
-description: Implement.Set and Implement.Map are real Sets and Maps that notify the DOM when they change.
+description: Real Sets and Maps that notify the DOM when they change, via Implement.Set and Implement.Map.
 section: Reactivity
 order: 6.5
 ---
 
-Sets and maps are awkward to hold in a signal: `set()` deep-equality doesn't apply to them, and mutating one in place doesn't notify anyone. `Implement.Set` and `Implement.Map` fix that. They create a **real** `Set`/`Map` (instanceof and all) that is also a `Readable`, so mutating it notifies subscribers and everything downstream stays in sync.
+Some state is naturally a `Set` or a `Map`: the rows you've selected, a draft per issue, which tree nodes are expanded. You _can_ hold one in a [signal](/docs/signals), but then every change means copying the whole collection just to call `set()`:
+
+```ts
+const selected = signal(new Set<string>());
+
+selected.update((s) => {
+	const next = new Set(s);
+	next.add(id);
+	return next;
+});
+```
+
+`Implement.Set` and `Implement.Map` skip the ceremony. They create a **real** `Set`/`Map` (`instanceof` and all) that is also a `Readable`, so calling its own mutators notifies subscribers and the DOM follows:
 
 ```ts
 import { Implement } from "@implementjs/core";
 
 const selected = Implement.Set<string>();
 
-selected.add("a"); // notifies
-selected.delete("a"); // notifies
-selected.toggle("a"); // add-or-delete convenience, notifies
-selected.has("a"); // plain read, not reactive
+selected.add(id); // notifies
+selected.delete(id); // notifies
+selected.toggle(id); // add-or-delete convenience, notifies
+selected.has(id); // plain read, not reactive
 ```
-
-Use them anywhere you would reach for a `Set` or `Map` in app state: selection sets, per-id drafts, expanded/collapsed trees, caches keyed by id.
 
 ## Reading reactively
 
-The collection itself supports every normal `Set`/`Map` read (`has`, `size`, `get(key)`, iteration) — those are plain, non-reactive reads. To react to changes, go through the `Readable` surface: `bind`, `derived`, `watch`, or a prop. Subscribers receive an **immutable snapshot** (a plain `ReadonlySet`/`ReadonlyMap`), so a value you derived from is never mutated out from under you.
+The collection supports every normal `Set`/`Map` read (`has`, `size`, `get(key)`, iteration), and those are plain, non-reactive reads. To react to changes you go through the readable surface you already know: [`bind`](/docs/bindings), [`derived`](/docs/derived), `Implement.Watch`, or a prop.
 
 ```ts
 const selected = Implement.Set<string>();
@@ -40,11 +50,13 @@ ForEach(
 );
 ```
 
-Mutations that change nothing (`add` of an existing value, `delete` of a missing key, `set` of an identical value, `clear` of an empty collection) do not notify.
+Subscribers receive an **immutable snapshot** — a plain `ReadonlySet`/`ReadonlyMap` — so a value you derived from is never mutated out from under you, and `onChange` gets a genuinely different previous value to compare against.
+
+Mutations that change nothing don't notify: adding a value that's already there, deleting a missing key, `set` of an identical value, clearing an empty collection.
 
 ## Implement.Map
 
-`Implement.Map` works the same way. The one wrinkle is `get`: `map.get(key)` is the ordinary `Map` entry read, while `map.get()` with no arguments is the readable's snapshot read (what `derived` and `watch` see).
+`Implement.Map` works the same way, with its own mutators (`set`, `delete`, `clear`):
 
 ```ts
 const drafts = Implement.Map<string, string>();
@@ -56,6 +68,9 @@ Textarea({
 
 const dirtyCount = drafts.bind("size");
 ```
+
+> [!NOTE]
+> `get` wears two hats here. `drafts.get(key)` is the ordinary `Map` entry read; `drafts.get()` with no arguments is the readable's snapshot read (what `derived` and `watch` see). Both are fully typed.
 
 ## In-place mutation of stored values
 
@@ -70,6 +85,4 @@ todos.flush(); // now everyone hears about it
 
 Prefer replacing the entry (`todos.set(id, { ...todo, done: true })`) when it's just as easy.
 
-## When to use a signal instead
-
-`signal(new Set())` still works — replace the whole collection via `set()` and treat it as immutable. Reach for `Implement.Set`/`Implement.Map` when you want to call the collection's own mutators and have the DOM follow, without copying on every change yourself.
+That wraps up reactivity. You can hold state, derive from it, zoom into it, and mutate collections of it. The next part is about changing the **shape** of the DOM when state changes, starting with [If](/docs/if).
