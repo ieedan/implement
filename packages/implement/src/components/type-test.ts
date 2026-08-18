@@ -1,4 +1,4 @@
-import { A, Br, Button, Div, Form, Img, Input, Link } from "./elements";
+import { A, Br, Button, Div, Form, H1, Img, Input, Link, P } from "./elements";
 import { Implement } from "./helpers/implement";
 import { Svg } from "./helpers/svg";
 import { Ref, signal } from "../signal";
@@ -17,6 +17,12 @@ Input({ this: div });
 
 Div({ class: "ok" }, "hello");
 Div({ children: "hello" });
+Div("hello");
+Div(H1("title"), P("body"));
+H1("Welcome!");
+Button("Increment");
+Button({ type: "button" }, "Save");
+Div(signal("live"));
 
 const active = signal(true);
 const classSignal = signal<string | undefined>("btn");

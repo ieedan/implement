@@ -7,7 +7,17 @@ export default defineConfig({
 	// Tailwind writes dist/app.css; the default clean removes it on every JS build.
 	clean: false,
 	deps: {
-		alwaysBundle: ["@packages/implement"],
+		alwaysBundle: [
+			"@packages/implement",
+			"codemirror",
+			"@codemirror/commands",
+			"@codemirror/lang-javascript",
+			"@codemirror/language",
+			"@codemirror/state",
+			"@codemirror/view",
+			"@lezer/highlight",
+			"sucrase",
+		],
 		onlyBundle: false,
 	},
 });

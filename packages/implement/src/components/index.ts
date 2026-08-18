@@ -107,11 +107,26 @@ export function component<T extends keyof HTMLElementTagNameMap>(
 	return () => new Component(tag, props, ...children);
 }
 
+function isPropsObject(value: unknown): value is Record<string, unknown> {
+	return value != null && typeof value === "object" && !Array.isArray(value) && !isReadable(value);
+}
+
 export function element<T extends keyof HTMLElementTagNameMap>(tag: T) {
-	return (
-		props: ElementProps<T> = {} as ElementProps<T>,
-		...children: ElementChildArgs<T>
-	): ComponentFactory<T> => component(tag, props, ...children);
+	function factory(...children: ElementChildArgs<T>): ComponentFactory<T>;
+	function factory(props: ElementProps<T>, ...children: ElementChildArgs<T>): ComponentFactory<T>;
+	function factory(
+		propsOrChild?: ElementProps<T> | Child,
+		...rest: Child[]
+	): ComponentFactory<T> {
+		if (isPropsObject(propsOrChild)) {
+			return component(tag, propsOrChild as ElementProps<T>, ...(rest as ElementChildArgs<T>));
+		}
+		const children = (
+			propsOrChild === undefined ? rest : [propsOrChild, ...rest]
+		) as ElementChildArgs<T>;
+		return component(tag, {} as ElementProps<T>, ...children);
+	}
+	return factory;
 }
 
 export function reconcileChildren(

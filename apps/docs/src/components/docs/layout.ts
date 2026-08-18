@@ -3,7 +3,6 @@ import {
 	Aside,
 	derived,
 	Div,
-	Header,
 	Main,
 	Nav,
 	navigateTo,
@@ -11,14 +10,12 @@ import {
 } from "@packages/implement";
 import { pages } from "../../lib/content";
 import { router } from "../../router";
+import { SiteHeader } from "../site-header";
 
 export function DocsLayout(child: Mountable): Mountable {
 	return Div(
 		{ class: "flex min-h-dvh flex-col" },
-		Header(
-			{ class: "flex h-14 items-center border-b border-border px-6" },
-			router.Link({ to: "/", class: "text-sm font-semibold tracking-tight" }, "implement"),
-		),
+		SiteHeader(),
 		Div(
 			{ class: "mx-auto flex w-full max-w-5xl flex-1" },
 			Aside(
