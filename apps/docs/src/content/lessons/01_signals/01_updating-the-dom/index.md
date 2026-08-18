@@ -1,20 +1,25 @@
 ---
 title: Updating the DOM
-description: Change a signal and only the subscribed nodes update.
+description: Update the DOM using signals.
 section: Signals
-order: 3
 ---
 
-The component function does not run again when state changes. The button's click handler writes to the signal, and the text node that received `count` updates itself.
-
-Signals include helpers for common writes:
+Now that we know how create and update signals we should probably learn how to bind them so that our UI can update when they change. The most simple way to see a signal update is just to add it directly as the child of a component like so:
 
 ```ts
-count.increment();
-count.decrement();
-open.toggle();
+export default function App() {
+	const count = signal(0);
+
+	return P(count);
+}
 ```
 
-`count.increment()` is the same as `count.update((n) => n + 1)`.
+`P` subscribes to `count` so that whenever `count` updates the content of `P` will too.
 
-Wire the button so each click increments `count`. The heading should keep showing the live value.
+To demonstrate this, why don't we use the button onClick event to update the value of our count.
+
+```ts
+function handleClick() {
+    count.increment();
+}
+```

@@ -1,14 +1,23 @@
 ---
-title: Welcome
-description: Edit the starter app and watch the preview update.
+title: Your first component
+description: Building your first component with implement.
 section: Introduction
-order: 0
 ---
 
-This tutorial walks through implement one idea at a time. Each lesson gives you a starting file, a place to edit it, and a preview of what it renders.
+Welcome to the implementjs tutorial playground! 
 
-The pane on the right is a real TypeScript playground. Change `code.ts` and the preview remounts with your new tree. **Solve** fills in the finished file if you want to see the answer; **Reset** brings back the starter.
+We have taken inspiration from the [Svelte](https://svelte.dev/tutorial) tutorial playground to help you learn implement in an interactive way.
 
-Components are ordinary functions. They run once, return DOM, and stay alive through signals.
+Let's start with a little tour. 
 
-Change the heading from `Welcome!` to `Hello, implement!` and watch the preview follow.
+On the right you will have the code editor you can edit the code to see the preview (below the code editor) change.
+
+Why don't you try that now and change the text in the H1 to be "Hello, Implement"!
+
+```ts
+export default function App() {
+	return H1("Hello, Implement!");
+}
+```
+
+Once you're ready to move on, click the next button in the bottom right corner of this panel, see you there!

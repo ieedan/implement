@@ -294,6 +294,50 @@
 			margin-inline: 0;
 		}
 
+		/* GFM alerts: > [!TIP], > [!NOTE], > [!IMPORTANT], > [!WARNING], > [!CAUTION] */
+		&:where(.markdown-alert) {
+			--typeset-alert: var(--typeset-muted);
+			border-inline-start: 0.25em solid var(--typeset-alert);
+			padding-inline-start: 1em;
+			margin-block-start: var(--typeset-flow);
+			margin-block-end: 0;
+			margin-inline: 0;
+		}
+		&:where(.markdown-alert-note) {
+			--typeset-alert: #58a6ff;
+		}
+		&:where(.markdown-alert-tip) {
+			--typeset-alert: #3fb950;
+		}
+		&:where(.markdown-alert-important) {
+			--typeset-alert: #a371f7;
+		}
+		&:where(.markdown-alert-warning) {
+			--typeset-alert: #d29922;
+		}
+		&:where(.markdown-alert-caution) {
+			--typeset-alert: var(--color-destructive, #f85149);
+		}
+		&:where(.markdown-alert-title) {
+			display: flex;
+			align-items: center;
+			gap: 0.5em;
+			color: var(--typeset-alert);
+			font-size: 0.875em;
+			font-weight: 500;
+			line-height: 1.25;
+			margin-block-start: var(--typeset-flow);
+		}
+		&:where(.markdown-alert-title + *) {
+			margin-block-start: 0.5em;
+		}
+		&:where(.markdown-alert-title svg) {
+			width: 1em;
+			height: 1em;
+			flex-shrink: 0;
+			fill: currentColor;
+		}
+
 		/* Dividers. */
 		&:where(hr) {
 			border: 0;
@@ -358,7 +402,9 @@
 			font-variant-numeric: tabular-nums;
 			border-collapse: separate;
 			border-spacing: 0;
-			border-block-end: 1px solid var(--typeset-rule);
+			border: 1px solid var(--typeset-rule);
+			border-radius: var(--radius, 0.5em);
+			overflow: hidden;
 			margin-block-start: var(--typeset-flow);
 			margin-block-end: 0;
 		}
@@ -392,8 +438,15 @@
 		&:where(tbody th, tfoot th) {
 			font-weight: 500;
 		}
-		&:where(th:first-child, td:first-child) {
-			padding-inline-start: 0;
+		&:where(th:not(:first-child), td:not(:first-child)) {
+			border-inline-start: 1px solid var(--typeset-rule);
+		}
+		&:where(tr:nth-child(even) :is(th, td)) {
+			background-color: color-mix(
+				in oklab,
+				var(--color-foreground, currentColor) 11%,
+				transparent
+			);
 		}
 		&:where(th[align="center"], td[align="center"]) {
 			text-align: center;
@@ -403,7 +456,7 @@
 		}
 
 		/* Blocks inside list items keep the list's tighter rhythm. */
-		&:where(li > blockquote, li > table, li > figure) {
+		&:where(li > blockquote, li > table, li > figure, li > .markdown-alert) {
 			margin-block-start: 0.5em;
 		}
 		&:where(li > pre) {
@@ -411,7 +464,7 @@
 		}
 
 		@media print {
-			&:where(pre, table, blockquote, figure) {
+			&:where(pre, table, blockquote, figure, .markdown-alert) {
 				break-inside: avoid;
 			}
 			&:where(h1, h2, h3, h4) {
@@ -441,6 +494,7 @@
 		:where(
 			li > :first-child,
 			blockquote > :first-child,
+			.markdown-alert > :first-child,
 			td > :first-child,
 			th > :first-child,
 			dd > :first-child,

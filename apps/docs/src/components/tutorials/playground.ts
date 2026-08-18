@@ -9,7 +9,7 @@ export function Playground(code: Writable<string>): Mountable {
 	return Div(
 		{ class: "flex min-h-0 min-w-0 flex-1 flex-col" },
 		Div(
-			{ class: "flex min-h-0 flex-1 flex-col border-b border-border" },
+			{ class: "flex min-h-0 flex-[5] flex-col border-b border-border" },
 			Div(
 				{ class: "flex h-9 shrink-0 items-center gap-2 border-b border-border px-3" },
 				Span(
@@ -17,13 +17,13 @@ export function Playground(code: Writable<string>): Mountable {
 						class:
 							"rounded-md bg-foreground/10 px-2 py-0.5 font-mono text-[11px] text-foreground/80",
 					},
-					"code.ts",
+					"index.ts",
 				),
 			),
 			Div({ class: "min-h-0 flex-1" }, CodeEditor(code)),
 		),
 		Div(
-			{ class: "flex min-h-0 flex-1 flex-col" },
+			{ class: "flex min-h-0 flex-[3] flex-col" },
 			Div(
 				{ class: "flex h-9 shrink-0 items-center justify-between border-b border-border px-3" },
 				Span(

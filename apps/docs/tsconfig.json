@@ -2,7 +2,10 @@
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
 		"types": ["node", "vite/client"],
-		"allowImportingTsExtensions": true
+		"allowImportingTsExtensions": true,
+		"paths": {
+			"@tutorial/test": ["./src/lib/tutorial-test.ts"]
+		}
 	},
 	"include": ["src/**/*.ts", "*.config.ts", ".velite/**/*.d.ts"]
 }

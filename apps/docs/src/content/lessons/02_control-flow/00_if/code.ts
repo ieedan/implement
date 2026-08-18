@@ -1,4 +1,4 @@
-import { Button, Div, H1, If, P, signal } from "@implementjs/core";
+import { Button, Div, H1, P, signal, If } from "@implementjs/core";
 
 export default function App() {
 	const open = signal(false);
@@ -6,6 +6,6 @@ export default function App() {
 	return Div(
 		H1("If"),
 		Button({ onClick: () => open.toggle() }, "Toggle"),
-		If(open, P("The panel is open.")).Else(P("The panel is closed.")),
+		P("I'm open!")
 	);
 }

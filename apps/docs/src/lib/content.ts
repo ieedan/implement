@@ -1,1 +1,51 @@
-export { pages, tutorials, type Page, type Tutorial } from "../../.velite";
+import {
+	pages,
+	tutorials as generated,
+	type Page,
+	type Tutorial as GeneratedTutorial,
+} from "../../.velite";
+
+export { pages, type Page };
+
+const codeFiles = import.meta.glob<string>("../content/lessons/**/code.ts", {
+	query: "?raw",
+	import: "default",
+	eager: true,
+});
+
+const solutionFiles = import.meta.glob<string>("../content/lessons/**/solution.ts", {
+	query: "?raw",
+	import: "default",
+	eager: true,
+});
+
+const testFiles = import.meta.glob<string>("../content/lessons/**/test.ts", {
+	query: "?raw",
+	import: "default",
+	eager: true,
+});
+
+export type Tutorial = Omit<GeneratedTutorial, "lessonDir"> & {
+	code: string;
+	solution: string;
+	test: string | null;
+};
+
+export const tutorials: Tutorial[] = generated.map(({ lessonDir, ...lesson }) => ({
+	...lesson,
+	code: sidecar(codeFiles, lessonDir, "code.ts"),
+	solution: sidecar(solutionFiles, lessonDir, "solution.ts"),
+	test: testFiles[`../content/lessons/${lessonDir}/test.ts`] ?? null,
+}));
+
+function sidecar(
+	files: Record<string, string>,
+	lessonDir: string,
+	filename: "code.ts" | "solution.ts",
+): string {
+	const source = files[`../content/lessons/${lessonDir}/${filename}`];
+	if (source == null) {
+		throw new Error(`Missing ${filename} next to lessons/${lessonDir}/index.md`);
+	}
+	return source;
+}

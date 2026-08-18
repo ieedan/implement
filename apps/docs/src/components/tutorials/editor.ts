@@ -1,6 +1,6 @@
 import { indentWithTab } from "@codemirror/commands";
 import { javascript } from "@codemirror/lang-javascript";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
@@ -45,7 +45,10 @@ const theme = EditorView.theme(
 		".cm-activeLine": { backgroundColor: "#ffffff08" },
 		".cm-activeLineGutter": { backgroundColor: "transparent", color: "#888" },
 		"&.cm-focused": { outline: "none" },
-		"&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+		".cm-selectionBackground": {
+			backgroundColor: "#ffffff24",
+		},
+		"&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
 			backgroundColor: "#ffffff24",
 		},
 		".cm-cursor": { borderLeftColor: "#fff" },
@@ -72,6 +75,9 @@ export function CodeEditor(value: Writable<string>): Mountable {
 						extensions: [
 							basicSetup,
 							javascript({ typescript: true }),
+							// match oxfmt (useTabs: true): indent with real tabs
+							indentUnit.of("\t"),
+							EditorState.tabSize.of(4),
 							syntaxHighlighting(highlight),
 							theme,
 							keymap.of([indentWithTab]),

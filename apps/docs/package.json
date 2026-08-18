@@ -16,16 +16,18 @@
 		"@codemirror/language": "^6.12.4",
 		"@codemirror/state": "^6.7.1",
 		"@codemirror/view": "^6.43.9",
-		"@lezer/highlight": "^1.2.3",
 		"@implementjs/core": "workspace:*",
+		"@lezer/highlight": "^1.2.3",
 		"codemirror": "^6.0.2",
-		"sucrase": "^3.35.1"
+		"sucrase": "^3.35.1",
+		"tailwind-variants": "^3.3.1"
 	},
 	"devDependencies": {
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",
 		"concurrently": "^10.0.4",
+		"remark-github-blockquote-alert": "^2.1.0",
 		"shiki": "^4.4.3",
 		"tailwindcss": "^4.3.3",
 		"typescript": "^7.0.2",

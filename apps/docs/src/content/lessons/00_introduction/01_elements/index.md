@@ -1,16 +1,23 @@
 ---
 title: Elements
-description: Build a tree with element factories and children.
+description: How to create elements with implement.
 section: Introduction
-order: 1
 ---
 
-Every HTML tag has a factory: `Div`, `H1`, `P`, `Button`, `Input`, and so on. The first argument can be a props object; everything after that is children.
+Implement is unique from most other modern web frameworks because it doesn't rely on a templating language for you to write html markup.
+
+This way we can build apps without needing a compiler or any additional language tooling.
+
+Because of this implement forces you to write your markup a little bit differently, with functions.
+
+Every html tag is a function with props and children. Because of this you will need to import these elements from `@implementjs/core` before using them. 
+
+> In these lessons we have opted to include the imports you will need in the boilerplate so that you don't need to import them every time.
+
+Let's use this knowledge to build this example into a basic hero section with a short description and a CTA.
 
 ```ts
-Div({ class: "card" }, H1("Title"), P("Body"));
+export default function App() {
+    return Div(H1("Elements"), P("Factories build real DOM nodes."), Button("Next"));
+}
 ```
-
-Props are optional. `Div(H1("Title"))` is fine.
-
-Add a short paragraph under the heading, then a button labeled `Next`. The preview styles the native elements for you, so you can stay focused on the tree.

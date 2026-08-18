@@ -8,4 +8,8 @@ export const icons = {
 	chevronLeft: svg(`<path d="M10 4L6 8l4 4" ${stroke}/>`),
 	chevronRight: svg(`<path d="M6 4l4 4-4 4" ${stroke}/>`),
 	refresh: svg(`<path d="M13 8a5 5 0 1 1-1.3-3.4M13 3.5V6h-2.5" ${stroke}/>`),
+	copy: svg(
+		`<rect x="5.5" y="5.5" width="8" height="8" rx="1.5" ${stroke}/><path d="M2.5 10.5v-7a1 1 0 0 1 1-1h7" ${stroke}/>`,
+	),
+	check: svg(`<path d="M3 8.5l3.5 3.5L13 5" ${stroke}/>`),
 };

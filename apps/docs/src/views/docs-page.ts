@@ -1,4 +1,5 @@
-import { Article, Div, H1, Html, Implement, P, type Mountable } from "@implementjs/core";
+import { Article, H1, Implement, P, type Mountable } from "@implementjs/core";
+import { Typeset } from "../components/docs/typeset";
 import type { Page } from "../lib/content";
 
 export function DocsPage(page: Page): Mountable {
@@ -11,6 +12,6 @@ export function DocsPage(page: Page): Mountable {
 
 		H1({ class: "text-3xl font-semibold tracking-tight" }, page.title),
 		P({ class: "text-lg text-foreground/60" }, page.description),
-		Div({ class: "typeset space-y-4" }, Html(page.content)),
+		Typeset(page.content, "space-y-4"),
 	);
 }

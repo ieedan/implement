@@ -1,12 +1,10 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import rehypeShiki from "@shikijs/rehype";
-import { context, defineCollection, defineConfig, s } from "velite";
+import { remarkAlert } from "remark-github-blockquote-alert";
+import { defineCollection, defineConfig, s } from "velite";
 
 const markdown = s.object({
 	title: s.string().max(99),
 	description: s.string().max(999),
-	order: s.number().optional(),
 	slug: s.path(),
 	content: s.markdown(),
 });
@@ -32,22 +30,25 @@ function toPermalink(fileSlug: string, prefix: string, folder?: string) {
 	};
 }
 
-function readSibling(filename: string): string {
-	const filePath = context().file.path;
-	try {
-		return readFileSync(join(dirname(filePath), filename), "utf8");
-	} catch {
-		throw new Error(`Missing ${filename} next to ${filePath}`);
-	}
+function toLessonDir(fileSlug: string): string {
+	let dir = fileSlug.startsWith("lessons/") ? fileSlug.slice("lessons/".length) : fileSlug;
+	if (dir === "index") return "";
+	return dir.replace(/\/index$/, "");
 }
 
 const pages = defineCollection({
 	name: "Page",
-	pattern: ["**/*.md", "!lessons/**"],
-	schema: markdown.transform((data) => ({
-		...data,
-		...toPermalink(data.slug, "/docs"),
-	})),
+	// Positive glob only: Velite concatenates every collection pattern in watch
+	// mode, so `!lessons/**` here would skip tutorial rebuilds too.
+	pattern: "*.md",
+	schema: markdown
+		.extend({
+			order: s.number().optional(),
+		})
+		.transform((data) => ({
+			...data,
+			...toPermalink(data.slug, "/docs"),
+		})),
 });
 
 const tutorials = defineCollection({
@@ -59,8 +60,7 @@ const tutorials = defineCollection({
 		})
 		.transform((data) => ({
 			...data,
-			code: readSibling("code.ts"),
-			solution: readSibling("solution.ts"),
+			lessonDir: toLessonDir(data.slug),
 			...toPermalink(data.slug, "/tutorial", "lessons"),
 		})),
 });
@@ -77,9 +77,13 @@ export default defineConfig({
 	},
 	collections: { pages, tutorials },
 	markdown: {
+		remarkPlugins: [
+			// Velite bundles its own unified types, which don't match remark/rehype plugins'.
+			// @ts-expect-error
+			remarkAlert,
+		],
 		rehypePlugins: [
 			[
-				// Velite bundles its own unified types, which don't match @shikijs/rehype's.
 				// @ts-expect-error
 				rehypeShiki,
 				{
@@ -91,6 +95,8 @@ export default defineConfig({
 	},
 	prepare(data) {
 		data.pages.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
-		data.tutorials.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.tutorials.sort((a, b) =>
+			a.lessonDir.localeCompare(b.lessonDir, undefined, { numeric: true }),
+		);
 	},
 });
