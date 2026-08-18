@@ -31,7 +31,7 @@ Create a package under `apps/` or `demos/` and depend on the framework with the 
 }
 ```
 
-The demos are [Vite](https://vite.dev) apps: `vite` serves `index.html` in dev (Tailwind runs through `@tailwindcss/vite`), and `vite build` produces a static `dist/`. The framework's [Vite plugin](/docs/vite) provides hot module replacement with no app-side wiring. The package exports point at its TypeScript source, so any bundler that resolves workspace packages works — no framework build step is involved.
+The demos are [Vite](https://vite.dev) apps: `vite` serves `index.html` in dev (Tailwind runs through `@tailwindcss/vite`), and `vite build` produces a static `dist/`. Hot module replacement is a [four-line block in the entry](/docs/vite). The package exports point at its TypeScript source, so any bundler that resolves workspace packages works — no framework build step is involved.
 
 ## Your first component
 

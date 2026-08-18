@@ -116,10 +116,11 @@ Was four processes (tsdown, tailwind, static server, API) and full manual
 reloads per demo. The apps are Vite projects now: one `vite` process serves
 `index.html` with SPA fallback, compiles the framework straight from its
 workspace source, and runs Tailwind through `@tailwindcss/vite` — only the
-API server runs alongside. The framework's own Vite plugin
-(`@packages/implement/vite`) injects the HMR glue into entry modules at
-transform time, so edits patch the page without a reload (and without any
-`import.meta.hot` code in the app); `App().render()` returns the unmount
-function that teardown relies on. `vite build` emits a hashed static
-`dist/` per app. Still open: every demo copies the same scaffold with only
-ports changed — a `create-app` template would end the copying.
+API server runs alongside. HMR is a four-line `import.meta.hot` block in
+each entry (Vite requires the `accept` call to be statically present
+there): `App().render()` registers mounted roots in a dev-only registry
+and `disposeRoots` from `@packages/implement/hmr` tears them down before
+the entry re-executes, so edits patch the page without a reload. `vite
+build` emits a hashed static `dist/` per app. Still open: every demo
+copies the same scaffold with only ports changed — a `create-app` template
+would end the copying.

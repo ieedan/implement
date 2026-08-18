@@ -13,8 +13,14 @@ import {
 	watch,
 	type Signal,
 } from "@packages/implement";
+import { disposeRoots } from "@packages/implement/hmr";
 import { Api, type Todo } from "./api";
 import "../app.css";
+
+if (import.meta.hot) {
+	import.meta.hot.accept();
+	import.meta.hot.dispose(disposeRoots);
+}
 
 const api = new Api();
 const app = App({ target: document.body });

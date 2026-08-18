@@ -19,10 +19,6 @@
 		"./hmr": {
 			"types": "./src/hmr.ts",
 			"default": "./src/hmr.ts"
-		},
-		"./vite": {
-			"types": "./src/vite.ts",
-			"default": "./src/vite.ts"
 		}
 	},
 	"scripts": {

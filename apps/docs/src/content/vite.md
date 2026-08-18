@@ -1,30 +1,32 @@
 ---
 title: Vite
-description: The Vite plugin — hot module replacement with no app-side wiring — and the package entrypoints.
+description: How the apps run on Vite — the four-line HMR recipe and the package entrypoints.
 order: 21
 ---
 
-The apps in this repo are [Vite](https://vite.dev) projects. The framework ships a Vite plugin from the `@packages/implement/vite` entrypoint that wires up hot module replacement — no HMR code in the app itself.
+The apps in this repo are [Vite](https://vite.dev) projects: `vite` serves `index.html` in dev with the entry at `/src/index.ts`, Tailwind runs through `@tailwindcss/vite`, and `vite build` produces a static `dist/`. The framework needs no plugin — the package exports point at its TypeScript source, so Vite compiles it like app code.
+
+## Hot module replacement
+
+Vite decides how an update propagates by statically scanning each module's source for `import.meta.hot.accept(...)`, so the acceptance has to be written in the entry module itself — it cannot be hidden inside the framework. The whole recipe is four lines:
 
 ```ts
-// vite.config.ts
-import { implement } from "@packages/implement/vite";
-import { defineConfig } from "vite";
+// src/index.ts
+import { App } from "@packages/implement";
+import { disposeRoots } from "@packages/implement/hmr";
 
-export default defineConfig({
-	plugins: [implement()],
-});
+if (import.meta.hot) {
+	import.meta.hot.accept();
+	import.meta.hot.dispose(disposeRoots);
+}
+
+const app = App({ target: document.getElementById("root")! });
+app.render(MyApp());
 ```
 
-## What the plugin does
+`App().render(...)` registers every mounted root in a dev-only registry (and returns its own unmount function, useful for tests). On an update, Vite bubbles the change up to the entry, runs the dispose hook — `disposeRoots` unmounts the old tree — and re-executes the entry against the updated modules. The page patches in place instead of reloading; module state outside the update's import chain (stores, caches) survives. CSS hot-swaps without any remount.
 
-Vite decides how an update propagates by statically scanning each module's source for `import.meta.hot.accept(...)` — a runtime `accept()` call made from inside the framework would not register, and every edit would fall through to a full page reload. So the plugin injects the acceptance into the right place at transform time: each entry module referenced by `index.html`'s `<script type="module">` tags gets a footer that self-accepts updates and, before re-executing, unmounts every mounted `App` root.
-
-The effect: edit any module in the app's graph and the update bubbles to the entry, the old tree unmounts, and the entry re-runs against the updated modules — the page patches in place. Module state outside the update's import chain (stores, caches) survives; the re-mounted tree renders against it. CSS hot-swaps without any remount.
-
-`App().render(...)` returns the unmount function that makes this teardown possible; it is also useful on its own (tests, embedding).
-
-The plugin only applies to the dev server — `vite build` output is untouched.
+In production builds `import.meta.hot` is statically `false`, so the block and the registry compile away.
 
 ## Entrypoints
 
@@ -34,7 +36,5 @@ Everything is exported from the package root, and the bigger subsystems are also
 import { App, signal } from "@packages/implement"; // everything
 import { Div, Button } from "@packages/implement/elements"; // the HTML element factories
 import { Router } from "@packages/implement/router"; // the router
-import { implement } from "@packages/implement/vite"; // the Vite plugin (node-side)
+import { disposeRoots } from "@packages/implement/hmr"; // dev-time root teardown
 ```
-
-`@packages/implement/hmr` also exists — it holds the mounted-root registry the injected HMR glue tears down; apps normally never import it directly.

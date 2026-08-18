@@ -7,9 +7,9 @@ export function registerRoot(unmount: () => void): () => void {
 }
 
 /**
- * Unmounts every registered `App` root. The Vite plugin's injected glue calls
- * this from `import.meta.hot.dispose` so the old tree is torn down before the
- * updated entry module re-executes and mounts a fresh one.
+ * Unmounts every registered `App` root. An app entry passes this to
+ * `import.meta.hot.dispose` so the old tree is torn down before the updated
+ * entry module re-executes and mounts a fresh one.
  */
 export function disposeRoots(): void {
 	roots.forEach((unmount) => unmount());

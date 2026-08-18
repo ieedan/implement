@@ -185,8 +185,8 @@ export function App(options: { target: HTMLElement }) {
 				return instance;
 			});
 			const unmount = () => instances.forEach((instance) => instance.unmount());
-			// Under the Vite dev server only: track the root so the plugin's
-			// injected dispose hook can tear it down before a hot update.
+			// Under the Vite dev server only: track the root so the entry's
+			// `import.meta.hot.dispose(disposeRoots)` can tear it down on update.
 			if (import.meta.hot) {
 				const untrack = registerRoot(unmount);
 				return () => {
