@@ -6,7 +6,7 @@ import {
 	type Child,
 	type Mountable,
 	type Signal,
-} from "@packages/implement";
+} from "@implementjs/core";
 import { cx } from "../../lib/cx";
 
 /**

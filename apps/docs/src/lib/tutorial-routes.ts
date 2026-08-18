@@ -1,4 +1,4 @@
-import { Implement, navigateTo, P, type Child, type Mountable } from "@packages/implement";
+import { Implement, navigateTo, P, type Child, type Mountable } from "@implementjs/core";
 import { TutorialsLayout } from "../components/tutorials/layout";
 import { TutorialPage } from "../views/tutorial-page";
 import { tutorials, type Tutorial } from "./content";

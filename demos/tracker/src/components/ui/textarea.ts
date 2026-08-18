@@ -1,4 +1,4 @@
-import { Textarea, type ElementProps, type Mountable } from "@packages/implement";
+import { Textarea, type ElementProps, type Mountable } from "@implementjs/core";
 import { cx } from "../../lib/cx";
 
 type TextAreaProps = Omit<ElementProps<"textarea">, "class"> & { class?: string };

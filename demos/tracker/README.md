@@ -1,6 +1,6 @@
 # Tracker
 
-A Linear-style issue tracker built on `@packages/implement` to exercise the
+A Linear-style issue tracker built on `@implementjs/core` to exercise the
 router end to end: typed route params as `Readable`s, typed
 `Link`/`href`/`navigate`, a root layout that survives navigation, in-place
 param patching, and URL-synced search.

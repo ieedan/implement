@@ -1,4 +1,4 @@
-import { Button, Div, signal, Span, Svg, type Mountable, type Writable } from "@packages/implement";
+import { Button, Div, signal, Span, Svg, type Mountable, type Writable } from "@implementjs/core";
 import { CodeEditor } from "./editor";
 import { icons } from "./icons";
 import { LessonPreview } from "./preview";
@@ -14,7 +14,8 @@ export function Playground(code: Writable<string>): Mountable {
 				{ class: "flex h-9 shrink-0 items-center gap-2 border-b border-border px-3" },
 				Span(
 					{
-						class: "rounded-md bg-foreground/10 px-2 py-0.5 font-mono text-[11px] text-foreground/80",
+						class:
+							"rounded-md bg-foreground/10 px-2 py-0.5 font-mono text-[11px] text-foreground/80",
 					},
 					"code.ts",
 				),

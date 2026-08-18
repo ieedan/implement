@@ -12,29 +12,28 @@ Vite decides how an update propagates by statically scanning each module's sourc
 
 ```ts
 // src/index.ts
-import { App } from "@packages/implement";
-import { disposeRoots } from "@packages/implement/hmr";
+import { App } from "@implementjs/core";
+
+const app = App({ target: document.getElementById("root")! });
 
 if (import.meta.hot) {
 	import.meta.hot.accept();
-	import.meta.hot.dispose(disposeRoots);
+	import.meta.hot.dispose(app.unmount);
 }
 
-const app = App({ target: document.getElementById("root")! });
 app.render(MyApp());
 ```
 
-`App().render(...)` registers every mounted root in a dev-only registry (and returns its own unmount function, useful for tests). On an update, Vite bubbles the change up to the entry, runs the dispose hook — `disposeRoots` unmounts the old tree — and re-executes the entry against the updated modules. The page patches in place instead of reloading; module state outside the update's import chain (stores, caches) survives. CSS hot-swaps without any remount.
+The app tracks every root it renders, and `app.unmount` tears them all down (`render` also returns a per-root unmount function, useful for tests). On an update, Vite bubbles the change up to the entry, runs the dispose hook — the old app unmounts its tree — and re-executes the entry against the updated modules, mounting a fresh app. The page patches in place instead of reloading; module state outside the update's import chain (stores, caches) survives. CSS hot-swaps without any remount.
 
-In production builds `import.meta.hot` is statically `false`, so the block and the registry compile away.
+In production builds `import.meta.hot` is statically `false`, so the block compiles away.
 
 ## Entrypoints
 
 Everything is exported from the package root, and the bigger subsystems are also importable on their own:
 
 ```ts
-import { App, signal } from "@packages/implement"; // everything
-import { Div, Button } from "@packages/implement/elements"; // the HTML element factories
-import { Router } from "@packages/implement/router"; // the router
-import { disposeRoots } from "@packages/implement/hmr"; // dev-time root teardown
+import { App, signal } from "@implementjs/core"; // everything
+import { Div, Button } from "@implementjs/core/elements"; // the HTML element factories
+import { Router } from "@implementjs/core/router"; // the router
 ```

@@ -1,4 +1,4 @@
-import { Div, H1, P, signal } from "@packages/implement";
+import { Div, H1, P, signal } from "@implementjs/core";
 
 export default function App() {
 	const count = signal(0);

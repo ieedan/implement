@@ -7,7 +7,7 @@ order: 17
 `Svg(source, props)` builds an `<svg>` element from a markup string. The string is the template; the props are the instance:
 
 ```ts
-import { Svg } from "@packages/implement";
+import { Svg } from "@implementjs/core";
 
 const icons = {
 	check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>`,

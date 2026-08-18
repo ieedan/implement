@@ -13,7 +13,7 @@ import {
 	Span,
 	Svg,
 	type Mountable,
-} from "@packages/implement";
+} from "@implementjs/core";
 import { icons } from "../components/tutorials/icons";
 import { LessonMenu } from "../components/tutorials/lesson-menu";
 import { Playground } from "../components/tutorials/playground";

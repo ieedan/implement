@@ -7,7 +7,7 @@ order: 10
 `Key(signal, ...children)` unmounts and remounts its children from scratch every time the watched signal (or any signal in an array of them) changes.
 
 ```ts
-import { Key } from "@packages/implement";
+import { Key } from "@implementjs/core";
 
 Key(route, PageFor(route));
 Key([route, user], PageFor(route, user));

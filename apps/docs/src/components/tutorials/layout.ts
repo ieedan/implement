@@ -1,4 +1,4 @@
-import { Div, type Mountable } from "@packages/implement";
+import { Div, type Mountable } from "@implementjs/core";
 import { SiteHeader } from "../site-header";
 
 export function TutorialsLayout(child: Mountable): Mountable {

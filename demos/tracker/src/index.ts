@@ -1,15 +1,14 @@
-import { App, Await, Div, P, Span, type Mountable } from "@packages/implement";
-import { disposeRoots } from "@packages/implement/hmr";
+import { App, Await, Div, P, Span, type Mountable } from "@implementjs/core";
 import { router } from "./router";
 import { loadWorkspace } from "./state/store";
 import "../app.css";
 
+const app = App({ target: document.getElementById("root")! });
+
 if (import.meta.hot) {
 	import.meta.hot.accept();
-	import.meta.hot.dispose(disposeRoots);
+	import.meta.hot.dispose(app.unmount);
 }
-
-const app = App({ target: document.getElementById("root")! });
 
 function CenteredMessage(...lines: string[]): Mountable {
 	return Div(

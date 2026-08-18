@@ -7,7 +7,7 @@ order: 12
 Context carries a value from a provider to any descendant, however deep, without prop drilling. `Context<T>()` creates one:
 
 ```ts
-import { Context } from "@packages/implement";
+import { Context } from "@implementjs/core";
 
 type Session = { user: Readable<User>; logout: () => void };
 

@@ -1,4 +1,4 @@
-import { Button, derived, Div, Span, type Child, type Mountable } from "@packages/implement";
+import { Button, derived, Div, Span, type Child, type Mountable } from "@implementjs/core";
 import { router } from "../router";
 import { currentUser, issues } from "../state/store";
 import { openCreateDialog, VIEWS, type ViewMeta } from "../state/ui";

@@ -9,7 +9,7 @@ import {
 	type Child,
 	type Mountable,
 	type Readable,
-} from "@packages/implement";
+} from "@implementjs/core";
 import { cx } from "../../lib/cx";
 import { Icon, type IconName } from "./icon";
 

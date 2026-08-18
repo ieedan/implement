@@ -1,4 +1,4 @@
-import { Router } from "@packages/implement";
+import { Router } from "@implementjs/core";
 import { IssueDetailView } from "./views/issue-detail";
 import { IssueListView } from "./views/issue-list";
 import { NotFound } from "./views/not-found";

@@ -14,7 +14,7 @@
 	"dependencies": {
 		"@hono/node-server": "^2.1.1",
 		"@hono/zod-openapi": "^1.6.0",
-		"@packages/implement": "workspace:*",
+		"@implementjs/core": "workspace:*",
 		"hono": "^4.13.2",
 		"zod": "^4.4.3"
 	},

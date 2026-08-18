@@ -7,7 +7,7 @@ order: 20
 The router describes the whole app as one nested object. Keys are path segments, `"/"` renders a level, `layout` wraps everything beneath it, and `:param` segments surface as signals.
 
 ```ts
-import { Router } from "@packages/implement";
+import { Router } from "@implementjs/core";
 
 const router = Router(
 	{

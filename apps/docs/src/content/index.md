@@ -7,7 +7,7 @@ order: 0
 implement is a signal-based UI framework for the browser. There is no compiler, no JSX, and no virtual DOM — your app is plain TypeScript that builds real DOM nodes, and signals update exactly the parts of the page that depend on them.
 
 ```ts
-import { App, Button, Div, signal } from "@packages/implement";
+import { App, Button, Div, signal } from "@implementjs/core";
 
 const app = App({ target: document.body });
 

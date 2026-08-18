@@ -5,7 +5,7 @@
 			"tasks": {
 				"lib": {
 					"color": "blue",
-					"command": "pnpm --filter @packages/implement dev"
+					"command": "pnpm --filter @implementjs/core dev"
 				},
 				"todo": {
 					"tasks": {

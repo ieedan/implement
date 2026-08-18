@@ -7,7 +7,7 @@ order: 11
 `Await` renders one of three branches from a promise's state:
 
 ```ts
-import { Await } from "@packages/implement";
+import { Await } from "@implementjs/core";
 
 Await(fetchUser(id))
 	.WhileLoading(Spinner())

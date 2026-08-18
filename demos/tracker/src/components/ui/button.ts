@@ -1,4 +1,4 @@
-import { Button, type Child, type ElementProps, type Mountable } from "@packages/implement";
+import { Button, type Child, type ElementProps, type Mountable } from "@implementjs/core";
 import { cx } from "../../lib/cx";
 
 const base =

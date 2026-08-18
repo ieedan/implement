@@ -1,6 +1,6 @@
 # Missing
 
-What `@packages/implement` does not have yet, compiled while building the router
+What `@implementjs/core` does not have yet, compiled while building the router
 and `demos/tracker` (a Linear-style issue tracker: routed list/detail
 views, dropdown menus, a modal dialog, inline editing, comments). Roughly
 ordered by how much each one hurt. Sharp edges on things that _do_ exist are
@@ -118,9 +118,9 @@ reloads per demo. The apps are Vite projects now: one `vite` process serves
 workspace source, and runs Tailwind through `@tailwindcss/vite` — only the
 API server runs alongside. HMR is a four-line `import.meta.hot` block in
 each entry (Vite requires the `accept` call to be statically present
-there): `App().render()` registers mounted roots in a dev-only registry
-and `disposeRoots` from `@packages/implement/hmr` tears them down before
-the entry re-executes, so edits patch the page without a reload. `vite
+there): the app tracks every root it renders and `app.unmount` tears
+them down in the entry's dispose hook before the entry re-executes, so
+edits patch the page without a reload. `vite
 build` emits a hashed static `dist/` per app. Still open: every demo
 copies the same scaffold with only ports changed — a `create-app` template
 would end the copying.

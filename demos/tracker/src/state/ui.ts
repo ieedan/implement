@@ -1,4 +1,4 @@
-import { signal } from "@packages/implement";
+import { signal } from "@implementjs/core";
 import type { Issue, Priority, Status } from "../api";
 import type { IconName } from "../components/ui/icon";
 

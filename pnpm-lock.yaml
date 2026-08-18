@@ -44,12 +44,12 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.9
         version: 6.43.9
+      '@implementjs/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
-      '@packages/implement':
-        specifier: workspace:*
-        version: link:../../packages/implement
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2
@@ -93,9 +93,9 @@ importers:
       '@hono/zod-openapi':
         specifier: ^1.6.0
         version: 1.6.0(hono@4.13.2)(zod@4.4.3)
-      '@packages/implement':
+      '@implementjs/core':
         specifier: workspace:*
-        version: link:../../packages/implement
+        version: link:../../packages/core
       hono:
         specifier: ^4.13.2
         version: 4.13.2
@@ -136,9 +136,9 @@ importers:
       '@hono/zod-openapi':
         specifier: ^1.6.0
         version: 1.6.0(hono@4.13.2)(zod@4.4.3)
-      '@packages/implement':
+      '@implementjs/core':
         specifier: workspace:*
-        version: link:../../packages/implement
+        version: link:../../packages/core
       hono:
         specifier: ^4.13.2
         version: 4.13.2
@@ -171,7 +171,7 @@ importers:
         specifier: ^7.3.0
         version: 7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
 
-  packages/implement:
+  packages/core:
     devDependencies:
       '@types/node':
         specifier: ^26.2.0

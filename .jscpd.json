@@ -1,5 +1,5 @@
 {
-	"path": ["packages/implement"],
+	"path": ["packages/core"],
 	"format": ["typescript"],
 	"reporters": ["console"],
 	"ignore": ["**/node_modules/**", "**/dist/**", "**/elements.ts", "**/scripts/**"],

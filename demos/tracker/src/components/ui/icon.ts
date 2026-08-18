@@ -1,4 +1,4 @@
-import { derived, Svg, type Mountable, type Readable } from "@packages/implement";
+import { derived, Svg, type Mountable, type Readable } from "@implementjs/core";
 import { cx } from "../../lib/cx";
 
 // Icons are raw SVG strings handed to the Svg helper, which parses each one

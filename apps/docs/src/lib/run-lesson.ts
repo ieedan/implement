@@ -1,7 +1,7 @@
-import * as implement from "@packages/implement";
+import * as implement from "@implementjs/core";
 import { transform } from "sucrase";
 
-const IMPLEMENT = "@packages/implement";
+const IMPLEMENT = "@implementjs/core";
 const RUNTIME = "implementPlaygroundRuntime";
 
 type ImplementRuntime = typeof implement;
@@ -38,7 +38,10 @@ function transpile(code: string): string {
 }
 
 function rewriteImplementImports(code: string): string {
-	return code.replace(/from\s+["']@packages\/implement["']/g, `from ${JSON.stringify(implementModuleUrl())}`);
+	return code.replace(
+		/from\s+["']@implementjs\/core["']/g,
+		`from ${JSON.stringify(implementModuleUrl())}`,
+	);
 }
 
 function isMounted(value: unknown): value is Mounted {

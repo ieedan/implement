@@ -4,7 +4,7 @@ description: Set up a project and render your first component.
 order: 1
 ---
 
-implement is not published to a package registry yet. It lives in the [`ieedan/implement`](https://github.com/ieedan/implement) monorepo as the workspace package `@packages/implement`, and apps consume it as a workspace dependency.
+implement is not published to a package registry yet. It lives in the [`ieedan/implement`](https://github.com/ieedan/implement) monorepo as the workspace package `@implementjs/core`, and apps consume it as a workspace dependency.
 
 ## Run the repo
 
@@ -26,7 +26,7 @@ Create a package under `apps/` or `demos/` and depend on the framework with the 
 // package.json
 {
 	"dependencies": {
-		"@packages/implement": "workspace:*"
+		"@implementjs/core": "workspace:*"
 	}
 }
 ```
@@ -38,7 +38,7 @@ The demos are [Vite](https://vite.dev) apps: `vite` serves `index.html` in dev (
 An app needs three things: an element to mount into, an `App`, and something to render.
 
 ```ts
-import { App, Button, Div, H1, signal } from "@packages/implement";
+import { App, Button, Div, H1, signal } from "@implementjs/core";
 
 const app = App({ target: document.getElementById("root")! });
 

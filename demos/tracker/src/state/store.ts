@@ -1,4 +1,4 @@
-import { derived, signal } from "@packages/implement";
+import { derived, signal } from "@implementjs/core";
 import { Api, type Issue, type Label, type Priority, type Status, type User } from "../api";
 
 export const api = new Api();

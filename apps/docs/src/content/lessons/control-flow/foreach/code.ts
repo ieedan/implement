@@ -1,4 +1,4 @@
-import { Div, H1, Li, P, signal, Ul } from "@packages/implement";
+import { Div, H1, Li, P, signal, Ul } from "@implementjs/core";
 
 export default function App() {
 	const todos = signal([

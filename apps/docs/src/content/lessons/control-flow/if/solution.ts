@@ -1,4 +1,4 @@
-import { Button, Div, H1, If, P, signal } from "@packages/implement";
+import { Button, Div, H1, If, P, signal } from "@implementjs/core";
 
 export default function App() {
 	const open = signal(false);

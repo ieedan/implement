@@ -1,4 +1,3 @@
-import { registerRoot } from "../hmr";
 import { isReadable } from "../signal";
 import { mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
@@ -115,10 +114,7 @@ function isPropsObject(value: unknown): value is Record<string, unknown> {
 export function element<T extends keyof HTMLElementTagNameMap>(tag: T) {
 	function factory(...children: ElementChildArgs<T>): ComponentFactory<T>;
 	function factory(props: ElementProps<T>, ...children: ElementChildArgs<T>): ComponentFactory<T>;
-	function factory(
-		propsOrChild?: ElementProps<T> | Child,
-		...rest: Child[]
-	): ComponentFactory<T> {
+	function factory(propsOrChild?: ElementProps<T> | Child, ...rest: Child[]): ComponentFactory<T> {
 		if (isPropsObject(propsOrChild)) {
 			return component(tag, propsOrChild as ElementProps<T>, ...(rest as ElementChildArgs<T>));
 		}
@@ -190,6 +186,7 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 
 export function App(options: { target: HTMLElement }) {
 	const { target } = options;
+	const roots = new Set<() => void>();
 
 	return {
 		/** Mounts `children` into the target and returns an unmount function. */
@@ -199,17 +196,20 @@ export function App(options: { target: HTMLElement }) {
 				mountChild(instance, target);
 				return instance;
 			});
-			const unmount = () => instances.forEach((instance) => instance.unmount());
-			// Under the Vite dev server only: track the root so the entry's
-			// `import.meta.hot.dispose(disposeRoots)` can tear it down on update.
-			if (import.meta.hot) {
-				const untrack = registerRoot(unmount);
-				return () => {
-					untrack();
-					unmount();
-				};
-			}
+			const unmount = () => {
+				roots.delete(unmount);
+				instances.forEach((instance) => instance.unmount());
+			};
+			roots.add(unmount);
 			return unmount;
+		},
+		/**
+		 * Unmounts every root this app has rendered. An app entry passes this to
+		 * `import.meta.hot.dispose` so the old tree is torn down before the
+		 * updated entry module re-executes and mounts a fresh one.
+		 */
+		unmount: () => {
+			roots.forEach((unmount) => unmount());
 		},
 	};
 }

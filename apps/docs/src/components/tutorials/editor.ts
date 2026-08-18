@@ -4,7 +4,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
-import type { IMountable, Mountable, Writable } from "@packages/implement";
+import type { IMountable, Mountable, Writable } from "@implementjs/core";
 import { basicSetup } from "codemirror";
 
 const highlight = HighlightStyle.define([

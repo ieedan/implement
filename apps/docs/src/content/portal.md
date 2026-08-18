@@ -7,7 +7,7 @@ order: 15
 `Portal` renders its children into a different DOM parent — `document.body` by default — escaping ancestor stacking contexts and `overflow` clipping. Dialogs, dropdowns, and toasts are the usual customers.
 
 ```ts
-import { Portal } from "@packages/implement";
+import { Portal } from "@implementjs/core";
 
 If(open).Then(
 	Portal(Div({ class: "fixed inset-0 grid place-items-center bg-black/50" }, DialogPanel())),

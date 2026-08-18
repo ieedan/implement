@@ -1,4 +1,4 @@
-import type { Child, Mountable } from "@packages/implement";
+import type { Child, Mountable } from "@implementjs/core";
 import { DocsLayout } from "../components/docs/layout";
 import { DocsPage } from "../views/docs-page";
 import { pages, type Page } from "./content";

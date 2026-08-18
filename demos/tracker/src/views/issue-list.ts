@@ -10,7 +10,7 @@ import {
 	Span,
 	type Mountable,
 	type Readable,
-} from "@packages/implement";
+} from "@implementjs/core";
 import type { Issue, Status } from "../api";
 import { IssueRow } from "../components/issue-row";
 import { Icon } from "../components/ui/icon";
