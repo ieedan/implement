@@ -95,21 +95,17 @@ type PathLeaf<T> = T extends
 	? true
 	: false;
 
-type PrevBindDepth = [never, 0, 1, 2, 3, 4, 5];
-
-type PathsOf<T, D extends number> = [D] extends [never]
-	? never
-	: T extends object
-		? {
-				[K in keyof T & string]: PathLeaf<NonNullable<T[K]>> extends true
-					? K
-					: K | `${K}.${PathsOf<NonNullable<T[K]>, PrevBindDepth[D]>}`;
-			}[keyof T & string]
-		: never;
+type PathsOf<T> = T extends object
+	? {
+			[K in keyof T & string]: PathLeaf<NonNullable<T[K]>> extends true
+				? K
+				: K | `${K}.${PathsOf<NonNullable<T[K]>>}`;
+		}[keyof T & string]
+	: never;
 
 /** Dotted paths into a plain object, e.g. `"title"` or `"author.name"`. */
 export type BindableKeys<T> =
-	NonNullable<T> extends readonly unknown[] ? never : PathsOf<NonNullable<T>, 5>;
+	NonNullable<T> extends readonly unknown[] ? never : PathsOf<NonNullable<T>>;
 
 /** Value at a {@link BindableKeys} path. */
 export type BindPathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`

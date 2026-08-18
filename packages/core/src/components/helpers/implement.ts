@@ -3,6 +3,7 @@ import { Boundary } from "./boundary";
 import { globalEvents, type DocumentProps, type WindowProps } from "./global-events";
 import { Head } from "./head";
 import { Lifecycle } from "./lifecycle";
+import { Watch } from "./watch";
 
 /**
  * Special components addressing the framework itself rather than an element,
@@ -47,4 +48,6 @@ export const Implement = {
 	Head,
 
 	Lifecycle,
+
+	Watch,
 };

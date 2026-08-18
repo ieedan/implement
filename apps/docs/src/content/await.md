@@ -1,10 +1,11 @@
 ---
 title: Await
 description: Render from a promise's state with WhileLoading, Then, and Catch — and re-follow promises swapped into a signal.
-order: 11
+section: Control flow
+order: 10
 ---
 
-`Await` renders one of three branches from a promise's state:
+Not all of your data is available synchronously. When your UI depends on a promise, `Await` renders one of three branches from the promise's state:
 
 ```ts
 import { Await } from "@implementjs/core";
@@ -19,11 +20,11 @@ Await(fetchUser(id))
 - `Then(render)` mounts when it resolves, with the resolved value.
 - `Catch(render)` mounts when it rejects, with the error (normalized to an `Error`).
 
-Every branch is optional — a missing branch renders nothing in that state. If the `Then` render function itself throws, `Await` treats it as a rejection and shows the `Catch` branch.
+Every branch is optional and a missing branch renders nothing in that state. If the `Then` render function itself throws, `Await` treats it as a rejection and shows the `Catch` branch.
 
 ## Reactive sources: refetching
 
-Pass a `Readable` of a promise and `Await` **re-follows** it whenever a new promise is set. This is the data-fetching pattern — keep the request in a signal and refetch by swapping the promise:
+Pass a `Readable` of a promise and `Await` **re-follows** it whenever a new promise is set. This is the data-fetching pattern. Keep the request in a signal and refetch by swapping the promise:
 
 ```ts
 const request = signal(api.listIssues());
@@ -35,7 +36,7 @@ Await(request)
 	.Catch((error) => RetryCard(error, refetch));
 ```
 
-With a readable source, `Then` receives a **`Readable<T>`** instead of a raw value. That is what makes refetching seamless: when a new promise resolves while the resolved branch is showing, `Await` patches the readable in place — the branch does **not** remount, the new data flows through existing bindings:
+With a readable source, `Then` receives a **`Readable<T>`** instead of a raw value. That is what makes refetching seamless. When a new promise resolves while the resolved branch is showing, `Await` patches the readable in place, the branch does **not** remount, and the new data flows through your existing bindings:
 
 ```ts
 .Then((issues) =>           // issues: Readable<Issue[]>
@@ -43,7 +44,7 @@ With a readable source, `Then` receives a **`Readable<T>`** instead of a raw val
 )
 ```
 
-State transitions still remount branches: rejected → pending → resolved swap the matching branch in. Only a resolved → resolved value change is patched in place. Stale responses are ignored — only the latest followed promise settles the state, so out-of-order fetches can't clobber newer data.
+State transitions still remount branches (rejected → pending → resolved swap the matching branch in). Only a resolved → resolved value change is patched in place. Stale responses are ignored too. Only the latest followed promise settles the state, so out-of-order fetches can't clobber newer data.
 
 ## Refetching on a param change
 
@@ -60,8 +61,11 @@ Implement.Lifecycle(
 );
 ```
 
-Avoid `derived([id], (i) => api.fetchIssue(i))` for requests: an unsubscribed derived re-runs its getter on every `get()`, which means duplicate fetches. Keep promises in a plain `signal` and set them explicitly.
+> [!WARNING]
+> Avoid `derived([id], (i) => api.fetchIssue(i))` for requests. An unsubscribed derived re-runs its getter on every `get()`, which means duplicate fetches. Keep promises in a plain `signal` and set them explicitly.
 
 ## Errors
 
-`Catch` handles promise rejections. Errors thrown synchronously while a branch _mounts_ are a different channel — those route to the nearest [error boundary](/docs/boundary).
+`Catch` handles promise rejections. Errors thrown synchronously while a branch _mounts_ are a different channel, those route to the nearest [error boundary](/docs/boundary) which we'll cover soon.
+
+Every helper so far updates in place as much as it can. The last one in this part, [Key](/docs/key), is for the times you want the opposite.

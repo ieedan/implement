@@ -12,22 +12,36 @@ type Mounted = {
 
 const shimUrls = new Map<string, string>();
 
+function shimKey(specifier: string): string {
+	return `implementPlaygroundRuntime:${specifier}`;
+}
+
 // Bare specifiers can't resolve from a blob module, so each shimmed module is
-// parked on globalThis and re-exported from a generated blob the imports are
-// rewritten to point at.
+// parked on the executing realm's globalThis and re-exported from a generated
+// blob the imports are rewritten to point at. Parking happens per-import (see
+// importLessonModule) because the realm may be a fresh preview iframe.
 function moduleShimUrl(specifier: string, moduleObject: ShimModule): string {
 	const cached = shimUrls.get(specifier);
 	if (cached != null) return cached;
-	const key = `implementPlaygroundRuntime:${specifier}`;
-	(globalThis as typeof globalThis & ShimModule)[key] = moduleObject;
 	const names = Object.keys(moduleObject).filter((name) => name !== "default");
 	const source = [
-		`const m = globalThis[${JSON.stringify(key)}];`,
+		`const m = globalThis[${JSON.stringify(shimKey(specifier))}];`,
 		...names.map((name) => `export const ${name} = m[${JSON.stringify(name)}];`),
 	].join("\n");
 	const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
 	shimUrls.set(specifier, url);
 	return url;
+}
+
+// Evaluating the import inside the target realm makes the lesson's bare
+// globals (console, window, setTimeout, alert) resolve to that realm.
+function importInRealm(realm: Window, url: string): Promise<Record<string, unknown>> {
+	if (realm === window) return import(/* @vite-ignore */ url);
+	const RealmFunction = (realm as Window & { Function: FunctionConstructor }).Function;
+	const dynamicImport = new RealmFunction("url", "return import(url)") as (
+		url: string,
+	) => Promise<Record<string, unknown>>;
+	return dynamicImport(url);
 }
 
 function transpile(code: string): string {
@@ -81,15 +95,23 @@ function mountExport(exported: unknown, target: HTMLElement): Mounted {
 export async function importLessonModule(
 	code: string,
 	extraModules: Record<string, ShimModule> = {},
+	realm: Window = window,
 ): Promise<{ mod: Record<string, unknown>; revoke: () => void }> {
-	const rewritten = rewriteImports(transpile(code), {
+	const modules: Record<string, ShimModule> = {
 		[IMPLEMENT]: implement as unknown as ShimModule,
 		...extraModules,
-	});
+	};
+	const rewritten = rewriteImports(transpile(code), modules);
+
+	// The shim blobs read their module off globalThis at import time, so the
+	// module objects must be parked on the realm that executes the import.
+	for (const [specifier, moduleObject] of Object.entries(modules)) {
+		(realm as Window & ShimModule)[shimKey(specifier)] = moduleObject;
+	}
 
 	const url = URL.createObjectURL(new Blob([rewritten], { type: "text/javascript" }));
 	try {
-		const mod: Record<string, unknown> = await import(/* @vite-ignore */ url);
+		const mod = await importInRealm(realm, url);
 		return { mod, revoke: () => URL.revokeObjectURL(url) };
 	} catch (error) {
 		URL.revokeObjectURL(url);
@@ -97,8 +119,12 @@ export async function importLessonModule(
 	}
 }
 
-export async function runLesson(code: string, target: HTMLElement): Promise<() => void> {
-	const { mod, revoke } = await importLessonModule(code);
+export async function runLesson(
+	code: string,
+	target: HTMLElement,
+	realm: Window = window,
+): Promise<() => void> {
+	const { mod, revoke } = await importLessonModule(code, {}, realm);
 	try {
 		const instance = mountExport(mod.default, target);
 		return () => {

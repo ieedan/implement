@@ -1,14 +1,15 @@
 ---
 title: Vite
 description: How the apps run on Vite — the four-line HMR recipe and the package entrypoints.
+section: Building applications
 order: 21
 ---
 
-The apps in this repo are [Vite](https://vite.dev) projects: `vite` serves `index.html` in dev with the entry at `/src/index.ts`, Tailwind runs through `@tailwindcss/vite`, and `vite build` produces a static `dist/`. The framework needs no plugin — the package exports point at its TypeScript source, so Vite compiles it like app code.
+The apps in this repo are [Vite](https://vite.dev) projects. `vite` serves `index.html` in dev with the entry at `/src/index.ts`, Tailwind runs through `@tailwindcss/vite`, and `vite build` produces a static `dist/`. The framework needs no plugin because the package exports point at its TypeScript source, so Vite compiles it like app code.
 
 ## Hot module replacement
 
-Vite decides how an update propagates by statically scanning each module's source for `import.meta.hot.accept(...)`, so the acceptance has to be written in the entry module itself — it cannot be hidden inside the framework. The whole recipe is four lines:
+Vite decides how an update propagates by statically scanning each module's source for `import.meta.hot.accept(...)`, so the acceptance has to be written in the entry module itself. It cannot be hidden inside the framework. The whole recipe is four lines:
 
 ```ts
 // src/index.ts
@@ -24,7 +25,7 @@ if (import.meta.hot) {
 app.render(MyApp());
 ```
 
-The app tracks every root it renders, and `app.unmount` tears them all down (`render` also returns a per-root unmount function, useful for tests). On an update, Vite bubbles the change up to the entry, runs the dispose hook — the old app unmounts its tree — and re-executes the entry against the updated modules, mounting a fresh app. The page patches in place instead of reloading; module state outside the update's import chain (stores, caches) survives. CSS hot-swaps without any remount.
+The app tracks every root it renders and `app.unmount` tears them all down (`render` also returns a per-root unmount function, useful for tests). On an update Vite bubbles the change up to the entry, runs the dispose hook so the old app unmounts its tree, and re-executes the entry against the updated modules, mounting a fresh app. The page patches in place instead of reloading, and module state outside the update's import chain (stores, caches) survives. CSS hot-swaps without any remount.
 
 In production builds `import.meta.hot` is statically `false`, so the block compiles away.
 
@@ -37,3 +38,5 @@ import { App, signal } from "@implementjs/core"; // everything
 import { Div, Button } from "@implementjs/core/elements"; // the HTML element factories
 import { Router } from "@implementjs/core/router"; // the router
 ```
+
+You've now seen every piece on its own. The last page [puts them all together](/docs/building-an-app) into a complete application.

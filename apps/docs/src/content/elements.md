@@ -1,10 +1,11 @@
 ---
 title: Elements & Props
-description: Typed element factories, reactive props, class values, styles, events, and two-way form bindings.
+description: Typed element factories, props, class values, styles, and events.
+section: Building UI
 order: 2
 ---
 
-Every HTML element has a factory named after its tag: `Div`, `Span`, `Button`, `Input`, `A`, `Table`, and so on — all 100+ of them, exported from the package root.
+Everything on screen starts with elements, so that's where we'll start too. Every HTML element has a factory named after its tag. `Div`, `Span`, `Button`, `Input`, `A`, `Table`, and so on. All 100+ of them are exported from the package root.
 
 ```ts
 import { A, Button, Div, Input, P } from "@implementjs/core";
@@ -19,46 +20,37 @@ Div({ class: "card" }, H2("Title"), P("Body text"));
 Div("just text");
 ```
 
-Void elements (`Input`, `Img`, `Br`, `Hr`, …) accept no children — the type system enforces it.
+Void elements (`Input`, `Img`, `Br`, `Hr`, ...) accept no children and the type system enforces it.
 
-## Every prop is bindable
+## Props
 
-Props are typed per tag (`href` on `A`, `disabled` on `Button`, `placeholder` on `Input`, …) and every one of them accepts either a plain value or a `Readable` of that value. Pass a signal and the DOM updates when it changes; pass a plain value and it is set once.
-
-```ts
-const disabled = derived([title], (t) => t.trim() === "");
-
-Button({ disabled, type: "submit" }, "Save");
-Img({ src: url, alt: "avatar", loading: "lazy" });
-```
-
-`aria-*` and `data-*` attributes are typed and bindable too, and enumerated attributes (`type`, `rel`, `target`, `role`, `autocomplete`, …) autocomplete their keyword values:
+Props are typed per tag. `href` on `A`, `disabled` on `Button`, `placeholder` on `Input`, and so on. `aria-*` and `data-*` attributes are typed too, and enumerated attributes (`type`, `rel`, `target`, `role`, `autocomplete`, ...) autocomplete their keyword values:
 
 ```ts
-Div({ role: "status", "aria-live": "polite", "data-state": state });
+Img({ src: "/avatar.png", alt: "avatar", loading: "lazy" });
+Div({ role: "status", "aria-live": "polite" });
 ```
 
 ## Class
 
-`class` (or `className`) takes a clsx-style value: strings, `{ name: condition }` objects, and arrays of either, nested arbitrarily. Falsy entries are skipped, and a `Readable` fits anywhere a value does — the class list re-resolves when any of them change.
+`class` (or `className`) takes a clsx-style value. Strings, `{ name: condition }` objects, and arrays of either, nested however you like. Falsy entries are skipped:
 
 ```ts
 Div({ class: "btn" });
 Div({ class: ["btn", { active: isActive }, large && "btn-lg"] });
-Div({ class: derived([kind], (k) => `alert alert-${k}`) });
 ```
 
 ## Style
 
-`style` takes a string, a `Readable<string>`, or an object keyed by camelCase CSS property. Custom properties use their literal `--name`, and every value can be a `Readable`.
+`style` takes a string or an object keyed by camelCase CSS property. Custom properties use their literal `--name`:
 
 ```ts
-Div({ style: { color: "red", backgroundColor: bg, "--offset": offset } });
+Div({ style: { color: "red", backgroundColor: "black", "--offset": "4px" } });
 ```
 
 ## Events
 
-Event handlers use `on` + capitalized event name: `onClick`, `onInput`, `onKeydown`, `onSubmit`, … Handlers are typed per element — `event.target` and `event.currentTarget` are the element's own type, no casting needed.
+If you want your UI to respond to user interactions you will need event handlers. They use `on` + the capitalized event name. `onClick`, `onInput`, `onKeydown`, `onSubmit`, and so on. Handlers are typed per element, so `event.target` and `event.currentTarget` are the element's own type with no casting needed.
 
 ```ts
 Input({
@@ -68,54 +60,19 @@ Input({
 });
 ```
 
-A handler prop can itself be a `Readable` of a function; the listener is swapped when it changes. For `window`/`document` listeners see [Window & Document](/docs/global-events).
-
-## Two-way form bindings
-
-A few props are two-way: pass a **writable** signal and the framework both applies the signal to the DOM and writes user input back into the signal.
-
-| Element                  | Prop      | DOM event |
-| ------------------------ | --------- | --------- |
-| `Input`, `Textarea`      | `value`   | `input`   |
-| `Select`                 | `value`   | `change`  |
-| `Input` (checkbox/radio) | `checked` | `change`  |
-| `Details`, `Dialog`      | `open`    | `toggle`  |
-
-```ts
-const title = signal("");
-const done = signal(false);
-
-Input({ value: title, placeholder: "Title" });
-Input({ type: "checkbox", checked: done });
-```
-
-Passing a read-only `Readable` (or a plain value) makes the same props one-way. `Select` re-applies `value` after its options mount, so an initial value always finds its `Option`.
-
-## Element references
-
-The `this` prop binds the mounted DOM node into a `Ref` (a writable signal that starts as `null`):
-
-```ts
-import { Ref } from "@implementjs/core";
-
-const input = new Ref<HTMLInputElement>();
-
-Div(Input({ this: input }), Button({ onClick: () => input.get()?.focus() }, "Focus"));
-```
-
-The ref is written right after the node is appended to its parent and set back to `null` on unmount. The node may not be connected to the document yet when it is written (ancestors append after children) — to measure or focus once everything is connected, use [`Implement.Lifecycle`](/docs/lifecycle).
+For `window` and `document` listeners there are dedicated helpers we'll cover later in [Window & Document](/docs/global-events).
 
 ## textContent
 
-`textContent` sets the element's entire text as a prop, useful when the text is the only child and you want it bindable without a child position:
+`textContent` sets the element's entire text as a prop. It's useful when the text is the only child and you want it settable without a child position:
 
 ```ts
-Span({ textContent: label });
+Span({ textContent: "Saved!" });
 ```
 
 ## Other tags
 
-`element(tag)` builds a factory for any tag name in `HTMLElementTagNameMap` — it is how the built-in factories are generated — and `component(tag, props, ...children)` is the underlying call they all delegate to:
+`element(tag)` builds a factory for any tag name in `HTMLElementTagNameMap` (it's how the built-in factories are generated) and `component(tag, props, ...children)` is the underlying call they all delegate to:
 
 ```ts
 import { component, element } from "@implementjs/core";
@@ -123,3 +80,9 @@ import { component, element } from "@implementjs/core";
 const Custom = element("my-element" as keyof HTMLElementTagNameMap);
 const search = component("input", { type: "search" });
 ```
+
+## Where's the reactivity?
+
+Everything on this page sets values once. The real power is that **every prop and text child also accepts a signal**, so the DOM updates itself when your state changes. That's the whole subject of the [Reactivity](/docs/signals) part coming up.
+
+But first, let's talk about how you organize elements into [components](/docs/components).

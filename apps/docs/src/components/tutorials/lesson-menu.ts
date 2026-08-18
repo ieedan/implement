@@ -46,7 +46,6 @@ export function LessonMenu(open: Writable<boolean>, current: Tutorial): Mountabl
 					isOpen ? "translate-x-0" : "-translate-x-full",
 				]),
 				inert: derived([open], (isOpen) => !isOpen),
-				"aria-hidden": derived([open], (isOpen) => (isOpen ? undefined : "true")),
 			},
 			Div(
 				{ class: "flex items-center justify-between border-b border-border px-4 py-3" },

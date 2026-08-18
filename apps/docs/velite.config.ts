@@ -43,6 +43,7 @@ const pages = defineCollection({
 	pattern: "*.md",
 	schema: markdown
 		.extend({
+			section: s.string().max(99),
 			order: s.number().optional(),
 		})
 		.transform((data) => ({
