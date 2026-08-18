@@ -1,7 +1,9 @@
-import { A, Br, Button, Div, Form, H1, Img, Input, Link, P } from "./elements";
+import { A, Br, Button, Div, Form, H1, Img, Input, Link, P, Span } from "./elements";
+import { ForEach } from "./helpers/foreach";
+import { If } from "./helpers/if";
 import { Implement } from "./helpers/implement";
 import { Svg } from "./helpers/svg";
-import { Ref, signal } from "../signal";
+import { derived, Ref, signal, type Readable } from "../signal";
 
 const div = new Ref<HTMLDivElement>();
 Div({ this: div });
@@ -125,3 +127,41 @@ Div({ children: Implement.Head.Title("nope") });
 Implement.Head.Meta({ src: "/nope.js" });
 // @ts-expect-error script content is the second argument, not a children prop
 Implement.Head.Script({ children: "nope" });
+
+const selected = Implement.Set<string>(["a", "b"]);
+selected.add("c");
+selected.toggle("a");
+selected.delete("b");
+const selectedCount: Readable<number> = selected.bind((s) => s.size);
+const selectedSize: Readable<number> = selected.bind("size");
+Span("selected: ", selectedCount, selectedSize);
+Div({ class: { active: selected.bind((s) => s.has("a")) } });
+If(selected.bind((s) => s.has("a"))).Then(Span("a is selected"));
+ForEach(
+	selected.bind((s) => [...s]),
+	(item) => item,
+	(item) => Span(item),
+);
+derived([selected], (s) => s.size);
+
+const drafts = Implement.Map<string, string>([["a", "draft"]]);
+drafts.set("b", "another");
+drafts.delete("a");
+const draft: string | undefined = drafts.get("b");
+const draftsSnapshot: ReadonlyMap<string, string> = drafts.get();
+const draftFor: Readable<string> = drafts.bind((d) => d.get("a") ?? "");
+Span(draft, draftsSnapshot.size.toString(), draftFor);
+derived([drafts], (d) => d.size);
+
+// @ts-expect-error a reactive set has no writable set(value)
+selected.set(new Set(["a"]));
+// @ts-expect-error snapshots are read-only
+selected.get().add("nope");
+// @ts-expect-error snapshots are read-only
+drafts.get().set("nope", "nope");
+ForEach(
+	// @ts-expect-error a reactive set is not a readable list; bind to an array instead
+	selected,
+	(item: string) => item,
+	(item) => Span(item),
+);

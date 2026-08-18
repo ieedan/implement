@@ -1,3 +1,4 @@
+import { ReactiveMap, ReactiveSet } from "../../signal";
 import type { Mountable } from "../types";
 import { Boundary } from "./boundary";
 import { globalEvents, type DocumentProps, type WindowProps } from "./global-events";
@@ -41,6 +42,37 @@ export const Implement = {
 	 */
 	Document(props: DocumentProps = {}): Mountable {
 		return globalEvents(document, props);
+	},
+
+	/**
+	 * Creates a reactive `Set`: a real `Set` that is also a
+	 * `Readable<ReadonlySet<T>>`. Mutators (`add`, `delete`, `clear`,
+	 * `toggle`) notify subscribers with an immutable snapshot, so derived
+	 * values, bindings, and props stay in sync with no copying on your side.
+	 *
+	 * ```ts
+	 * const selected = Implement.Set<string>();
+	 * Button({ onClick: () => selected.toggle(id) }, "Select");
+	 * Span(selected.bind((s) => `${s.size} selected`));
+	 * ```
+	 */
+	Set<T>(values?: Iterable<T> | null): ReactiveSet<T> {
+		return new ReactiveSet(values);
+	},
+
+	/**
+	 * Creates a reactive `Map`: a real `Map` that is also a
+	 * `Readable<ReadonlyMap<K, V>>`. Mutators (`set`, `delete`, `clear`)
+	 * notify subscribers with an immutable snapshot. `get(key)` reads an entry
+	 * (non-reactive); `get()` with no arguments is the readable's snapshot.
+	 *
+	 * ```ts
+	 * const drafts = Implement.Map<string, string>();
+	 * Span(drafts.bind((d) => d.get(id) ?? ""));
+	 * ```
+	 */
+	Map<K, V>(entries?: Iterable<readonly [K, V]> | null): ReactiveMap<K, V> {
+		return new ReactiveMap(entries);
 	},
 
 	Boundary,

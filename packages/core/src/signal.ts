@@ -309,6 +309,185 @@ export class Ref<T> extends Signal<T | null> {
 }
 
 /**
+ * A `Set` that is also a `Readable<ReadonlySet<T>>`, created via
+ * `Implement.Set(...)`. Mutators (`add`, `delete`, `clear`, `toggle`) notify
+ * subscribers with an immutable snapshot, so it plugs into `derived`, `watch`,
+ * bindings, and props like any other readable. Reads on the set itself
+ * (`has`, `size`, iteration) are plain non-reactive reads; reactive reads go
+ * through `get()` or `bind`.
+ *
+ * ```ts
+ * const selected = Implement.Set<string>();
+ * Button({ onClick: () => selected.toggle(id) });
+ * If(selected.bind((s) => s.has(id))).Then(...);
+ * ```
+ */
+export class ReactiveSet<T> extends Set<T> implements Readable<ReadonlySet<T>> {
+	private subscriberId: number = 0;
+	private subscribers: Map<number, Callback<ReadonlySet<T>>> = new Map();
+	private snapshot: ReadonlySet<T> | null = null;
+
+	constructor(values?: Iterable<T> | null) {
+		// seed through super.add: the overridden add must not run before field
+		// initializers have
+		super();
+		if (values) for (const value of values) super.add(value);
+	}
+
+	get(): ReadonlySet<T> {
+		return (this.snapshot ??= new Set(this));
+	}
+
+	private notify() {
+		this.snapshot = null;
+		if (this.subscribers.size === 0) return;
+		const snapshot = this.get();
+		for (const [_, notifyCallback] of this.subscribers) {
+			notifyCallback(snapshot);
+		}
+	}
+
+	add(value: T): this {
+		if (super.has(value)) return this;
+		super.add(value);
+		this.notify();
+		return this;
+	}
+
+	delete(value: T): boolean {
+		const deleted = super.delete(value);
+		if (deleted) this.notify();
+		return deleted;
+	}
+
+	clear(): void {
+		if (this.size === 0) return;
+		super.clear();
+		this.notify();
+	}
+
+	/** Adds `value` when absent, deletes it when present. Returns `true` when it ended up in the set. */
+	toggle(value: T): boolean {
+		if (this.delete(value)) return false;
+		this.add(value);
+		return true;
+	}
+
+	/** Notify subscribers with a fresh snapshot. Used after in-place mutation of a stored object. */
+	flush() {
+		this.notify();
+	}
+
+	subscribe(callback: Callback<ReadonlySet<T>>): Unsubscribe {
+		const id = ++this.subscriberId;
+		this.subscribers.set(id, callback);
+		return () => this.subscribers.delete(id);
+	}
+
+	onChange(callback: ChangeCallback<ReadonlySet<T>>): Unsubscribe {
+		return bindOnChange(this.get(), (cb) => this.subscribe(cb), callback);
+	}
+
+	bind<P extends BindableKeys<ReadonlySet<T>>>(path: P): Readable<BindPathValue<ReadonlySet<T>, P>>;
+	bind<U>(selector: (value: ReadonlySet<T>) => U): Readable<U>;
+	bind(keyOrSelector: PropertyKey | ((value: ReadonlySet<T>) => unknown)): Readable<unknown> {
+		if (typeof keyOrSelector === "function") return new Derived([this], keyOrSelector);
+		const path = String(keyOrSelector);
+		return new Derived([this], (value) => getAtPath(value, path));
+	}
+}
+
+/**
+ * A `Map` that is also a `Readable<ReadonlyMap<K, V>>`, created via
+ * `Implement.Map(...)`. Mutators (`set`, `delete`, `clear`) notify subscribers
+ * with an immutable snapshot, so it plugs into `derived`, `watch`, bindings,
+ * and props like any other readable. `get(key)` is the plain non-reactive
+ * `Map` read; `get()` with no arguments is the readable's snapshot read.
+ *
+ * ```ts
+ * const drafts = Implement.Map<string, string>();
+ * Input({ onInput: (ev) => drafts.set(id, ev.currentTarget.value) });
+ * Span(drafts.bind((d) => d.get(id) ?? ""));
+ * ```
+ */
+export class ReactiveMap<K, V> extends Map<K, V> implements Readable<ReadonlyMap<K, V>> {
+	private subscriberId: number = 0;
+	private subscribers: Map<number, Callback<ReadonlyMap<K, V>>> = new Map();
+	private snapshot: ReadonlyMap<K, V> | null = null;
+
+	constructor(entries?: Iterable<readonly [K, V]> | null) {
+		// seed through super.set: the overridden set must not run before field
+		// initializers have
+		super();
+		if (entries) for (const [key, value] of entries) super.set(key, value);
+	}
+
+	// the no-arg overload is last so `ReturnType<this["get"]>` (what
+	// `derived`/`subscribe` infer values from) is the snapshot type
+	get(key: K): V | undefined;
+	get(): ReadonlyMap<K, V>;
+	get(...args: [] | [key: K]): ReadonlyMap<K, V> | V | undefined {
+		if (args.length === 0) return (this.snapshot ??= new Map(this));
+		return super.get(args[0]);
+	}
+
+	private notify() {
+		this.snapshot = null;
+		if (this.subscribers.size === 0) return;
+		const snapshot = this.get();
+		for (const [_, notifyCallback] of this.subscribers) {
+			notifyCallback(snapshot);
+		}
+	}
+
+	set(key: K, value: V): this {
+		if (super.has(key) && Object.is(super.get(key), value)) return this;
+		super.set(key, value);
+		this.notify();
+		return this;
+	}
+
+	delete(key: K): boolean {
+		const deleted = super.delete(key);
+		if (deleted) this.notify();
+		return deleted;
+	}
+
+	clear(): void {
+		if (this.size === 0) return;
+		super.clear();
+		this.notify();
+	}
+
+	/** Notify subscribers with a fresh snapshot. Used after in-place mutation of a stored value. */
+	flush() {
+		this.notify();
+	}
+
+	subscribe(callback: Callback<ReadonlyMap<K, V>>): Unsubscribe {
+		const id = ++this.subscriberId;
+		this.subscribers.set(id, callback);
+		return () => this.subscribers.delete(id);
+	}
+
+	onChange(callback: ChangeCallback<ReadonlyMap<K, V>>): Unsubscribe {
+		return bindOnChange(this.get(), (cb) => this.subscribe(cb), callback);
+	}
+
+	bind<P extends BindableKeys<ReadonlyMap<K, V>>>(
+		path: P,
+	): Readable<BindPathValue<ReadonlyMap<K, V>, P>>;
+	bind<U>(selector: (value: ReadonlyMap<K, V>) => U): Readable<U>;
+	bind(keyOrSelector: PropertyKey | ((value: ReadonlyMap<K, V>) => unknown)): Readable<unknown> {
+		// never route through createBinding: `set(key, value)` duck-types as
+		// Writable but is not `Writable.set`
+		if (typeof keyOrSelector === "function") return new Derived([this], keyOrSelector);
+		const path = String(keyOrSelector);
+		return new Derived([this], (value) => getAtPath(value, path));
+	}
+}
+
+/**
  * Cached readable that watches sources only while it has subscribers (or until
  * {@link dispose}). Creating one inside a per-row factory no longer leaks a
  * source subscription when the row is discarded or unmounted.
