@@ -7,7 +7,7 @@ import {
 	Span,
 	Implement,
 	type Mountable,
-} from "@packages/implement";
+} from "@implementjs/core";
 import {
 	assigneeMenuItems,
 	labelMenuItems,

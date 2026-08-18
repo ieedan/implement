@@ -1,4 +1,4 @@
-import { A, Div, H1, Implement, P, type Mountable } from "@packages/implement";
+import { A, Div, H1, Implement, P, type Mountable } from "@implementjs/core";
 import { Link } from "../router";
 
 export function Home(): Mountable {
@@ -8,23 +8,15 @@ export function Home(): Mountable {
 			Implement.Head.Title("implement ~ A dead simple ui framework"),
 			Implement.Head.Meta({
 				name: "description",
-				content:
-					"A simple ergonomic ui framework without a compiler.",
+				content: "A simple ergonomic ui framework without a compiler.",
 			}),
 		),
 
 		H1({ class: "text-3xl font-semibold tracking-tight" }, "implement"),
-		P(
-			{ class: "text-foreground/60" },
-			"A simple ergonomic ui framework without a compiler.",
-		),
+		P({ class: "text-foreground/60" }, "A simple ergonomic ui framework without a compiler."),
 		Div(
 			{ class: "flex items-center gap-4" },
 			Link({ to: "/docs", class: "text-foreground underline underline-offset-4" }, "Read the docs"),
-			Link(
-				{ to: "/tutorial", class: "text-foreground underline underline-offset-4" },
-				"Start the tutorial",
-			),
 			A(
 				{
 					href: "https://github.com/ieedan/implement",

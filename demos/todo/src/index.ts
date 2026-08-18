@@ -12,11 +12,17 @@ import {
 	signal,
 	watch,
 	type Signal,
-} from "@packages/implement";
+} from "@implementjs/core";
 import { Api, type Todo } from "./api";
+import "../app.css";
 
 const api = new Api();
 const app = App({ target: document.body });
+
+if (import.meta.hot) {
+	import.meta.hot.accept();
+	import.meta.hot.dispose(app.unmount);
+}
 const TodosContext = Context<Signal<Todo[]>>();
 
 app.render(TodoApp());

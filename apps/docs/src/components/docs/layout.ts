@@ -1,13 +1,4 @@
-import {
-	A,
-	Aside,
-	derived,
-	Div,
-	Main,
-	Nav,
-	navigateTo,
-	type Mountable,
-} from "@packages/implement";
+import { A, Aside, derived, Div, Main, Nav, navigateTo, type Mountable } from "@implementjs/core";
 import { pages } from "../../lib/content";
 import { router } from "../../router";
 import { SiteHeader } from "../site-header";

@@ -7,7 +7,7 @@ order: 19
 `Implement.Window` and `Implement.Document` attach event listeners to the global objects for as long as they are mounted — the counterpart of Svelte's `<svelte:window>`/`<svelte:document>`. They render nothing.
 
 ```ts
-import { Implement } from "@packages/implement";
+import { Implement } from "@implementjs/core";
 
 Implement.Window({ onResize: relayout, onHashchange: onRoute });
 

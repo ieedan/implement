@@ -58,7 +58,7 @@ function Card(title: string, ...children: Child[]) {
 `Fragment` groups children without a wrapper element — handy when a component needs to return siblings:
 
 ```ts
-import { Fragment } from "@packages/implement";
+import { Fragment } from "@implementjs/core";
 
 function LabeledInput(label: string, value: Signal<string>) {
 	return Fragment({}, Label(label), Input({ value }));

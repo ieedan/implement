@@ -1,10 +1,8 @@
-import { derived, Header, Nav, type Mountable } from "@packages/implement";
+import { derived, Header, Nav, type Mountable } from "@implementjs/core";
 import { router } from "../router";
 
 function navClass(active: boolean): string {
-	return active
-		? "text-sm text-foreground"
-		: "text-sm text-foreground/50 hover:text-foreground";
+	return active ? "text-sm text-foreground" : "text-sm text-foreground/50 hover:text-foreground";
 }
 
 export function SiteHeader(): Mountable {
@@ -22,10 +20,7 @@ export function SiteHeader(): Mountable {
 		router.Link({ to: "/", class: "text-sm font-semibold tracking-tight" }, "implement"),
 		Nav(
 			{ class: "flex items-center gap-4" },
-			router.Link(
-				{ to: "/docs", class: derived([onDocs], (active) => navClass(active)) },
-				"Docs",
-			),
+			router.Link({ to: "/docs", class: derived([onDocs], (active) => navClass(active)) }, "Docs"),
 			router.Link(
 				{ to: "/tutorial", class: derived([onTutorial], (active) => navClass(active)) },
 				"Tutorial",

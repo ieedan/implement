@@ -7,7 +7,7 @@ order: 18
 `Implement.Head` renders head-only elements into `document.head`. The tags live there **for as long as the node is mounted**, so lifetime follows tree position: put one in a route's page and the tags swap on navigation; put one inside `If(open).Then(...)` and they exist while the branch shows.
 
 ```ts
-import { Implement } from "@packages/implement";
+import { Implement } from "@implementjs/core";
 
 function IssuePage(issue: Readable<Issue>) {
 	return Article(

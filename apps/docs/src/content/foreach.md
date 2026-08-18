@@ -7,7 +7,7 @@ order: 9
 `ForEach(items, getKey, render)` renders a list. The key function gives every item a stable identity, so updates reuse, reorder, and remove existing rows instead of rebuilding the list.
 
 ```ts
-import { ForEach, signal } from "@packages/implement";
+import { ForEach, signal } from "@implementjs/core";
 
 const todos = signal([
 	{ id: 1, title: "Ship docs", done: false },

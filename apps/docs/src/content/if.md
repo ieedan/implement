@@ -7,7 +7,7 @@ order: 7
 `If` mounts children while a condition holds and unmounts them when it stops. Branches chain with `ElseIf` and `Else`; the first branch whose condition holds is mounted.
 
 ```ts
-import { If } from "@packages/implement";
+import { If } from "@implementjs/core";
 
 If(loggedIn, Profile()).Else(LoginForm());
 

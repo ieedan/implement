@@ -7,7 +7,7 @@ order: 4
 A signal is a container for a value that notifies subscribers when the value changes.
 
 ```ts
-import { signal } from "@packages/implement";
+import { signal } from "@implementjs/core";
 
 const count = signal(0);
 
@@ -30,7 +30,7 @@ Two interfaces describe capability:
 The guards `isReadable(value)` and `isWritable(value)` are exported for writing "plain value or signal" APIs of your own:
 
 ```ts
-import { isReadable, type Readable } from "@packages/implement";
+import { isReadable, type Readable } from "@implementjs/core";
 
 function Price(amount: number | Readable<number>) {
 	const text = isReadable(amount) ? amount.bind((a) => format(a)) : format(amount);

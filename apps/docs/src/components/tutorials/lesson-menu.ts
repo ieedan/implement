@@ -10,7 +10,7 @@ import {
 	Span,
 	type Mountable,
 	type Writable,
-} from "@packages/implement";
+} from "@implementjs/core";
 import type { Tutorial } from "../../lib/content";
 import { tutorialSections } from "../../lib/tutorials";
 
@@ -83,11 +83,9 @@ export function LessonMenu(open: Writable<boolean>, current: Tutorial): Mountabl
 												? "bg-foreground/10 text-foreground"
 												: "text-foreground/60 hover:text-foreground",
 										],
-										"aria-current":
-											lesson.permalink === current.permalink ? "page" : undefined,
+										"aria-current": lesson.permalink === current.permalink ? "page" : undefined,
 										onClick(event) {
-											if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-												return;
+											if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 											if (event.button !== 0) return;
 											event.preventDefault();
 											open.set(false);

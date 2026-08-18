@@ -1,4 +1,4 @@
-import { Div, Span, type Mountable } from "@packages/implement";
+import { Div, Span, type Mountable } from "@implementjs/core";
 import { router } from "../router";
 
 /** Router fallback. Rendered without the app shell — fallbacks bypass layouts. */

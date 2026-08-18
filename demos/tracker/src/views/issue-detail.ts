@@ -14,7 +14,7 @@ import {
 	type Child,
 	type Mountable,
 	type Readable,
-} from "@packages/implement";
+} from "@implementjs/core";
 import type { Comment, Issue } from "../api";
 import {
 	assigneeMenuItems,

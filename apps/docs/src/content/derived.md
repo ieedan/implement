@@ -9,7 +9,7 @@ order: 5
 `derived(signals, getter)` creates a read-only value computed from one or more sources. The getter receives the current value of each source, in order:
 
 ```ts
-import { derived, signal } from "@packages/implement";
+import { derived, signal } from "@implementjs/core";
 
 const first = signal("Ada");
 const last = signal("Lovelace");
@@ -51,7 +51,7 @@ const count = open.bind((list) => list.length);
 `watch(signals, effect)` runs the effect **immediately** with the current values, then again whenever any source changes. It returns an unsubscribe function:
 
 ```ts
-import { watch } from "@packages/implement";
+import { watch } from "@implementjs/core";
 
 const stop = watch([theme], (t) => {
 	document.documentElement.dataset.theme = t;

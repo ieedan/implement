@@ -5,8 +5,8 @@
 	"description": "",
 	"type": "module",
 	"scripts": {
-		"dev": "pnpm --filter @packages/implement --filter @demos/todo --parallel dev",
-		"dev:docs": "pnpm --filter @packages/implement --filter @apps/docs --parallel dev",
+		"dev": "pnpm --filter @demos/todo dev",
+		"dev:docs": "pnpm --filter @apps/docs dev",
 		"build": "pnpm -r build",
 		"check": "pnpm -r check",
 		"generate": "pnpm -r generate",

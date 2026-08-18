@@ -7,7 +7,7 @@ order: 8
 `Switch` mounts the first `Case` whose value equals the subject, falling back to `Default`. Where [`If`](/docs/if) evaluates conditions, `Switch` matches values.
 
 ```ts
-import { Switch } from "@packages/implement";
+import { Switch } from "@implementjs/core";
 
 type Status = "todo" | "in-progress" | "done";
 const status = signal<Status>("todo");

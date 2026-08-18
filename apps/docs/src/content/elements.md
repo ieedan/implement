@@ -7,7 +7,7 @@ order: 2
 Every HTML element has a factory named after its tag: `Div`, `Span`, `Button`, `Input`, `A`, `Table`, and so on — all 100+ of them, exported from the package root.
 
 ```ts
-import { A, Button, Div, Input, P } from "@packages/implement";
+import { A, Button, Div, Input, P } from "@implementjs/core";
 ```
 
 A factory takes an optional props object first, then children:
@@ -96,7 +96,7 @@ Passing a read-only `Readable` (or a plain value) makes the same props one-way. 
 The `this` prop binds the mounted DOM node into a `Ref` (a writable signal that starts as `null`):
 
 ```ts
-import { Ref } from "@packages/implement";
+import { Ref } from "@implementjs/core";
 
 const input = new Ref<HTMLInputElement>();
 
@@ -118,7 +118,7 @@ Span({ textContent: label });
 `element(tag)` builds a factory for any tag name in `HTMLElementTagNameMap` — it is how the built-in factories are generated — and `component(tag, props, ...children)` is the underlying call they all delegate to:
 
 ```ts
-import { component, element } from "@packages/implement";
+import { component, element } from "@implementjs/core";
 
 const Custom = element("my-element" as keyof HTMLElementTagNameMap);
 const search = component("input", { type: "search" });

@@ -1,4 +1,4 @@
-import { Router } from "@packages/implement";
+import { Router } from "@implementjs/core";
 import { docsRoutes } from "./lib/docs-routes";
 import { tutorialRoutes } from "./lib/tutorial-routes";
 import { Home } from "./views/home";

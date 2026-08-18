@@ -11,6 +11,13 @@ const markdown = s.object({
 	content: s.markdown(),
 });
 
+function stripOrderPrefixes(path: string): string {
+	return path
+		.split("/")
+		.map((segment) => segment.replace(/^\d+_/, ""))
+		.join("/");
+}
+
 function toPermalink(fileSlug: string, prefix: string, folder?: string) {
 	let slug = fileSlug;
 	if (folder != null) {
@@ -18,6 +25,7 @@ function toPermalink(fileSlug: string, prefix: string, folder?: string) {
 		else if (slug.startsWith(`${folder}/`)) slug = slug.slice(folder.length + 1);
 	}
 	slug = slug === "index" ? "" : slug.replace(/\/index$/, "");
+	slug = stripOrderPrefixes(slug);
 	return {
 		slug,
 		permalink: slug === "" ? prefix : `${prefix}/${slug}`,
@@ -62,8 +70,9 @@ export default defineConfig({
 	strict: true,
 	output: {
 		data: ".velite",
-		assets: "dist/static",
-		base: "/dist/static/",
+		// Vite copies public/ into dist on build (dist itself is wiped by every build).
+		assets: "public/static",
+		base: "/static/",
 		clean: true,
 	},
 	collections: { pages, tutorials },

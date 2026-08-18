@@ -1,4 +1,4 @@
-import { derived, Div, If, type Mountable, type Readable } from "@packages/implement";
+import { derived, Div, If, type Mountable, type Readable } from "@implementjs/core";
 import type { User } from "../../api";
 import { cx } from "../../lib/cx";
 import { Icon } from "./icon";

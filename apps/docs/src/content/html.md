@@ -7,7 +7,7 @@ order: 16
 `Html(markup)` parses an HTML string and inserts the resulting nodes in place. Unlike setting `innerHTML` on a parent, it inserts _siblings_ between anchors, so surrounding children are untouched:
 
 ```ts
-import { Html } from "@packages/implement";
+import { Html } from "@implementjs/core";
 
 Article(H1(post.bind("title")), Div({ class: "prose" }, Html(post.get().renderedBody)));
 ```

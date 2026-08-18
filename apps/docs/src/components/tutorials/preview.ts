@@ -1,4 +1,4 @@
-import { watch, type IMountable, type Mountable, type Readable } from "@packages/implement";
+import { watch, type IMountable, type Mountable, type Readable } from "@implementjs/core";
 import { runLesson } from "../../lib/run-lesson";
 
 function toErrorMessage(error: unknown): string {

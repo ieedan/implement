@@ -1,4 +1,4 @@
-import { Article, Div, H1, Html, Implement, P, type Mountable } from "@packages/implement";
+import { Article, Div, H1, Html, Implement, P, type Mountable } from "@implementjs/core";
 import type { Page } from "../lib/content";
 
 export function DocsPage(page: Page): Mountable {

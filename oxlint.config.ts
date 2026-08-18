@@ -16,7 +16,7 @@ export default defineConfig({
 	ignorePatterns: ["dist/**", "demos/*/src/api/**", ".velite/**"],
 	overrides: [
 		{
-			files: ["packages/implement/scripts/**/*.ts", "demos/*/server/**/*.ts"],
+			files: ["packages/core/scripts/**/*.ts", "demos/*/server/**/*.ts"],
 			env: {
 				node: true,
 			},

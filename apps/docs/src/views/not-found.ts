@@ -1,4 +1,4 @@
-import { Div, P, Span, type Mountable } from "@packages/implement";
+import { Div, P, Span, type Mountable } from "@implementjs/core";
 import { router } from "../router";
 
 export function NotFound(): Mountable {

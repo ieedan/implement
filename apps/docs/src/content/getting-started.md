@@ -4,7 +4,7 @@ description: Set up a project and render your first component.
 order: 1
 ---
 
-implement is not published to a package registry yet. It lives in the [`ieedan/implement`](https://github.com/ieedan/implement) monorepo as the workspace package `@packages/implement`, and apps consume it as a workspace dependency.
+implement is not published to a package registry yet. It lives in the [`ieedan/implement`](https://github.com/ieedan/implement) monorepo as the workspace package `@implementjs/core`, and apps consume it as a workspace dependency.
 
 ## Run the repo
 
@@ -12,8 +12,8 @@ implement is not published to a package registry yet. It lives in the [`ieedan/i
 git clone https://github.com/ieedan/implement.git
 cd implement
 pnpm install
-pnpm dev       # runs the framework in watch mode + the todo demo
-pnpm dev:docs  # runs the framework in watch mode + this docs site
+pnpm dev       # runs the todo demo (Vite + its API server)
+pnpm dev:docs  # runs this docs site (Vite + Velite in watch mode)
 ```
 
 The `demos/` directory contains complete apps (a todo app and a Linear-style issue tracker) that exercise most of the framework.
@@ -26,19 +26,19 @@ Create a package under `apps/` or `demos/` and depend on the framework with the 
 // package.json
 {
 	"dependencies": {
-		"@packages/implement": "workspace:*"
+		"@implementjs/core": "workspace:*"
 	}
 }
 ```
 
-There is no dev server package — the demos bundle with `tsdown`, style with Tailwind, and serve `index.html` statically. Any bundler that resolves workspace packages works.
+The demos are [Vite](https://vite.dev) apps: `vite` serves `index.html` in dev (Tailwind runs through `@tailwindcss/vite`), and `vite build` produces a static `dist/`. Hot module replacement is a [four-line block in the entry](/docs/vite). The package exports point at its TypeScript source, so any bundler that resolves workspace packages works — no framework build step is involved.
 
 ## Your first component
 
 An app needs three things: an element to mount into, an `App`, and something to render.
 
 ```ts
-import { App, Button, Div, H1, signal } from "@packages/implement";
+import { App, Button, Div, H1, signal } from "@implementjs/core";
 
 const app = App({ target: document.getElementById("root")! });
 
@@ -59,7 +59,7 @@ With an `index.html` like:
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<script type="module" src="./dist/index.mjs"></script>
+		<script type="module" src="/src/index.ts"></script>
 	</head>
 	<body id="root"></body>
 </html>

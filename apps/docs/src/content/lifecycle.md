@@ -7,7 +7,7 @@ order: 13
 `Implement.Lifecycle` runs hooks when its position in the tree mounts and unmounts. Standalone it renders nothing and tracks its own lifecycle; given children it owns them, so the hooks fire with the wrapped subtree's lifecycle.
 
 ```ts
-import { Implement } from "@packages/implement";
+import { Implement } from "@implementjs/core";
 
 // standalone: focus the dialog's input once it's on screen
 Implement.Lifecycle({

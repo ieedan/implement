@@ -7,7 +7,7 @@ order: 14
 `Implement.Boundary` isolates failures: when something in its subtree throws, the boundary swaps in its `Catch` branch instead of letting the error take down the app.
 
 ```ts
-import { Implement } from "@packages/implement";
+import { Implement } from "@implementjs/core";
 
 Implement.Boundary(IssuePage(id)).Catch((error, reset) =>
 	Div(P(error.message), Button({ onClick: reset }, "Retry")),

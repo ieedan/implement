@@ -1,6 +1,6 @@
 # Tracker
 
-A Linear-style issue tracker built on `@packages/implement` to exercise the
+A Linear-style issue tracker built on `@implementjs/core` to exercise the
 router end to end: typed route params as `Readable`s, typed
 `Link`/`href`/`navigate`, a root layout that survives navigation, in-place
 param patching, and URL-synced search.
@@ -14,8 +14,8 @@ Findings from building it live at the repo root in
 pnpm --filter @demos/tracker dev
 ```
 
-- App: http://localhost:3003 (served with `serve -s` so deep links like
-  `/issues/:id` reload correctly)
+- App: http://localhost:3003 (Vite dev server; its SPA fallback makes deep
+  links like `/issues/:id` reload correctly)
 - API: http://localhost:4003 (OpenAPI doc at `/openapi.json`)
 
 The API is Hono + zod-openapi over `node:sqlite`. Delete

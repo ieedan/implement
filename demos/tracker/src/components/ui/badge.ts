@@ -1,4 +1,4 @@
-import { Span, type Mountable, type Readable } from "@packages/implement";
+import { Span, type Mountable, type Readable } from "@implementjs/core";
 import type { Label } from "../../api";
 
 /** Pill with the label's color dot and name, tracking a readable label. */

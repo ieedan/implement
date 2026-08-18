@@ -1,4 +1,4 @@
-import { Div, Implement, type Child, type Mountable } from "@packages/implement";
+import { Div, Implement, type Child, type Mountable } from "@implementjs/core";
 import { Sidebar } from "../components/sidebar";
 import { createDialogOpen, openCreateDialog } from "../state/ui";
 import { CreateIssueDialog } from "./create-issue";

@@ -1,6 +1,6 @@
 # Missing
 
-What `@packages/implement` does not have yet, compiled while building the router
+What `@implementjs/core` does not have yet, compiled while building the router
 and `demos/tracker` (a Linear-style issue tracker: routed list/detail
 views, dropdown menus, a modal dialog, inline editing, comments). Roughly
 ordered by how much each one hurt. Sharp edges on things that _do_ exist are
@@ -110,9 +110,17 @@ No headless renderer, so none of tracker is tested except by clicking.
 The router's matching/param logic is pure and would unit-test trivially if
 mounting didn't require a real DOM.
 
-## 11. Dev loop
+## 11. Dev loop **(fixed)**
 
-Four processes (tsdown, tailwind, static server, API) and full manual
-reloads. Every demo copies the same scaffold with only ports changed,
-including generalizing the `serve` invocation to `-s` for SPA fallback. A
-`create-app` template or dev-server package would end the copying.
+Was four processes (tsdown, tailwind, static server, API) and full manual
+reloads per demo. The apps are Vite projects now: one `vite` process serves
+`index.html` with SPA fallback, compiles the framework straight from its
+workspace source, and runs Tailwind through `@tailwindcss/vite` — only the
+API server runs alongside. HMR is a four-line `import.meta.hot` block in
+each entry (Vite requires the `accept` call to be statically present
+there): the app tracks every root it renders and `app.unmount` tears
+them down in the entry's dispose hook before the entry re-executes, so
+edits patch the page without a reload. `vite
+build` emits a hashed static `dist/` per app. Still open: every demo
+copies the same scaffold with only ports changed — a `create-app` template
+would end the copying.

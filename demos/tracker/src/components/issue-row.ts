@@ -7,7 +7,7 @@ import {
 	Span,
 	type Mountable,
 	type Readable,
-} from "@packages/implement";
+} from "@implementjs/core";
 import type { Issue, Label } from "../api";
 import { cx } from "../lib/cx";
 import { PRIORITY_META, STATUS_META } from "../lib/meta";

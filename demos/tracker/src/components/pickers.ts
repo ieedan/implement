@@ -1,4 +1,4 @@
-import { derived, isReadable, Span, type Readable } from "@packages/implement";
+import { derived, isReadable, Span, type Readable } from "@implementjs/core";
 import type { Priority, Status } from "../api";
 import { PRIORITY_META, PRIORITY_ORDER, STATUS_META, STATUS_ORDER } from "../lib/meta";
 import { labels, users } from "../state/store";
