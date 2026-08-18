@@ -1,25 +1,60 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import rehypeShiki from "@shikijs/rehype";
-import { defineCollection, defineConfig, s } from "velite";
+import { context, defineCollection, defineConfig, s } from "velite";
+
+const markdown = s.object({
+	title: s.string().max(99),
+	description: s.string().max(999),
+	order: s.number().optional(),
+	slug: s.path(),
+	content: s.markdown(),
+});
+
+function toPermalink(fileSlug: string, prefix: string, folder?: string) {
+	let slug = fileSlug;
+	if (folder != null) {
+		if (slug === folder) slug = "index";
+		else if (slug.startsWith(`${folder}/`)) slug = slug.slice(folder.length + 1);
+	}
+	slug = slug === "index" ? "" : slug.replace(/\/index$/, "");
+	return {
+		slug,
+		permalink: slug === "" ? prefix : `${prefix}/${slug}`,
+	};
+}
+
+function readSibling(filename: string): string {
+	const filePath = context().file.path;
+	try {
+		return readFileSync(join(dirname(filePath), filename), "utf8");
+	} catch {
+		throw new Error(`Missing ${filename} next to ${filePath}`);
+	}
+}
 
 const pages = defineCollection({
 	name: "Page",
-	pattern: "**/*.md",
-	schema: s
-		.object({
-			title: s.string().max(99),
-			description: s.string().max(999),
-			order: s.number().optional(),
-			slug: s.path(),
-			content: s.markdown(),
+	pattern: ["**/*.md", "!lessons/**"],
+	schema: markdown.transform((data) => ({
+		...data,
+		...toPermalink(data.slug, "/docs"),
+	})),
+});
+
+const tutorials = defineCollection({
+	name: "Tutorial",
+	pattern: "lessons/**/*.md",
+	schema: markdown
+		.extend({
+			section: s.string().max(99),
 		})
-		.transform((data) => {
-			const slug = data.slug === "index" ? "" : data.slug.replace(/\/index$/, "");
-			return {
-				...data,
-				slug,
-				permalink: slug === "" ? "/docs" : `/docs/${slug}`,
-			};
-		}),
+		.transform((data) => ({
+			...data,
+			code: readSibling("code.ts"),
+			solution: readSibling("solution.ts"),
+			...toPermalink(data.slug, "/tutorial", "lessons"),
+		})),
 });
 
 export default defineConfig({
@@ -32,7 +67,7 @@ export default defineConfig({
 		base: "/static/",
 		clean: true,
 	},
-	collections: { pages },
+	collections: { pages, tutorials },
 	markdown: {
 		rehypePlugins: [
 			[
@@ -48,5 +83,6 @@ export default defineConfig({
 	},
 	prepare(data) {
 		data.pages.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.tutorials.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 	},
 });

@@ -1,1 +1,1 @@
-export { pages, type Page } from "../../.velite";
+export { pages, tutorials, type Page, type Tutorial } from "../../.velite";
