@@ -88,6 +88,8 @@ export {
 	type BindUpdate,
 	type Derived,
 	type Readable,
+	type ReactiveMap,
+	type ReactiveSet,
 	type Signal,
 	type Writable,
 } from "./signal";

@@ -15,6 +15,10 @@ export const icons = {
 	terminal: svg(`<path d="M3 5l3 3-3 3M8.5 11.5H13" ${stroke}/>`),
 	ban: svg(`<circle cx="8" cy="8" r="5.5" ${stroke}/><path d="M4.2 11.8l7.6-7.6" ${stroke}/>`),
 	close: svg(`<path d="M4 4l8 8M12 4l-8 8" ${stroke}/>`),
-	panelRight: svg(`<rect x="2.5" y="3" width="11" height="10" rx="1.5" ${stroke}/><path d="M9.5 3v10" ${stroke}/>`),
-	panelBottom: svg(`<rect x="2.5" y="3" width="11" height="10" rx="1.5" ${stroke}/><path d="M2.5 9.5h11" ${stroke}/>`),
+	panelRight: svg(
+		`<rect x="2.5" y="3" width="11" height="10" rx="1.5" ${stroke}/><path d="M9.5 3v10" ${stroke}/>`,
+	),
+	panelBottom: svg(
+		`<rect x="2.5" y="3" width="11" height="10" rx="1.5" ${stroke}/><path d="M2.5 9.5h11" ${stroke}/>`,
+	),
 };

@@ -149,10 +149,7 @@ export function DocsLayout(child: Mountable): Mountable {
 		),
 		Div(
 			{ class: "mx-auto flex w-full max-w-5xl flex-1" },
-			Aside(
-				{ class: "hidden w-56 shrink-0 border-r border-border py-6 pr-4 md:block" },
-				DocsNav(),
-			),
+			Aside({ class: "hidden w-56 shrink-0 border-r border-border py-6 pr-4 md:block" }, DocsNav()),
 			Main({ class: "min-w-0 flex-1 px-4 py-6 sm:px-6 md:px-8" }, child),
 		),
 		DocsMenu(menuOpen),

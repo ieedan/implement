@@ -10,8 +10,5 @@ function fetchGreeting(): Promise<string> {
 export default function App() {
 	const greeting = fetchGreeting();
 
-	return Div(
-		H1("Await"),
-		P("Render the greeting here"),
-	);
+	return Div(H1("Await"), P("Render the greeting here"));
 }

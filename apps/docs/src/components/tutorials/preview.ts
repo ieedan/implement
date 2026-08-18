@@ -1,4 +1,10 @@
-import { watch, type IMountable, type Mountable, type Readable, type Signal } from "@implementjs/core";
+import {
+	watch,
+	type IMountable,
+	type Mountable,
+	type Readable,
+	type Signal,
+} from "@implementjs/core";
 import {
 	CONSOLE_LEVELS,
 	formatConsoleArgs,
@@ -8,7 +14,6 @@ import {
 	getErrorStack,
 	parseStack,
 	type ConsoleEntry,
-	type ConsoleLevel,
 } from "../../lib/console-format";
 import { runLesson } from "../../lib/run-lesson";
 import frameCss from "./preview-frame.css?inline";

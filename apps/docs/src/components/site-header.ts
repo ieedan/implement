@@ -29,10 +29,7 @@ export function SiteHeader(): Mountable {
 				{ to: "/tutorial", class: derived([onTutorial], (active) => navClass(active)) },
 				"Tutorial",
 			),
-			router.Link(
-				{ to: "/repl", class: derived([onRepl], (active) => navClass(active)) },
-				"REPL",
-			),
+			router.Link({ to: "/repl", class: derived([onRepl], (active) => navClass(active)) }, "REPL"),
 		),
 	);
 }
