@@ -58,7 +58,7 @@ export function AccordionTrigger(
 			...children,
 			Svg(chevronDown, {
 				"aria-hidden": true,
-				class: "pointer-events-none size-4 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200",
+				class: "pointer-events-none size-4 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 ease-in-out",
 			}),
 		),
 	);
@@ -72,8 +72,9 @@ export function AccordionContent(
 		{
 			...props,
 			"data-slot": "accordion-content",
-			class: "overflow-hidden text-sm",
+			class:
+				"grid grid-rows-[0fr] text-sm transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none data-[state=open]:grid-rows-[1fr] [&[hidden]]:!grid",
 		},
-		Div({ class: ["pt-0 pb-4", className] }, ...children),
+		Div({ class: ["min-h-0 overflow-hidden pt-0 pb-4", className] }, ...children),
 	);
 }

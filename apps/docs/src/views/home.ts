@@ -1,10 +1,4 @@
 import { A, Div, H1, Implement, P, type Mountable } from "@implementjs/core";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "../components/ui/accordion";
 import { Link } from "../router";
 
 export function Home(): Mountable {
@@ -30,25 +24,6 @@ export function Home(): Mountable {
 					class: "text-foreground/60 hover:underline underline-offset-4",
 				},
 				"View on GitHub →",
-			),
-		),
-
-		Accordion(
-			{ type: "multiple" },
-			AccordionItem(
-				{ value: "1" },
-				AccordionTrigger({}, "Accordion Item 1"),
-				AccordionContent({}, "Accordion Content 1"),
-			),
-			AccordionItem(
-				{ value: "2" },
-				AccordionTrigger({}, "Accordion Item 2"),
-				AccordionContent({}, "Accordion Content 2"),
-			),
-			AccordionItem(
-				{ value: "3" },
-				AccordionTrigger({}, "Accordion Item 3"),
-				AccordionContent({}, "Accordion Content 3"),
 			),
 		),
 	);
