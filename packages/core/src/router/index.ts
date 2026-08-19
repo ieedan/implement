@@ -241,7 +241,7 @@ class Outlet {
 		this.#node = {
 			mount: (parent: HTMLElement) => {
 				this.#parent = parent;
-				parent.appendChild(this.#endMarker);
+				dom.attach(parent, this.#endMarker);
 				this.#render();
 			},
 			unmount: () => {

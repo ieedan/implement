@@ -111,7 +111,7 @@ export function Switch<T>(
 					clear();
 					showing = null;
 					parent = p;
-					parent.appendChild(endMarker);
+					dom.attach(parent, endMarker);
 					unsubscribe = subscribe(signals, (...values: unknown[]) =>
 						guarded(node, () => reconcile(...values)),
 					);

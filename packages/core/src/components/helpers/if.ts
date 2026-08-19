@@ -152,7 +152,7 @@ export function If(condition: IfCondition, getterOrChild?: unknown, ...rest: Chi
 					clear();
 					showing = null;
 					parent = p;
-					parent.appendChild(endMarker);
+					dom.attach(parent, endMarker);
 					unsubscribe = subscribe(
 						branches.flatMap((branch) => branch.signals),
 						() => guarded(node, reconcile),

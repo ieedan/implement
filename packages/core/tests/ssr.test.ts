@@ -138,7 +138,7 @@ describe("helpers", () => {
 
 	it("splats trusted Html verbatim", () => {
 		const { html } = renderToString(Div(Html("<b>bold</b> & raw")));
-		expect(html).toBe("<div><!----><b>bold</b> & raw<!----></div>");
+		expect(html).toBe("<div><!--html--><b>bold</b> & raw<!--/html--></div>");
 	});
 
 	it("renders Svg with props overriding source attributes", () => {
@@ -149,7 +149,7 @@ describe("helpers", () => {
 			}),
 		);
 		expect(html).toBe(
-			'<!----><svg viewBox="0 0 16 16" class="icon" stroke-width="2"><path d="M0 0h16"/></svg>',
+			'<!--svg--><svg viewBox="0 0 16 16" class="icon" stroke-width="2"><path d="M0 0h16"/></svg>',
 		);
 	});
 
@@ -166,7 +166,7 @@ describe("helpers", () => {
 		);
 		expect(html).toBe("<div><p>content</p></div>");
 		expect(head).toBe(
-			'<title>My Page &amp; Co</title><meta name="description" content="words"><style>body { margin: 0; }</style>',
+			'<title>My Page &amp; Co</title><meta name="description" content="words" data-ssr><style data-ssr>body { margin: 0; }</style>',
 		);
 	});
 

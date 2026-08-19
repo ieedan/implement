@@ -68,6 +68,10 @@ export function renderToString(
 			mountChild(instance, doc.body as unknown as HTMLElement);
 		}
 		const html = serializeChildren(doc.body);
+		// marked so the client sweeps them once its own Head content mounts
+		for (const child of doc.head.childNodes) {
+			if ("setAttribute" in child) child.setAttribute("data-ssr", "");
+		}
 		const title = doc.title === "" ? "" : `<title>${escapeText(doc.title)}</title>`;
 		return { html, head: title + serializeChildren(doc.head) };
 	} finally {

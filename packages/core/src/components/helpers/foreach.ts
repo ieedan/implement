@@ -237,7 +237,7 @@ export function ForEach<T>(
 				rendered.clear();
 
 				parent = p;
-				parent.appendChild(endMarker);
+				dom.attach(parent, endMarker);
 				unsubscribe = subscribe(signals, () => guarded(node, reconcile));
 			},
 			unmount() {

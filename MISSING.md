@@ -153,8 +153,18 @@ explicit routes. The app supplies `src/entry-server.ts` exporting
 `render(url)`; `App.render` swaps `[data-ssr]` markup for the client mount
 in one task, preserving scroll. The docs app is the live consumer.
 
-**Hydration is NOT implemented.** The client cannot adopt server markup: it
-mounts its own tree from scratch, so server HTML is throwaway paint —
-useful for crawlers and first contentful paint, not for preserving state or
-avoiding the client-side remount. No async rendering or streaming either;
-data must be resolved before render or arrive after the client mounts.
+**Hydration (tier 2) is implemented.** `App.render` adopts `[data-ssr]`
+markup in place: the server serialized the exact arrangement the mount
+algorithm converges to, so the client replays its normal mount with
+element/text creation going through a claim cursor (`src/hydrate.ts`) —
+listeners and subscriptions attach to the nodes already on screen, adjacent
+text claims by splitting, `Html`/`Svg` adopt their serialized blocks via
+tagged comments, and helper anchors are recreated at the cursor so every
+`syncDomOrder` pass converges to the fresh-mount arrangement. Any
+structural mismatch (client state diverged from the server render, e.g. the
+REPL's persisted editor code) logs a warning and falls back to
+discard-and-remount — tier-1 behavior. Caveats: renders must be
+deterministic to hydrate; input typed before hydration is overwritten when
+`value` re-applies; and there is still no async data story — `Await`
+hydrates its pending branch and refetches on the client (the data/query
+layer owns serialization when it lands).

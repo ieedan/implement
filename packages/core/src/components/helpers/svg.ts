@@ -1,4 +1,5 @@
 import { dom } from "../../dom";
+import { claimComment } from "../../hydrate";
 import { isReadable, subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import { applySvgProps, type Bindable, type SvgProps } from "../props";
@@ -19,7 +20,7 @@ export type { SvgProps } from "../props";
  */
 export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 	return () => {
-		const anchor = dom.createComment("");
+		let anchor: Comment | null = null;
 		let element: SVGSVGElement | null = null;
 		let unsubscribeProps: Unsubscribe | null = null;
 		let unsubscribeSource: Unsubscribe | null = null;
@@ -33,7 +34,8 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 		};
 
 		const apply = (value: string) => {
-			if (!anchor.parentNode) return;
+			if (!anchor?.parentNode) return;
+			// during hydration this claims the serialized <svg> already in place
 			const next = dom.createSvgRoot(value);
 			clear();
 			if (!next) return;
@@ -48,8 +50,15 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 				unsubscribeSource?.();
 				unsubscribeSource = null;
 				clear();
-				anchor.remove();
-				parent.appendChild(anchor);
+				if (anchor) {
+					anchor.remove();
+					parent.appendChild(anchor);
+				} else {
+					// the anchor's position carries the element (no sync pass here),
+					// so hydration must adopt the serialized anchor, not append one
+					anchor = claimComment("svg") ?? dom.createComment("svg");
+					dom.attach(parent, anchor);
+				}
 				if (typeof source === "string") {
 					apply(source);
 				} else {
@@ -60,11 +69,11 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 				unsubscribeSource?.();
 				unsubscribeSource = null;
 				clear();
-				anchor.remove();
+				anchor?.remove();
 			},
 			getFirstDomNode() {
 				if (element) return element;
-				return anchor.isConnected ? anchor : null;
+				return anchor?.isConnected ? anchor : null;
 			},
 		};
 	};

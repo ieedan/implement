@@ -166,7 +166,7 @@ export function Await<T>(
 					clear();
 					showing = null;
 					parent = p;
-					parent.appendChild(endMarker);
+					dom.attach(parent, endMarker);
 					if (readable) {
 						unsubscribe = subscribe([source], (next) => follow(next));
 					}

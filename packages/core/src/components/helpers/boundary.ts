@@ -104,7 +104,7 @@ export function Boundary(...children: Child[]): BoundaryHelper {
 				mount(p: HTMLElement) {
 					clear();
 					parent = p;
-					parent.appendChild(endMarker);
+					dom.attach(parent, endMarker);
 					registerBoundary(node, fail);
 					reset();
 				},

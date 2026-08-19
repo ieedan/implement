@@ -103,7 +103,7 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 					unsubscribe?.();
 					clear();
 					parent = p;
-					parent.appendChild(endMarker);
+					dom.attach(parent, endMarker);
 					const signals: Readable<unknown>[] = [];
 					if (isReadable(to)) signals.push(to);
 					if (isReadable(disabled)) signals.push(disabled);

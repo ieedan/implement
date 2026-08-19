@@ -62,7 +62,7 @@ export function Key(
 				unsubscribe?.();
 				clear();
 				parent = p;
-				parent.appendChild(endMarker);
+				dom.attach(parent, endMarker);
 				unsubscribe = subscribe(signals, () => guarded(node, remount));
 			},
 			unmount() {

@@ -1,3 +1,5 @@
+import { attachAtCursor, claimElement, claimSvgRoot, claimText, wasClaimed } from "./hydrate";
+
 /**
  * The DOM factory surface core mounts through. The browser environment
  * delegates to the real `document`; the server render installs a structural
@@ -71,16 +73,28 @@ export function installDomEnvironment(environment: DomEnvironment): () => void {
 	};
 }
 
-/** Stable facade so call sites survive an environment swap mid-lifetime. */
-export const dom: DomEnvironment = {
-	createElement: (tag) => active.createElement(tag),
-	createTextNode: (data) => active.createTextNode(data),
+/**
+ * Stable facade so call sites survive an environment swap mid-lifetime.
+ * During a hydration pass, element/text/svg creation first tries to claim the
+ * next serialized node; comments are always created fresh (server anchors are
+ * swept when the pass ends).
+ */
+export const dom: DomEnvironment & {
+	/** Append `node`, unless hydration already adopted it in place. */
+	attach(parent: HTMLElement, node: Node): void;
+} = {
+	createElement: (tag) => claimElement(tag) ?? active.createElement(tag),
+	createTextNode: (data) => claimText(data) ?? active.createTextNode(data),
 	createComment: (data) => active.createComment(data),
+	attach: (parent, node) => {
+		if (wasClaimed(node)) return;
+		if (!attachAtCursor(parent, node)) parent.appendChild(node);
+	},
 	head: () => active.head(),
 	body: () => active.body(),
 	setTitle: (value) => active.setTitle(value),
 	windowTarget: () => active.windowTarget(),
 	documentTarget: () => active.documentTarget(),
 	insertHtml: (html, parent, before) => active.insertHtml(html, parent, before),
-	createSvgRoot: (source) => active.createSvgRoot(source),
+	createSvgRoot: (source) => claimSvgRoot() ?? active.createSvgRoot(source),
 };
