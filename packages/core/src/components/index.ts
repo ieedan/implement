@@ -192,13 +192,24 @@ export function App(options: { target: HTMLElement }) {
 	const roots = new Set<() => void>();
 
 	return {
-		/** Mounts `children` into the target and returns an unmount function. */
+		/**
+		 * Mounts `children` into the target and returns an unmount function.
+		 * Server-rendered markup in the target (a `[data-ssr]` element) is
+		 * swapped for the fresh mount in the same task — the browser never
+		 * paints in between — restoring scroll because removing the old tree
+		 * collapses the page height, which would clamp the scroll position.
+		 */
 		render: (...children: Child[]) => {
+			const ssr = target.querySelector("[data-ssr]");
+			const scrollX = ssr ? window.scrollX : 0;
+			const scrollY = ssr ? window.scrollY : 0;
+			ssr?.remove();
 			const instances = children.map((child) => {
 				const instance = toMountable(child)();
 				mountChild(instance, target);
 				return instance;
 			});
+			if (ssr) window.scrollTo(scrollX, scrollY);
 			const unmount = () => {
 				roots.delete(unmount);
 				instances.forEach((instance) => instance.unmount());

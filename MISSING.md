@@ -145,6 +145,14 @@ end of `html`), the router (the request URL comes in via `location`;
 `searchParam.set` throw during a server render; `Implement.Window` /
 `Document` listeners and `Lifecycle.onMount` are no-ops.
 
+`@implementjs/vite` wraps the wiring in one plugin: `implement()` serves
+every dev page server-rendered (with stylesheet links so first paint is
+styled — dev CSS otherwise arrives through JS modules) and prerenders the
+built site in `closeBundle`, crawling internal links from `/` unless given
+explicit routes. The app supplies `src/entry-server.ts` exporting
+`render(url)`; `App.render` swaps `[data-ssr]` markup for the client mount
+in one task, preserving scroll. The docs app is the live consumer.
+
 **Hydration is NOT implemented.** The client cannot adopt server markup: it
 mounts its own tree from scratch, so server HTML is throwaway paint —
 useful for crawlers and first contentful paint, not for preserving state or

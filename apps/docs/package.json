@@ -6,8 +6,7 @@
 	"scripts": {
 		"dev": "pnpm generate && concurrently -n velite,web -c yellow,cyan \"pnpm generate --watch\" \"vite\"",
 		"generate": "velite",
-		"build": "pnpm generate && vite build && pnpm prerender",
-		"prerender": "node --experimental-strip-types scripts/prerender.ts",
+		"build": "pnpm generate && vite build",
 		"preview": "vite preview",
 		"check": "pnpm generate && tsc --noEmit"
 	},
@@ -26,6 +25,7 @@
 		"tailwind-variants": "^3.3.1"
 	},
 	"devDependencies": {
+		"@implementjs/vite": "workspace:*",
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",
