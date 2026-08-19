@@ -8,12 +8,11 @@ import {
 	navigateTo,
 	signal,
 	Span,
-	Svg,
 	watch,
 	type Mountable,
 } from "@implementjs/core";
 import { Typeset } from "../components/docs/typeset";
-import { icons } from "../components/tutorials/icons";
+import { MenuIcon } from "@implementjs/lucide";
 import { LessonMenu } from "../components/tutorials/lesson-menu";
 import { Playground } from "../components/tutorials/playground";
 import { Button } from "../components/ui/button";
@@ -87,7 +86,7 @@ export function TutorialPage(lesson: Tutorial): Mountable {
 					"aria-expanded": derived([menuOpen], (open) => (open ? "true" : "false")),
 					onClick: () => menuOpen.toggle(),
 				},
-				Svg(icons.menu, { class: "size-4" }),
+				MenuIcon({ class: "size-4" }),
 			),
 			Span(
 				{ class: "min-w-0 flex-1 truncate text-sm text-foreground/60" },

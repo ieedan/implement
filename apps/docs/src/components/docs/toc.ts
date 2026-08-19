@@ -8,14 +8,13 @@ import {
 	signal,
 	Span,
 	Summary,
-	Svg,
 	Ul,
 	derived,
 	type Mountable,
 	type Readable,
 } from "@implementjs/core";
 import type { TocEntry } from "../../lib/toc";
-import { icons } from "../tutorials/icons";
+import { ChevronRightIcon } from "@implementjs/lucide";
 
 function flatten(entries: TocEntry[]): TocEntry[] {
 	return entries.flatMap((entry) => [entry, ...flatten(entry.items)]);
@@ -104,7 +103,7 @@ export function TocDisclosure(entries: TocEntry[]): Mountable {
 				class:
 					"flex cursor-pointer select-none items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground/80 marker:content-none [&::-webkit-details-marker]:hidden",
 			},
-			Svg(icons.chevronRight, {
+			ChevronRightIcon({
 				class: "size-3.5 text-foreground/40 transition-transform group-open:rotate-90",
 			}),
 			"On this page",

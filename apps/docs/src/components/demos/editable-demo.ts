@@ -5,7 +5,6 @@ import {
 	If,
 	Pre,
 	signal,
-	Svg,
 	watch,
 	type Child,
 	type IMountable,
@@ -16,7 +15,7 @@ import {
 import { copyText } from "../../lib/copy-text";
 import { importLessonModule } from "../../lib/run-lesson";
 import { CodeEditor } from "../tutorials/editor";
-import { icons } from "../tutorials/icons";
+import { CheckIcon, CopyIcon } from "@implementjs/lucide";
 import { Button } from "../ui/button";
 import { demoModules } from "./demo-modules";
 
@@ -166,7 +165,7 @@ export function EditableDemo(source: string): Mountable {
 						"aria-label": derived([copied], (value) => (value ? "Copied" : "Copy code")),
 						onClick: () => void copy(),
 					},
-					If(copied).Then(Svg(icons.check)).Else(Svg(icons.copy)),
+					If(copied).Then(CheckIcon()).Else(CopyIcon()),
 				),
 			),
 			Div({ class: "demo-editor" }, CodeEditor(code)),

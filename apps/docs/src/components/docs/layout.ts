@@ -11,14 +11,13 @@ import {
 	navigateTo,
 	signal,
 	Span,
-	Svg,
 	type Mountable,
 	type Writable,
 } from "@implementjs/core";
 import { pages, type Page } from "../../lib/content";
 import { router } from "../../router";
 import { SiteHeader } from "../site-header";
-import { icons } from "../tutorials/icons";
+import { MenuIcon } from "@implementjs/lucide";
 import { Button } from "../ui/button";
 
 type DocsSection = { name: string; pages: Page[] };
@@ -156,7 +155,7 @@ export function DocsLayout(
 					"aria-expanded": derived([menuOpen], (open) => (open ? "true" : "false")),
 					onClick: () => menuOpen.toggle(),
 				},
-				Svg(icons.menu, { class: "size-4" }),
+				MenuIcon({ class: "size-4" }),
 			),
 			Span({ class: "min-w-0 truncate text-sm text-foreground/60" }, currentTitle),
 		),

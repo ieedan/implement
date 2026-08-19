@@ -14,6 +14,10 @@ export function SiteHeader(): Mountable {
 		[router.location],
 		(location) => location.path === "/primitives" || location.path.startsWith("/primitives/"),
 	);
+	const onPackages = derived(
+		[router.location],
+		(location) => location.path === "/packages" || location.path.startsWith("/packages/"),
+	);
 	const onTutorial = derived(
 		[router.location],
 		(location) => location.path === "/tutorial" || location.path.startsWith("/tutorial/"),
@@ -35,6 +39,10 @@ export function SiteHeader(): Mountable {
 			router.Link(
 				{ to: "/primitives", class: derived([onPrimitives], (active) => navClass(active)) },
 				"Primitives",
+			),
+			router.Link(
+				{ to: "/packages", class: derived([onPackages], (active) => navClass(active)) },
+				"Packages",
 			),
 			router.Link(
 				{ to: "/tutorial", class: derived([onTutorial], (active) => navClass(active)) },

@@ -1,4 +1,5 @@
-import { Div, Svg, type Child, type ComponentProps } from "@implementjs/core";
+import { Div, type Child, type ComponentProps } from "@implementjs/core";
+import { ChevronDownIcon } from "@implementjs/lucide";
 import {
 	Accordion as AccordionPrimitive,
 	AccordionContent as AccordionContentPrimitive,
@@ -6,8 +7,6 @@ import {
 	AccordionItem as AccordionItemPrimitive,
 	AccordionTrigger as AccordionTriggerPrimitive,
 } from "@implementjs/primitives";
-
-const chevronDown = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 
 export type AccordionProps = ComponentProps<typeof AccordionPrimitive>;
 export type AccordionItemProps = ComponentProps<typeof AccordionItemPrimitive>;
@@ -56,7 +55,7 @@ export function AccordionTrigger(
 				],
 			},
 			...children,
-			Svg(chevronDown, {
+			ChevronDownIcon({
 				"aria-hidden": true,
 				class:
 					"pointer-events-none size-4 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 ease-in-out",

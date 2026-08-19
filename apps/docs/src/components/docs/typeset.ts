@@ -4,7 +4,7 @@ import { copyText } from "../../lib/copy-text";
 import { demos } from "../demos";
 import { EditableDemo } from "../demos/editable-demo";
 import { ApiReference } from "./api-reference";
-import { icons } from "../tutorials/icons";
+import { CheckIcon, CopyIcon, type IconComponent } from "@implementjs/lucide";
 import { buttonVariants } from "../ui/button";
 
 const copyButtonClass = [
@@ -23,16 +23,23 @@ function addCopyButton(pre: HTMLPreElement) {
 	button.type = "button";
 	button.className = copyButtonClass;
 	button.ariaLabel = "Copy code";
-	button.innerHTML = icons.copy;
+
+	let icon = CopyIcon()();
+	icon.mount(button);
+	const setIcon = (next: IconComponent) => {
+		icon.unmount();
+		icon = next()();
+		icon.mount(button);
+	};
 
 	let timeout: number | undefined;
 	button.addEventListener("click", async () => {
 		if (!(await copyText(pre.textContent?.replace(/\n$/, "") ?? ""))) return;
-		button.innerHTML = icons.check;
+		setIcon(CheckIcon);
 		button.ariaLabel = "Copied";
 		clearTimeout(timeout);
 		timeout = window.setTimeout(() => {
-			button.innerHTML = icons.copy;
+			setIcon(CopyIcon);
 			button.ariaLabel = "Copy code";
 		}, 1500);
 	});

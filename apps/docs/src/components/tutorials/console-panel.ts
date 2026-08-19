@@ -6,14 +6,13 @@ import {
 	If,
 	Ref,
 	Span,
-	Svg,
 	watch,
 	type Mountable,
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
 import type { ConsoleEntry, ConsoleLevel } from "../../lib/console-format";
-import { icons } from "./icons";
+import { BanIcon, PanelBottomIcon, PanelRightIcon, XIcon } from "@implementjs/lucide";
 
 const levelClass: Record<ConsoleLevel, string> = {
 	log: "text-foreground/80",
@@ -68,8 +67,8 @@ export function ConsolePanel(
 					onClick: () => splitRight.toggle(),
 				},
 				If(splitRight)
-					.Then(Svg(icons.panelBottom, { class: "size-3.5" }))
-					.Else(Svg(icons.panelRight, { class: "size-3.5" })),
+					.Then(PanelBottomIcon({ class: "size-3.5" }))
+					.Else(PanelRightIcon({ class: "size-3.5" })),
 			),
 			Button(
 				{
@@ -78,7 +77,7 @@ export function ConsolePanel(
 					"aria-label": "Clear console",
 					onClick: () => logs.set([]),
 				},
-				Svg(icons.ban, { class: "size-3.5" }),
+				BanIcon({ class: "size-3.5" }),
 			),
 			Button(
 				{
@@ -87,7 +86,7 @@ export function ConsolePanel(
 					"aria-label": "Close console",
 					onClick: onClose,
 				},
-				Svg(icons.close, { class: "size-3.5" }),
+				XIcon({ class: "size-3.5" }),
 			),
 		),
 		Div(

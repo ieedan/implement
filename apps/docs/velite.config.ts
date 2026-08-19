@@ -69,6 +69,20 @@ const primitives = defineCollection({
 		})),
 });
 
+const lucide = defineCollection({
+	name: "LucidePage",
+	pattern: "lucide/*.md",
+	schema: markdown
+		.extend({
+			section: s.string().max(99),
+			order: s.number().optional(),
+		})
+		.transform((data) => ({
+			...data,
+			...toPermalink(data.slug, "/lucide", "lucide"),
+		})),
+});
+
 const tutorials = defineCollection({
 	name: "Tutorial",
 	pattern: "lessons/**/*.md",
@@ -93,7 +107,7 @@ export default defineConfig({
 		base: "/static/",
 		clean: true,
 	},
-	collections: { pages, tutorials, primitives },
+	collections: { pages, tutorials, primitives, lucide },
 	markdown: {
 		remarkPlugins: [
 			// Velite bundles its own unified types, which don't match remark/rehype plugins'.
@@ -126,6 +140,7 @@ export default defineConfig({
 	prepare(data) {
 		data.pages.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.primitives.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.lucide.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.tutorials.sort((a, b) =>
 			a.lessonDir.localeCompare(b.lessonDir, undefined, { numeric: true }),
 		);

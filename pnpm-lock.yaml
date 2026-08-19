@@ -47,6 +47,9 @@ importers:
       '@implementjs/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@implementjs/lucide':
+        specifier: workspace:*
+        version: link:../../packages/lucide
       '@implementjs/primitives':
         specifier: workspace:*
         version: link:../../packages/primitives

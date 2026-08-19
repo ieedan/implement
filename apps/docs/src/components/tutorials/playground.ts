@@ -5,14 +5,13 @@ import {
 	If,
 	signal,
 	Span,
-	Svg,
 	type Mountable,
 	type Writable,
 } from "@implementjs/core";
 import type { ConsoleEntry } from "../../lib/console-format";
 import { ConsolePanel } from "./console-panel";
 import { CodeEditor } from "./editor";
-import { icons } from "./icons";
+import { RefreshCwIcon, TerminalIcon } from "@implementjs/lucide";
 import { LessonPreview } from "./preview";
 
 export type PlaygroundOptions = {
@@ -78,7 +77,7 @@ export function Playground(code: Writable<string>, options: PlaygroundOptions = 
 								"aria-expanded": derived([consoleOpen], (open) => (open ? "true" : "false")),
 								onClick: () => consoleOpen.toggle(),
 							},
-							Svg(icons.terminal, { class: "size-3.5" }),
+							TerminalIcon({ class: "size-3.5" }),
 							If(hasErrors).Then(
 								Span({
 									class: "absolute right-0 top-0 size-1.5 rounded-full bg-red-400",
@@ -93,7 +92,7 @@ export function Playground(code: Writable<string>, options: PlaygroundOptions = 
 								"aria-label": "Reload preview",
 								onClick: () => tick.increment(),
 							},
-							Svg(icons.refresh, { class: "size-3.5" }),
+							RefreshCwIcon({ class: "size-3.5" }),
 						),
 					),
 				),

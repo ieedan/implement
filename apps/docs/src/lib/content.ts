@@ -1,14 +1,16 @@
 import {
+	lucide as lucidePages,
 	pages,
 	primitives as primitivePages,
 	tutorials as generated,
+	type LucidePage,
 	type Page,
 	type PrimitivePage,
 	type Tutorial as GeneratedTutorial,
 } from "../../.velite";
 import { stripLessonSource } from "./lesson-source";
 
-export { pages, primitivePages, type Page, type PrimitivePage };
+export { lucidePages, pages, primitivePages, type LucidePage, type Page, type PrimitivePage };
 
 const codeFiles = import.meta.glob<string>("../content/lessons/**/code.ts", {
 	query: "?raw",

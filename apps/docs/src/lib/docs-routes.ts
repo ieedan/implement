@@ -1,7 +1,7 @@
 import type { Child, Mountable } from "@implementjs/core";
 import { DocsLayout, type DocsCollection } from "../components/docs/layout";
 import { DocsPage } from "../views/docs-page";
-import { pages, primitivePages, type Page } from "./content";
+import { lucidePages, pages, primitivePages, type Page } from "./content";
 
 /** Nested docs route table the router expects, built from a Velite collection. */
 export type DocsRoutes = {
@@ -23,6 +23,11 @@ export function docsRoutes(): DocsRoutes {
 /** `/primitives/docs` routes for the primitives docs. */
 export function primitivesDocsRoutes(): DocsRoutes {
 	return collectionRoutes({ pages: primitivePages, label: "Primitives" });
+}
+
+/** `/lucide` routes for the icons package docs. */
+export function lucideDocsRoutes(): DocsRoutes {
+	return collectionRoutes({ pages: lucidePages, label: "Lucide" });
 }
 
 function collectionRoutes(collection: DocsCollection): DocsRoutes {
