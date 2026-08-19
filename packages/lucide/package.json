@@ -1,0 +1,29 @@
+{
+	"name": "@implementjs/lucide",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"scripts": {
+		"dev": "pnpm generate && tsdown --watch",
+		"build": "pnpm generate && tsdown",
+		"generate": "node --experimental-strip-types scripts/generate-icons.ts",
+		"check": "pnpm generate && tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json"
+	},
+	"dependencies": {
+		"@implementjs/core": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/node": "^26.2.0",
+		"lucide-static": "^1.33.0",
+		"tsdown": "^0.22.14",
+		"typescript": "^7.0.2",
+		"vite": "^7.3.0"
+	}
+}
