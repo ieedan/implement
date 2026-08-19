@@ -64,6 +64,8 @@ export function CodeEditor(value: Writable<string>): Mountable {
 
 		return {
 			mount(host: HTMLElement) {
+				// browser-only pane: CodeMirror needs a real DOM, so SSR renders nothing
+				if (typeof document === "undefined") return;
 				parent = document.createElement("div");
 				parent.className = "tutorial-editor h-full min-h-0";
 				host.appendChild(parent);

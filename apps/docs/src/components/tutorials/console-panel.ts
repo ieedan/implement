@@ -43,6 +43,7 @@ export function ConsolePanel(
 	// Pin the view to the latest entry. ForEach reconciles in its own
 	// subscription, so defer the scroll until after this frame renders.
 	watch([entries], () => {
+		if (typeof requestAnimationFrame === "undefined") return;
 		requestAnimationFrame(() => {
 			const el = scroller.get();
 			if (el != null) el.scrollTop = el.scrollHeight;

@@ -6,6 +6,18 @@
 			"runtimeExecutable": "pnpm",
 			"runtimeArgs": ["dev:docs"],
 			"port": 3004
+		},
+		{
+			"name": "docs-dev-ssr",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["--filter", "@apps/docs", "exec", "vite", "--port", "3999"],
+			"port": 3999
+		},
+		{
+			"name": "docs-preview",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["--filter", "@apps/docs", "preview"],
+			"port": 4173
 		}
 	]
 }

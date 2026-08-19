@@ -6,7 +6,8 @@
 	"scripts": {
 		"dev": "pnpm generate && concurrently -n velite,web -c yellow,cyan \"pnpm generate --watch\" \"vite\"",
 		"generate": "velite",
-		"build": "pnpm generate && vite build",
+		"build": "pnpm generate && vite build && pnpm prerender",
+		"prerender": "node --experimental-strip-types scripts/prerender.ts",
 		"preview": "vite preview",
 		"check": "pnpm generate && tsc --noEmit"
 	},
