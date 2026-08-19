@@ -161,7 +161,7 @@ export interface Writable<T> extends Readable<T> {
 	 *   (prev, next) => ({ ...prev, author: { ...prev.author, name: next } }),
 	 * )
 	 */
-	bind<P extends BindableKeys<T>>(path: P): Writable<BindPathValue<T, P>>;
+	bind<P extends BindableKeys<T>>(path: P): Signal<BindPathValue<T, P>>;
 	/**
 	 * One-way derived value.
 	 * @example
@@ -176,7 +176,7 @@ export interface Writable<T> extends Readable<T> {
 	 * @example
 	 * todo.bind((value) => value.title, (prev, next) => { prev.title = next })
 	 */
-	bind<U>(selector: (value: T) => U, update: BindUpdate<T, U>): Writable<U>;
+	bind<U>(selector: (value: T) => U, update: BindUpdate<T, U>): Signal<U>;
 }
 
 export function isReadable<T = unknown>(value: unknown): value is Readable<T> {
@@ -291,20 +291,36 @@ export class Signal<T> implements Writable<T> {
 		return bindOnChange(this.value, (cb) => this.subscribe(cb), callback);
 	}
 
-	bind<P extends BindableKeys<T>>(path: P): Writable<BindPathValue<T, P>>;
+	bind<P extends BindableKeys<T>>(path: P): Signal<BindPathValue<T, P>>;
 	bind<U>(selector: (value: T) => U): Readable<U>;
-	bind<U>(selector: (value: T) => U, update: BindUpdate<T, U>): Writable<U>;
+	bind<U>(selector: (value: T) => U, update: BindUpdate<T, U>): Signal<U>;
 	bind(
 		keyOrSelector: PropertyKey | ((value: T) => unknown),
 		update?: BindUpdate<T, unknown>,
-	): Readable<unknown> | Writable<unknown> {
+	): Readable<any> | Signal<any> {
 		return createBinding(this, keyOrSelector, update);
 	}
 }
 
-/** Create a writable signal. */
-export function signal<T>(initialValue: T): Signal<T> {
-	return new Signal(initialValue);
+type ExistingWritable<T> = Extract<T, Writable<any>>;
+type PlainForSignal<T> = Exclude<T, Writable<any>>;
+
+/**
+ * If `T` is already writable, keep those members; wrap everything else in a
+ * {@link Signal}. `boolean | Writable<boolean>` becomes `Signal<boolean> |
+ * Writable<boolean>`, not `Signal<boolean | Writable<boolean>>`.
+ */
+type CoercedSignal<T> =
+	| ExistingWritable<T>
+	| ([PlainForSignal<T>] extends [never] ? never : Signal<PlainForSignal<T>>);
+
+/**
+ * Create a writable signal. If `initialValue` is already writable it is
+ * returned as-is, so `signal(props.open ?? false)` accepts a boolean or a signal.
+ */
+export function signal<T>(initialValue: T): CoercedSignal<T> {
+	if (isWritable(initialValue)) return initialValue as CoercedSignal<T>;
+	return new Signal(initialValue as PlainForSignal<T>) as CoercedSignal<T>;
 }
 
 /**
@@ -645,14 +661,17 @@ function setAtKeys(obj: unknown, keys: readonly string[], value: unknown, path: 
 }
 
 /**
- * Two-way view of a (possibly dotted) path. `set` writes an updated parent
- * object so `todo.bind("author.name")` updates the nested field.
+ * Two-way view of a (possibly dotted) path. Extends {@link Signal} so helpers
+ * like `toggle` / `push` work; `set` writes an updated parent object so
+ * `todo.bind("author.name")` updates the nested field.
  */
-class BoundPath<T> implements Writable<unknown> {
+class BoundPath<T> extends Signal<unknown> {
 	constructor(
 		private readonly source: Writable<T>,
 		private readonly path: string,
-	) {}
+	) {
+		super(getAtPath(source.get(), path));
+	}
 
 	get(): unknown {
 		return getAtPath(this.source.get(), this.path);
@@ -681,24 +700,16 @@ class BoundPath<T> implements Writable<unknown> {
 	onChange(callback: ChangeCallback<unknown>): Unsubscribe {
 		return bindOnChange(this.get(), (cb) => this.subscribe(cb), callback);
 	}
-
-	bind<P extends BindableKeys<unknown>>(path: P): Writable<BindPathValue<unknown, P>>;
-	bind<U>(selector: (value: unknown) => U): Readable<U>;
-	bind<U>(selector: (value: unknown) => U, update: BindUpdate<unknown, U>): Writable<U>;
-	bind(
-		keyOrSelector: PropertyKey | ((value: unknown) => unknown),
-		update?: BindUpdate<unknown, unknown>,
-	): Readable<unknown> | Writable<unknown> {
-		return createBinding(this, keyOrSelector, update);
-	}
 }
 
-class BoundSelector<T, U> implements Writable<U> {
+class BoundSelector<T, U> extends Signal<U> {
 	constructor(
 		private readonly source: Writable<T>,
 		private readonly selector: (value: T) => U,
-		private readonly update: BindUpdate<T, U>,
-	) {}
+		private readonly writeBack: BindUpdate<T, U>,
+	) {
+		super(selector(source.get()));
+	}
 
 	get(): U {
 		return this.selector(this.source.get());
@@ -706,7 +717,7 @@ class BoundSelector<T, U> implements Writable<U> {
 
 	set(next: U) {
 		const prev = this.source.get();
-		const result = this.update(prev, next);
+		const result = this.writeBack(prev, next);
 		if (result !== undefined) {
 			this.source.set(result);
 			return;
@@ -731,23 +742,13 @@ class BoundSelector<T, U> implements Writable<U> {
 	onChange(callback: ChangeCallback<U>): Unsubscribe {
 		return bindOnChange(this.get(), (cb) => this.subscribe(cb), callback);
 	}
-
-	bind<P extends BindableKeys<U>>(path: P): Writable<BindPathValue<U, P>>;
-	bind<V>(selector: (value: U) => V): Readable<V>;
-	bind<V>(selector: (value: U) => V, update: BindUpdate<U, V>): Writable<V>;
-	bind(
-		keyOrSelector: PropertyKey | ((value: U) => unknown),
-		update?: BindUpdate<U, unknown>,
-	): Readable<unknown> | Writable<unknown> {
-		return createBinding(this, keyOrSelector, update);
-	}
 }
 
 function createBinding<T>(
 	source: Readable<T>,
 	keyOrSelector: PropertyKey | ((value: T) => unknown),
 	update?: BindUpdate<T, unknown>,
-): Readable<unknown> | Writable<unknown> {
+): Readable<unknown> | Signal<unknown> {
 	if (typeof keyOrSelector === "function") {
 		if (update) {
 			if (!isWritable<T>(source)) {

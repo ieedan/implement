@@ -166,6 +166,8 @@ export function LessonPreview(
 			// The playground mounts bottom-up, so the host may not be in the
 			// document yet — an iframe only gets a document once connected.
 			if (!frameHost.isConnected) {
+				// no frame to boot during SSR, and no rAF to wait on
+				if (typeof requestAnimationFrame === "undefined") return;
 				requestAnimationFrame(() => start(source, current));
 				return;
 			}
@@ -196,6 +198,8 @@ export function LessonPreview(
 
 		return {
 			mount(parent: HTMLElement) {
+				// browser-only pane: the preview iframe needs a real DOM, so SSR renders nothing
+				if (typeof document === "undefined") return;
 				root = document.createElement("div");
 				root.className = "relative h-full min-h-0";
 

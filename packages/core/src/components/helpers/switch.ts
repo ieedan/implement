@@ -1,3 +1,4 @@
+import { dom } from "../../dom";
 import equal from "fast-deep-equal";
 import { isReadable, subscribe, type Getter, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
@@ -60,7 +61,7 @@ export function Switch<T>(
 			let unsubscribe: Unsubscribe | null = null;
 			let showing: number | "default" | null = null;
 			let mounted: IMountable[] = [];
-			const endMarker = document.createComment("");
+			const endMarker = dom.createComment("");
 
 			const childrenFor = (target: number | "default"): Child[] =>
 				target === "default" ? defaultChildren : cases[target]!.children;
@@ -110,7 +111,7 @@ export function Switch<T>(
 					clear();
 					showing = null;
 					parent = p;
-					parent.appendChild(endMarker);
+					dom.attach(parent, endMarker);
 					unsubscribe = subscribe(signals, (...values: unknown[]) =>
 						guarded(node, () => reconcile(...values)),
 					);

@@ -1,3 +1,4 @@
+import { dom } from "../../dom";
 import {
 	isReadable,
 	isWritable,
@@ -70,7 +71,7 @@ function resolveKey<T>(
 }
 
 /** Live row when the list itself is writable. */
-type ForEachRenderWritable<T> = (item: Writable<T>, index: Readable<number>) => Mountable;
+type ForEachRenderWritable<T> = (item: Signal<T>, index: Readable<number>) => Mountable;
 
 /** Live row when the list is read-only. */
 type ForEachRenderReadable<T> = (item: Readable<T>, index: Readable<number>) => Mountable;
@@ -168,7 +169,7 @@ export function ForEach<T>(
 		let parent: HTMLElement | null = null;
 		let unsubscribe: Unsubscribe | null = null;
 		const rendered: Map<string, RenderedEntry<T>> = new Map();
-		const endMarker = document.createComment("");
+		const endMarker = dom.createComment("");
 
 		let node: IMountable;
 
@@ -236,7 +237,7 @@ export function ForEach<T>(
 				rendered.clear();
 
 				parent = p;
-				parent.appendChild(endMarker);
+				dom.attach(parent, endMarker);
 				unsubscribe = subscribe(signals, () => guarded(node, reconcile));
 			},
 			unmount() {

@@ -18,6 +18,7 @@ import {
 	AccordionTrigger,
 } from "../components/ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { Separator } from "../components/ui/separator";
 import { primitivePages, type PrimitivePage } from "../lib/content";
 import { router } from "../router";
@@ -60,6 +61,24 @@ function AvatarPreview(): Mountable {
 	);
 }
 
+function PopoverPreview(): Mountable {
+	return Div(
+		{ class: "flex flex-col items-center gap-3" },
+		Popover(
+			{ open: true },
+			PopoverTrigger({ variant: "outline" }, "Open popover"),
+			PopoverContent(
+				{ class: "w-64" },
+				Div(
+					{ class: "grid gap-1.5" },
+					Div({ class: "text-sm font-medium" }, "Dimensions"),
+					P({ class: "text-sm text-muted-foreground" }, "Set the dimensions for the layer."),
+				),
+			),
+		),
+	);
+}
+
 function SeparatorPreview(): Mountable {
 	return Div(
 		{ class: "w-full max-w-56" },
@@ -80,6 +99,7 @@ function SeparatorPreview(): Mountable {
 const previews: Record<string, () => Mountable> = {
 	accordion: AccordionPreview,
 	avatar: AvatarPreview,
+	popover: PopoverPreview,
 	separator: SeparatorPreview,
 };
 

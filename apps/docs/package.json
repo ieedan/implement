@@ -25,6 +25,7 @@
 		"tailwind-variants": "^3.3.1"
 	},
 	"devDependencies": {
+		"@implementjs/vite": "workspace:*",
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",

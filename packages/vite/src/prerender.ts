@@ -1,0 +1,57 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { injectSsr, type SsrResult } from "./inject.ts";
+
+export type RenderFn = (url: string) => SsrResult;
+
+const INTERNAL_HREF = /href="(\/[^"#?]*)"/g;
+
+/** Trailing slashes dropped so crawled hrefs and configured routes compare equal. */
+export function normalizeRoute(href: string): string {
+	let route = href;
+	while (route.length > 1 && route.endsWith("/")) route = route.slice(0, -1);
+	return route;
+}
+
+/**
+ * Discovers routes by following internal links from `/` through server
+ * renders — every page a reader can reach through the app's own links gets
+ * prerendered. Paths with a dot are skipped as assets.
+ */
+export function crawlRoutes(render: RenderFn): string[] {
+	const seen = new Set<string>(["/"]);
+	const queue = ["/"];
+	while (queue.length > 0) {
+		const route = queue.shift()!;
+		const { html } = render(route);
+		for (const match of html.matchAll(INTERNAL_HREF)) {
+			const href = normalizeRoute(match[1]!);
+			if (href.includes(".") || seen.has(href)) continue;
+			seen.add(href);
+			queue.push(href);
+		}
+	}
+	return [...seen];
+}
+
+export function prerenderRoutes(options: {
+	render: RenderFn;
+	routes: string[];
+	template: string;
+	outDir: string;
+}): { written: number; failed: string[] } {
+	const { render, routes, template, outDir } = options;
+	const failed: string[] = [];
+	for (const route of routes) {
+		try {
+			const page = injectSsr(template, render(route));
+			const out =
+				route === "/" ? join(outDir, "index.html") : join(outDir, route.slice(1), "index.html");
+			mkdirSync(dirname(out), { recursive: true });
+			writeFileSync(out, page);
+		} catch (error) {
+			failed.push(`${route}: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+	return { written: routes.length - failed.length, failed };
+}

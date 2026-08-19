@@ -1,3 +1,4 @@
+import { dom } from "../../dom";
 import { isReadable, subscribe, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
@@ -30,7 +31,7 @@ export function Key(
 		let parent: HTMLElement | null = null;
 		let unsubscribe: Unsubscribe | null = null;
 		let mounted: IMountable[] = [];
-		const endMarker = document.createComment("");
+		const endMarker = dom.createComment("");
 		let node: IMountable;
 
 		const clear = () => {
@@ -61,7 +62,7 @@ export function Key(
 				unsubscribe?.();
 				clear();
 				parent = p;
-				parent.appendChild(endMarker);
+				dom.attach(parent, endMarker);
 				unsubscribe = subscribe(signals, () => guarded(node, remount));
 			},
 			unmount() {

@@ -1,4 +1,5 @@
-import { isReadable, signal, subscribe, type Readable, type Signal } from "../../signal";
+import { dom } from "../../dom";
+import { isReadable, Signal, subscribe, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder, toError } from "../../utils";
@@ -46,7 +47,7 @@ export function Await<T>(
 			let parent: HTMLElement | null = null;
 			let showing: AwaitBranch | null = null;
 			let mounted: IMountable[] = [];
-			const endMarker = document.createComment("");
+			const endMarker = dom.createComment("");
 
 			const thenArg = (): T | Readable<T> => {
 				if (readable) {
@@ -112,7 +113,7 @@ export function Await<T>(
 					if (valueSignal) {
 						valueSignal.set(value);
 					} else {
-						valueSignal = signal(value);
+						valueSignal = new Signal(value);
 					}
 				}
 
@@ -165,7 +166,7 @@ export function Await<T>(
 					clear();
 					showing = null;
 					parent = p;
-					parent.appendChild(endMarker);
+					dom.attach(parent, endMarker);
 					if (readable) {
 						unsubscribe = subscribe([source], (next) => follow(next));
 					}

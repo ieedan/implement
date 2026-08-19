@@ -15,6 +15,7 @@ import {
 } from "@implementjs/core";
 import {
 	apiPartId,
+	type ApiCssVariable,
 	type ApiDataAttribute,
 	type ApiPart,
 	type ApiProp,
@@ -85,6 +86,16 @@ function DataAttributesTable(attributes: ApiDataAttribute[]): Mountable {
 	);
 }
 
+function CssVariablesTable(variables: ApiCssVariable[]): Mountable {
+	return ApiTable(
+		["CSS variable", "Description"],
+		variables.map((variable) => [
+			Chip(variable.name),
+			Span({ class: "text-foreground/60" }, variable.description),
+		]),
+	);
+}
+
 function PartSection(part: ApiPart): Mountable {
 	return Div(
 		{ class: "space-y-3" },
@@ -93,14 +104,15 @@ function PartSection(part: ApiPart): Mountable {
 			H3({ id: apiPartId(part.name), class: "font-semibold" }, part.name),
 			P(
 				{ class: "text-sm text-foreground/60" },
-				part.description ? `${part.description} ` : "",
-				"Renders a ",
-				Chip(part.element),
-				"; extra props are forwarded onto it.",
+				part.description && part.element ? `${part.description} ` : (part.description ?? ""),
+				part.element ? "Renders a " : null,
+				part.element ? Chip(part.element) : null,
+				part.element ? "; extra props are forwarded onto it." : null,
 			),
 		),
 		...(part.props?.length ? [PropsTable(part.props)] : []),
 		...(part.dataAttributes?.length ? [DataAttributesTable(part.dataAttributes)] : []),
+		...(part.cssVariables?.length ? [CssVariablesTable(part.cssVariables)] : []),
 	);
 }
 

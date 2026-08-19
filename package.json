@@ -9,6 +9,7 @@
 		"dev:docs": "pnpm --filter @apps/docs dev",
 		"build": "pnpm -r build",
 		"check": "pnpm -r check",
+		"test": "pnpm -r test",
 		"generate": "pnpm -r generate",
 		"jscpd": "jscpd --no-tips",
 		"lint": "oxlint --disable-nested-config",

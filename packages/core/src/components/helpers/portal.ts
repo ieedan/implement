@@ -1,3 +1,4 @@
+import { dom } from "../../dom";
 import { isReadable, subscribe, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
@@ -60,7 +61,7 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 			let unsubscribe: Unsubscribe | null = null;
 			let mounted: IMountable[] = [];
 			let parent: HTMLElement | null = null;
-			const endMarker = document.createComment("");
+			const endMarker = dom.createComment("");
 			let node: IMountable;
 
 			const isDisabled = () => {
@@ -69,8 +70,8 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 			};
 
 			const targetOf = () => {
-				if (isDisabled()) return parent ?? document.body;
-				if (!to) return document.body;
+				if (isDisabled()) return parent ?? dom.body();
+				if (!to) return dom.body();
 				return isReadable<HTMLElement>(to) ? to.get() : to;
 			};
 
@@ -102,7 +103,7 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 					unsubscribe?.();
 					clear();
 					parent = p;
-					parent.appendChild(endMarker);
+					dom.attach(parent, endMarker);
 					const signals: Readable<unknown>[] = [];
 					if (isReadable(to)) signals.push(to);
 					if (isReadable(disabled)) signals.push(disabled);

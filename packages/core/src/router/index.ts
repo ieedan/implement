@@ -1,6 +1,7 @@
 import { reconcileChildren, type Child, type IMountable, type Mountable } from "../components";
 import { A } from "../components/elements";
 import type { ElementProps } from "../components/props";
+import { dom } from "../dom";
 import { derived, isReadable, signal, subscribe, type Readable, type Signal } from "../signal";
 import { asParent, mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
@@ -233,14 +234,14 @@ class Outlet {
 	#parent: HTMLElement | null = null;
 	#mounted: IMountable[] = [];
 	#children: Child[] = [];
-	#endMarker = document.createComment("");
+	#endMarker = dom.createComment("");
 	#node: IMountable;
 
 	constructor() {
 		this.#node = {
 			mount: (parent: HTMLElement) => {
 				this.#parent = parent;
-				parent.appendChild(this.#endMarker);
+				dom.attach(parent, this.#endMarker);
 				this.#render();
 			},
 			unmount: () => {
@@ -288,6 +289,18 @@ class Outlet {
 }
 
 const FALLBACK = Symbol("router.fallback");
+
+/**
+ * Defers to the active location signal per call. `Router(...)` commonly runs at
+ * module scope, which must not touch `window` (server) or eagerly create the
+ * browser singleton.
+ */
+const lazyLocation: Readable<RouterLocation> = {
+	get: () => locationSignal().get(),
+	subscribe: (callback) => locationSignal().subscribe(callback),
+	onChange: (callback) => locationSignal().onChange(callback),
+	bind: (keyOrSelector: never) => locationSignal().bind(keyOrSelector),
+};
 
 /**
  * A route-tree router. One nested object describes the whole app: keys are
@@ -468,7 +481,7 @@ export function Router<T extends Routes<T>>(
 	};
 
 	return Object.assign(mountable, {
-		location: locationSignal(),
+		location: lazyLocation,
 		href,
 		navigate,
 		Link,

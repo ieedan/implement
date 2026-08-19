@@ -1,4 +1,5 @@
 import type { IMountable } from "./components/types";
+import { withMountParent } from "./hydrate";
 import { toError } from "./utils";
 
 let current: IMountable | null = null;
@@ -20,7 +21,9 @@ export function asParent<T>(node: IMountable, fn: () => T): T {
 export function mountChild(instance: IMountable, htmlParent: HTMLElement): void {
 	parents.set(instance, current);
 	asParent(instance, () => {
-		instance.mount(htmlParent);
+		withMountParent(htmlParent, () => {
+			instance.mount(htmlParent);
+		});
 	});
 }
 

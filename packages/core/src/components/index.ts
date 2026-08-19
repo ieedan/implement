@@ -1,3 +1,5 @@
+import { dom } from "../dom";
+import { beginHydration, endHydration } from "../hydrate";
 import { isReadable } from "../signal";
 import { mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
@@ -54,8 +56,8 @@ function text(content: PrimitiveChild): Mountable {
 		let node: Text | null = null;
 		return {
 			mount(parent: HTMLElement) {
-				node = document.createTextNode(initial);
-				parent.appendChild(node);
+				node = dom.createTextNode(initial);
+				dom.attach(parent, node);
 			},
 			unmount() {
 				node?.remove();
@@ -74,8 +76,8 @@ function readableText(content: ReadableChild): Mountable {
 		let unsubscribe: Unsubscribe | null = null;
 		return {
 			mount(parent: HTMLElement) {
-				node = document.createTextNode(toText(content.get()));
-				parent.appendChild(node);
+				node = dom.createTextNode(toText(content.get()));
+				dom.attach(parent, node);
 				unsubscribe = content.subscribe((value) => {
 					if (node) node.data = toText(value);
 				});
@@ -155,7 +157,7 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	}
 
 	mount(parent: HTMLElement): void {
-		this.#element = document.createElement(this.#tag);
+		this.#element = dom.createElement(this.#tag) as HTMLElementTagNameMap[T];
 		this.#unsubscribeProps = applyElementProps(
 			this.#element,
 			this.#tag,
@@ -167,7 +169,7 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 			mountChild(createdChild, this.#element!);
 		});
 		syncValueProp(this.#element, this.#props as Record<string, unknown>);
-		parent.appendChild(this.#element);
+		dom.attach(parent, this.#element);
 		this.#props.this?.set(this.#element);
 	}
 
@@ -190,14 +192,65 @@ export function App(options: { target: HTMLElement }) {
 	const { target } = options;
 	const roots = new Set<() => void>();
 
+	const mountAll = (children: Child[], parent: HTMLElement): IMountable[] =>
+		children.map((child) => {
+			const instance = toMountable(child)();
+			mountChild(instance, parent);
+			return instance;
+		});
+
+	/** Sweep the server-injected head tags — the client `Head` recreates its own. */
+	const sweepHead = () => {
+		for (const el of Array.from(dom.head().querySelectorAll("[data-ssr]"))) el.remove();
+	};
+
 	return {
-		/** Mounts `children` into the target and returns an unmount function. */
+		/**
+		 * Mounts `children` into the target and returns an unmount function.
+		 * Server-rendered markup in the target (a `[data-ssr]` element) is
+		 * hydrated: the mount adopts the existing nodes in place, so listeners
+		 * and subscriptions attach without rebuilding the DOM. On a structural
+		 * mismatch (client state diverged from the server render) the markup
+		 * is discarded and mounted fresh in the same task — the browser never
+		 * paints in between — restoring scroll because removing the old tree
+		 * collapses the page height, which would clamp the scroll position.
+		 */
 		render: (...children: Child[]) => {
-			const instances = children.map((child) => {
-				const instance = toMountable(child)();
-				mountChild(instance, target);
-				return instance;
-			});
+			let instances: IMountable[];
+			const ssr = target.querySelector("[data-ssr]");
+			if (ssr) {
+				beginHydration(ssr);
+				let hydrated: IMountable[];
+				try {
+					hydrated = mountAll(children, ssr as HTMLElement);
+				} catch (error) {
+					endHydration();
+					throw error;
+				}
+				if (endHydration()) {
+					// adopted: the wrapper stays as the mount root; drop the
+					// attribute so a second render cannot re-claim it
+					ssr.removeAttribute("data-ssr");
+					sweepHead();
+					instances = hydrated;
+				} else {
+					console.warn("hydration mismatch: discarding server-rendered markup and mounting fresh");
+					for (const instance of hydrated) {
+						try {
+							instance.unmount();
+						} catch {
+							// best-effort teardown of a partially adopted tree
+						}
+					}
+					const { scrollX, scrollY } = window;
+					ssr.remove();
+					sweepHead();
+					instances = mountAll(children, target);
+					window.scrollTo(scrollX, scrollY);
+				}
+			} else {
+				instances = mountAll(children, target);
+			}
 			const unmount = () => {
 				roots.delete(unmount);
 				instances.forEach((instance) => instance.unmount());

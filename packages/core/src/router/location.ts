@@ -27,8 +27,23 @@ function readLocation(): RouterLocation {
 
 let current: Signal<RouterLocation> | null = null;
 
+let serverSignal: Signal<RouterLocation> | null = null;
+
+/**
+ * Fixed location for the duration of a server render, shadowing the browser
+ * singleton so nothing touches `window`. Returns a restore function.
+ */
+export function installServerLocation(location: RouterLocation): () => void {
+	const previous = serverSignal;
+	serverSignal = signal(location);
+	return () => {
+		serverSignal = previous;
+	};
+}
+
 /** Lazy singleton so importing the router has no side effects until it is used. */
 export function locationSignal(): Signal<RouterLocation> {
+	if (serverSignal) return serverSignal;
 	if (!current) {
 		current = signal(readLocation());
 		window.addEventListener("popstate", () => {
@@ -45,6 +60,11 @@ export type NavigateOptions = {
 
 /** Push (or replace) a history entry and update the location signal. */
 export function navigateTo(href: string, options: NavigateOptions = {}): void {
+	if (serverSignal) {
+		throw new Error(
+			"navigateTo is not available during server rendering — render the target location instead",
+		);
+	}
 	const url = new URL(href, window.location.href);
 	if (url.href === window.location.href) return;
 	if (options.replace) {
@@ -86,6 +106,11 @@ export function searchParam(name: string, fallback?: string): SearchParam<string
 		onChange: (callback) => inner.onChange(callback),
 		bind: (selector: never) => inner.bind(selector),
 		set(value: string | null) {
+			if (serverSignal) {
+				throw new Error(
+					"searchParam.set is not available during server rendering — render the target location instead",
+				);
+			}
 			const url = new URL(window.location.href);
 			if (value == null || value === "" || value === fallback) {
 				url.searchParams.delete(name);

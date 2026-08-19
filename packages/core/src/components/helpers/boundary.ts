@@ -1,3 +1,4 @@
+import { dom } from "../../dom";
 import { asParent, mountChild, parentOf, raiseError, registerBoundary } from "../../tree";
 import { syncDomOrder, toError } from "../../utils";
 import { reconcileChildren } from "..";
@@ -37,7 +38,7 @@ export function Boundary(...children: Child[]): BoundaryHelper {
 			let mounted: IMountable[] = [];
 			let showing: "children" | "catch" = "children";
 			let pendingError: Error | null = null;
-			const endMarker = document.createComment("");
+			const endMarker = dom.createComment("");
 			let node: IMountable;
 
 			const clear = () => {
@@ -103,7 +104,7 @@ export function Boundary(...children: Child[]): BoundaryHelper {
 				mount(p: HTMLElement) {
 					clear();
 					parent = p;
-					parent.appendChild(endMarker);
+					dom.attach(parent, endMarker);
 					registerBoundary(node, fail);
 					reset();
 				},

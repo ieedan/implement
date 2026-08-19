@@ -4,6 +4,18 @@ export {
 	AccordionTrigger,
 	AccordionContent,
 	AccordionHeader,
-} from "./components/accordion";
-export { Avatar, AvatarImage, AvatarFallback, type AvatarLoadingStatus } from "./components/avatar";
-export { Separator } from "./components/separator";
+} from "./lib/components/accordion";
+export {
+	Avatar,
+	AvatarImage,
+	AvatarFallback,
+	type AvatarLoadingStatus,
+} from "./lib/components/avatar";
+export {
+	Popover,
+	PopoverTrigger,
+	PopoverContent,
+	PopoverClose,
+	PopoverPortal,
+} from "./lib/components/popover";
+export { Separator } from "./lib/components/separator";

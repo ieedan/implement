@@ -49,7 +49,7 @@ Sometimes a component needs to return siblings without a wrapper element. `Fragm
 import { Fragment } from "@implementjs/core";
 
 function Legend(term: string, definition: string) {
-	return Fragment({}, Dt(term), Dd(definition));
+	return Fragment(Dt(term), Dd(definition));
 }
 ```
 

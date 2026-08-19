@@ -1,31 +1,11 @@
-import { subscribe } from "../../signal";
+import { dom } from "../../dom";
+import { claimComment } from "../../hydrate";
+import { isReadable, subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import { applySvgProps, type Bindable, type SvgProps } from "../props";
 import type { Mountable } from "../types";
 
 export type { SvgProps } from "../props";
-
-// Parsed sources, cached forever: each unique string parses once and every
-// mount is a cheap clone. Intended for a fixed set of glyphs — don't feed this
-// unbounded generated markup.
-const templates = new Map<string, HTMLTemplateElement>();
-
-function instantiate(source: string): SVGSVGElement | null {
-	let template = templates.get(source);
-	if (!template) {
-		template = document.createElement("template");
-		// the HTML parser switches to the SVG namespace at <svg>, so no
-		// createElementNS dance is needed
-		template.innerHTML = source;
-		templates.set(source, template);
-	}
-	const root = template.content.firstElementChild;
-	if (!(root instanceof SVGSVGElement)) {
-		console.warn("Svg: source did not parse to a root <svg> element", source);
-		return null;
-	}
-	return root.cloneNode(true) as SVGSVGElement;
-}
 
 /**
  * Builds an `<svg>` element from trusted markup. The string is the template
@@ -40,7 +20,7 @@ function instantiate(source: string): SVGSVGElement | null {
  */
 export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 	return () => {
-		const anchor = document.createComment("");
+		let anchor: Comment | null = null;
 		let element: SVGSVGElement | null = null;
 		let unsubscribeProps: Unsubscribe | null = null;
 		let unsubscribeSource: Unsubscribe | null = null;
@@ -54,8 +34,9 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 		};
 
 		const apply = (value: string) => {
-			if (!anchor.parentNode) return;
-			const next = instantiate(value);
+			if (!anchor?.parentNode) return;
+			// during hydration this claims the serialized <svg> already in place
+			const next = dom.createSvgRoot(value);
 			clear();
 			if (!next) return;
 			unsubscribeProps = applySvgProps(next, props as Record<string, unknown>);
@@ -69,8 +50,15 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 				unsubscribeSource?.();
 				unsubscribeSource = null;
 				clear();
-				anchor.remove();
-				parent.appendChild(anchor);
+				if (anchor) {
+					anchor.remove();
+					parent.appendChild(anchor);
+				} else {
+					// the anchor's position carries the element (no sync pass here),
+					// so hydration must adopt the serialized anchor, not append one
+					anchor = claimComment("svg") ?? dom.createComment("svg");
+					dom.attach(parent, anchor);
+				}
 				if (typeof source === "string") {
 					apply(source);
 				} else {
@@ -81,11 +69,11 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 				unsubscribeSource?.();
 				unsubscribeSource = null;
 				clear();
-				anchor.remove();
+				anchor?.remove();
 			},
 			getFirstDomNode() {
 				if (element) return element;
-				return anchor.isConnected ? anchor : null;
+				return anchor?.isConnected ? anchor : null;
 			},
 		};
 	};

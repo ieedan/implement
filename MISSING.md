@@ -104,11 +104,14 @@ handler errors (try/catch them yourself) and promise rejections
 (`Await.Catch`'s job) — and a derived getter that throws outside a guarded
 sync pass (e.g. from a plain `get()`) still propagates to its caller.
 
-## 10. Testing story
+## 10. Testing story **(partly fixed)**
 
-No headless renderer, so none of tracker is tested except by clicking.
-The router's matching/param logic is pure and would unit-test trivially if
-mounting didn't require a real DOM.
+Mounting no longer requires a real DOM: `renderToString` runs headless (see
+#12), and `packages/core/tests/` covers serialization, the helpers, the
+router, and teardown with `vitest` (`pnpm test`), plus a couple of
+`happy-dom` tests for the browser mount path. Still open: the demo apps
+themselves have no tests, and there is no interaction-level harness
+(clicks, focus, forms) beyond what `happy-dom` allows.
 
 ## 11. Dev loop **(fixed)**
 
@@ -124,3 +127,44 @@ edits patch the page without a reload. `vite
 build` emits a hashed static `dist/` per app. Still open: every demo
 copies the same scaffold with only ports changed — a `create-app` template
 would end the copying.
+
+## 12. Server-side rendering — tier 1 **(fixed)**, hydration
+
+`@implementjs/core/server` exports `renderToString(children, { location })`:
+it installs a hand-rolled server DOM (no runtime deps) for the duration of a
+synchronous render, mounts through the exact same `mount()` code path as the
+browser (a `src/dom.ts` environment layer routes every `document.*` factory
+call), serializes, then unmounts so every signal subscription is torn down.
+It returns `{ html, head }` — `head` is the collected `Implement.Head`
+output (`<title>` first) for the integrator to place in the shell.
+Covered: elements/props/class/style with correct escaping and void
+elements, all helpers (`Await` renders its `WhileLoading` branch — renders
+are synchronous by design), `Portal` (lands in the server body, i.e. at the
+end of `html`), the router (the request URL comes in via `location`;
+`Router(...)` at module scope no longer touches `window`). `navigateTo` and
+`searchParam.set` throw during a server render; `Implement.Window` /
+`Document` listeners and `Lifecycle.onMount` are no-ops.
+
+`@implementjs/vite` wraps the wiring in one plugin: `implement()` serves
+every dev page server-rendered (with stylesheet links so first paint is
+styled — dev CSS otherwise arrives through JS modules) and prerenders the
+built site in `closeBundle`, crawling internal links from `/` unless given
+explicit routes. The app supplies `src/entry-server.ts` exporting
+`render(url)`; `App.render` swaps `[data-ssr]` markup for the client mount
+in one task, preserving scroll. The docs app is the live consumer.
+
+**Hydration (tier 2) is implemented.** `App.render` adopts `[data-ssr]`
+markup in place: the server serialized the exact arrangement the mount
+algorithm converges to, so the client replays its normal mount with
+element/text creation going through a claim cursor (`src/hydrate.ts`) —
+listeners and subscriptions attach to the nodes already on screen, adjacent
+text claims by splitting, `Html`/`Svg` adopt their serialized blocks via
+tagged comments, and helper anchors are recreated at the cursor so every
+`syncDomOrder` pass converges to the fresh-mount arrangement. Any
+structural mismatch (client state diverged from the server render, e.g. the
+REPL's persisted editor code) logs a warning and falls back to
+discard-and-remount — tier-1 behavior. Caveats: renders must be
+deterministic to hydrate; input typed before hydration is overwritten when
+`value` re-applies; and there is still no async data story — `Await`
+hydrates its pending branch and refetches on the client (the data/query
+layer owns serialization when it lands).
