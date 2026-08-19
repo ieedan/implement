@@ -1,7 +1,9 @@
 import * as implement from "@implementjs/core";
+import * as primitives from "@implementjs/primitives";
 import { transform } from "sucrase";
 
 const IMPLEMENT = "@implementjs/core";
+const PRIMITIVES = "@implementjs/primitives";
 
 export type ShimModule = Record<string, unknown>;
 
@@ -99,6 +101,7 @@ export async function importLessonModule(
 ): Promise<{ mod: Record<string, unknown>; revoke: () => void }> {
 	const modules: Record<string, ShimModule> = {
 		[IMPLEMENT]: implement as unknown as ShimModule,
+		[PRIMITIVES]: primitives as unknown as ShimModule,
 		...extraModules,
 	};
 	const rewritten = rewriteImports(transpile(code), modules);

@@ -134,7 +134,7 @@ export function DocsLayout(child: Mountable): Mountable {
 		{ class: "flex min-h-dvh flex-col" },
 		SiteHeader(),
 		Div(
-			{ class: "flex h-10 shrink-0 items-center gap-2 border-b border-border px-2 md:hidden" },
+			{ class: "sticky top-12 z-10 flex h-10 shrink-0 items-center gap-2 border-b border-border bg-background px-2 md:hidden" },
 			Button(
 				{
 					variant: "ghost",
@@ -149,7 +149,13 @@ export function DocsLayout(child: Mountable): Mountable {
 		),
 		Div(
 			{ class: "mx-auto flex w-full max-w-5xl flex-1" },
-			Aside({ class: "hidden w-56 shrink-0 border-r border-border py-6 pr-4 md:block" }, DocsNav()),
+			Aside(
+				{
+					class:
+						"sticky top-12 hidden h-[calc(100dvh-3rem)] w-56 shrink-0 self-start overflow-y-auto border-r border-border py-6 pr-4 md:block",
+				},
+				DocsNav(),
+			),
 			Main({ class: "min-w-0 flex-1 px-4 py-6 sm:px-6 md:px-8" }, child),
 		),
 		DocsMenu(menuOpen),

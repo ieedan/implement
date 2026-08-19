@@ -17,6 +17,7 @@
 		"@codemirror/state": "^6.7.1",
 		"@codemirror/view": "^6.43.9",
 		"@implementjs/core": "workspace:*",
+		"@implementjs/primitives": "workspace:*",
 		"@lezer/highlight": "^1.2.3",
 		"codemirror": "^6.0.2",
 		"sucrase": "^3.35.1",

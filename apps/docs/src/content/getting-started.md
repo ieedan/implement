@@ -34,6 +34,8 @@ Create a package under `apps/` or `demos/` and depend on the framework with the 
 
 The demos are [Vite](https://vite.dev) apps. `vite` serves `index.html` in dev (Tailwind runs through `@tailwindcss/vite`) and `vite build` produces a static `dist/`. Hot module replacement is a [four line block in the entry](/docs/vite). The package exports point at its TypeScript source, so any bundler that resolves workspace packages will work. There is no framework build step involved.
 
+For unstyled UI building blocks on top of core, add [`@implementjs/primitives`](/docs/primitives) the same way.
+
 ## Your first component
 
 An app needs three things. An element to mount into, an `App`, and something to render.

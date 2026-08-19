@@ -2,7 +2,7 @@ import {
 	App,
 	Await,
 	Button,
-	Context,
+	context,
 	derived,
 	Div,
 	ForEach,
@@ -23,7 +23,7 @@ if (import.meta.hot) {
 	import.meta.hot.accept();
 	import.meta.hot.dispose(app.unmount);
 }
-const TodosContext = Context<Signal<Todo[]>>();
+const TodosContext = context<Signal<Todo[]>>();
 
 app.render(TodoApp());
 

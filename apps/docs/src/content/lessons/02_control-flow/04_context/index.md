@@ -6,10 +6,10 @@ section: Control flow
 
 Context is a necessary part of any ui framework. Context allows you to scope state to a specific part of the component tree and create state shared between components without it being global to every instance of that component.
 
-In implement we create context with the `Context()` function.
+In implement we create context with the `context()` function.
 
 ```ts
-const MyContext = Context<MyContextType>();
+const MyContext = context<MyContextType>();
 ```
 
 Context is then used in 2 stages.
@@ -39,7 +39,7 @@ Let's use what we have learned to refactor this example to make use of Context i
 We can start by initializing a new context:
 
 ```ts
-const PlantListContext = Context<Signal<string[]>>();
+const PlantListContext = context<Signal<string[]>>();
 ```
 
 Next let's provide that context to our components:

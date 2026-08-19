@@ -47,6 +47,9 @@ importers:
       '@implementjs/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@implementjs/primitives':
+        specifier: workspace:*
+        version: link:../../packages/primitives
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3

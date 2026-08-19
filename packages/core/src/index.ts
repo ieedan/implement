@@ -66,7 +66,7 @@ export {
 	type SwitchHelper,
 	type WindowProps,
 } from "./components/helpers";
-export { Context } from "./context";
+export { context } from "./context";
 export {
 	navigateTo,
 	Router,
@@ -83,6 +83,7 @@ export {
 	isReadable,
 	isWritable,
 	Ref,
+	ref,
 	signal,
 	watch,
 	type BindableKeys,

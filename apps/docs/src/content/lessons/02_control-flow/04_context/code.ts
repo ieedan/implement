@@ -1,5 +1,5 @@
 // oxlint-disable-next-line no-unused-vars
-import { Button, Div, ForEach, H2, Li, signal, Ul, type Signal, Context } from "@implementjs/core";
+import { Button, Div, ForEach, H2, Li, signal, Ul, type Signal, context } from "@implementjs/core";
 
 export default function App() {
 	const vegetables = signal(["🥕", "🥦", "🥬"]);

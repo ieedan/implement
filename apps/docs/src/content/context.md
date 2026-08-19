@@ -5,14 +5,14 @@ section: Composition
 order: 12
 ---
 
-Context carries a value from a provider to any descendant, however deep, without prop drilling. You create one with the `Context()` function:
+Context carries a value from a provider to any descendant, however deep, without prop drilling. You create one with the `context()` function:
 
 ```ts
-import { Context } from "@implementjs/core";
+import { context } from "@implementjs/core";
 
 type Session = { user: Readable<User>; logout: () => void };
 
-export const SessionContext = Context<Session>();
+export const SessionContext = context<Session>();
 ```
 
 Context is then used in two stages.
@@ -40,7 +40,7 @@ function UserBadge() {
 `Use` throws if no provider is above it. When a default makes sense, `UseOr` supplies one instead of throwing:
 
 ```ts
-const ThemeContext = Context<"light" | "dark">();
+const ThemeContext = context<"light" | "dark">();
 
 ThemeContext.UseOr((theme) => Icon(theme), "dark");
 ```
@@ -51,7 +51,7 @@ The provided value itself is fixed at mount. For values that change over time, p
 
 ```ts
 const theme = signal<"light" | "dark">("dark");
-const ThemeContext = Context<Signal<"light" | "dark">>();
+const ThemeContext = context<Signal<"light" | "dark">>();
 
 ThemeContext.Provide(theme).To(App());
 

@@ -153,9 +153,9 @@ If you want to run an effect now and on every change use [`Implement.Watch`](/do
 The `this` prop binds the mounted DOM node into a `Ref`, a `Signal<T | null>` that starts as `null`:
 
 ```ts
-import { Ref } from "@implementjs/core";
+import { ref } from "@implementjs/core";
 
-const input = new Ref<HTMLInputElement>();
+const input = ref<HTMLInputElement>();
 
 Div(Input({ this: input }), Button({ onClick: () => input.get()?.focus() }, "Focus"));
 ```

@@ -317,6 +317,11 @@ export class Ref<T> extends Signal<T | null> {
 	}
 }
 
+/** Create a ref that starts as `null`. Pass to an element's `this` prop. */
+export function ref<T>(): Ref<T> {
+	return new Ref();
+}
+
 /**
  * A `Set` that is also a `Readable<ReadonlySet<T>>`, created via
  * `Implement.Set(...)`. Mutators (`add`, `delete`, `clear`, `toggle`) notify

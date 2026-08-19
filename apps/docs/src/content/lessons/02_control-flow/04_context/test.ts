@@ -5,8 +5,8 @@ export default async function test() {
 	// mechanism has to be checked in the source.
 	expect(
 		source(),
-		"Create a context for the list — const PlantListContext = Context<Signal<string[]>>().",
-	).toMatch(/\bContext\s*[<(]/);
+		"Create a context for the list — const PlantListContext = context<Signal<string[]>>().",
+	).toMatch(/\bcontext\s*[<(]/);
 	expect(
 		source(),
 		"Provide the vegetables to the tree with PlantListContext.Provide(vegetables).To(...).",

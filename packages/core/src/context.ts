@@ -4,9 +4,9 @@ import { mountChild, parentOf } from "./tree";
 
 class ContextProvideBuilder<T> {
 	constructor(
-		private readonly context: Context<T>,
+		private readonly context: context<T>,
 		private readonly value: T,
-	) {}
+	) { }
 
 	To(...children: Child[]): Mountable {
 		const context = this.context;
@@ -42,7 +42,7 @@ class ContextProvideBuilder<T> {
 }
 
 function contextUse<T>(
-	context: Context<T>,
+	context: context<T>,
 	render: (value: T) => Child,
 	fallback?: { value: T },
 ): Mountable {
@@ -60,7 +60,7 @@ function contextUse<T>(
 				} else if (fallback) {
 					value = fallback.value;
 				} else {
-					throw new Error("Context.Use() was called without a matching Context.Provide()");
+					throw new Error("context.Use() was called without a matching context.Provide()");
 				}
 
 				for (const child of reconcileChildren({}, render(value))) {
@@ -114,7 +114,7 @@ class ContextStore<T> {
 	}
 }
 
-export type Context<T> = ContextStore<T>;
+export type context<T> = ContextStore<T>;
 
 /**
  * Create a context for passing a value down the tree without props.
@@ -123,6 +123,6 @@ export type Context<T> = ContextStore<T>;
  * nearest provided value and throws if missing. `UseOr(render, fallback)`
  * supplies a default.
  */
-export function Context<T>(): Context<T> {
+export function context<T>(): context<T> {
 	return new ContextStore();
 }
