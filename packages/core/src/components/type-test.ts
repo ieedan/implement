@@ -4,6 +4,8 @@ import { If } from "./helpers/if";
 import { Implement } from "./helpers/implement";
 import { Svg } from "./helpers/svg";
 import { derived, Ref, signal, type Readable } from "../signal";
+import type { Child } from "./types";
+import type { ComponentProps, ElementProps } from "./props";
 
 const div = new Ref<HTMLDivElement>();
 Div({ this: div });
@@ -35,6 +37,18 @@ Div({ class: { active } });
 Div({ class: ["btn", { active }, false, ["nested", { on: 1 }]] });
 Div({ class: [classSignal, active.bind((a) => a && "active")] });
 Div({ class: active.bind((a) => ["btn", { active: a }]) });
+
+Div({ hidden: true });
+Div({ hidden: "" });
+Div({ hidden: "until-found" });
+Div({ hidden: active.bind((open) => (open ? undefined : "")) });
+const untilFound = false;
+Div({
+	hidden: active.bind((open) => (open ? undefined : untilFound ? "until-found" : "")),
+});
+Button({ disabled: active.bind((a) => !a) });
+// @ts-expect-error hidden does not accept arbitrary strings
+Div({ hidden: "nope" });
 
 // @ts-expect-error class does not accept functions
 Div({ class: () => "nope" });
@@ -165,3 +179,37 @@ ForEach(
 	(item: string) => item,
 	(item) => Span(item),
 );
+
+type _AssertEqual<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
+
+type DivProps = ComponentProps<typeof Div>;
+type InputProps = ComponentProps<typeof Input>;
+const _divFromFactory: _AssertEqual<DivProps, ElementProps<"div">> = true;
+const _divFromTag: _AssertEqual<ComponentProps<"div">, ElementProps<"div">> = true;
+const _inputFromFactory: _AssertEqual<InputProps, ElementProps<"input">> = true;
+
+const _divProps: DivProps = { class: "ok", this: div };
+const _inputProps: InputProps = { type: "text", this: input };
+
+// @ts-expect-error a div's this is not an input
+const _divThisWrong: DivProps = { this: input };
+// @ts-expect-error div has no type attribute
+const _divNoType: DivProps = { type: "text" };
+// @ts-expect-error input cannot have a children prop
+const _inputNoChildren: InputProps = { children: "nope" };
+
+type CardProps = ComponentProps<typeof Div> & { title: string };
+function Card({ title, ...props }: CardProps, ...children: Child[]) {
+	return Div(props, title, ...children);
+}
+Card({ title: "Hello", class: "card" }, "body");
+// @ts-expect-error title is required
+Card({ class: "card" });
+
+function Fancy(props: { color: string }, ..._children: Child[]) {
+	return Div({ style: { color: props.color } });
+}
+type FancyProps = ComponentProps<typeof Fancy>;
+const _fancy: FancyProps = { color: "red" };
+// @ts-expect-error color is required
+const _fancyMissing: FancyProps = {};

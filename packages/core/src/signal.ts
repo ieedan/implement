@@ -30,15 +30,24 @@ function hasChanged<T>(prev: T, next: T): boolean {
 	return !equal(prev, next);
 }
 
-export type Getter<T, Signals extends readonly Readable<any>[]> = (
+/**
+ * get/subscribe surface of a readable. `Readable` is invariant because of its
+ * `bind` overloads; this shape is covariant, so a readable of a subset still fits.
+ */
+export type ReadableSource<T = unknown> = {
+	get(): T;
+	subscribe(callback: (value: any) => void): Unsubscribe;
+};
+
+export type Getter<T, Signals extends readonly ReadableSource<any>[]> = (
 	...values: SignalValues<Signals>
 ) => T;
 
-export type SignalValues<Signals extends readonly Readable<any>[]> = {
+export type SignalValues<Signals extends readonly ReadableSource<any>[]> = {
 	-readonly [K in keyof Signals]: ReturnType<Signals[K]["get"]>;
 };
 
-export function subscribe<T, Signals extends readonly Readable<any>[]>(
+export function subscribe<T, Signals extends readonly ReadableSource<any>[]>(
 	signals: readonly [...Signals],
 	getter: Getter<T, Signals>,
 ) {
@@ -58,7 +67,7 @@ export function subscribe<T, Signals extends readonly Readable<any>[]>(
 	return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 }
 
-export function watch<Signals extends readonly Readable<any>[]>(
+export function watch<Signals extends readonly ReadableSource<any>[]>(
 	signals: readonly [...Signals],
 	getter: Getter<void, Signals>,
 ) {

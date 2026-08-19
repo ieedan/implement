@@ -1,4 +1,4 @@
-import { isReadable, subscribe } from "../../signal";
+import { subscribe } from "../../signal";
 import { mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { component } from "..";
@@ -57,12 +57,12 @@ function Title(text: Bindable<string>): HeadChild {
 		return {
 			mount() {
 				unsubscribe?.();
-				if (isReadable(text)) {
-					unsubscribe = subscribe([text], (value) => {
-						document.title = value;
-					});
-				} else {
+				if (typeof text === "string") {
 					document.title = text;
+				} else {
+					unsubscribe = subscribe([text], (value) => {
+						document.title = value ?? "";
+					});
 				}
 			},
 			unmount() {

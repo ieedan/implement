@@ -1,4 +1,4 @@
-import { isReadable, subscribe } from "../../signal";
+import { subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import type { Bindable } from "../props";
 import type { Mountable } from "../types";
@@ -37,10 +37,10 @@ export function Html(html: Bindable<string>): Mountable {
 				start.remove();
 				end.remove();
 				parent.append(start, end);
-				if (isReadable<string>(html)) {
-					unsubscribe = subscribe([html], apply);
-				} else {
+				if (typeof html === "string") {
 					apply(html);
+				} else {
+					unsubscribe = subscribe([html], (value) => apply(value ?? ""));
 				}
 			},
 			unmount() {

@@ -31,6 +31,18 @@ Img({ src: "/avatar.png", alt: "avatar", loading: "lazy" });
 Div({ role: "status", "aria-live": "polite" });
 ```
 
+`ComponentProps<typeof Div>` (or `ComponentProps<"div">`) is that props object. Extend it when wrapping a factory:
+
+```ts
+import { Div, H2, type Child, type ComponentProps } from "@implementjs/core";
+
+type CardProps = ComponentProps<typeof Div> & { title: string };
+
+function Card({ title, ...props }: CardProps, ...children: Child[]) {
+	return Div(props, H2(title), ...children);
+}
+```
+
 ## Class
 
 `class` (or `className`) takes a clsx-style value. Strings, `{ name: condition }` objects, and arrays of either, nested however you like. Falsy entries are skipped:

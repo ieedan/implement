@@ -1,13 +1,19 @@
-import { isReadable, isWritable, subscribe, type Readable, type Ref } from "../signal";
+import { isReadable, isWritable, subscribe, type Readable, type ReadableSource, type Ref } from "../signal";
 import type { Unsubscribe } from "../types";
 import type { Child } from "./types";
 
 /**
- * A static value or a signal. Every element prop accepts this. The union both
- * distributes (so `Readable<string>` fits a `string | number` prop) and keeps
- * the undistributed readable (so `Readable<boolean>` fits a `boolean` prop).
+ * Structural stand-in for `Readable<T>`. Matching on shape lets any readable
+ * of a T-subset fit (e.g. `Readable<string>` on a `string | number` prop),
+ * which `Readable<T>` itself rejects because of its `bind` overloads.
  */
-export type Bindable<T> = T | Readable<T> | (T extends unknown ? Readable<T> : never);
+export type BindableReadable<T> = ReadableSource<T>;
+
+/**
+ * A static value or a signal. Every element prop accepts this. A readable may
+ * yield `undefined` to leave the prop unset — the same as omitting it.
+ */
+export type Bindable<T> = T | BindableReadable<T | undefined>;
 
 type ClassPrimitive = string | number | bigint | boolean | null | undefined;
 
@@ -82,7 +88,7 @@ type GlobalAttributes = {
 	dir?: Bindable<"ltr" | "rtl" | "auto">;
 	draggable?: Bindable<boolean>;
 	enterKeyHint?: Bindable<"enter" | "done" | "go" | "next" | "previous" | "search" | "send">;
-	hidden?: Bindable<boolean | "until-found" | "hidden">;
+	hidden?: Bindable<boolean | "until-found" | "hidden" | "">;
 	id?: Bindable<string>;
 	inert?: Bindable<boolean>;
 	inputMode?: Bindable<
@@ -727,6 +733,25 @@ export type ElementProps<T extends keyof HTMLElementTagNameMap = keyof HTMLEleme
 export type Props<T extends keyof HTMLElementTagNameMap = keyof HTMLElementTagNameMap> =
 	ElementProps<T>;
 
+/**
+ * Props accepted by a component. Pass the component itself, or an HTML tag:
+ *
+ * ```ts
+ * type DivProps = ComponentProps<typeof Div>;
+ * type InputProps = ComponentProps<typeof Input>;
+ * type DivPropsToo = ComponentProps<"div">;
+ * ```
+ *
+ * Works for any function whose first argument is a props object, including
+ * user components (`function Card(props: CardProps, ...children)`).
+ */
+export type ComponentProps<T extends ((...args: any) => any) | keyof HTMLElementTagNameMap> =
+	T extends keyof HTMLElementTagNameMap
+		? ElementProps<T>
+		: T extends (...args: any) => any
+			? Parameters<T>[0]
+			: never;
+
 type SvgTypedEvent<E extends keyof SVGElementEventMap> = Omit<
 	SVGElementEventMap[E],
 	"target" | "currentTarget"
@@ -886,6 +911,10 @@ function setDomValue(el: HTMLElement, key: string, value: unknown) {
 	}
 	if (key.startsWith("aria-") || key.startsWith("data-")) {
 		setAttribute(el, key, value, true);
+		return;
+	}
+	if (key === "hidden") {
+		setAttribute(el, key, value, false);
 		return;
 	}
 	if (key === "value") {

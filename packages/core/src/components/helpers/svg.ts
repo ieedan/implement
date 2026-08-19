@@ -1,4 +1,4 @@
-import { isReadable, subscribe } from "../../signal";
+import { subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import { applySvgProps, type Bindable, type SvgProps } from "../props";
 import type { Mountable } from "../types";
@@ -71,10 +71,10 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 				clear();
 				anchor.remove();
 				parent.appendChild(anchor);
-				if (isReadable<string>(source)) {
-					unsubscribeSource = subscribe([source], apply);
-				} else {
+				if (typeof source === "string") {
 					apply(source);
+				} else {
+					unsubscribeSource = subscribe([source], (value) => apply(value ?? ""));
 				}
 			},
 			unmount() {
