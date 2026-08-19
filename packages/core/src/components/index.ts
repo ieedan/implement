@@ -1,3 +1,4 @@
+import { dom } from "../dom";
 import { isReadable } from "../signal";
 import { mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
@@ -54,7 +55,7 @@ function text(content: PrimitiveChild): Mountable {
 		let node: Text | null = null;
 		return {
 			mount(parent: HTMLElement) {
-				node = document.createTextNode(initial);
+				node = dom.createTextNode(initial);
 				parent.appendChild(node);
 			},
 			unmount() {
@@ -74,7 +75,7 @@ function readableText(content: ReadableChild): Mountable {
 		let unsubscribe: Unsubscribe | null = null;
 		return {
 			mount(parent: HTMLElement) {
-				node = document.createTextNode(toText(content.get()));
+				node = dom.createTextNode(toText(content.get()));
 				parent.appendChild(node);
 				unsubscribe = content.subscribe((value) => {
 					if (node) node.data = toText(value);
@@ -155,7 +156,7 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	}
 
 	mount(parent: HTMLElement): void {
-		this.#element = document.createElement(this.#tag);
+		this.#element = dom.createElement(this.#tag) as HTMLElementTagNameMap[T];
 		this.#unsubscribeProps = applyElementProps(
 			this.#element,
 			this.#tag,

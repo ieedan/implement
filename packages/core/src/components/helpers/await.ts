@@ -1,3 +1,4 @@
+import { dom } from "../../dom";
 import { isReadable, signal, subscribe, type Readable, type Signal } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
@@ -46,7 +47,7 @@ export function Await<T>(
 			let parent: HTMLElement | null = null;
 			let showing: AwaitBranch | null = null;
 			let mounted: IMountable[] = [];
-			const endMarker = document.createComment("");
+			const endMarker = dom.createComment("");
 
 			const thenArg = (): T | Readable<T> => {
 				if (readable) {

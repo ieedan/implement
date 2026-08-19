@@ -1,3 +1,4 @@
+import { dom } from "../../dom";
 import { isReadable, subscribe, type Getter, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
@@ -102,7 +103,7 @@ export function If(condition: IfCondition, getterOrChild?: unknown, ...rest: Chi
 			let unsubscribe: Unsubscribe | null = null;
 			let showing: number | "else" | null = null;
 			let mounted: IMountable[] = [];
-			const endMarker = document.createComment("");
+			const endMarker = dom.createComment("");
 
 			const childrenFor = (target: number | "else"): Child[] =>
 				target === "else" ? elseChildren : branches[target]!.children;

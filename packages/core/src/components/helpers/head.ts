@@ -1,4 +1,5 @@
-import { subscribe } from "../../signal";
+import { dom } from "../../dom";
+import { isReadable, subscribe } from "../../signal";
 import { mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { component } from "..";
@@ -58,10 +59,10 @@ function Title(text: Bindable<string>): HeadChild {
 			mount() {
 				unsubscribe?.();
 				if (typeof text === "string") {
-					document.title = text;
+					dom.setTitle(text);
 				} else {
 					unsubscribe = subscribe([text], (value) => {
-						document.title = value ?? "";
+						dom.setTitle(value ?? "");
 					});
 				}
 			},
@@ -110,7 +111,7 @@ export const Head: HeadHelper = Object.assign(
 					for (const child of mountables) {
 						const instance = child();
 						mounted.push(instance);
-						mountChild(instance, document.head);
+						mountChild(instance, dom.head());
 					}
 				},
 				unmount() {

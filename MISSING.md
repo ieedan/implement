@@ -104,11 +104,14 @@ handler errors (try/catch them yourself) and promise rejections
 (`Await.Catch`'s job) — and a derived getter that throws outside a guarded
 sync pass (e.g. from a plain `get()`) still propagates to its caller.
 
-## 10. Testing story
+## 10. Testing story **(partly fixed)**
 
-No headless renderer, so none of tracker is tested except by clicking.
-The router's matching/param logic is pure and would unit-test trivially if
-mounting didn't require a real DOM.
+Mounting no longer requires a real DOM: `renderToString` runs headless (see
+#12), and `packages/core/tests/` covers serialization, the helpers, the
+router, and teardown with `vitest` (`pnpm test`), plus a couple of
+`happy-dom` tests for the browser mount path. Still open: the demo apps
+themselves have no tests, and there is no interaction-level harness
+(clicks, focus, forms) beyond what `happy-dom` allows.
 
 ## 11. Dev loop **(fixed)**
 
@@ -124,3 +127,26 @@ edits patch the page without a reload. `vite
 build` emits a hashed static `dist/` per app. Still open: every demo
 copies the same scaffold with only ports changed — a `create-app` template
 would end the copying.
+
+## 12. Server-side rendering — tier 1 **(fixed)**, hydration
+
+`@implementjs/core/server` exports `renderToString(children, { location })`:
+it installs a hand-rolled server DOM (no runtime deps) for the duration of a
+synchronous render, mounts through the exact same `mount()` code path as the
+browser (a `src/dom.ts` environment layer routes every `document.*` factory
+call), serializes, then unmounts so every signal subscription is torn down.
+It returns `{ html, head }` — `head` is the collected `Implement.Head`
+output (`<title>` first) for the integrator to place in the shell.
+Covered: elements/props/class/style with correct escaping and void
+elements, all helpers (`Await` renders its `WhileLoading` branch — renders
+are synchronous by design), `Portal` (lands in the server body, i.e. at the
+end of `html`), the router (the request URL comes in via `location`;
+`Router(...)` at module scope no longer touches `window`). `navigateTo` and
+`searchParam.set` throw during a server render; `Implement.Window` /
+`Document` listeners and `Lifecycle.onMount` are no-ops.
+
+**Hydration is NOT implemented.** The client cannot adopt server markup: it
+mounts its own tree from scratch, so server HTML is throwaway paint —
+useful for crawlers and first contentful paint, not for preserving state or
+avoiding the client-side remount. No async rendering or streaming either;
+data must be resolved before render or arrive after the client mounts.

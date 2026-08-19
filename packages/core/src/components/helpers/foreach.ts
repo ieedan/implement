@@ -1,3 +1,4 @@
+import { dom } from "../../dom";
 import {
 	isReadable,
 	isWritable,
@@ -168,7 +169,7 @@ export function ForEach<T>(
 		let parent: HTMLElement | null = null;
 		let unsubscribe: Unsubscribe | null = null;
 		const rendered: Map<string, RenderedEntry<T>> = new Map();
-		const endMarker = document.createComment("");
+		const endMarker = dom.createComment("");
 
 		let node: IMountable;
 

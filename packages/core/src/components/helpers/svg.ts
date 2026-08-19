@@ -1,31 +1,10 @@
-import { subscribe } from "../../signal";
+import { dom } from "../../dom";
+import { isReadable, subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import { applySvgProps, type Bindable, type SvgProps } from "../props";
 import type { Mountable } from "../types";
 
 export type { SvgProps } from "../props";
-
-// Parsed sources, cached forever: each unique string parses once and every
-// mount is a cheap clone. Intended for a fixed set of glyphs — don't feed this
-// unbounded generated markup.
-const templates = new Map<string, HTMLTemplateElement>();
-
-function instantiate(source: string): SVGSVGElement | null {
-	let template = templates.get(source);
-	if (!template) {
-		template = document.createElement("template");
-		// the HTML parser switches to the SVG namespace at <svg>, so no
-		// createElementNS dance is needed
-		template.innerHTML = source;
-		templates.set(source, template);
-	}
-	const root = template.content.firstElementChild;
-	if (!(root instanceof SVGSVGElement)) {
-		console.warn("Svg: source did not parse to a root <svg> element", source);
-		return null;
-	}
-	return root.cloneNode(true) as SVGSVGElement;
-}
 
 /**
  * Builds an `<svg>` element from trusted markup. The string is the template
@@ -40,7 +19,7 @@ function instantiate(source: string): SVGSVGElement | null {
  */
 export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 	return () => {
-		const anchor = document.createComment("");
+		const anchor = dom.createComment("");
 		let element: SVGSVGElement | null = null;
 		let unsubscribeProps: Unsubscribe | null = null;
 		let unsubscribeSource: Unsubscribe | null = null;
@@ -55,7 +34,7 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 
 		const apply = (value: string) => {
 			if (!anchor.parentNode) return;
-			const next = instantiate(value);
+			const next = dom.createSvgRoot(value);
 			clear();
 			if (!next) return;
 			unsubscribeProps = applySvgProps(next, props as Record<string, unknown>);

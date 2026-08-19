@@ -67,7 +67,11 @@ function bindListener(
 	return attach(value);
 }
 
-export function globalEvents(target: EventTarget, props: Record<string, unknown>): Mountable {
+/** `resolveTarget` defers the global lookup to mount time and returns `null` on the server, where listeners are a no-op. */
+export function globalEvents(
+	resolveTarget: () => EventTarget | null,
+	props: Record<string, unknown>,
+): Mountable {
 	return () => {
 		const detachers: Unsubscribe[] = [];
 
@@ -79,6 +83,8 @@ export function globalEvents(target: EventTarget, props: Record<string, unknown>
 		return {
 			mount() {
 				detach();
+				const target = resolveTarget();
+				if (!target) return;
 				for (const [key, value] of Object.entries(props)) {
 					if (value === undefined) continue;
 					const parsed = parseEventProp(key);

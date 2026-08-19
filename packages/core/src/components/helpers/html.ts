@@ -1,4 +1,5 @@
-import { subscribe } from "../../signal";
+import { dom } from "../../dom";
+import { isReadable, subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import type { Bindable } from "../props";
 import type { Mountable } from "../types";
@@ -9,8 +10,8 @@ import type { Mountable } from "../types";
  */
 export function Html(html: Bindable<string>): Mountable {
 	return () => {
-		const start = document.createComment("");
-		const end = document.createComment("");
+		const start = dom.createComment("");
+		const end = dom.createComment("");
 		let unsubscribe: Unsubscribe | null = null;
 
 		const clear = () => {
@@ -25,9 +26,7 @@ export function Html(html: Bindable<string>): Mountable {
 		const apply = (value: string) => {
 			if (!start.parentNode) return;
 			clear();
-			const template = document.createElement("template");
-			template.innerHTML = value;
-			start.parentNode.insertBefore(template.content, end);
+			dom.insertHtml(value, start.parentNode, end);
 		};
 
 		return {

@@ -1,3 +1,4 @@
+import { dom } from "../../dom";
 import { ReactiveMap, ReactiveSet } from "../../signal";
 import type { Mountable } from "../types";
 import { Boundary } from "./boundary";
@@ -26,7 +27,7 @@ export const Implement = {
 	 * ```
 	 */
 	Window(props: WindowProps = {}): Mountable {
-		return globalEvents(window, props);
+		return globalEvents(() => dom.windowTarget(), props);
 	},
 
 	/**
@@ -41,7 +42,7 @@ export const Implement = {
 	 * ```
 	 */
 	Document(props: DocumentProps = {}): Mountable {
-		return globalEvents(document, props);
+		return globalEvents(() => dom.documentTarget(), props);
 	},
 
 	/**
