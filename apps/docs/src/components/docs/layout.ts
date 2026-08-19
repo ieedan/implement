@@ -134,7 +134,10 @@ export function DocsLayout(child: Mountable): Mountable {
 		{ class: "flex min-h-dvh flex-col" },
 		SiteHeader(),
 		Div(
-			{ class: "sticky top-12 z-10 flex h-10 shrink-0 items-center gap-2 border-b border-border bg-background px-2 md:hidden" },
+			{
+				class:
+					"sticky top-12 z-10 flex h-10 shrink-0 items-center gap-2 border-b border-border bg-background px-2 md:hidden",
+			},
 			Button(
 				{
 					variant: "ghost",

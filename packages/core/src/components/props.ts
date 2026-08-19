@@ -1,4 +1,11 @@
-import { isReadable, isWritable, subscribe, type Readable, type ReadableSource, type Ref } from "../signal";
+import {
+	isReadable,
+	isWritable,
+	subscribe,
+	type Readable,
+	type ReadableSource,
+	type Ref,
+} from "../signal";
 import type { Unsubscribe } from "../types";
 import type { Child } from "./types";
 

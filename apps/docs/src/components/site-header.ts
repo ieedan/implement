@@ -20,7 +20,10 @@ export function SiteHeader(): Mountable {
 	);
 
 	return Header(
-		{ class: "sticky top-0 z-10 flex h-12 shrink-0 items-center gap-6 border-b border-border bg-background px-4" },
+		{
+			class:
+				"sticky top-0 z-10 flex h-12 shrink-0 items-center gap-6 border-b border-border bg-background px-4",
+		},
 		router.Link({ to: "/", class: "text-sm font-semibold tracking-tight" }, "implement"),
 		Nav(
 			{ class: "flex items-center gap-4" },

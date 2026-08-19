@@ -75,6 +75,14 @@ for (const file of files) {
 		? "// oxlint-disable-next-line no-shadow-restricted-names\n"
 		: "";
 
+	// mirror oxfmt (printWidth 100): collapse the call when it fits on one
+	// line, so regenerating over formatted output is a no-op
+	const singleLine = `export const ${exportName} = /* @__PURE__ */ createLucideIcon("${name}", \`${body}\`);`;
+	const declaration =
+		singleLine.length <= 100
+			? singleLine
+			: `export const ${exportName} = /* @__PURE__ */ createLucideIcon(\n\t"${name}",\n\t\`${body}\`,\n);`;
+
 	const content = `// generated from ../../scripts/generate-icons.ts
 
 import { createLucideIcon } from "../create-icon";
@@ -83,10 +91,7 @@ import { createLucideIcon } from "../create-icon";
  * Lucide \`${name}\` icon.
  * @see https://lucide.dev/icons/${name}
  */
-${disable}export const ${exportName} = /* @__PURE__ */ createLucideIcon(
-	"${name}",
-	\`${body}\`,
-);
+${disable}${declaration}
 
 export { ${exportName} as ${exportName}Icon };
 `;
