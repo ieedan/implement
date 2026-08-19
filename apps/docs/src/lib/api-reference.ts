@@ -12,6 +12,11 @@ export type ApiDataAttribute = {
 	value: string;
 };
 
+export type ApiCssVariable = {
+	name: string;
+	description: string;
+};
+
 /** The heading id (and `#` anchor) an API part's section renders with. */
 export function apiPartId(name: string): string {
 	return name.toLowerCase();
@@ -20,10 +25,11 @@ export function apiPartId(name: string): string {
 export type ApiPart = {
 	name: string;
 	/** The element factory the part renders and forwards extra props onto. */
-	element: string;
+	element?: string;
 	description?: string;
 	props?: ApiProp[];
 	dataAttributes?: ApiDataAttribute[];
+	cssVariables?: ApiCssVariable[];
 };
 
 /**
@@ -184,6 +190,116 @@ export const apiReference: Record<string, ApiPart[]> = {
 				{ name: "data-separator-root", value: "Present" },
 				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
 			],
+		},
+	],
+	popover: [
+		{
+			name: "Popover",
+			description:
+				"The root. Owns whether the popover is open and provides that to the parts inside it.",
+			props: [
+				{
+					name: "open",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+			],
+		},
+		{
+			name: "PopoverTrigger",
+			element: "Button",
+			description:
+				"Toggles the popover open and closed. Clicking a different trigger moves the panel.",
+			props: [
+				{
+					name: "default",
+					type: "boolean",
+					default: "false",
+					description:
+						"When the popover starts open, anchor to this trigger instead of the first one in the tree.",
+				},
+			],
+			dataAttributes: [{ name: "data-state", value: '"open" | "closed"' }],
+		},
+		{
+			name: "PopoverContent",
+			element: "Div",
+			description:
+				"The panel. Style it against data-state and data-side; the primitive does not hide it for you.",
+			props: [
+				{
+					name: "side",
+					type: '"top" | "bottom" | "left" | "right"',
+					default: '"bottom"',
+					description: "Preferred side of the trigger to place the panel.",
+				},
+				{
+					name: "align",
+					type: '"start" | "center" | "end"',
+					default: '"start"',
+					description: "How the panel aligns along the chosen side.",
+				},
+				{
+					name: "offset",
+					type: "number",
+					default: "0",
+					description: "Distance in pixels between the trigger and the panel.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-side", value: '"top" | "bottom" | "left" | "right"' },
+				{ name: "data-align", value: '"start" | "center" | "end"' },
+			],
+			cssVariables: [
+				{
+					name: "--bits-popover-content-transform-origin",
+					description: "The transform origin of the content element.",
+				},
+				{
+					name: "--bits-popover-content-available-width",
+					description: "The available width of the content element.",
+				},
+				{
+					name: "--bits-popover-content-available-height",
+					description: "The available height of the content element.",
+				},
+				{
+					name: "--bits-popover-anchor-width",
+					description: "The width of the anchor element.",
+				},
+				{
+					name: "--bits-popover-anchor-height",
+					description: "The height of the anchor element.",
+				},
+			],
+		},
+		{
+			name: "PopoverPortal",
+			description:
+				"Renders its children into another DOM parent so the panel escapes overflow and stacking. This is the core Portal helper; context still resolves from where the portal is declared.",
+			props: [
+				{
+					name: "to",
+					type: "HTMLElement | Readable<HTMLElement>",
+					default: "document.body",
+					description: "The element to mount into. Also available as chained .To(target).",
+				},
+				{
+					name: "disabled",
+					type: "boolean | Readable<boolean>",
+					default: "false",
+					description:
+						"Mount in place instead of teleporting. Disable the inner portal on a nested popover so it stays in the outer overlay. Also available as chained .Disabled(value).",
+				},
+			],
+		},
+		{
+			name: "PopoverClose",
+			element: "Button",
+			description: "Closes the popover when clicked. Put it inside the content.",
 		},
 	],
 };

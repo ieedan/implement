@@ -3,6 +3,12 @@ import AccordionDemo from "./accordion-demo.ts";
 import accordionSource from "./accordion-demo.ts?raw";
 import AvatarDemo from "./avatar-demo.ts";
 import avatarSource from "./avatar-demo.ts?raw";
+import PopoverDemo from "./popover-demo.ts";
+import popoverSource from "./popover-demo.ts?raw";
+import PopoverNestedDemo from "./popover-nested-demo.ts";
+import popoverNestedSource from "./popover-nested-demo.ts?raw";
+import PopoverTriggersDemo from "./popover-triggers-demo.ts";
+import popoverTriggersSource from "./popover-triggers-demo.ts?raw";
 import SeparatorDemo from "./separator-demo.ts";
 import separatorSource from "./separator-demo.ts?raw";
 
@@ -29,5 +35,8 @@ export type Demo = {
 export const demos: Record<string, Demo> = {
 	accordion: { source: accordionSource, component: AccordionDemo },
 	avatar: { source: avatarSource, component: AvatarDemo },
+	popover: { source: popoverSource, component: PopoverDemo },
+	"popover-triggers": { source: popoverTriggersSource, component: PopoverTriggersDemo },
+	"popover-nested": { source: popoverNestedSource, component: PopoverNestedDemo },
 	separator: { source: separatorSource, component: SeparatorDemo },
 };

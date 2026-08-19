@@ -5,6 +5,7 @@ import {
 	Button,
 	Div,
 	ForEach,
+	Fragment,
 	Html,
 	If,
 	Implement,
@@ -90,6 +91,18 @@ describe("elements and props", () => {
 });
 
 describe("helpers", () => {
+	it("renders Fragment children without a wrapper", () => {
+		expect(renderToString(Div(Fragment(P("a"), Span("b")))).html).toBe(
+			"<div><p>a</p><span>b</span></div>",
+		);
+		expect(renderToString(Div(Fragment({ children: P("a") }, Span("b")))).html).toBe(
+			"<div><p>a</p><span>b</span></div>",
+		);
+		expect(renderToString(Div(Fragment({}, P("a"), Span("b")))).html).toBe(
+			"<div><p>a</p><span>b</span></div>",
+		);
+	});
+
 	it("renders the matching If branch", () => {
 		const on = signal(true);
 		expect(renderToString(If(on, Span("yes")).Else(Span("no"))).html).toBe(

@@ -71,7 +71,7 @@ function resolveKey<T>(
 }
 
 /** Live row when the list itself is writable. */
-type ForEachRenderWritable<T> = (item: Writable<T>, index: Readable<number>) => Mountable;
+type ForEachRenderWritable<T> = (item: Signal<T>, index: Readable<number>) => Mountable;
 
 /** Live row when the list is read-only. */
 type ForEachRenderReadable<T> = (item: Readable<T>, index: Readable<number>) => Mountable;

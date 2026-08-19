@@ -151,6 +151,7 @@ export function AccordionTrigger(
 	return AccordionItemCtx.Use((state) => {
 		return Button(
 			{
+				type: "button",
 				"data-accordion-trigger": "",
 				"data-state": state.state,
 				"data-value": state.value,

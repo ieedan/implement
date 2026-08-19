@@ -27,22 +27,20 @@ src/routes
 ```
 
 ```ts src/routes/index.ts
-export default function Page() {
-
-}
+export default function Page() {}
 ```
 
 ```ts src/routes/layout.ts
 export default function Layout({ children }) {
-    children // Child this will be a Page. Page is just a fragment
+	children; // Child this will be a Page. Page is just a fragment
 }
 ```
 
 ```ts src/routes/docs/[...slug]/index.ts
 export default function Page({ params, url }) {
-    // these are not readable because Page will re-render whenever the URL changes (outside of like hash and search params)
-    params.slug // string
-    url // URL
+	// these are not readable because Page will re-render whenever the URL changes (outside of like hash and search params)
+	params.slug; // string
+	url; // URL
 }
 ```
 
@@ -54,8 +52,8 @@ export default function Page({ params, url }) {
 
 These will be build like SvelteKit load functions. They will follow the same convention allowing users to retrieve data on their pages or layouts from `data`.
 
-```ts 
+```ts
 export default function Page({ data }) {
-    data // object of data the server returns
+	data; // object of data the server returns
 }
 ```

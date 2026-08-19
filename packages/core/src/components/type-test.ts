@@ -1,9 +1,10 @@
 import { A, Br, Button, Div, Form, H1, Img, Input, Link, P, Span } from "./elements";
 import { ForEach } from "./helpers/foreach";
+import { Fragment } from "./helpers/fragment";
 import { If } from "./helpers/if";
 import { Implement } from "./helpers/implement";
 import { Svg } from "./helpers/svg";
-import { derived, Ref, signal, type Readable } from "../signal";
+import { derived, Ref, signal, type Readable, type Signal, type Writable } from "../signal";
 import type { Child } from "./types";
 import type { ComponentProps, ElementProps } from "./props";
 
@@ -23,6 +24,11 @@ Div({ class: "ok" }, "hello");
 Div({ children: "hello" });
 Div("hello");
 Div(H1("title"), P("body"));
+Fragment("hello", Span("x"));
+Fragment(H1("title"), P("body"));
+Fragment({ children: "hello" });
+Fragment({}, "hello");
+Fragment(signal("live"));
 H1("Welcome!");
 Button("Increment");
 Button({ type: "button" }, "Save");
@@ -179,6 +185,39 @@ ForEach(
 	(item: string) => item,
 	(item) => Span(item),
 );
+
+const todo = signal({
+	title: "Ship",
+	done: false,
+	tags: ["a"] as string[],
+	count: 0,
+	author: { name: "Ada" },
+});
+const todoTitle: Signal<string> = todo.bind("title");
+const authorName: Signal<string> = todo.bind("author.name");
+todo.bind("done").toggle();
+todo.bind("tags").push("b");
+todo.bind("count").increment();
+const flags: Writable<{ done: boolean; tags: string[] }> = signal({ done: false, tags: [] });
+flags.bind("done").toggle();
+flags.bind("tags").push("x");
+const _writableBool: Writable<boolean> = signal(false);
+const _writableFromBind: Writable<boolean> = todo.bind("done");
+const _signalPassThrough: Signal<number> = signal(signal(0));
+const _writablePassThrough: Writable<boolean> = signal(_writableBool);
+const _coercedProp: Writable<boolean> = signal(false as boolean | Writable<boolean>);
+// @ts-expect-error already-writable values are not wrapped
+const _notNested: Signal<Signal<number>> = signal(signal(1));
+const doneViaUpdate: Signal<boolean> = todo.bind(
+	(t) => t.done,
+	(prev, next) => ({ ...prev, done: next }),
+);
+doneViaUpdate.toggle();
+Span(todoTitle, authorName);
+
+const upper = todo.bind((t) => t.title.toUpperCase());
+// @ts-expect-error one-way bind is not writable
+upper.set("nope");
 
 type _AssertEqual<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 

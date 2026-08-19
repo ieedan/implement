@@ -17,6 +17,12 @@ count.set(5); // notify subscribers
 count.update((n) => n + 1); // set via the current value
 ```
 
+If the value is already writable, `signal` returns it unchanged. That is the usual way to accept an optional controlled prop:
+
+```ts
+signal(props.open ?? false);
+```
+
 Anywhere the framework accepts a value (a prop, a text child, a condition) it also accepts a signal, and the DOM stays in sync. You will almost never subscribe by hand. You just hand signals to elements and helpers.
 
 ## Signals in the DOM
@@ -102,7 +108,7 @@ items.shift();
 items.splice(1, 2, "replacement");
 ```
 
-The array helpers mirror the `Array` methods (including return values) but always `set` a fresh array, so subscribers are notified.
+The array helpers mirror the `Array` methods (including return values) but always `set` a fresh array, so subscribers are notified. Two-way [`bind`](/docs/bindings) results are Signals as well, so `todo.bind("done").toggle()` and `todo.bind("tags").push("x")` work the same way.
 
 ## Equality: when does set notify?
 

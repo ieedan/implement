@@ -9,7 +9,7 @@ order: 6
 
 ## Path bindings
 
-Pass a (possibly dotted) key path to get a view of that field. On a **writable** source the view is writable too. Setting it writes an immutably-updated parent back into the source.
+Pass a (possibly dotted) key path to get a view of that field. On a **writable** source the view is a `Signal`, so helpers like `toggle` and `push` work the same as on the source. Setting it writes an immutably-updated parent back into the source.
 
 ```ts
 const todo = signal({
@@ -17,8 +17,8 @@ const todo = signal({
 	author: { name: "Ada" },
 });
 
-const title = todo.bind("title"); // Writable<string>
-const author = todo.bind("author.name"); // Writable<string>
+const title = todo.bind("title"); // Signal<string>
+const author = todo.bind("author.name"); // Signal<string>
 
 title.set("Ship v2");
 // todo is now { title: "Ship v2", author: { name: "Ada" } } — a new object
@@ -40,7 +40,7 @@ const upper = todo.bind((t) => t.title.toUpperCase()); // Readable<string>
 
 ## Selector + update bindings (two-way)
 
-Pass a selector _and_ an update function to make a writable view with custom write-back logic. `update(prev, next)` either returns a new parent value, or mutates `prev` in place and returns nothing (the source is then flushed):
+Pass a selector _and_ an update function to make a `Signal` with custom write-back logic. `update(prev, next)` either returns a new parent value, or mutates `prev` in place and returns nothing (the source is then flushed):
 
 ```ts
 // immutable write-back
