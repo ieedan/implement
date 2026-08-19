@@ -6,7 +6,7 @@ class ContextProvideBuilder<T> {
 	constructor(
 		private readonly context: context<T>,
 		private readonly value: T,
-	) { }
+	) {}
 
 	To(...children: Child[]): Mountable {
 		const context = this.context;

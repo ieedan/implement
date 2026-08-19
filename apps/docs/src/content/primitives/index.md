@@ -1,8 +1,8 @@
 ---
-title: Primitives
+title: Introduction
 description: Unstyled, composable building blocks for common UI patterns.
-section: Primitives
-order: 23
+section: Start Here
+order: 1
 ---
 
 `@implementjs/core` is the framework. `@implementjs/primitives` is a small library of unstyled components built on top of it. They own the behavior (open and close, shared state, the DOM hooks you style against) and leave the look to you.
@@ -18,13 +18,13 @@ import {
 
 Add it next to core as a workspace dependency:
 
-```
+```jsonc
 // package.json
 {
 	"dependencies": {
 		"@implementjs/core": "workspace:*",
-		"@implementjs/primitives": "workspace:*"
-	}
+		"@implementjs/primitives": "workspace:*",
+	},
 }
 ```
 
@@ -36,4 +36,4 @@ Each primitive is a set of functions that compose the way [components](/docs/com
 
 They are deliberately unstyled. No classes, no CSS, no design tokens. You pass `class` (and any other element props) through like you would on `Div` or `Button`.
 
-Start with [Accordion](/docs/accordion).
+Start with [Accordion](/primitives/docs/accordion).

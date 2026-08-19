@@ -23,9 +23,12 @@ import { Button } from "../ui/button";
 
 type DocsSection = { name: string; pages: Page[] };
 
-function docsSections(): DocsSection[] {
+/** Which content collection a docs layout navigates, and what to call it. */
+export type DocsCollection = { pages: Page[]; label: string };
+
+function docsSections(collection: Page[]): DocsSection[] {
 	const sections: DocsSection[] = [];
-	for (const page of pages) {
+	for (const page of collection) {
 		const last = sections[sections.length - 1];
 		if (last != null && last.name === page.section) last.pages.push(page);
 		else sections.push({ name: page.section, pages: [page] });
@@ -33,10 +36,10 @@ function docsSections(): DocsSection[] {
 	return sections;
 }
 
-function DocsNav(onNavigate?: () => void): Mountable {
+function DocsNav(collection: Page[], onNavigate?: () => void): Mountable {
 	return Nav(
 		{ class: "flex flex-col gap-5" },
-		...docsSections().map((section) =>
+		...docsSections(collection).map((section) =>
 			Div(
 				Span(
 					{
@@ -72,7 +75,10 @@ function DocsNav(onNavigate?: () => void): Mountable {
 	);
 }
 
-function DocsMenu(open: Writable<boolean>): Mountable {
+function DocsMenu(
+	open: Writable<boolean>,
+	{ pages: collection, label }: DocsCollection,
+): Mountable {
 	return Div(
 		{
 			class: derived([open], (isOpen) => [
@@ -105,7 +111,7 @@ function DocsMenu(open: Writable<boolean>): Mountable {
 			},
 			Div(
 				{ class: "flex items-center justify-between border-b border-border px-4 py-3" },
-				H2({ class: "text-sm font-semibold" }, "Docs"),
+				H2({ class: "text-sm font-semibold" }, label),
 				ButtonPrimitive(
 					{
 						type: "button",
@@ -117,24 +123,31 @@ function DocsMenu(open: Writable<boolean>): Mountable {
 			),
 			Div(
 				{ class: "flex-1 overflow-y-auto px-3 py-4" },
-				DocsNav(() => open.set(false)),
+				DocsNav(collection, () => open.set(false)),
 			),
 		),
 	);
 }
 
-export function DocsLayout(child: Mountable): Mountable {
+export function DocsLayout(
+	child: Mountable,
+	collection: DocsCollection = { pages, label: "Docs" },
+): Mountable {
 	const menuOpen = signal(false);
 	const currentTitle = derived(
 		[router.location],
-		(location) => pages.find((page) => page.permalink === location.path)?.title ?? "Menu",
+		(location) =>
+			collection.pages.find((page) => page.permalink === location.path)?.title ?? "Menu",
 	);
 
 	return Div(
 		{ class: "flex min-h-dvh flex-col" },
 		SiteHeader(),
 		Div(
-			{ class: "sticky top-12 z-10 flex h-10 shrink-0 items-center gap-2 border-b border-border bg-background px-2 md:hidden" },
+			{
+				class:
+					"sticky top-12 z-10 flex h-10 shrink-0 items-center gap-2 border-b border-border bg-background px-2 md:hidden",
+			},
 			Button(
 				{
 					variant: "ghost",
@@ -148,16 +161,16 @@ export function DocsLayout(child: Mountable): Mountable {
 			Span({ class: "min-w-0 truncate text-sm text-foreground/60" }, currentTitle),
 		),
 		Div(
-			{ class: "mx-auto flex w-full max-w-5xl flex-1" },
+			{ class: "mx-auto flex w-full max-w-5xl flex-1 xl:max-w-7xl" },
 			Aside(
 				{
 					class:
 						"sticky top-12 hidden h-[calc(100dvh-3rem)] w-56 shrink-0 self-start overflow-y-auto border-r border-border py-6 pr-4 md:block",
 				},
-				DocsNav(),
+				DocsNav(collection.pages),
 			),
 			Main({ class: "min-w-0 flex-1 px-4 py-6 sm:px-6 md:px-8" }, child),
 		),
-		DocsMenu(menuOpen),
+		DocsMenu(menuOpen, collection),
 	);
 }

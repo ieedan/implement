@@ -9,7 +9,7 @@ implement is not published to a package registry yet. For now it lives in the [`
 
 ## Run the repo
 
-```
+```sh
 git clone https://github.com/ieedan/implement.git
 cd implement
 pnpm install
@@ -23,18 +23,18 @@ If you want to see complete apps, the `demos/` directory contains a todo app and
 
 Create a package under `apps/` or `demos/` and depend on the framework with the workspace protocol:
 
-```
+```jsonc
 // package.json
 {
 	"dependencies": {
-		"@implementjs/core": "workspace:*"
-	}
+		"@implementjs/core": "workspace:*",
+	},
 }
 ```
 
 The demos are [Vite](https://vite.dev) apps. `vite` serves `index.html` in dev (Tailwind runs through `@tailwindcss/vite`) and `vite build` produces a static `dist/`. Hot module replacement is a [four line block in the entry](/docs/vite). The package exports point at its TypeScript source, so any bundler that resolves workspace packages will work. There is no framework build step involved.
 
-For unstyled UI building blocks on top of core, add [`@implementjs/primitives`](/docs/primitives) the same way.
+For unstyled UI building blocks on top of core, add [`@implementjs/primitives`](/primitives) the same way.
 
 ## Your first component
 
@@ -56,8 +56,8 @@ app.render(Counter());
 
 With an `index.html` like:
 
-```
-// index.html
+```html
+<!-- index.html -->
 <!doctype html>
 <html lang="en">
 	<head>

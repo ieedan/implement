@@ -11,8 +11,8 @@
 		"check": "pnpm -r check",
 		"generate": "pnpm -r generate",
 		"jscpd": "jscpd --no-tips",
-		"lint": "oxlint",
-		"lint:fix": "oxlint --fix",
+		"lint": "oxlint --disable-nested-config",
+		"lint:fix": "oxlint --disable-nested-config --fix",
 		"format": "oxfmt",
 		"format:check": "oxfmt --check"
 	},

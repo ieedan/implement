@@ -1,9 +1,9 @@
 import type { Child, Mountable } from "@implementjs/core";
-import { DocsLayout } from "../components/docs/layout";
+import { DocsLayout, type DocsCollection } from "../components/docs/layout";
 import { DocsPage } from "../views/docs-page";
-import { pages, type Page } from "./content";
+import { pages, primitivePages, type Page } from "./content";
 
-/** Nested `/docs` table the router expects. Built from the Velite `pages` collection. */
+/** Nested docs route table the router expects, built from a Velite collection. */
 export type DocsRoutes = {
 	layout: (child: Mountable) => Child;
 	"/": () => Child;
@@ -15,16 +15,29 @@ type Branch = {
 	children: Map<string, Branch>;
 };
 
+/** `/docs` routes for the framework docs. */
 export function docsRoutes(): DocsRoutes {
-	const root: Branch = { children: new Map(), layout: (child) => DocsLayout(child) };
+	return collectionRoutes({ pages, label: "Docs" });
+}
 
-	for (const page of pages) {
+/** `/primitives/docs` routes for the primitives docs. */
+export function primitivesDocsRoutes(): DocsRoutes {
+	return collectionRoutes({ pages: primitivePages, label: "Primitives" });
+}
+
+function collectionRoutes(collection: DocsCollection): DocsRoutes {
+	const root: Branch = {
+		children: new Map(),
+		layout: (child) => DocsLayout(child, collection),
+	};
+
+	for (const page of collection.pages) {
 		insertPage(root, page);
 	}
 
-	const routes = toRouteNode(root);
+	const routes = toRouteNode(root, collection.pages);
 	if (!isDocsRoutes(routes)) {
-		throw new Error("src/content/index.md is required for the /docs route");
+		throw new Error(`An index.md is required for the ${collection.label} docs route`);
 	}
 
 	return routes;
@@ -51,15 +64,15 @@ function insertPage(root: Branch, page: Page): void {
 	node.page = page;
 }
 
-function toRouteNode(node: Branch): Record<string, unknown> {
+function toRouteNode(node: Branch, collection: Page[]): Record<string, unknown> {
 	const routes: Record<string, unknown> = {};
 	if (node.layout) routes.layout = node.layout;
 	if (node.page) {
 		const page = node.page;
-		routes["/"] = () => DocsPage(page);
+		routes["/"] = () => DocsPage(page, collection);
 	}
 	for (const [segment, child] of node.children) {
-		routes[`/${segment}`] = toRouteNode(child);
+		routes[`/${segment}`] = toRouteNode(child, collection);
 	}
 	return routes;
 }

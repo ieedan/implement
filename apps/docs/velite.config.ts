@@ -1,4 +1,5 @@
 import rehypeShiki from "@shikijs/rehype";
+import rehypeSlug from "rehype-slug";
 import { remarkAlert } from "remark-github-blockquote-alert";
 import { defineCollection, defineConfig, s } from "velite";
 
@@ -7,6 +8,8 @@ const markdown = s.object({
 	description: s.string().max(999),
 	slug: s.path(),
 	content: s.markdown(),
+	// Uses the same slugger as rehype-slug, so urls match the heading ids.
+	toc: s.toc({ maxDepth: 3 }),
 });
 
 function stripOrderPrefixes(path: string): string {
@@ -52,6 +55,20 @@ const pages = defineCollection({
 		})),
 });
 
+const primitives = defineCollection({
+	name: "PrimitivePage",
+	pattern: "primitives/*.md",
+	schema: markdown
+		.extend({
+			section: s.string().max(99),
+			order: s.number().optional(),
+		})
+		.transform((data) => ({
+			...data,
+			...toPermalink(data.slug, "/primitives/docs", "primitives"),
+		})),
+});
+
 const tutorials = defineCollection({
 	name: "Tutorial",
 	pattern: "lessons/**/*.md",
@@ -76,7 +93,7 @@ export default defineConfig({
 		base: "/static/",
 		clean: true,
 	},
-	collections: { pages, tutorials },
+	collections: { pages, tutorials, primitives },
 	markdown: {
 		remarkPlugins: [
 			// Velite bundles its own unified types, which don't match remark/rehype plugins'.
@@ -84,18 +101,31 @@ export default defineConfig({
 			remarkAlert,
 		],
 		rehypePlugins: [
+			rehypeSlug,
 			[
 				// @ts-expect-error
 				rehypeShiki,
 				{
 					theme: "github-dark",
-					langs: ["typescript", "ts", "tsx", "javascript", "js", "jsx"],
+					langs: [
+						"typescript",
+						"ts",
+						"tsx",
+						"javascript",
+						"js",
+						"jsx",
+						"json",
+						"jsonc",
+						"html",
+						"sh",
+					],
 				},
 			],
 		],
 	},
 	prepare(data) {
 		data.pages.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.primitives.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.tutorials.sort((a, b) =>
 			a.lessonDir.localeCompare(b.lessonDir, undefined, { numeric: true }),
 		);
