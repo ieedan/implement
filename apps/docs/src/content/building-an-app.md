@@ -133,4 +133,4 @@ That's the whole framework working together. For the full, running versions of e
 - **`demos/todo`** is a small app that covers the core loop.
 - **`demos/tracker`** is a Linear-style issue tracker with a real API, routing, and data fetching.
 
-For unstyled UI building blocks on top of the framework, see [Primitives](/docs/primitives). And if you haven't yet, work through the interactive [tutorial](/tutorial). Building each piece yourself is the fastest way to make it stick.
+For unstyled UI building blocks on top of the framework, see [Primitives](/primitives). And if you haven't yet, work through the interactive [tutorial](/tutorial). Building each piece yourself is the fastest way to make it stick.

@@ -1,9 +1,11 @@
 ---
 title: Accordion
 description: Expand and collapse sections of content, one at a time or several at once.
-section: Primitives
-order: 24
+section: Components
+order: 10
 ---
+
+<div data-demo="accordion"></div>
 
 An accordion is a stack of items that open and close. `Accordion` is the root, `AccordionItem` is one section, `AccordionTrigger` is the control that toggles it, and `AccordionContent` is the body.
 
@@ -85,3 +87,7 @@ AccordionContent(
 ```
 
 The `hidden` attribute already hides closed content. `data-state` is there for transitions, chevrons, and anything else that should react to open versus closed without you threading a signal through.
+
+## API Reference
+
+<div data-api="accordion"></div>

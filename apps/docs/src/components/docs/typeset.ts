@@ -1,4 +1,9 @@
-import { Div, Html, Implement, type Mountable } from "@implementjs/core";
+import { App, Div, Html, Implement, type Mountable } from "@implementjs/core";
+import { apiReference } from "../../lib/api-reference";
+import { copyText } from "../../lib/copy-text";
+import { demos } from "../demos";
+import { EditableDemo } from "../demos/editable-demo";
+import { ApiReference } from "./api-reference";
 import { icons } from "../tutorials/icons";
 import { buttonVariants } from "../ui/button";
 
@@ -7,24 +12,6 @@ const copyButtonClass = [
 	"absolute top-1.5 right-1.5 text-foreground/60 opacity-0 transition-opacity",
 	"group-hover/code:opacity-100 focus-visible:opacity-100",
 ].join(" ");
-
-async function copyText(text: string): Promise<boolean> {
-	try {
-		await navigator.clipboard.writeText(text);
-		return true;
-	} catch {
-		// e.g. document not focused, or clipboard API unavailable
-		const textarea = document.createElement("textarea");
-		textarea.value = text;
-		textarea.style.position = "fixed";
-		textarea.style.opacity = "0";
-		document.body.append(textarea);
-		textarea.select();
-		const copied = document.execCommand("copy");
-		textarea.remove();
-		return copied;
-	}
-}
 
 function addCopyButton(pre: HTMLPreElement) {
 	const wrapper = document.createElement("div");
@@ -52,7 +39,13 @@ function addCopyButton(pre: HTMLPreElement) {
 	wrapper.append(button);
 }
 
-/** Markdown-rendered HTML in typeset styles, with a copy button on each code block. */
+/**
+ * Markdown-rendered HTML in typeset styles, with a copy button on each code
+ * block. A `<div data-demo="name"></div>` in the markdown mounts an editable
+ * live demo of the matching source from the {@link demos} registry at that
+ * spot, and a `<div data-api="name"></div>` renders that primitive's
+ * {@link apiReference} tables.
+ */
 export function Typeset(content: string, className?: string): Mountable {
 	return Div(
 		{ class: ["typeset", className] },
@@ -60,6 +53,25 @@ export function Typeset(content: string, className?: string): Mountable {
 			{
 				onMount(parent) {
 					for (const pre of parent.querySelectorAll("pre")) addCopyButton(pre);
+
+					const unmounts: (() => void)[] = [];
+					for (const target of parent.querySelectorAll<HTMLElement>("[data-demo]")) {
+						const source = demos[target.dataset.demo ?? ""];
+						if (source == null) continue;
+						// demos style themselves; opt the subtree out of typeset styles
+						target.setAttribute("data-not-typeset", "");
+						unmounts.push(App({ target }).render(EditableDemo(source)));
+					}
+					for (const target of parent.querySelectorAll<HTMLElement>("[data-api]")) {
+						const parts = apiReference[target.dataset.api ?? ""];
+						if (parts == null) continue;
+						// the tables style themselves; opt the subtree out of typeset styles
+						target.setAttribute("data-not-typeset", "");
+						unmounts.push(App({ target }).render(ApiReference(parts)));
+					}
+					return () => {
+						for (const unmount of unmounts) unmount();
+					};
 				},
 			},
 			Html(content),

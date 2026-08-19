@@ -4,6 +4,7 @@
 		"types": ["node", "vite/client"],
 		"allowImportingTsExtensions": true,
 		"paths": {
+			"@/*": ["./src/*"],
 			"@tutorial/test": ["./src/lib/tutorial-test.ts"]
 		}
 	},

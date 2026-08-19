@@ -14,6 +14,8 @@ export default defineConfig({
 		"no-shadow": "off",
 	},
 	ignorePatterns: [
+		// Agent worktrees are full repo checkouts; their nested configs break lint.
+		".claude/**",
 		"dist/**",
 		"demos/*/src/api/**",
 		".velite/**",

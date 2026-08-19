@@ -66,6 +66,18 @@ html {
 	color-scheme: dark;
 }
 
+/* Anchored headings clear the sticky site header (plus the docs subheader on
+   small screens) instead of scrolling underneath it. */
+@layer components {
+	.typeset :where([id]) {
+		scroll-margin-block-start: calc(5.5rem + 1em);
+
+		@media (min-width: 48rem) {
+			scroll-margin-block-start: calc(3rem + 1em);
+		}
+	}
+}
+
 .tutorial-editor .cm-editor {
 	height: 100%;
 }
@@ -84,3 +96,10 @@ html {
 
 /* Lesson preview styles live in components/tutorials/preview-frame.css — the
    preview renders inside an iframe, so host styles don't reach it. */
+
+/* Docs demo editors size to their code, up to a cap (the shared editor
+   otherwise fills its container, which here has no fixed height). */
+.demo-editor .cm-editor {
+	height: auto;
+	max-height: 24rem;
+}
