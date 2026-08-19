@@ -35,8 +35,20 @@ const files = fs
 	.filter((file) => file.endsWith(".svg"))
 	.toSorted();
 
-fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
+
+// leave up-to-date files untouched: a dev server watching src/ would otherwise
+// see every icon "change" (fresh mtime, same bytes) and reload thousands of times
+let written = 0;
+function writeIfChanged(file: string, content: string): void {
+	let existing: string | undefined;
+	try {
+		existing = fs.readFileSync(file, "utf-8");
+	} catch {}
+	if (existing === content) return;
+	fs.writeFileSync(file, content);
+	written++;
+}
 
 const indexLines: string[] = [
 	"// generated from ../scripts/generate-icons.ts",
@@ -50,6 +62,7 @@ const indexLines: string[] = [
 // would otherwise be silently dropped from the barrel. Differing bodies under
 // one name would mean dropping a real icon, so that still fails loudly.
 const generated = new Map<string, string>();
+const expectedFiles = new Set<string>();
 let skipped = 0;
 
 for (const file of files) {
@@ -96,10 +109,22 @@ ${disable}${declaration}
 export { ${exportName} as ${exportName}Icon };
 `;
 
-	fs.writeFileSync(path.join(outDir, `${name}.ts`), content);
+	expectedFiles.add(`${name}.ts`);
+	writeIfChanged(path.join(outDir, `${name}.ts`), content);
 	indexLines.push(`export * from "./icons/${name}";`);
 }
 
-fs.writeFileSync(indexFile, `${indexLines.join("\n")}\n`);
+// remove modules whose icon no longer exists upstream
+let removed = 0;
+for (const file of fs.readdirSync(outDir)) {
+	if (!expectedFiles.has(file)) {
+		fs.rmSync(path.join(outDir, file));
+		removed++;
+	}
+}
 
-console.log(`generated ${generated.size} icons (${skipped} duplicate aliases skipped)`);
+writeIfChanged(indexFile, `${indexLines.join("\n")}\n`);
+
+console.log(
+	`generated ${generated.size} icons (${written} written, ${removed} removed, ${skipped} duplicate aliases skipped)`,
+);

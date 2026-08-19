@@ -4,8 +4,10 @@ import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/lang
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
-import type { IMountable, Mountable, Writable } from "@implementjs/core";
+import { Div, Pre, type IMountable, type Mountable, type Writable } from "@implementjs/core";
 import { basicSetup } from "codemirror";
+
+const editorFontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
 
 const highlight = HighlightStyle.define([
 	{ tag: t.keyword, color: "#c4b5fd" },
@@ -32,7 +34,7 @@ const theme = EditorView.theme(
 		},
 		".cm-content": {
 			caretColor: "#fff",
-			fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+			fontFamily: editorFontFamily,
 			fontSize: "13px",
 			lineHeight: "1.65",
 			padding: "8px 0",
@@ -56,7 +58,63 @@ const theme = EditorView.theme(
 	{ dark: true },
 );
 
+// Static server-side stand-in for the CodeMirror pane: the code in a plain
+// <pre> behind a line-number gutter, on the same metrics as the theme above
+// (13px mono, 1.65 line height, 8px vertical padding), so the client mount
+// swaps it out without a shift. `.editor-fallback` sizing lives in app.css
+// beside the `.cm-editor` rules it mirrors.
+function EditorFallback(code: string): Mountable {
+	const lines = code.replace(/\n$/, "").split("\n");
+	return Div(
+		{
+			class: "editor-fallback h-full min-h-0 overflow-auto",
+			style: {
+				display: "flex",
+				alignItems: "flex-start",
+				color: "#fff",
+				fontFamily: editorFontFamily,
+				fontSize: "13px",
+				lineHeight: "1.65",
+				padding: "8px 0",
+				tabSize: "4",
+			},
+		},
+		Div(
+			{
+				"aria-hidden": "true",
+				style: {
+					color: "#555",
+					flexShrink: "0",
+					minWidth: "20px",
+					padding: "0 3px 0 5px",
+					textAlign: "right",
+					whiteSpace: "pre",
+				},
+			},
+			lines.map((_, index) => index + 1).join("\n"),
+		),
+		Pre(
+			{
+				style: {
+					flex: "1",
+					margin: "0",
+					overflowX: "auto",
+					padding: "0 2px 0 6px",
+					fontFamily: "inherit",
+					fontSize: "inherit",
+					lineHeight: "inherit",
+				},
+			},
+			code,
+		),
+	);
+}
+
 export function CodeEditor(value: Writable<string>): Mountable {
+	// browser-only pane: CodeMirror needs a real DOM — the server renders a
+	// static stand-in of the code that the client mount replaces
+	if (typeof document === "undefined") return EditorFallback(value.get());
+
 	return (): IMountable => {
 		let parent: HTMLElement | null = null;
 		let view: EditorView | null = null;
@@ -64,8 +122,6 @@ export function CodeEditor(value: Writable<string>): Mountable {
 
 		return {
 			mount(host: HTMLElement) {
-				// browser-only pane: CodeMirror needs a real DOM, so SSR renders nothing
-				if (typeof document === "undefined") return;
 				parent = document.createElement("div");
 				parent.className = "tutorial-editor h-full min-h-0";
 				host.appendChild(parent);

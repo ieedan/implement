@@ -18,6 +18,7 @@ import { CodeEditor } from "../tutorials/editor";
 import { CheckIcon, CopyIcon } from "@implementjs/lucide";
 import { Button } from "../ui/button";
 import { demoModules } from "./demo-modules";
+import type { Demo } from "./index";
 
 function toErrorMessage(error: unknown): string {
 	if (error instanceof Error) return error.message;
@@ -98,6 +99,9 @@ function DemoRunner(code: Readable<string>, error: Signal<string | null>): Mount
 				unmountRun = null;
 				host?.remove();
 				host = null;
+				// unmounting means the pristine demo is back (Reset, or an edit
+				// restoring the original) — its error goes with it
+				error.set(null);
 			},
 			getFirstDomNode() {
 				return host;
@@ -110,14 +114,21 @@ function DemoRunner(code: Readable<string>, error: Signal<string | null>): Mount
  * A live component demo with its source in an editor below the preview.
  * Edits re-run the demo (debounced); Reset restores the original source and
  * the copy button copies whatever is currently in the editor.
+ *
+ * While the source is pristine the preview is the statically imported
+ * component — synchronous, so it server-renders and paints with the page.
+ * The compile-and-run pipeline only takes over once the reader edits.
  */
-export function EditableDemo(source: string): Mountable {
-	const initial = source.replace(/\n+$/, "");
+export function EditableDemo(demo: Demo): Mountable {
+	const initial = demo.source.replace(/\n+$/, "");
 	const code = signal(initial);
 	const error = signal<string | null>(null);
 	const copied = signal(false);
 	const dirty = derived([code], (value) => value !== initial);
 	const hasError = derived([error], (value) => value != null);
+
+	// re-created per mount so returning to pristine shows a fresh demo
+	const staticDemo: Mountable = () => demo.component()();
 
 	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 	const copy = async () => {
@@ -134,7 +145,7 @@ export function EditableDemo(source: string): Mountable {
 				class:
 					"flex min-h-48 w-full items-center justify-center rounded-t-lg border border-border bg-background p-10",
 			},
-			DemoRunner(code, error),
+			If(dirty).Then(DemoRunner(code, error)).Else(staticDemo),
 			If(hasError).Then(
 				Pre(
 					{ class: "w-full overflow-auto font-mono text-xs whitespace-pre-wrap text-red-300" },

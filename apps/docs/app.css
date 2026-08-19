@@ -98,8 +98,11 @@ html {
    preview renders inside an iframe, so host styles don't reach it. */
 
 /* Docs demo editors size to their code, up to a cap (the shared editor
-   otherwise fills its container, which here has no fixed height). */
-.demo-editor .cm-editor {
+   otherwise fills its container, which here has no fixed height). The
+   .editor-fallback selector keeps the server-rendered <pre> stand-in
+   (components/tutorials/editor.ts) on the same footprint. */
+.demo-editor .cm-editor,
+.demo-editor .editor-fallback {
 	height: auto;
 	max-height: 24rem;
 }
