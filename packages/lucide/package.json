@@ -11,10 +11,10 @@
 		}
 	},
 	"scripts": {
-		"dev": "tsdown --watch",
-		"build": "tsdown",
+		"dev": "pnpm generate && tsdown --watch",
+		"build": "pnpm generate && tsdown",
 		"generate": "node --experimental-strip-types scripts/generate-icons.ts",
-		"check": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json"
+		"check": "pnpm generate && tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json"
 	},
 	"dependencies": {
 		"@implementjs/core": "workspace:*"

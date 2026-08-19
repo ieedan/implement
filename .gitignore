@@ -13,6 +13,10 @@ jspm_packages/
 # Generated API client
 demos/*/src/api/
 
+# Generated Lucide icon modules
+packages/lucide/src/icons/
+packages/lucide/src/index.ts
+
 # Local SQLite databases
 *.db
 *.db-shm
