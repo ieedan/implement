@@ -1,0 +1,14 @@
+// generated from ../../scripts/generate-icons.ts
+
+import { createLucideIcon } from "../create-icon";
+
+/**
+ * Lucide `arrow-up-narrow-wide` icon.
+ * @see https://lucide.dev/icons/arrow-up-narrow-wide
+ */
+export const ArrowUpNarrowWide = /* @__PURE__ */ createLucideIcon(
+	"arrow-up-narrow-wide",
+	`<path d="m3 8 4-4 4 4" /><path d="M7 4v16" /><path d="M11 12h4" /><path d="M11 16h7" /><path d="M11 20h10" />`,
+);
+
+export { ArrowUpNarrowWide as ArrowUpNarrowWideIcon };

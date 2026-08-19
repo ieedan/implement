@@ -23,7 +23,7 @@ export default defineConfig({
 	],
 	overrides: [
 		{
-			files: ["packages/core/scripts/**/*.ts", "demos/*/server/**/*.ts"],
+			files: ["packages/*/scripts/**/*.ts", "demos/*/server/**/*.ts"],
 			env: {
 				node: true,
 			},

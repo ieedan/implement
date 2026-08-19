@@ -1,0 +1,14 @@
+// generated from ../../scripts/generate-icons.ts
+
+import { createLucideIcon } from "../create-icon";
+
+/**
+ * Lucide `chart-line` icon.
+ * @see https://lucide.dev/icons/chart-line
+ */
+export const ChartLine = /* @__PURE__ */ createLucideIcon(
+	"chart-line",
+	`<path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="m19 9-5 5-4-4-3 3" />`,
+);
+
+export { ChartLine as ChartLineIcon };

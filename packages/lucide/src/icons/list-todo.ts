@@ -1,0 +1,14 @@
+// generated from ../../scripts/generate-icons.ts
+
+import { createLucideIcon } from "../create-icon";
+
+/**
+ * Lucide `list-todo` icon.
+ * @see https://lucide.dev/icons/list-todo
+ */
+export const ListTodo = /* @__PURE__ */ createLucideIcon(
+	"list-todo",
+	`<path d="M13 5h8" /><path d="M13 12h8" /><path d="M13 19h8" /><path d="m3 17 2 2 4-4" /><rect x="3" y="4" width="6" height="6" rx="1" />`,
+);
+
+export { ListTodo as ListTodoIcon };

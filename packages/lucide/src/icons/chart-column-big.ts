@@ -1,0 +1,14 @@
+// generated from ../../scripts/generate-icons.ts
+
+import { createLucideIcon } from "../create-icon";
+
+/**
+ * Lucide `chart-column-big` icon.
+ * @see https://lucide.dev/icons/chart-column-big
+ */
+export const ChartColumnBig = /* @__PURE__ */ createLucideIcon(
+	"chart-column-big",
+	`<path d="M3 3v16a2 2 0 0 0 2 2h16" /><rect x="15" y="5" width="4" height="12" rx="1" /><rect x="7" y="8" width="4" height="9" rx="1" />`,
+);
+
+export { ChartColumnBig as ChartColumnBigIcon };

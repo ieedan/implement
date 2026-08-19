@@ -1,0 +1,14 @@
+// generated from ../../scripts/generate-icons.ts
+
+import { createLucideIcon } from "../create-icon";
+
+/**
+ * Lucide `midi-port` icon.
+ * @see https://lucide.dev/icons/midi-port
+ */
+export const MidiPort = /* @__PURE__ */ createLucideIcon(
+	"midi-port",
+	`<path d="M12 18h.01" /><path d="M15 2.458V5a1 1 0 01-1 1h-4a1 1 0 01-1-1V2.458" /><path d="M16 16h.01" /><path d="M18 12h.01" /><path d="M6 12h.01" /><path d="M8 16h.01" /><circle cx="12" cy="12" r="10" />`,
+);
+
+export { MidiPort as MidiPortIcon };
