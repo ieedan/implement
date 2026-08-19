@@ -1,6 +1,6 @@
 import { dom } from "../../dom";
 import { claimComment } from "../../hydrate";
-import { isReadable, subscribe } from "../../signal";
+import { subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import { applySvgProps, type Bindable, type SvgProps } from "../props";
 import type { Mountable } from "../types";

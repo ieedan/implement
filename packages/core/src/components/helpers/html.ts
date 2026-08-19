@@ -1,6 +1,6 @@
 import { dom } from "../../dom";
 import { claimHtmlBlock } from "../../hydrate";
-import { isReadable, subscribe } from "../../signal";
+import { subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import type { Bindable } from "../props";
 import type { Mountable } from "../types";

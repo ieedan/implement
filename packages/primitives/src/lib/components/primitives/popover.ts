@@ -19,13 +19,13 @@ import {
 	signal,
 	type Child,
 	type ComponentProps,
+	type PortalProps,
 	type Signal,
 } from "@implementjs/core";
-import { getId } from "../utils";
-
-// TODO: apply the correct attributes to everything
-// TODO: handle nested portaled popovers
-// TODO: trap focus
+import { getId } from "../../utils";
+import { focusFirst, trapFocus } from "../../focus";
+import { mergeProps } from "../../merge-props";
+import { DismissableLayer } from "../helpers/dismissable-layer";
 
 export type Side = "top" | "bottom" | "left" | "right";
 export type Align = "start" | "center" | "end";
@@ -75,10 +75,19 @@ class PopoverState {
 			this.follow(triggerId);
 			return;
 		}
+		this.openAndFocus();
+	}
+
+	private openAndFocus() {
 		this.open.set(true);
+		focusFirst(this.content?.opts.ref.get());
 	}
 
 	close() {
+		const currentTrigger = this.triggerRefs.get(this.currentTriggerId.get() ?? "");
+		if (currentTrigger) {
+			currentTrigger.opts.ref.get()?.focus({ preventScroll: true });
+		}
 		this.open.set(false);
 		this.currentTriggerId.set(null);
 		this.unfollow();
@@ -141,7 +150,7 @@ class PopoverState {
 		content: { el: HTMLDivElement; side: Side; align: Align; offset: number },
 	) {
 		const placement = toFloatingUIPlacement(content.side, content.align);
-		computePosition(trigger, content.el, {
+		void computePosition(trigger, content.el, {
 			placement,
 			strategy: "absolute",
 			middleware: [
@@ -163,23 +172,21 @@ class PopoverState {
 		}).then(({ x, y, placement: resolved }) => {
 			content.el.style.left = `${x}px`;
 			content.el.style.top = `${y}px`;
-			const [side, align = "center"] = resolved.split("-") as [Side, Align];
+			const [side, align] = resolved.split("-");
 			content.el.dataset.side = side;
 			content.el.dataset.align = align;
 		});
 	}
 
-	onPointerDown(e: PointerEvent) {
+	onPointerdown(e: PointerEvent) {
 		if (!this.open.get()) return;
 		// only close on left clicks
 		const isRightClick = e.button === 2 || (e.button === 0 && e.ctrlKey);
 		if (isRightClick) return;
 
 		// we don't handle trigger clicks here
-		const currentTriggerId = this.currentTriggerId.get();
-		if (currentTriggerId) {
-			const trigger = this.triggerRefs.get(currentTriggerId);
-			if (trigger?.opts.ref.get()?.contains(e.target as Node)) return;
+		for (const trigger of this.triggerRefs.values()) {
+			if (trigger.opts.ref.get()?.contains(e.target as Node)) return;
 		}
 
 		if (this.content) {
@@ -187,6 +194,14 @@ class PopoverState {
 		}
 
 		this.close();
+	}
+
+	contentKeydown(e: KeyboardEvent) {
+		switch (e.key) {
+			case "Tab":
+				trapFocus(e, this.content?.opts.ref.get());
+				return;
+		}
 	}
 
 	dispose() {
@@ -228,7 +243,8 @@ function applyPopoverCssVars(
 		floating: { width: number; height: number };
 	},
 ) {
-	const [side, align = "center"] = opts.placement.split("-") as [Side, Align];
+	const [side, alignPart] = opts.placement.split("-") as [Side, Align?];
+	const align = alignPart ?? "center";
 	el.style.setProperty(
 		"--bits-popover-content-transform-origin",
 		toTransformOrigin(side, align, opts.floating),
@@ -243,22 +259,25 @@ const PopoverContext = context<PopoverState>();
 
 export function Popover(props: PopoverRootProps, ...children: Child[]) {
 	const state = new PopoverState(props);
-	return PopoverContext.Provide(state).To(
-		Implement.Document({
-			onPointerdown: (e) => state.onPointerDown(e),
-		}),
-		Implement.Lifecycle(
-			{
-				onMount: () => {
-					if (state.open.get()) state.ensureAnchor();
-					return state.open.onChange((open) => {
-						if (open) state.ensureAnchor();
-						else state.releaseAnchor();
-					});
+	return DismissableLayer(
+		{ open: state.open, onDismiss: () => state.close() },
+		PopoverContext.Provide(state).To(
+			Implement.Document({
+				onPointerdown: (e) => state.onPointerdown(e),
+			}),
+			Implement.Lifecycle(
+				{
+					onMount: () => {
+						if (state.open.get()) state.ensureAnchor();
+						return state.open.onChange((open) => {
+							if (open) state.ensureAnchor();
+							else state.releaseAnchor();
+						});
+					},
+					onUnmount: () => state.dispose(),
 				},
-				onUnmount: () => state.dispose(),
-			},
-			...children,
+				...children,
+			),
 		),
 	);
 }
@@ -284,7 +303,7 @@ class PopoverTriggerState {
 	get open() {
 		return derived([this.rootState.open, this.rootState.currentTriggerId], (open, current) =>
 			open && current === this.opts.id ? true : false,
-		)
+		);
 	}
 
 	toggle() {
@@ -306,16 +325,18 @@ export function PopoverTrigger(
 		);
 
 		return Button(
-			{
-				this: triggerRef,
-				type: "button",
-				"data-popover-trigger": "",
-				"data-state": triggerState.state,
-				"aria-haspopup": "dialog",
-				"aria-expanded": triggerState.open,
-				onClick: () => triggerState.toggle(),
-				...restProps,
-			},
+			mergeProps(
+				{
+					this: triggerRef,
+					type: "button",
+					"data-popover-trigger": "",
+					"data-state": triggerState.state,
+					"aria-haspopup": "dialog",
+					"aria-expanded": triggerState.open,
+					onClick: () => triggerState.toggle(),
+				},
+				restProps,
+			),
 			...children,
 		);
 	});
@@ -331,24 +352,41 @@ class PopoverContentState {
 	constructor(
 		readonly rootState: PopoverState,
 		readonly opts: { ref: Ref<HTMLDivElement>; side: Side; align: Align; offset: number },
-	) { }
+	) {
+		rootState.registerContent(this);
+	}
 }
 
 export function PopoverContent(
 	{ side = "bottom", align = "start", offset = 0, ...restProps }: PopoverContentProps,
 	...children: Child[]
 ) {
-	return PopoverContext.Use((state) => {
+	return PopoverContext.Use((rootState) => {
 		const contentRef = ref<HTMLDivElement>();
-		const contentState = new PopoverContentState(state, { ref: contentRef, side, align, offset });
-		state.registerContent(contentState);
+		const _contentState = new PopoverContentState(rootState, {
+			ref: contentRef,
+			side,
+			align,
+			offset,
+		});
 
 		return Div(
-			{ this: contentRef, "data-popover-content": "", tabIndex: -1, "data-state": state.state, ...restProps },
+			mergeProps(
+				{
+					this: contentRef,
+					"data-popover-content": "",
+					tabIndex: -1,
+					"data-state": rootState.state,
+					onKeydown: (e: KeyboardEvent) => rootState.contentKeydown(e),
+				},
+				restProps,
+			),
 			...children,
 		);
 	});
 }
+
+export type PopoverPortalProps = PortalProps;
 
 export const PopoverPortal = Portal;
 
@@ -357,11 +395,13 @@ export type PopoverCloseProps = ComponentProps<typeof Button>;
 export function PopoverClose({ ...restProps }: PopoverCloseProps, ...children: Child[]) {
 	return PopoverContext.Use((state) => {
 		return Button(
-			{
-				type: "button",
-				onClick: () => state.close(),
-				...restProps,
-			},
+			mergeProps(
+				{
+					type: "button",
+					onClick: () => state.close(),
+				},
+				restProps,
+			),
 			...children,
 		);
 	});

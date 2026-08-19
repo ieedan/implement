@@ -41,10 +41,10 @@ class ContextProvideBuilder<T> {
 	}
 }
 
-function contextUse<T>(
+function contextUse<T, Fallback = T>(
 	context: context<T>,
-	render: (value: T) => Child,
-	fallback?: { value: T },
+	render: (value: T | Fallback) => Child,
+	fallback?: { value: Fallback },
 ): Mountable {
 	return () => {
 		let mounted: IMountable[] = [];
@@ -54,7 +54,7 @@ function contextUse<T>(
 				mounted = [];
 
 				const result = context.lookup(node);
-				let value: T;
+				let value: T | Fallback;
 				if (result.found) {
 					value = result.value;
 				} else if (fallback) {
@@ -109,7 +109,7 @@ class ContextStore<T> {
 		return contextUse(this, render);
 	}
 
-	UseOr(render: (value: T) => Child, fallback: T): Mountable {
+	UseOr<Fallback>(render: (value: T | Fallback) => Child, fallback: Fallback): Mountable {
 		return contextUse(this, render, { value: fallback });
 	}
 }
@@ -121,7 +121,7 @@ export type context<T> = ContextStore<T>;
  *
  * `Provide(value).To(...children)` wraps a subtree. `Use(render)` reads the
  * nearest provided value and throws if missing. `UseOr(render, fallback)`
- * supplies a default.
+ * supplies a default; `render` receives `T | typeof fallback`.
  */
 export function context<T>(): context<T> {
 	return new ContextStore();

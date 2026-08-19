@@ -2,7 +2,6 @@
 title: Separator
 description: Visually or semantically divide content, horizontally or vertically.
 section: Components
-order: 12
 ---
 
 <div data-demo="separator"></div>

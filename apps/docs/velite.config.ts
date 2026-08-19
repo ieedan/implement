@@ -139,7 +139,11 @@ export default defineConfig({
 	},
 	prepare(data) {
 		data.pages.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
-		data.primitives.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.primitives.sort((a, b) => {
+			const byOrder = (a.order ?? Infinity) - (b.order ?? Infinity);
+			if (byOrder !== 0) return byOrder;
+			return a.title.localeCompare(b.title);
+		});
 		data.lucide.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.tutorials.sort((a, b) =>
 			a.lessonDir.localeCompare(b.lessonDir, undefined, { numeric: true }),

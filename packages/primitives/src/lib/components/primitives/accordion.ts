@@ -9,6 +9,7 @@ import {
 	type Child,
 	type ComponentProps,
 } from "@implementjs/core";
+import { mergeProps } from "../../merge-props";
 
 export type AccordionRootProps = ComponentProps<typeof Div> & {
 	type?: "single" | "multiple";
@@ -94,7 +95,14 @@ export function Accordion(
 
 	return AccordionCtx.Provide(state).To(
 		Div(
-			{ this: root, "data-accordion-root": "", onKeydown: (e) => state.onKeyDown(e), ...restProps },
+			mergeProps(
+				{
+					this: root,
+					"data-accordion-root": "",
+					onKeydown: (e: KeyboardEvent) => state.onKeyDown(e),
+				},
+				restProps,
+			),
 			...children,
 		),
 	);
@@ -139,27 +147,34 @@ export function AccordionItem({ value, ...restProps }: AccordionItemProps, ...ch
 	return AccordionCtx.Use((rootState) => {
 		const state = new AccordionItemState(rootState, value);
 		return AccordionItemCtx.Provide(state).To(
-			Div({ "data-accordion-item": "", "data-state": state.state, ...restProps }, ...children),
+			Div(
+				mergeProps({ "data-accordion-item": "", "data-state": state.state }, restProps),
+				...children,
+			),
 		);
 	});
 }
 
+export type AccordionTriggerProps = ComponentProps<typeof Button>;
+
 export function AccordionTrigger(
-	{ ...restProps }: ComponentProps<typeof Button>,
+	{ ...restProps }: AccordionTriggerProps,
 	...children: Child[]
 ) {
 	return AccordionItemCtx.Use((state) => {
 		return Button(
-			{
-				type: "button",
-				"data-accordion-trigger": "",
-				"data-state": state.state,
-				"data-value": state.value,
-				onClick: () => state.toggle(),
-				onFocus: () => state.onFocus(),
-				onBlur: () => state.onBlur(),
-				...restProps,
-			},
+			mergeProps(
+				{
+					type: "button",
+					"data-accordion-trigger": "",
+					"data-state": state.state,
+					"data-value": state.value,
+					onClick: () => state.toggle(),
+					onFocus: () => state.onFocus(),
+					onBlur: () => state.onBlur(),
+				},
+				restProps,
+			),
 			...children,
 		);
 	});
@@ -175,14 +190,16 @@ export function AccordionContent(
 ) {
 	return AccordionItemCtx.Use((state) => {
 		return Div(
-			{
-				"data-accordion-content": "",
-				"data-state": state.state,
-				hidden: state.isOpen.bind((open) =>
-					open ? undefined : hiddenUntilFound ? "until-found" : "",
-				),
-				...restProps,
-			},
+			mergeProps(
+				{
+					"data-accordion-content": "",
+					"data-state": state.state,
+					hidden: state.isOpen.bind((open) =>
+						open ? undefined : hiddenUntilFound ? "until-found" : "",
+					),
+				},
+				restProps,
+			),
 			...children,
 		);
 	});
@@ -198,14 +215,16 @@ export function AccordionHeader(
 ) {
 	return AccordionItemCtx.Use((state) => {
 		return Div(
-			{
-				"data-accordion-header": "",
-				"data-state": state.state,
-				"data-heading-level": level.toString(),
-				"aria-level": level,
-				role: "heading",
-				...restProps,
-			},
+			mergeProps(
+				{
+					"data-accordion-header": "",
+					"data-state": state.state,
+					"data-heading-level": level.toString(),
+					"aria-level": level,
+					role: "heading",
+				},
+				restProps,
+			),
 			...children,
 		);
 	});

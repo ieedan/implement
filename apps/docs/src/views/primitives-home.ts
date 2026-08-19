@@ -4,6 +4,7 @@ import {
 	H1,
 	H2,
 	Implement,
+	Label,
 	Main,
 	navigateTo,
 	P,
@@ -18,6 +19,7 @@ import {
 	AccordionTrigger,
 } from "../components/ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Checkbox } from "../components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { Separator } from "../components/ui/separator";
 import { primitivePages, type PrimitivePage } from "../lib/content";
@@ -79,6 +81,27 @@ function PopoverPreview(): Mountable {
 	);
 }
 
+function CheckboxPreview(): Mountable {
+	return Div(
+		{ class: "flex w-full max-w-56 flex-col gap-3" },
+		Div(
+			{ class: "flex items-center gap-2" },
+			Checkbox({ checked: true }),
+			Label({ class: "text-sm leading-none font-medium" }, "Send updates"),
+		),
+		Div(
+			{ class: "flex items-center gap-2" },
+			Checkbox({ indeterminate: true }),
+			Label({ class: "text-sm leading-none font-medium" }, "Select all"),
+		),
+		Div(
+			{ class: "flex items-center gap-2" },
+			Checkbox({}),
+			Label({ class: "text-sm leading-none font-medium" }, "Accept terms"),
+		),
+	);
+}
+
 function SeparatorPreview(): Mountable {
 	return Div(
 		{ class: "w-full max-w-56" },
@@ -99,6 +122,7 @@ function SeparatorPreview(): Mountable {
 const previews: Record<string, () => Mountable> = {
 	accordion: AccordionPreview,
 	avatar: AvatarPreview,
+	checkbox: CheckboxPreview,
 	popover: PopoverPreview,
 	separator: SeparatorPreview,
 };

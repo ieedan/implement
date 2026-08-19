@@ -166,6 +166,34 @@ export const apiReference: Record<string, ApiPart[]> = {
 			],
 		},
 	],
+	checkbox: [
+		{
+			name: "Checkbox",
+			element: "Button",
+			description:
+				'A toggle that is checked, unchecked, or indeterminate. Sets role="checkbox" and aria-checked. Give it a look and an indicator; it handles the state.',
+			props: [
+				{
+					name: "checked",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"The checked state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "indeterminate",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						'Partial selection. While true, data-state is "indeterminate" and aria-checked is "mixed". A click clears it and checks the box.',
+				},
+			],
+			dataAttributes: [
+				{ name: "data-checkbox-root", value: "Present" },
+				{ name: "data-state", value: '"checked" | "unchecked" | "indeterminate"' },
+			],
+		},
+	],
 	separator: [
 		{
 			name: "Separator",

@@ -2,7 +2,6 @@
 title: Avatar
 description: Show a user image with an automatic fallback while it loads or when it fails.
 section: Components
-order: 11
 ---
 
 <div data-demo="avatar"></div>

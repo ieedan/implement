@@ -115,7 +115,11 @@ function parentState(): ParentState | null {
 export function attachAtCursor(parent: HTMLElement, node: Node): boolean {
 	const entry = parentStateFor(parent);
 	if (!entry) return false;
-	entry.cursor ? parent.insertBefore(node, entry.cursor) : parent.appendChild(node);
+	if (entry.cursor) {
+		parent.insertBefore(node, entry.cursor);
+	} else {
+		parent.appendChild(node);
+	}
 	return true;
 }
 
@@ -176,9 +180,11 @@ export function claimText(data: string): Text | null {
 	// the serializer emits nothing for empty text, so recreate it in place
 	if (data === "") {
 		const node = state!.root.ownerDocument.createTextNode("");
-		entry.cursor
-			? entry.cursor.parentNode!.insertBefore(node, entry.cursor)
-			: state!.currentParent!.appendChild(node);
+		if (entry.cursor) {
+			entry.cursor.parentNode!.insertBefore(node, entry.cursor);
+		} else {
+			state!.currentParent!.appendChild(node);
+		}
 		state!.claimed.add(node);
 		return node;
 	}

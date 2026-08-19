@@ -1,4 +1,5 @@
 import { Div, type Child, type ComponentProps } from "@implementjs/core";
+import { mergeProps } from "../../merge-props";
 
 export type SeparatorProps = ComponentProps<typeof Div> & {
 	orientation?: "horizontal" | "vertical";
@@ -11,15 +12,17 @@ export function Separator(
 	...children: Child[]
 ) {
 	return Div(
-		{
-			"data-separator-root": "",
-			"data-orientation": orientation,
-			role: decorative ? "none" : "separator",
-			// aria-orientation defaults to horizontal on role="separator"
-			"aria-orientation": !decorative && orientation === "vertical" ? "vertical" : undefined,
-			"aria-hidden": decorative ? true : undefined,
-			...restProps,
-		},
+		mergeProps(
+			{
+				"data-separator-root": "",
+				"data-orientation": orientation,
+				role: decorative ? "none" : "separator",
+				// aria-orientation defaults to horizontal on role="separator"
+				"aria-orientation": !decorative && orientation === "vertical" ? "vertical" : undefined,
+				"aria-hidden": decorative ? true : undefined,
+			},
+			restProps,
+		),
 		...children,
 	);
 }

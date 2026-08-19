@@ -10,6 +10,7 @@ import {
 	type ComponentProps,
 	type ReadableSource,
 } from "@implementjs/core";
+import { mergeProps } from "../../merge-props";
 
 export type AvatarLoadingStatus = "loading" | "loaded" | "error";
 
@@ -91,7 +92,10 @@ export function Avatar(
 	const state = new AvatarState({ delayMs, onLoadingStatusChange });
 
 	return AvatarCtx.Provide(state).To(
-		Div({ "data-avatar-root": "", "data-status": state.loadingStatus, ...restProps }, ...children),
+		Div(
+			mergeProps({ "data-avatar-root": "", "data-status": state.loadingStatus }, restProps),
+			...children,
+		),
 	);
 }
 
@@ -117,15 +121,19 @@ export function AvatarImage({ src, crossOrigin, referrerPolicy, ...restProps }: 
 					};
 				},
 			},
-			Img({
-				"data-avatar-image": "",
-				"data-status": state.loadingStatus,
-				src,
-				crossOrigin,
-				referrerPolicy,
-				style: { display: state.isLoaded.bind((loaded) => (loaded ? "" : "none")) },
-				...restProps,
-			}),
+			Img(
+				mergeProps(
+					{
+						"data-avatar-image": "",
+						"data-status": state.loadingStatus,
+						src,
+						crossOrigin,
+						referrerPolicy,
+						style: { display: state.isLoaded.bind((loaded) => (loaded ? "" : "none")) },
+					},
+					restProps,
+				),
+			),
 		);
 	});
 }
@@ -135,12 +143,14 @@ export type AvatarFallbackProps = ComponentProps<typeof Span>;
 export function AvatarFallback({ ...restProps }: AvatarFallbackProps, ...children: Child[]) {
 	return AvatarCtx.Use((state) => {
 		return Span(
-			{
-				"data-avatar-fallback": "",
-				"data-status": state.loadingStatus,
-				style: { display: state.isLoaded.bind((loaded) => (loaded ? "none" : "")) },
-				...restProps,
-			},
+			mergeProps(
+				{
+					"data-avatar-fallback": "",
+					"data-status": state.loadingStatus,
+					style: { display: state.isLoaded.bind((loaded) => (loaded ? "none" : "")) },
+				},
+				restProps,
+			),
 			...children,
 		);
 	});

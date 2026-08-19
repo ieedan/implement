@@ -2,7 +2,6 @@
 title: Popover
 description: Display rich content in a panel, triggered by a button.
 section: Components
-order: 13
 ---
 
 <div data-demo="popover"></div>

@@ -1,5 +1,5 @@
 import { dom } from "../../dom";
-import { isReadable, subscribe } from "../../signal";
+import { subscribe } from "../../signal";
 import { mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { component } from "..";

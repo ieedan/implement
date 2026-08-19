@@ -2,7 +2,6 @@
 title: Accordion
 description: Expand and collapse sections of content, one at a time or several at once.
 section: Components
-order: 10
 ---
 
 <div data-demo="accordion"></div>
