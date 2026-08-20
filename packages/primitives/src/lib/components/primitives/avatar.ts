@@ -11,6 +11,7 @@ import {
 	type ReadableSource,
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
+import { getId } from "../../utils";
 
 export type AvatarLoadingStatus = "loading" | "loaded" | "error";
 
@@ -86,14 +87,14 @@ class AvatarState {
 }
 
 export function Avatar(
-	{ delayMs = 0, onLoadingStatusChange, ...restProps }: AvatarRootProps,
+	{ id = getId(), delayMs = 0, onLoadingStatusChange, ...restProps }: AvatarRootProps,
 	...children: Child[]
 ) {
 	const state = new AvatarState({ delayMs, onLoadingStatusChange });
 
 	return AvatarCtx.Provide(state).To(
 		Div(
-			mergeProps({ "data-avatar-root": "", "data-status": state.loadingStatus }, restProps),
+			mergeProps({ id, "data-avatar-root": "", "data-status": state.loadingStatus }, restProps),
 			...children,
 		),
 	);
@@ -101,7 +102,13 @@ export function Avatar(
 
 export type AvatarImageProps = ComponentProps<typeof Img>;
 
-export function AvatarImage({ src, crossOrigin, referrerPolicy, ...restProps }: AvatarImageProps) {
+export function AvatarImage({
+	id = getId(),
+	src,
+	crossOrigin,
+	referrerPolicy,
+	...restProps
+}: AvatarImageProps) {
 	return AvatarCtx.Use((state) => {
 		const load = () =>
 			state.loadImage(currentValue(src), currentValue(crossOrigin), currentValue(referrerPolicy));
@@ -124,6 +131,7 @@ export function AvatarImage({ src, crossOrigin, referrerPolicy, ...restProps }: 
 			Img(
 				mergeProps(
 					{
+						id,
 						"data-avatar-image": "",
 						"data-status": state.loadingStatus,
 						src,
@@ -140,11 +148,15 @@ export function AvatarImage({ src, crossOrigin, referrerPolicy, ...restProps }: 
 
 export type AvatarFallbackProps = ComponentProps<typeof Span>;
 
-export function AvatarFallback({ ...restProps }: AvatarFallbackProps, ...children: Child[]) {
+export function AvatarFallback(
+	{ id = getId(), ...restProps }: AvatarFallbackProps,
+	...children: Child[]
+) {
 	return AvatarCtx.Use((state) => {
 		return Span(
 			mergeProps(
 				{
+					id,
 					"data-avatar-fallback": "",
 					"data-status": state.loadingStatus,
 					style: { display: state.isLoaded.bind((loaded) => (loaded ? "none" : "")) },

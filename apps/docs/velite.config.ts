@@ -69,6 +69,41 @@ const primitives = defineCollection({
 		})),
 });
 
+const kit = defineCollection({
+	name: "KitPage",
+	pattern: "kit/*.md",
+	schema: markdown
+		.extend({
+			section: s.string().max(99),
+			order: s.number().optional(),
+		})
+		.transform((data) => ({
+			...data,
+			...toPermalink(data.slug, "/kit", "kit"),
+		})),
+});
+
+/**
+ * The same docs files as raw markdown, for the `.md` server routes — keyed by
+ * cleaned path (`kit/routing`, `primitives/accordion`, `getting-started`).
+ * Server-only: nothing in the client bundle imports it.
+ */
+const raws = defineCollection({
+	name: "RawPage",
+	pattern: ["*.md", "kit/*.md", "primitives/*.md", "lucide/*.md"],
+	// s.path() flattens `kit/index` to `kit`, colliding with the root kit.md —
+	// key by the real file path instead.
+	schema: s.object({ raw: s.raw() }).transform((data, { meta }) => ({
+		path: stripOrderPrefixes(
+			meta.path
+				.split(/[\\/]src[\\/]content[\\/]/)[1]!
+				.replace(/\.md$/, "")
+				.replaceAll("\\", "/"),
+		),
+		raw: data.raw,
+	})),
+});
+
 const lucide = defineCollection({
 	name: "LucidePage",
 	pattern: "lucide/*.md",
@@ -89,12 +124,19 @@ const tutorials = defineCollection({
 	schema: markdown
 		.extend({
 			section: s.string().max(99),
+			/** File open in the editor when the lesson loads (multi-file lessons). */
+			focus: s.string().optional(),
 		})
-		.transform((data) => ({
-			...data,
-			lessonDir: toLessonDir(data.slug),
-			...toPermalink(data.slug, "/tutorial", "lessons"),
-		})),
+		.transform((data) => {
+			const lessonDir = toLessonDir(data.slug);
+			return {
+				...data,
+				lessonDir,
+				// Top-level lesson directory ("implement", "kit") the lesson belongs to.
+				part: stripOrderPrefixes(lessonDir).split("/")[0] ?? "",
+				...toPermalink(data.slug, "/tutorial", "lessons"),
+			};
+		}),
 });
 
 export default defineConfig({
@@ -102,12 +144,14 @@ export default defineConfig({
 	strict: true,
 	output: {
 		data: ".velite",
-		// Vite copies public/ into dist on build (dist itself is wiped by every build).
-		assets: "public/static",
-		base: "/static/",
+		// Vite copies static/ into dist on build (dist itself is wiped by every
+		// build). Velite owns static/velite — clean: true wipes it every run,
+		// so hand-placed files belong directly in static/ instead.
+		assets: "static/velite",
+		base: "/velite/",
 		clean: true,
 	},
-	collections: { pages, tutorials, primitives, lucide },
+	collections: { pages, tutorials, primitives, lucide, kit, raws },
 	markdown: {
 		remarkPlugins: [
 			// Velite bundles its own unified types, which don't match remark/rehype plugins'.
@@ -145,6 +189,7 @@ export default defineConfig({
 			return a.title.localeCompare(b.title);
 		});
 		data.lucide.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.kit.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.tutorials.sort((a, b) =>
 			a.lessonDir.localeCompare(b.lessonDir, undefined, { numeric: true }),
 		);

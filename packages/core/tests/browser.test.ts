@@ -1,6 +1,17 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from "vitest";
-import { App, Button, Div, If, signal, Span } from "../src/index";
+import { describe, expect, it, vi } from "vitest";
+import {
+	App,
+	Button,
+	Div,
+	If,
+	navigateTo,
+	registerNavigationGuard,
+	Router,
+	signal,
+	Span,
+	type RouterLocation,
+} from "../src/index";
 
 describe("browser mounting", () => {
 	it("mounts, reacts to signals, and unmounts", () => {
@@ -57,6 +68,65 @@ describe("browser mounting", () => {
 		target.querySelector("button")!.click();
 		expect(count.get()).toBe(1);
 
+		unmount();
+		target.remove();
+	});
+});
+
+describe("navigation guards", () => {
+	it("cancels navigation while a guard refuses, and resumes once it allows or unregisters", () => {
+		const seen: RouterLocation[] = [];
+		let allow = false;
+		const unregister = registerNavigationGuard((to) => {
+			seen.push(to);
+			return allow;
+		});
+
+		const before = window.location.pathname;
+		navigateTo("/guarded");
+		expect(window.location.pathname).toBe(before);
+		expect(seen[0]!.path).toBe("/guarded");
+
+		allow = true;
+		navigateTo("/guarded");
+		expect(window.location.pathname).toBe("/guarded");
+
+		unregister();
+		allow = false;
+		navigateTo("/unguarded");
+		expect(window.location.pathname).toBe("/unguarded");
+		expect(seen).toHaveLength(2);
+	});
+});
+
+describe("router onError", () => {
+	it("routes render errors to onError instead of the console, then shows the fallback", () => {
+		navigateTo("/boom");
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const app = App({ target });
+
+		const thrown: unknown[] = [];
+		const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const router = Router(
+			{
+				"/boom": () => {
+					throw new Error("kaboom");
+				},
+			},
+			{
+				fallback: (error) => Span(`${error.code}: ${error.message}`),
+				onError: (error) => thrown.push(error),
+			},
+		);
+
+		const unmount = app.render(router);
+		expect(target.textContent).toBe("500: kaboom");
+		expect(thrown).toHaveLength(1);
+		expect((thrown[0] as Error).message).toBe("kaboom");
+		expect(consoleSpy).not.toHaveBeenCalled();
+
+		consoleSpy.mockRestore();
 		unmount();
 		target.remove();
 	});

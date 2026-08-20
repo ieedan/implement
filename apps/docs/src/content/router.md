@@ -33,7 +33,7 @@ The router is itself a mountable, so you can render it at the root or anywhere i
 - `"/segment"` is a nested table for a static segment. Keys may be multi-segment too (`"/settings/profile"`).
 - `"/:param"` is a dynamic segment. Every render and layout below it receives the param.
 - `layout` is `(child, params) => Child` and wraps everything beneath this level. Render `child` where the matched content should appear.
-- `fallback` (a router option) is rendered when nothing matches.
+- `fallback` (a router option) is rendered when nothing matches, or when a route render throws. It receives a `RouterError` — `{ code, message }`, where `code` is `404` for unmatched paths, `500` for a thrown render error, or the `code` of a thrown `{ code, message }` object.
 
 Matching compares segment by segment, and static segments outrank params at the same position, so `/issues/new` beats `/issues/:id` regardless of declaration order.
 

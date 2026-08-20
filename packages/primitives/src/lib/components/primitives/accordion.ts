@@ -10,6 +10,7 @@ import {
 	type ComponentProps,
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
+import { getId } from "../../utils";
 
 export type AccordionRootProps = ComponentProps<typeof Div> & {
 	type?: "single" | "multiple";
@@ -87,7 +88,7 @@ class AccordionState {
 }
 
 export function Accordion(
-	{ type = "single", loop = true, ...restProps }: AccordionRootProps,
+	{ id = getId(), type = "single", loop = true, ...restProps }: AccordionRootProps,
 	...children: Child[]
 ) {
 	const root = ref<HTMLDivElement>();
@@ -97,6 +98,7 @@ export function Accordion(
 		Div(
 			mergeProps(
 				{
+					id,
 					this: root,
 					"data-accordion-root": "",
 					onKeydown: (e: KeyboardEvent) => state.onKeyDown(e),
@@ -139,16 +141,23 @@ class AccordionItemState {
 	toggle() {
 		this.rootState.toggle(this.value);
 	}
+
+	open() {
+		this.rootState.open.add(this.value);
+	}
 }
 
 const AccordionItemCtx = context<AccordionItemState>();
 
-export function AccordionItem({ value, ...restProps }: AccordionItemProps, ...children: Child[]) {
+export function AccordionItem(
+	{ id = getId(), value, ...restProps }: AccordionItemProps,
+	...children: Child[]
+) {
 	return AccordionCtx.Use((rootState) => {
 		const state = new AccordionItemState(rootState, value);
 		return AccordionItemCtx.Provide(state).To(
 			Div(
-				mergeProps({ "data-accordion-item": "", "data-state": state.state }, restProps),
+				mergeProps({ id, "data-accordion-item": "", "data-state": state.state }, restProps),
 				...children,
 			),
 		);
@@ -157,15 +166,20 @@ export function AccordionItem({ value, ...restProps }: AccordionItemProps, ...ch
 
 export type AccordionTriggerProps = ComponentProps<typeof Button>;
 
-export function AccordionTrigger({ ...restProps }: AccordionTriggerProps, ...children: Child[]) {
+export function AccordionTrigger(
+	{ id = getId(), ...restProps }: AccordionTriggerProps,
+	...children: Child[]
+) {
 	return AccordionItemCtx.Use((state) => {
 		return Button(
 			mergeProps(
 				{
+					id,
 					type: "button",
 					"data-accordion-trigger": "",
 					"data-state": state.state,
 					"data-value": state.value,
+					"aria-expanded": state.isOpen,
 					onClick: () => state.toggle(),
 					onFocus: () => state.onFocus(),
 					onBlur: () => state.onBlur(),
@@ -182,15 +196,17 @@ export type AccordionContentProps = ComponentProps<typeof Div> & {
 };
 
 export function AccordionContent(
-	{ hiddenUntilFound = false, ...restProps }: AccordionContentProps,
+	{ id = getId(), hiddenUntilFound = false, ...restProps }: AccordionContentProps,
 	...children: Child[]
 ) {
 	return AccordionItemCtx.Use((state) => {
 		return Div(
 			mergeProps(
 				{
+					id,
 					"data-accordion-content": "",
 					"data-state": state.state,
+					onBeforeMatch: () => state.open(),
 					hidden: state.isOpen.bind((open) =>
 						open ? undefined : hiddenUntilFound ? "until-found" : "",
 					),
@@ -207,13 +223,14 @@ export type AccordionHeaderProps = ComponentProps<typeof Div> & {
 };
 
 export function AccordionHeader(
-	{ level = 3, ...restProps }: AccordionHeaderProps,
+	{ id = getId(), level = 3, ...restProps }: AccordionHeaderProps,
 	...children: Child[]
 ) {
 	return AccordionItemCtx.Use((state) => {
 		return Div(
 			mergeProps(
 				{
+					id,
 					"data-accordion-header": "",
 					"data-state": state.state,
 					"data-heading-level": level.toString(),

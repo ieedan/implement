@@ -5,17 +5,28 @@ export type TutorialSection = {
 	lessons: Tutorial[];
 };
 
-export function tutorialSections(): TutorialSection[] {
-	const sections: TutorialSection[] = [];
+export type TutorialPart = {
+	/** Top-level grouping — "implement" for the core lessons, "kit" for the framework. */
+	name: string;
+	sections: TutorialSection[];
+};
+
+export function tutorialParts(): TutorialPart[] {
+	const parts: TutorialPart[] = [];
 	for (const lesson of tutorials) {
-		const last = sections.at(-1);
-		if (last != null && last.name === lesson.section) {
-			last.lessons.push(lesson);
+		let part: TutorialPart | undefined = parts.at(-1);
+		if (part == null || part.name !== lesson.part) {
+			part = { name: lesson.part, sections: [] };
+			parts.push(part);
+		}
+		const section = part.sections.at(-1);
+		if (section != null && section.name === lesson.section) {
+			section.lessons.push(lesson);
 		} else {
-			sections.push({ name: lesson.section, lessons: [lesson] });
+			part.sections.push({ name: lesson.section, lessons: [lesson] });
 		}
 	}
-	return sections;
+	return parts;
 }
 
 export function tutorialNeighbors(lesson: Tutorial): {

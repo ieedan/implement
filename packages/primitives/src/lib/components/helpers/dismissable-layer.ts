@@ -73,9 +73,6 @@ class DismissableLayerState {
 	}
 
 	private onEscape(e: EscapeEvent, deferred = false) {
-		// can't close if it ain't open
-		if (!this.opts.open.get()) return;
-
 		if (this.hasDismissableChildren && !deferred) {
 			// only handle escape on the last layer (unless it was deferred from a child)
 			for (const child of this.dismissableChildren.values()) {
@@ -97,12 +94,12 @@ class DismissableLayerState {
 			if (this.parent) {
 				this.parent.onEscape(e, true);
 			} else {
-				this.opts.open.set(false);
+				if (this.opts.open.get()) this.opts.open.set(false);
 			}
 			return;
 		}
 
-		this.opts.close(e);
+		if (this.opts.open.get()) this.opts.close(e);
 	}
 
 	onKeydown(e: KeyboardEvent) {
@@ -119,8 +116,6 @@ class DismissableLayerState {
 		e: InteractOutsideEvent,
 		{ reverseWalking, deferred: _deferred } = { reverseWalking: false, deferred: false },
 	) {
-		if (!this.opts.open.get()) return;
-
 		// go all the way to the end and then come back down
 		if (this.hasDismissableChildren && !reverseWalking) {
 			for (const child of this.dismissableChildren.values()) {
@@ -130,7 +125,7 @@ class DismissableLayerState {
 		}
 
 		const interactedOutside = isInteractionWithOutsideElement(
-			e.originalEvent.target as Node,
+			e.originalEvent.target as HTMLElement | null,
 			this.opts.anchors.get(),
 			this.opts.content.get(),
 		);
@@ -152,7 +147,7 @@ class DismissableLayerState {
 		if (interactOutsideBehavior === "defer-otherwise-close") {
 			if (!this.parent) {
 				// we are gonna check the parent below so we just close if there is no parent
-				this.opts.close(e);
+				if (this.opts.open.get()) this.opts.close(e);
 				return;
 			} else {
 				this.parent?.onInteractOutside(e, { reverseWalking: true, deferred: true });
@@ -160,7 +155,7 @@ class DismissableLayerState {
 			}
 		}
 
-		this.opts.close(e);
+		if (this.opts.open.get()) this.opts.close(e);
 
 		this.parent?.onInteractOutside(e, { reverseWalking: true, deferred: false });
 	}
@@ -197,10 +192,11 @@ class DismissableLayerState {
 }
 
 function isInteractionWithOutsideElement(
-	target: Node,
+	target: Node | null,
 	anchors: (HTMLElement | null | undefined)[],
 	floating: HTMLElement | null | undefined,
 ): boolean {
+	if (!target) return false;
 	// we don't handle trigger clicks here
 	for (const anchor of anchors) {
 		if (anchor?.contains(target)) return false;

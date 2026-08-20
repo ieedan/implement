@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { implement } from "@implementjs/vite";
+import { kit } from "@implementjs/kit";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
 const veliteDir = resolve(import.meta.dirname, ".velite");
 const lessonsDir = resolve(import.meta.dirname, "src/content/lessons");
 
-/** Every route, straight from the Velite collections plus the static pages. */
-function routes(): string[] {
+/** Dynamic `[...slug]` routes, straight from the Velite collections. */
+function entries(): string[] {
 	const collect = (file: string): string[] => {
 		const pages: { permalink: string }[] = JSON.parse(
 			readFileSync(resolve(veliteDir, file), "utf8"),
@@ -16,13 +16,10 @@ function routes(): string[] {
 		return pages.map((page) => page.permalink);
 	};
 	return [
-		"/",
-		"/packages",
-		"/primitives",
-		"/repl",
 		...collect("pages.json"),
 		...collect("primitives.json"),
 		...collect("lucide.json"),
+		...collect("kit.json"),
 		...collect("tutorials.json"),
 	];
 }
@@ -30,7 +27,11 @@ function routes(): string[] {
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
-		implement({ stylesheets: ["/app.css"], prerender: { routes } }),
+		kit({
+			prerender: { entries },
+			// Mirrored in scripts/sync.ts, which regenerates the tsconfig without Vite.
+			alias: { "@": "src", "@tutorial/test": "src/lib/tutorial-test.ts" },
+		}),
 		{
 			name: "reload-velite",
 			configureServer(server) {
@@ -49,6 +50,5 @@ export default defineConfig({
 			},
 		},
 	],
-	resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },
 	server: { port: 3004, strictPort: true },
 });

@@ -1,0 +1,423 @@
+import {
+	Button,
+	context,
+	derived,
+	Div,
+	H2,
+	Implement,
+	P,
+	ref,
+	Ref,
+	signal,
+	type Bindable,
+	type Child,
+	type ComponentProps,
+	type Readable,
+	type Signal,
+} from "@implementjs/core";
+import { getId, noop, type MaybeReadable } from "../../utils";
+import { tabbable, trapFocus } from "../../focus";
+import { mergeProps } from "../../merge-props";
+import {
+	DismissableLayer,
+	EscapeEvent,
+	InteractOutsideEvent,
+	type DismissBehavior,
+} from "../helpers/dismissable-layer";
+
+// TODO: scroll locking
+// TODO: nested dialogs
+
+/**
+ * Shared modal base for Dialog and AlertDialog. The flavors differ only in
+ * their data-attribute prefix, content role, and default dismiss behavior —
+ * see MenuState/MenuRoot for the same pattern on the menu side.
+ */
+export type ModalConfig = {
+	/** Data-attribute prefix, e.g. "dialog" renders `data-dialog-content`. */
+	name: string;
+	role: "dialog" | "alertdialog";
+	/** Default for the content's `onInteractOutsideBehavior`. */
+	interactOutsideBehavior: DismissBehavior;
+};
+
+export type ModalRootOptions = {
+	open?: Signal<boolean> | boolean;
+};
+
+export class ModalState {
+	open: Signal<boolean>;
+	currentTriggerId = signal<string | null>(null);
+	triggerRefs = Implement.Map<string, ModalTriggerState>();
+	content = signal<ModalContentState | null>(null);
+	titleId = signal<Bindable<string> | null>(null);
+	descriptionId = signal<Bindable<string> | null>(null);
+	/** Element to focus when the modal opens, instead of the first tabbable. */
+	private initialFocus: { get(): HTMLElement | null } | null = null;
+	/** First trigger that registered with `default: true`, if any. */
+	private defaultTriggerId: string | null = null;
+
+	constructor(
+		readonly config: ModalConfig,
+		readonly opts: ModalRootOptions,
+	) {
+		this.open = signal(this.opts.open ?? false);
+	}
+
+	registerTrigger(triggerId: string, trigger: ModalTriggerState, isDefault = false) {
+		this.triggerRefs.set(triggerId, trigger);
+		if (isDefault && this.defaultTriggerId == null) this.defaultTriggerId = triggerId;
+
+		if (this.open.get()) this.currentTriggerId.set(this.pickTrigger());
+	}
+
+	registerContent(content: ModalContentState) {
+		this.content.set(content);
+	}
+
+	registerTitle(id: Bindable<string>) {
+		this.titleId.set(id);
+	}
+
+	registerDescription(id: Bindable<string>) {
+		this.descriptionId.set(id);
+	}
+
+	registerInitialFocus(el: { get(): HTMLElement | null }) {
+		if (this.initialFocus === null) this.initialFocus = el;
+	}
+
+	get state() {
+		return this.open.bind((open) => (open ? "open" : "closed"));
+	}
+
+	get contentEl() {
+		return derived([this.content], (c) => (c === null ? null : c.opts.ref.get()));
+	}
+
+	get contentId(): Readable<Bindable<string> | undefined> {
+		return this.content.bind((c) => (c === null ? undefined : c.opts.id));
+	}
+
+	get labelledBy(): Readable<Bindable<string> | undefined> {
+		return this.titleId.bind((id) => id ?? undefined);
+	}
+
+	get describedBy(): Readable<Bindable<string> | undefined> {
+		return this.descriptionId.bind((id) => id ?? undefined);
+	}
+
+	toggle(triggerId: string) {
+		if (this.open.get() && this.currentTriggerId.get() === triggerId) {
+			this.close();
+			return;
+		}
+
+		this.currentTriggerId.set(triggerId);
+		if (this.open.get()) return;
+		this.open.set(true);
+	}
+
+	close() {
+		const currentTrigger = this.triggerRefs.get(this.currentTriggerId.get() ?? "");
+		if (currentTrigger) {
+			currentTrigger.opts.ref.get()?.focus({ preventScroll: true });
+		}
+		this.open.set(false);
+		this.currentTriggerId.set(null);
+	}
+
+	/** If open with no click yet, pick the default (or first) trigger. */
+	ensureTrigger() {
+		if (!this.open.get()) return;
+		let id = this.currentTriggerId.get();
+		if (id == null || !this.triggerRefs.has(id)) {
+			id = this.pickTrigger();
+			this.currentTriggerId.set(id);
+		}
+	}
+
+	focusContent() {
+		const el = this.content.get()?.opts.ref.get();
+		if (!el) return;
+		const initial = this.initialFocus?.get();
+		if (initial && el.contains(initial)) {
+			initial.focus({ preventScroll: true });
+			return;
+		}
+		const tabbableElements = tabbable(el);
+		if (tabbableElements.length > 0) {
+			tabbableElements[0]?.focus({ preventScroll: true });
+			return;
+		}
+		el.focus({ preventScroll: true });
+	}
+
+	private pickTrigger(): string | null {
+		if (this.defaultTriggerId != null && this.triggerRefs.has(this.defaultTriggerId)) {
+			return this.defaultTriggerId;
+		}
+		return this.triggerRefs.keys().next().value ?? null;
+	}
+
+	contentKeydown(e: KeyboardEvent) {
+		switch (e.key) {
+			case "Tab":
+				trapFocus(e, this.content.get()?.opts.ref.get());
+				return;
+		}
+	}
+}
+
+export const ModalCtx = context<ModalState>();
+
+export function ModalRoot(state: ModalState, ...children: Child[]) {
+	return DismissableLayer(
+		{
+			open: state.open,
+			close: () => state.close(),
+			anchors: state.triggerRefs.bind((refs) => [...refs.values()].map((t) => t.opts.ref.get())),
+			content: state.contentEl,
+			escapeKeydownBehavior: state.content.bind((c) =>
+				c === null ? "close" : c.opts.escapeKeydownBehavior,
+			),
+			onEscape: state.content.bind((c) => (c === null ? noop : c.opts.onEscape)),
+			onInteractOutside: state.content.bind((c) => (c === null ? noop : c.opts.onInteractOutside)),
+			onInteractOutsideBehavior: state.content.bind((c) =>
+				c === null ? state.config.interactOutsideBehavior : c.opts.onInteractOutsideBehavior,
+			),
+		},
+		ModalCtx.Provide(state).To(
+			Implement.Lifecycle(
+				{
+					onMount: () => {
+						if (state.open.get()) {
+							state.ensureTrigger();
+							state.focusContent();
+						}
+						return state.open.onChange((open) => {
+							if (open) {
+								state.ensureTrigger();
+								state.focusContent();
+							}
+						});
+					},
+				},
+				...children,
+			),
+		),
+	);
+}
+
+export type ModalTriggerProps = Omit<ComponentProps<typeof Button>, "id"> & {
+	id?: string;
+	/** When the modal starts open, return focus to this trigger instead of the first one. */
+	default?: boolean;
+};
+
+export class ModalTriggerState {
+	constructor(
+		readonly rootState: ModalState,
+		readonly opts: { id: string; ref: Ref<HTMLButtonElement> },
+		isDefault = false,
+	) {
+		this.rootState.registerTrigger(opts.id, this, isDefault);
+	}
+
+	get state() {
+		return this.open.bind((open) => (open ? "open" : "closed"));
+	}
+
+	get open() {
+		return derived([this.rootState.open, this.rootState.currentTriggerId], (open, current) =>
+			open && current === this.opts.id ? true : false,
+		);
+	}
+
+	toggle() {
+		this.rootState.toggle(this.opts.id);
+	}
+}
+
+export function ModalTrigger(
+	{ id = getId(), default: isDefault = false, ...restProps }: ModalTriggerProps,
+	...children: Child[]
+) {
+	return ModalCtx.Use((rootState) => {
+		const triggerRef = ref<HTMLButtonElement>();
+		const triggerState = new ModalTriggerState(rootState, { id, ref: triggerRef }, isDefault);
+
+		return Button(
+			mergeProps(
+				{
+					id,
+					this: triggerRef,
+					type: "button",
+					[`data-${rootState.config.name}-trigger`]: "",
+					"data-state": triggerState.state,
+					"aria-haspopup": "dialog",
+					"aria-expanded": triggerState.open,
+					onClick: () => triggerState.toggle(),
+				},
+				restProps,
+			),
+			...children,
+		);
+	});
+}
+
+type ModalContentOptions = {
+	onInteractOutside: (e: InteractOutsideEvent) => void;
+	onInteractOutsideBehavior: MaybeReadable<DismissBehavior>;
+	onEscape: (e: EscapeEvent) => void;
+	escapeKeydownBehavior: MaybeReadable<DismissBehavior>;
+};
+
+export type ModalContentProps = ComponentProps<typeof Div> & Partial<ModalContentOptions>;
+
+export class ModalContentState {
+	constructor(
+		readonly rootState: ModalState,
+		readonly opts: ModalContentOptions & { id: Bindable<string>; ref: Ref<HTMLDivElement> },
+	) {
+		rootState.registerContent(this);
+	}
+}
+
+export function ModalContent(
+	{
+		id = getId(),
+		onInteractOutside = noop,
+		onInteractOutsideBehavior,
+		onEscape = noop,
+		escapeKeydownBehavior = "close",
+		...restProps
+	}: ModalContentProps,
+	...children: Child[]
+) {
+	return ModalCtx.Use((rootState) => {
+		const contentRef = ref<HTMLDivElement>();
+		new ModalContentState(rootState, {
+			id,
+			ref: contentRef,
+			onInteractOutside,
+			onInteractOutsideBehavior:
+				onInteractOutsideBehavior ?? rootState.config.interactOutsideBehavior,
+			onEscape,
+			escapeKeydownBehavior,
+		});
+
+		return Div(
+			mergeProps(
+				{
+					id,
+					this: contentRef,
+					role: rootState.config.role,
+					"aria-modal": true,
+					"aria-labelledby": rootState.labelledBy,
+					"aria-describedby": rootState.describedBy,
+					[`data-${rootState.config.name}-content`]: "",
+					tabIndex: -1,
+					"data-state": rootState.state,
+					onKeydown: (e: KeyboardEvent) => rootState.contentKeydown(e),
+				},
+				restProps,
+			),
+			...children,
+		);
+	});
+}
+
+export type ModalOverlayProps = ComponentProps<typeof Div>;
+
+export function ModalOverlay(
+	{ id = getId(), ...restProps }: ModalOverlayProps,
+	...children: Child[]
+) {
+	return ModalCtx.Use((rootState) => {
+		return Div(
+			mergeProps(
+				{
+					id,
+					[`data-${rootState.config.name}-overlay`]: "",
+					"data-state": rootState.state,
+				},
+				restProps,
+			),
+			...children,
+		);
+	});
+}
+
+export type ModalTitleProps = ComponentProps<typeof H2>;
+
+export function ModalTitle({ id = getId(), ...restProps }: ModalTitleProps, ...children: Child[]) {
+	return ModalCtx.Use((rootState) => {
+		rootState.registerTitle(id);
+		return H2(
+			mergeProps(
+				{
+					id,
+					[`data-${rootState.config.name}-title`]: "",
+				},
+				restProps,
+			),
+			...children,
+		);
+	});
+}
+
+export type ModalDescriptionProps = ComponentProps<typeof P>;
+
+export function ModalDescription(
+	{ id = getId(), ...restProps }: ModalDescriptionProps,
+	...children: Child[]
+) {
+	return ModalCtx.Use((rootState) => {
+		rootState.registerDescription(id);
+		return P(
+			mergeProps(
+				{
+					id,
+					[`data-${rootState.config.name}-description`]: "",
+				},
+				restProps,
+			),
+			...children,
+		);
+	});
+}
+
+export type ModalCloseProps = ComponentProps<typeof Button>;
+
+export type ModalCloseOptions = {
+	/** Extra data attribute rendered on the button, e.g. "alert-dialog-cancel". */
+	dataAttribute?: string;
+	/** Focus this button when the modal opens instead of the first tabbable. */
+	initialFocus?: boolean;
+};
+
+export function ModalClose(
+	{ dataAttribute, initialFocus = false }: ModalCloseOptions,
+	{ id = getId(), ...restProps }: ModalCloseProps,
+	...children: Child[]
+) {
+	return ModalCtx.Use((state) => {
+		const closeRef = ref<HTMLButtonElement>();
+		if (initialFocus) state.registerInitialFocus(closeRef);
+
+		return Button(
+			mergeProps(
+				{
+					id,
+					this: closeRef,
+					type: "button",
+					...(dataAttribute ? { [`data-${dataAttribute}`]: "" } : {}),
+					onClick: () => state.close(),
+				},
+				restProps,
+			),
+			...children,
+		);
+	});
+}

@@ -6,9 +6,10 @@
 	"scripts": {
 		"dev": "pnpm generate && concurrently -n velite,web -c yellow,cyan \"pnpm generate --watch\" \"vite\"",
 		"generate": "velite",
+		"sync": "node --experimental-strip-types scripts/sync.ts",
 		"build": "pnpm generate && vite build",
 		"preview": "vite preview",
-		"check": "pnpm generate && tsc --noEmit"
+		"check": "pnpm generate && pnpm sync && tsc --noEmit"
 	},
 	"dependencies": {
 		"@codemirror/commands": "^6.11.0",
@@ -25,7 +26,7 @@
 		"tailwind-variants": "^3.3.1"
 	},
 	"devDependencies": {
-		"@implementjs/vite": "workspace:*",
+		"@implementjs/kit": "workspace:*",
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",

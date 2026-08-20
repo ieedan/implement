@@ -53,8 +53,12 @@ next, none of which exists:
   render.
 - **Not-found within layouts** — the fallback replaces the whole tree
   (PAPERCUTS #11); no catch-all segment.
-- **Navigation guards/blocking** — the detail view's dirty description is
-  silently lost on navigation; there is no "are you sure" hook.
+- **Navigation guards/blocking (fixed)** — `registerNavigationGuard((to) =>
+boolean)` runs before a navigation commits (including back/forward, which
+  restores the URL on refusal); returning `false` cancels it, so a dirty
+  editor can wrap `confirm()`. The docs app's `UnsavedChangesGuard` pairs one
+  with a `beforeunload` listener for refresh/close — the tutorial playground
+  and REPL use it.
 - **Code splitting** — route renders are eager imports; no lazy route form.
 - **Scroll restoration** — pushes scroll to top, but back/forward doesn't
   restore the previous scroll position.

@@ -8,12 +8,13 @@ import {
 	Ref,
 	signal,
 	Span,
+	type Bindable,
 	type Child,
 	type ComponentProps,
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import { noop, type MaybeReadable } from "../../utils";
+import { getId, noop, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
 import {
 	DismissableLayer,
@@ -137,6 +138,7 @@ abstract class SelectState {
 	}
 
 	handleEnterKey(e: KeyboardEvent) {
+		if (!this.open.get()) return;
 		e.preventDefault();
 		const activeItems = this.getActiveItems();
 		const currentIndex = activeItems.findIndex(
@@ -192,7 +194,10 @@ class SelectStateSingle extends SelectState {
 
 	override toggle(value: string) {
 		const currentValue = this.#value.get();
-		if (currentValue === value) return;
+		if (currentValue === value) {
+			if (this.opts.closeOnSelect) this.close();
+			return;
+		}
 		this.#value.set(value);
 		if (this.opts.closeOnSelect) this.close();
 	}
@@ -264,14 +269,21 @@ export function Select(props: SelectProps<"single" | "multiple">, ...children: C
 
 export type SelectTriggerProps = ComponentProps<typeof Button>;
 
-export function SelectTrigger({ ...restProps }: SelectTriggerProps, ...children: Child[]) {
+export function SelectTrigger(
+	{ id = getId(), ...restProps }: SelectTriggerProps,
+	...children: Child[]
+) {
 	return SelectCtx.Use((state) => {
 		return Button(
 			mergeProps(
 				{
+					id,
 					this: state.trigger,
 					type: "button",
+					"data-select-trigger": "",
 					"data-state": state.state,
+					"aria-haspopup": "listbox",
+					"aria-expanded": state.open,
 					onClick: () => state.toggleOpen(),
 					onKeydown: (e: KeyboardEvent) => state.onKeydown(e),
 					// onBlur: () => state.close()
@@ -325,7 +337,7 @@ export type SelectContentProps = ComponentProps<typeof Div> & Partial<SelectCont
 class SelectContentState {
 	constructor(
 		readonly rootState: SelectState,
-		readonly opts: SelectContentOptions & { ref: Ref<HTMLDivElement> },
+		readonly opts: SelectContentOptions & { id: Bindable<string>; ref: Ref<HTMLDivElement> },
 	) {
 		rootState.registerContent(this);
 	}
@@ -333,6 +345,7 @@ class SelectContentState {
 
 export function SelectContent(
 	{
+		id = getId(),
 		side = "bottom",
 		align = "start",
 		offset = 0,
@@ -347,6 +360,7 @@ export function SelectContent(
 	return SelectCtx.Use((state) => {
 		const contentRef = ref<HTMLDivElement>();
 		new SelectContentState(state, {
+			id,
 			ref: contentRef,
 			side,
 			align,
@@ -359,6 +373,7 @@ export function SelectContent(
 		return Div(
 			mergeProps(
 				{
+					id,
 					this: contentRef,
 					"data-select-content": "",
 					role: "listbox",
@@ -398,7 +413,7 @@ class SelectItemState {
 }
 
 export function SelectItem(
-	{ value, label, disabled, ...restProps }: SelectItemsProps,
+	{ id = getId(), value, label, disabled, ...restProps }: SelectItemsProps,
 	...children: Child[]
 ) {
 	return SelectCtx.Use((rootState) => {
@@ -406,6 +421,7 @@ export function SelectItem(
 		return Div(
 			mergeProps(
 				{
+					id,
 					"data-select-item": "",
 					role: "option",
 					"aria-selected": state.selected,

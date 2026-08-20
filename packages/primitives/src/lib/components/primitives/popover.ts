@@ -8,6 +8,7 @@ import {
 	ref,
 	Ref,
 	signal,
+	type Bindable,
 	type Child,
 	type ComponentProps,
 	type PortalProps,
@@ -193,7 +194,8 @@ export function Popover(props: PopoverRootProps, ...children: Child[]) {
 	);
 }
 
-export type PopoverTriggerProps = ComponentProps<typeof Button> & {
+export type PopoverTriggerProps = Omit<ComponentProps<typeof Button>, "id"> & {
+	id?: string;
 	/** When the popover starts open, anchor to this trigger instead of the first one. */
 	default?: boolean;
 };
@@ -223,21 +225,17 @@ class PopoverTriggerState {
 }
 
 export function PopoverTrigger(
-	{ default: isDefault = false, ...restProps }: PopoverTriggerProps,
+	{ id = getId(), default: isDefault = false, ...restProps }: PopoverTriggerProps,
 	...children: Child[]
 ) {
 	return PopoverContext.Use((rootState) => {
 		const triggerRef = ref<HTMLButtonElement>();
-		const triggerId = getId();
-		const triggerState = new PopoverTriggerState(
-			rootState,
-			{ id: triggerId, ref: triggerRef },
-			isDefault,
-		);
+		const triggerState = new PopoverTriggerState(rootState, { id, ref: triggerRef }, isDefault);
 
 		return Button(
 			mergeProps(
 				{
+					id,
 					this: triggerRef,
 					type: "button",
 					"data-popover-trigger": "",
@@ -268,7 +266,7 @@ export type PopoverContentProps = ComponentProps<typeof Div> & Partial<PopoverCo
 class PopoverContentState {
 	constructor(
 		readonly rootState: PopoverState,
-		readonly opts: PopoverContentOptions & { ref: Ref<HTMLDivElement> },
+		readonly opts: PopoverContentOptions & { id: Bindable<string>; ref: Ref<HTMLDivElement> },
 	) {
 		rootState.registerContent(this);
 	}
@@ -276,6 +274,7 @@ class PopoverContentState {
 
 export function PopoverContent(
 	{
+		id = getId(),
 		side = "bottom",
 		align = "start",
 		offset = 0,
@@ -290,6 +289,7 @@ export function PopoverContent(
 	return PopoverContext.Use((rootState) => {
 		const contentRef = ref<HTMLDivElement>();
 		new PopoverContentState(rootState, {
+			id,
 			ref: contentRef,
 			side,
 			align,
@@ -303,6 +303,7 @@ export function PopoverContent(
 		return Div(
 			mergeProps(
 				{
+					id,
 					this: contentRef,
 					"data-popover-content": "",
 					tabIndex: -1,
@@ -322,11 +323,15 @@ export const PopoverPortal = Portal;
 
 export type PopoverCloseProps = ComponentProps<typeof Button>;
 
-export function PopoverClose({ ...restProps }: PopoverCloseProps, ...children: Child[]) {
+export function PopoverClose(
+	{ id = getId(), ...restProps }: PopoverCloseProps,
+	...children: Child[]
+) {
 	return PopoverContext.Use((state) => {
 		return Button(
 			mergeProps(
 				{
+					id,
 					type: "button",
 					onClick: () => state.close(),
 				},

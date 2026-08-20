@@ -1,12 +1,18 @@
 {
-	"extends": "../../tsconfig.json",
+	"extends": ["../../tsconfig.json", "./.implement/tsconfig.json"],
 	"compilerOptions": {
 		"types": ["node", "vite/client"],
-		"allowImportingTsExtensions": true,
-		"paths": {
-			"@/*": ["./src/*"],
-			"@tutorial/test": ["./src/lib/tutorial-test.ts"]
-		}
+		"allowImportingTsExtensions": true
 	},
-	"include": ["src/**/*.ts", "*.config.ts", ".velite/**/*.d.ts"]
+	"include": [
+		"src/**/*.ts",
+		"scripts/**/*.ts",
+		"*.config.ts",
+		".velite/**/*.d.ts",
+		".implement/**/*.ts",
+		".implement/types/**/*.d.ts"
+	],
+	// Multi-file lesson apps are teaching content run through the playground's
+	// transpiler; their untyped page/layout props don't pass the repo's strict tsc.
+	"exclude": ["src/content/lessons/**/app/**", "src/content/lessons/**/solution/**"]
 }

@@ -24,7 +24,7 @@ packages/lucide/src/index.ts
 
 # Generated content collections
 .velite
-apps/docs/public/static/
+apps/docs/static/velite/
 
 # Build output
 dist/

@@ -1,0 +1,158 @@
+/* Styles for the lesson preview iframe. The frame is a separate document, so
+   the host's Tailwind preflight and theme variables don't reach it — this file
+   carries its own minimal reset plus the docs theme tokens. Injected inline by
+   preview.ts. */
+
+:root {
+	--background: #000;
+	--foreground: #fff;
+	--border: #222;
+	color-scheme: dark;
+}
+
+*,
+::before,
+::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+	border: 0 solid var(--border);
+}
+
+::selection {
+	background: var(--foreground);
+	color: var(--background);
+}
+
+html {
+	-webkit-font-smoothing: antialiased;
+}
+
+body {
+	font-family:
+		ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+		"Noto Color Emoji";
+	background: transparent;
+	color: var(--foreground);
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+	color: inherit;
+}
+
+.tutorial-preview {
+	padding: 1.25rem;
+	font-size: 15px;
+	line-height: 1.6;
+}
+
+.tutorial-preview h1 {
+	font-size: 1.75rem;
+	font-weight: 600;
+	letter-spacing: -0.025em;
+	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The handful of utility classes lesson code uses. Tailwind can't reach
+   inside the frame, so they're defined here by hand. */
+.tutorial-preview .flex {
+	display: flex;
+}
+
+.tutorial-preview .items-center {
+	align-items: center;
+}
+
+.tutorial-preview .gap-2 {
+	gap: 0.5rem;
+}
+
+.tutorial-preview .gap-6 {
+	gap: 1.5rem;
+}
+
+.tutorial-preview a {
+	color: #93c5fd;
+	text-decoration: none;
+}
+
+.tutorial-preview a:hover {
+	text-decoration: underline;
+}
+
+.tutorial-preview a[aria-current="page"] {
+	color: var(--foreground);
+}
+
+.tutorial-preview nav {
+	display: flex;
+	gap: 1rem;
+	margin-bottom: 1rem;
+	padding-bottom: 0.75rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.tutorial-preview h2 {
+	font-size: 1.25rem;
+	font-weight: 600;
+	margin-top: 1.25rem;
+}
+
+.tutorial-preview p {
+	margin-top: 0.75rem;
+	color: color-mix(in oklab, var(--foreground) 70%, transparent);
+}
+
+.tutorial-preview button {
+	margin-top: 0.75rem;
+	border: 1px solid var(--border);
+	border-radius: 0.375rem;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	padding: 0.4rem 0.85rem;
+	font-size: 0.875rem;
+}
+
+.tutorial-preview button:hover {
+	background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.tutorial-preview input {
+	margin-top: 0.75rem;
+	display: block;
+	width: 100%;
+	max-width: 20rem;
+	border: 1px solid var(--border);
+	border-radius: 0.375rem;
+	background: transparent;
+	color: inherit;
+	padding: 0.4rem 0.7rem;
+	font-size: 0.875rem;
+}
+
+.tutorial-preview input:focus {
+	outline: 1px solid color-mix(in oklab, var(--foreground) 40%, transparent);
+}
+
+.tutorial-preview ul {
+	margin-top: 0.75rem;
+	padding-left: 1.25rem;
+	list-style: disc;
+}
+
+.tutorial-preview li {
+	margin-top: 0.35rem;
+}
+
+.tutorial-preview label {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}

@@ -32,8 +32,13 @@ export type PositioningOptions = {
 	autoUpdate: boolean;
 };
 
+/** A point-like reference to position against, e.g. where a context menu was opened. */
+export type VirtualAnchor = {
+	getBoundingClientRect: () => DOMRect;
+};
+
 export function positionFloatingElement(
-	reference: HTMLElement,
+	reference: HTMLElement | VirtualAnchor,
 	floating: HTMLElement,
 	opts: PositioningOptions,
 ): () => void {

@@ -69,10 +69,17 @@ export {
 export { context } from "./context";
 export {
 	navigateTo,
+	normalizePath,
+	registerNavigationGuard,
 	Router,
 	searchParam,
+	setNavigationResolver,
+	withLocationSignal,
 	type LinkProps,
 	type NavigateOptions,
+	type NavigationGuard,
+	type NavigationResolver,
+	type RouterError,
 	type RouterHelper,
 	type RouterLocation,
 	type RouterOptions,

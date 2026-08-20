@@ -29,6 +29,24 @@ let current: Signal<RouterLocation> | null = null;
 
 let serverSignal: Signal<RouterLocation> | null = null;
 
+let scopeSignal: Signal<RouterLocation> | null = null;
+
+/**
+ * Run `fn` with `location` installed as the location signal, so routers
+ * mounted inside `fn` subscribe to it instead of the shared browser location.
+ * Powers embedded previews (like the tutorial playground) that route without
+ * touching the page URL — drive navigation afterwards by setting `location`.
+ */
+export function withLocationSignal<T>(location: Signal<RouterLocation>, fn: () => T): T {
+	const previous = scopeSignal;
+	scopeSignal = location;
+	try {
+		return fn();
+	} finally {
+		scopeSignal = previous;
+	}
+}
+
 /**
  * Fixed location for the duration of a server render, shadowing the browser
  * singleton so nothing touches `window`. Returns a restore function.
@@ -43,14 +61,91 @@ export function installServerLocation(location: RouterLocation): () => void {
 
 /** Lazy singleton so importing the router has no side effects until it is used. */
 export function locationSignal(): Signal<RouterLocation> {
+	if (scopeSignal) return scopeSignal;
 	if (serverSignal) return serverSignal;
 	if (!current) {
 		current = signal(readLocation());
 		window.addEventListener("popstate", () => {
-			current!.set(readLocation());
+			const target = readLocation();
+			if (!guardsAllow(target)) {
+				// the history entry already moved — put the kept location back on top
+				const kept = current!.get();
+				history.pushState(null, "", kept.path + kept.search + kept.hash);
+				return;
+			}
+			resolveNavigation(target, () => current!.set(target));
 		});
 	}
 	return current;
+}
+
+/**
+ * Runs before a navigation is attempted; returning `false` cancels it — the
+ * location signal never updates and (for `navigateTo`) no history entry is
+ * pushed. Guards are synchronous so they can wrap `confirm()`-style prompts
+ * ("you have unsaved edits — leave anyway?"). They only cover in-app
+ * navigation; pair one with a `beforeunload` listener for refresh/close.
+ */
+export type NavigationGuard = (to: RouterLocation) => boolean;
+
+const navigationGuards = new Set<NavigationGuard>();
+
+/** Install a {@link NavigationGuard}; returns its unregister function. */
+export function registerNavigationGuard(guard: NavigationGuard): () => void {
+	navigationGuards.add(guard);
+	return () => {
+		navigationGuards.delete(guard);
+	};
+}
+
+function guardsAllow(target: RouterLocation): boolean {
+	for (const guard of navigationGuards) {
+		if (!guard(target)) return false;
+	}
+	return true;
+}
+
+/**
+ * Runs before a navigation commits (before the history entry and the location
+ * signal update), so integrations can resolve what the destination needs —
+ * kit uses this to fetch route data. Returning a promise delays the commit
+ * until it resolves; a rejection cancels the navigation.
+ */
+export type NavigationResolver = (to: RouterLocation) => void | Promise<void>;
+
+let navigationResolver: NavigationResolver | null = null;
+
+/** Install the {@link NavigationResolver} (`null` removes it). Last one wins. */
+export function setNavigationResolver(resolver: NavigationResolver | null): void {
+	navigationResolver = resolver;
+}
+
+let navigationToken = 0;
+
+/** Runs the resolver (if any) and commits — only if no newer navigation started meanwhile. */
+function resolveNavigation(target: RouterLocation, commit: () => void): void {
+	const token = ++navigationToken;
+	if (navigationResolver === null) {
+		commit();
+		return;
+	}
+	let result;
+	try {
+		result = navigationResolver(target);
+	} catch (error) {
+		console.error(error);
+		return;
+	}
+	if (result instanceof Promise) {
+		result.then(
+			() => {
+				if (token === navigationToken) commit();
+			},
+			(error) => console.error(error),
+		);
+	} else {
+		commit();
+	}
 }
 
 export type NavigateOptions = {
@@ -67,16 +162,22 @@ export function navigateTo(href: string, options: NavigateOptions = {}): void {
 	}
 	const url = new URL(href, window.location.href);
 	if (url.href === window.location.href) return;
-	if (options.replace) {
-		history.replaceState(null, "", url);
-	} else {
-		history.pushState(null, "", url);
-		window.scrollTo(0, 0);
-	}
-	locationSignal().set({
+	const target: RouterLocation = {
 		path: normalizePath(url.pathname),
 		search: url.search,
 		hash: url.hash,
+	};
+	if (!guardsAllow(target)) return;
+	// the history entry waits alongside the signal, so the URL never shows a
+	// destination whose data has not resolved yet
+	resolveNavigation(target, () => {
+		if (options.replace) {
+			history.replaceState(null, "", url);
+		} else {
+			history.pushState(null, "", url);
+			window.scrollTo(0, 0);
+		}
+		locationSignal().set(target);
 	});
 }
 

@@ -1,16 +1,21 @@
 import {
 	Button,
 	derived,
+	Fragment,
 	signal,
+	type Bindable,
 	type Child,
 	type ComponentProps,
 	type Signal,
 } from "@implementjs/core";
+import { HiddenInput } from "../../hidden-input";
 import { mergeProps } from "../../merge-props";
+import { getId } from "../../utils";
 
 export type CheckboxProps = ComponentProps<typeof Button> & {
 	checked?: Signal<boolean> | boolean;
 	indeterminate?: Signal<boolean> | boolean;
+	required?: Bindable<boolean>;
 };
 
 class CheckboxState {
@@ -48,22 +53,47 @@ class CheckboxState {
 }
 
 export function Checkbox(
-	{ checked, indeterminate, ...restProps }: CheckboxProps,
+	{
+		id = getId(),
+		checked,
+		indeterminate,
+		name,
+		value = "on",
+		required,
+		disabled,
+		...restProps
+	}: CheckboxProps,
 	...children: Child[]
 ) {
 	const state = new CheckboxState({ checked, indeterminate });
-	return Button(
-		mergeProps(
-			{
-				type: "button",
-				role: "checkbox",
-				"data-checkbox-root": "",
-				"data-state": state.state,
-				"aria-checked": state.ariaChecked,
-				onClick: () => state.onClick(),
-			},
-			restProps,
+	return Fragment(
+		Button(
+			mergeProps(
+				{
+					id,
+					type: "button",
+					role: "checkbox",
+					disabled,
+					"data-checkbox-root": "",
+					"data-state": state.state,
+					"aria-checked": state.ariaChecked,
+					"aria-required": required,
+					onClick: () => state.onClick(),
+				},
+				restProps,
+			),
+			...children,
 		),
-		...children,
+		...(name == null
+			? []
+			: [
+					HiddenInput({
+						checked: state.checked,
+						name,
+						value,
+						required,
+						disabled,
+					}),
+				]),
 	);
 }

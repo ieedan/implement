@@ -4,7 +4,7 @@ description: Visually or semantically divide content, horizontally or vertically
 section: Components
 ---
 
-<div data-demo="separator"></div>
+<div data-demo="separator" data-demo-description="A heading and description divided from a row of links (Docs, Tutorial, REPL) by a horizontal separator, with vertical separators between the links."></div>
 
 A separator is a line between things. `Separator` renders a `Div` you give a size and color to — the primitive only handles orientation and accessibility.
 

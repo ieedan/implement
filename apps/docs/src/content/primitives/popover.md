@@ -4,7 +4,7 @@ description: Display rich content in a panel, triggered by a button.
 section: Components
 ---
 
-<div data-demo="popover"></div>
+<div data-demo="popover" data-demo-description="An “Open popover” button revealing a small form panel: a Dimensions heading, four labeled inputs (width, max. width, height, max. height), and a Done close button."></div>
 
 A popover is a small panel that opens from a button. `Popover` is the root, `PopoverTrigger` is the control that toggles it, and `PopoverContent` is the panel. Wrap the panel in `PopoverPortal` when it needs to escape overflow, and put `PopoverClose` inside the panel for a dismiss control.
 
@@ -82,7 +82,7 @@ Popover(
 );
 ```
 
-<div data-demo="popover-triggers"></div>
+<div data-demo="popover-triggers" data-demo-description="One popover with three triggers (Left, Center, Right); the panel opens anchored to whichever trigger was clicked."></div>
 
 ## Nested
 
@@ -111,7 +111,7 @@ Popover(
 );
 ```
 
-<div data-demo="popover-nested"></div>
+<div data-demo="popover-nested" data-demo-description="An outer popover containing an “Open nested” trigger that opens a second popover to the side of the first."></div>
 
 ## Styling
 

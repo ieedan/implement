@@ -1,15 +1,41 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { createServer, type Plugin, type ResolvedConfig, type ViteDevServer } from "vite";
 import { injectSsr } from "./inject.ts";
 import { crawlRoutes, prerenderRoutes, type RenderFn } from "./prerender.ts";
+import { collectDevStyles } from "./styles.ts";
 
-export type { SsrResult } from "./inject.ts";
-export type { RenderFn } from "./prerender.ts";
+export { injectSsr, type SsrResult } from "./inject.ts";
+export { crawlRoutes, normalizeRoute, prerenderRoutes, type RenderFn } from "./prerender.ts";
+export { collectDevStyles, devStyleTags, type DevStyle } from "./styles.ts";
+
+export type PrerenderContext = {
+	/** Every route that was prerendered. */
+	routes: string[];
+	/** Absolute path of the build output directory. */
+	outDir: string;
+	render: RenderFn;
+	/** Load a module (real or virtual id) through the build-time SSR module runner. */
+	load: (id: string) => Promise<Record<string, unknown>>;
+};
 
 export type PrerenderOptions = {
-	/** Routes to prerender. Defaults to crawling internal links from `/`. */
-	routes?: string[] | (() => string[] | Promise<string[]>);
+	/**
+	 * Routes to prerender. Defaults to crawling internal links from `/`.
+	 * A function receives the render so it can crawl and add to the result.
+	 */
+	routes?: string[] | ((render: RenderFn) => string[] | Promise<string[]>);
+	/**
+	 * A path matching no route, rendered into `404.html` so static hosts
+	 * serve the app's not-found fallback for unknown URLs.
+	 */
+	notFound?: string;
+	/**
+	 * Runs after the routes are prerendered, with the SSR module runner still
+	 * open — for writing extra files (endpoints, data payloads, sitemaps) into
+	 * the output directory.
+	 */
+	after?: (context: PrerenderContext) => void | Promise<void>;
 };
 
 export type ImplementOptions = {
@@ -17,18 +43,15 @@ export type ImplementOptions = {
 	entry?: string;
 	/** Prerender the built site into the output directory. @default true */
 	prerender?: boolean | PrerenderOptions;
-	/**
-	 * Stylesheet URLs linked into dev pages so server-rendered markup paints
-	 * styled — dev CSS otherwise arrives through JS modules, after first
-	 * paint. Builds don't need this: the extracted CSS link already blocks.
-	 */
-	stylesheets?: string[];
 };
 
 /**
  * Tier-1 SSR for implement apps: serves every dev page server-rendered
  * (content paints before any JS loads) and prerenders the built site.
- * The app provides an entry module exporting `render(url)`, typically:
+ * The app provides an entry module exporting `render(url)` (sync or async);
+ * a `data` field on the result is embedded in the page as a JSON script tag
+ * (`<script type="application/json" data-implement-data>`) for the client
+ * runtime to pick up. Typically:
  *
  * ```ts
  * // src/entry-server.ts
@@ -59,7 +82,11 @@ export function implement(options: ImplementOptions = {}): Plugin {
 				if (!server) return html;
 				try {
 					const { render } = (await server.ssrLoadModule(entry)) as { render: RenderFn };
-					return injectSsr(html, render(ctx.originalUrl ?? "/"), options.stylesheets);
+					const result = await render(ctx.originalUrl ?? "/");
+					// inline the graph's CSS so SSR markup paints styled — dev CSS
+					// otherwise arrives through JS modules, after first paint.
+					// Builds don't need this: the extracted CSS link already blocks.
+					return injectSsr(html, result, await collectDevStyles(server, entry));
 				} catch (error) {
 					server.config.logger.error(
 						`ssr render failed for ${ctx.originalUrl}: ${error instanceof Error ? error.message : String(error)}`,
@@ -87,15 +114,26 @@ export function implement(options: ImplementOptions = {}): Plugin {
 				const routesOption = typeof prerender === "object" ? prerender.routes : undefined;
 				const routes =
 					routesOption == null
-						? crawlRoutes(render)
+						? await crawlRoutes(render)
 						: typeof routesOption === "function"
-							? await routesOption()
+							? await routesOption(render)
 							: routesOption;
-				const { written, failed } = prerenderRoutes({ render, routes, template, outDir });
+				const { written, failed } = await prerenderRoutes({ render, routes, template, outDir });
 				config.logger.info(`prerendered ${written}/${routes.length} routes`);
 				if (failed.length > 0) {
 					throw new Error(`prerender failed:\n  ${failed.join("\n  ")}`);
 				}
+				const notFound = typeof prerender === "object" ? prerender.notFound : undefined;
+				if (notFound !== undefined) {
+					writeFileSync(join(outDir, "404.html"), injectSsr(template, await render(notFound)));
+				}
+				const after = typeof prerender === "object" ? prerender.after : undefined;
+				await after?.({
+					routes,
+					outDir,
+					render,
+					load: (id) => dev.ssrLoadModule(id) as Promise<Record<string, unknown>>,
+				});
 			} finally {
 				await dev.close();
 			}

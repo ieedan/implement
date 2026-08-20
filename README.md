@@ -4,4 +4,10 @@ Just some experimentation.
 
 ## TODOS
 
-- context
+- project scaffolding
+  - kit
+  - vite
+
+- kit
+  - server functions
+  - environment variables

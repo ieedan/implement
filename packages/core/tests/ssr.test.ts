@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	Await,
 	Br,
@@ -227,6 +227,122 @@ describe("router", () => {
 	it("renders the fallback for unmatched paths", () => {
 		const router = makeRouter();
 		expect(renderToString(router, { location: "/missing" }).html).toBe("<p>not found</p><!---->");
+	});
+
+	it("passes a 404 error to the fallback for unmatched paths", () => {
+		const router = Router(
+			{ "/": () => P("home") },
+			{ fallback: (error) => P(`${error.code}: ${error.message}`) },
+		);
+		expect(renderToString(router, { location: "/missing" }).html).toBe(
+			"<p>404: Not Found</p><!---->",
+		);
+	});
+
+	it("renders the fallback with a 500 error when a route render throws", () => {
+		const router = Router(
+			{
+				"/": () => P("home"),
+				"/boom": () => {
+					throw new Error("exploded");
+				},
+			},
+			{ fallback: (error) => P(`${error.code}: ${error.message}`) },
+		);
+		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+		try {
+			expect(renderToString(router, { location: "/boom" }).html).toBe(
+				"<p>500: exploded</p><!---->",
+			);
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	it("passes a thrown { code, message } through to the fallback", () => {
+		const router = Router(
+			{
+				"/secret": () => {
+					throw { code: 403, message: "Forbidden" };
+				},
+			},
+			{ fallback: (error) => P(`${error.code}: ${error.message}`) },
+		);
+		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+		try {
+			expect(renderToString(router, { location: "/secret" }).html).toBe(
+				"<p>403: Forbidden</p><!---->",
+			);
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	const makeCatchAllRouter = () =>
+		Router(
+			{
+				"/docs": {
+					"/": () => P("docs home"),
+					"/guide": () => P("static guide"),
+					"/:...slug": ({ slug }) => P(slug),
+				},
+			},
+			{ fallback: () => P("not found") },
+		);
+
+	it("matches a catch-all across one or more segments", () => {
+		const router = makeCatchAllRouter();
+		expect(renderToString(router, { location: "/docs/intro" }).html).toBe("<p>intro</p><!---->");
+		expect(renderToString(router, { location: "/docs/a/b/c" }).html).toBe("<p>a/b/c</p><!---->");
+	});
+
+	it("prefers static segments and exact matches over the catch-all", () => {
+		const router = makeCatchAllRouter();
+		expect(renderToString(router, { location: "/docs" }).html).toBe("<p>docs home</p><!---->");
+		expect(renderToString(router, { location: "/docs/guide" }).html).toBe(
+			"<p>static guide</p><!---->",
+		);
+	});
+
+	it("does not match a catch-all with zero segments", () => {
+		const router = Router(
+			{ "/docs": { "/:...slug": ({ slug }) => P(slug) } },
+			{ fallback: () => P("not found") },
+		);
+		expect(renderToString(router, { location: "/docs" }).html).toBe("<p>not found</p><!---->");
+	});
+
+	it("decodes catch-all segments and builds encoded hrefs", () => {
+		const router = makeCatchAllRouter();
+		expect(renderToString(router, { location: "/docs/a%20b/c" }).html).toBe("<p>a b/c</p><!---->");
+		expect(router.href("/docs/:...slug", { slug: "a b/c" })).toBe("/docs/a%20b/c");
+	});
+
+	it("scopes a layout under a (group) key without adding a path segment", () => {
+		const router = Router({
+			"(app)": {
+				layout: (child: Mountable) => Div({ class: "app" }, child),
+				"/dashboard": () => P("dash"),
+			},
+			"/about": () => P("about"),
+		});
+		expect(renderToString(router, { location: "/dashboard" }).html).toBe(
+			'<div class="app"><p>dash</p><!----></div><!---->',
+		);
+		expect(renderToString(router, { location: "/about" }).html).toBe("<p>about</p><!---->");
+	});
+
+	it("drops (group) parts inside multi-segment keys", () => {
+		const router = Router({
+			"/docs/(legal)/terms": () => P("terms"),
+		});
+		expect(renderToString(router, { location: "/docs/terms" }).html).toBe("<p>terms</p><!---->");
+	});
+
+	it("rejects a catch-all that is not the last segment", () => {
+		expect(() => Router({ "/:...rest": { "/deeper": () => P("nope") } } as never)).toThrow(
+			/must be the last path segment/,
+		);
 	});
 
 	it("renders Link as a plain anchor", () => {

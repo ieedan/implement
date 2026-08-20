@@ -924,6 +924,13 @@ function setDomValue(el: HTMLElement, key: string, value: unknown) {
 		setAttribute(el, key, value, false);
 		return;
 	}
+	if (key === "tabIndex" || key === "tabindex") {
+		// always the attribute: the tabIndex property defaults to -1 on
+		// non-focusable elements, so a property write of -1 would be skipped
+		// as unchanged and the element would never become focusable
+		setAttribute(el, "tabindex", value, false);
+		return;
+	}
 	if (key === "value") {
 		const next = value == null ? "" : toAttrString(value);
 		if ((el as HTMLInputElement).value !== next) {

@@ -7,7 +7,14 @@
  * the tsconfig `paths` alias makes the same specifier type-check in the repo.
  */
 
-type ActiveLesson = { root: HTMLElement; source: string };
+type ActiveLesson = {
+	root: HTMLElement;
+	source: string;
+	/** A kit lesson's files, so `source(path)` can target one of them. */
+	files?: { path: string; content: string }[];
+	/** A kit lesson's navigation, driving the mounted app's virtual location. */
+	navigate?: (href: string) => Promise<void> | void;
+};
 
 let active: ActiveLesson | null = null;
 
@@ -16,19 +23,39 @@ export function __setActiveLesson(lesson: ActiveLesson | null): void {
 	active = lesson;
 }
 
-function root(): HTMLElement {
+function activeLesson(): ActiveLesson {
 	if (active == null) {
 		throw new Error("No lesson is mounted. Lesson tests only run through the Check button.");
 	}
-	return active.root;
+	return active;
 }
 
-/** The user's current code, for criteria the DOM can't show (e.g. "uses signal()"). */
-export function source(): string {
-	if (active == null) {
-		throw new Error("No lesson is mounted. Lesson tests only run through the Check button.");
+function root(): HTMLElement {
+	return activeLesson().root;
+}
+
+/**
+ * The user's current code, for criteria the DOM can't show (e.g. "uses
+ * signal()"). Kit lesson tests pass the file's path (`src/routes/index.ts`).
+ */
+export function source(path?: string): string {
+	const lesson = activeLesson();
+	if (path == null) return lesson.source;
+	const file = lesson.files?.find((entry) => entry.path === path);
+	if (file == null) {
+		throw new Error(`The lesson has no file "${path}" — create it with the file tree's + buttons.`);
 	}
-	return active.source;
+	return file.content;
+}
+
+/** Navigate the mounted kit app and wait for the destination to render. */
+export async function navigate(href: string): Promise<void> {
+	const lesson = activeLesson();
+	if (lesson.navigate == null) {
+		throw new Error("navigate() is only available in kit lessons.");
+	}
+	await lesson.navigate(href);
+	await tick();
 }
 
 /** Wait for pending DOM updates. */
