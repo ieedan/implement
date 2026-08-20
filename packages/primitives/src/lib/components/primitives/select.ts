@@ -25,6 +25,8 @@ import { positionFloatingElement, type Align, type Side } from "../helpers/float
 
 // TODO: grouping support
 // TODO: scroll locking
+// TODO: allow for "items" array to be passed to root
+// TODO: provide labels to the value component
 
 export type SelectProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
 	? { type: "multiple"; value?: Signal<string[]> }
