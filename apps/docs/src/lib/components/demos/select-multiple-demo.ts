@@ -21,12 +21,11 @@ export default function SelectMultipleDemo() {
 	return Div(
 		{ class: "flex w-full max-w-xs flex-col items-center gap-3" },
 		Select(
-			{ type: "multiple", value },
+			{ type: "multiple", value, items: toppings },
 			SelectTrigger(
 				{ class: "h-9 w-56 min-w-56 max-w-56" },
 				SelectValue({
 					placeholder: "Select toppings",
-					label: (id) => toppings.find((topping) => topping.value === id)?.label ?? id,
 				}),
 			),
 			SelectContent(

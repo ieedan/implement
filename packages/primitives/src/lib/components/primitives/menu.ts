@@ -25,6 +25,7 @@ import {
 } from "../helpers/dismissable-layer";
 import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
+import { ScrollLock } from "../helpers/scroll-lock";
 
 /**
  * The shared machinery behind DropdownMenu, ContextMenu, and Menubar. The
@@ -55,6 +56,8 @@ const GRACE_AREA_DURATION = 300;
 
 export type MenuRootOptions = {
 	open?: Signal<boolean> | boolean;
+	/** When true, the page behind cannot scroll while the menu is open. Defaults to true. */
+	preventScroll?: boolean;
 };
 
 export const MenuCtx = context<MenuState>();
@@ -74,7 +77,7 @@ export class MenuState {
 
 	constructor(
 		readonly variant: MenuVariant,
-		opts: MenuRootOptions,
+		readonly opts: MenuRootOptions,
 	) {
 		this.open = signal(opts.open ?? false);
 	}
@@ -317,6 +320,7 @@ export function MenuRoot(state: MenuState, ...children: Child[]) {
 				c === null ? "close" : c.opts.onInteractOutsideBehavior,
 			),
 		},
+		ScrollLock({ open: state.open, enabled: state.opts.preventScroll !== false }),
 		MenuCtx.Provide(state).To(
 			Implement.Lifecycle(
 				{

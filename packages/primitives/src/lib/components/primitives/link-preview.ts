@@ -25,11 +25,14 @@ import {
 } from "../helpers/dismissable-layer";
 import { positionFloatingElement, type Side, type Align } from "../helpers/floating-ui";
 import { trackSafePolygon } from "../helpers/safe-polygon";
+import { ScrollLock } from "../helpers/scroll-lock";
 
 export type LinkPreviewRootProps = {
 	open?: Signal<boolean> | boolean;
 	/** When disabled the preview never opens; the link still works. */
 	disabled?: Signal<boolean> | boolean;
+	/** When true, the page behind cannot scroll while the preview is open. Defaults to true. */
+	preventScroll?: boolean;
 	/** How long the pointer must rest on the link before the preview opens, in milliseconds. */
 	openDelay?: number;
 	/** How long the preview stays up after the pointer leaves, in milliseconds. */
@@ -56,7 +59,7 @@ class LinkPreviewState {
 	readonly openDelay: number;
 	readonly closeDelay: number;
 
-	constructor(opts: LinkPreviewRootProps) {
+	constructor(readonly opts: LinkPreviewRootProps) {
 		this.open = signal(opts.open ?? false);
 		this.disabled = signal(opts.disabled ?? false);
 		this.openDelay = opts.openDelay ?? 700;
@@ -218,6 +221,7 @@ export function LinkPreview(props: LinkPreviewRootProps, ...children: Child[]) {
 				c === null ? "close" : c.opts.onInteractOutsideBehavior,
 			),
 		},
+		ScrollLock({ open: state.open, enabled: state.opts.preventScroll !== false }),
 		LinkPreviewCtx.Provide(state).To(
 			Implement.Document({ onPointerup: () => state.documentPointerup() }),
 			Implement.Lifecycle(

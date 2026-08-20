@@ -24,13 +24,14 @@ import {
 	type DismissBehavior,
 } from "../helpers/dismissable-layer";
 import { positionFloatingElement, type Side, type Align } from "../helpers/floating-ui";
-
-// TODO: scroll locking
+import { ScrollLock } from "../helpers/scroll-lock";
 
 export type { Side, Align };
 
 export type PopoverRootProps = {
 	open?: Signal<boolean> | boolean;
+	/** When true, the page behind cannot scroll while the popover is open. Defaults to false. */
+	preventScroll?: boolean;
 };
 
 class PopoverState {
@@ -176,6 +177,7 @@ export function Popover(props: PopoverRootProps, ...children: Child[]) {
 				c === null ? "close" : c.opts.onInteractOutsideBehavior,
 			),
 		},
+		ScrollLock({ open: state.open, enabled: state.opts.preventScroll === true }),
 		PopoverContext.Provide(state).To(
 			Implement.Lifecycle(
 				{

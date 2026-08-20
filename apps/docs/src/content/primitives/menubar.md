@@ -34,7 +34,7 @@ Menubar(
 
 ## One open menu
 
-The bar owns which menu is open — `value` holds the open menu's value, or `null`. Opening one closes another, and while any menu is open, hovering a different trigger switches to it, the way native application menus feel. Pass a signal as `value` to control it from outside.
+The bar owns which menu is open — `value` holds the open menu's value, or `null`. Opening one closes another, and while any menu is open, hovering a different trigger switches to it, the way native application menus feel. Pass a signal as `value` to control it from outside. While a menu is open, the page behind cannot scroll; pass `preventScroll: false` on that `MenubarMenu` to leave it scrollable.
 
 ## Keyboard
 

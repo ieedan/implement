@@ -5,7 +5,9 @@ import {
 	Button,
 	Div,
 	If,
+	Implement,
 	navigateTo,
+	ref,
 	registerNavigationGuard,
 	Router,
 	signal,
@@ -69,6 +71,26 @@ describe("browser mounting", () => {
 		expect(count.get()).toBe(1);
 
 		unmount();
+		target.remove();
+	});
+
+	it("keeps a parent's `this` ref readable while its children unmount", () => {
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const app = App({ target });
+		const el = ref<HTMLDivElement>();
+		const seen: (HTMLElement | null)[] = [];
+
+		const unmount = app.render(
+			Div({ this: el }, Implement.Lifecycle({ onUnmount: () => seen.push(el.get()) }, Span("child"))),
+		);
+
+		const root = target.querySelector("div");
+		expect(el.get()).toBe(root);
+
+		unmount();
+		expect(seen).toEqual([root]);
+		expect(el.get()).toBeNull();
 		target.remove();
 	});
 });

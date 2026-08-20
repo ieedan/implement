@@ -5,6 +5,10 @@ import AspectRatioDemo from "./aspect-ratio-demo.ts";
 import aspectRatioSource from "./aspect-ratio-demo.ts?raw";
 import AvatarDemo from "./avatar-demo.ts";
 import avatarSource from "./avatar-demo.ts?raw";
+import CalendarDemo from "./calendar-demo.ts";
+import calendarSource from "./calendar-demo.ts?raw";
+import RangeCalendarDemo from "./range-calendar-demo.ts";
+import rangeCalendarSource from "./range-calendar-demo.ts?raw";
 import CollapsibleDemo from "./collapsible-demo.ts";
 import collapsibleSource from "./collapsible-demo.ts?raw";
 import CheckboxDemo from "./checkbox-demo.ts";
@@ -33,6 +37,8 @@ import SelectDemo from "./select-demo.ts";
 import selectSource from "./select-demo.ts?raw";
 import SelectMultipleDemo from "./select-multiple-demo.ts";
 import selectMultipleSource from "./select-multiple-demo.ts?raw";
+import SelectGroupDemo from "./select-group-demo.ts";
+import selectGroupSource from "./select-group-demo.ts?raw";
 import SeparatorDemo from "./separator-demo.ts";
 import separatorSource from "./separator-demo.ts?raw";
 import ToggleDemo from "./toggle-demo.ts";
@@ -41,6 +47,8 @@ import ToggleGroupDemo from "./toggle-group-demo.ts";
 import toggleGroupSource from "./toggle-group-demo.ts?raw";
 import DialogDemo from "./dialog-demo.ts";
 import dialogSource from "./dialog-demo.ts?raw";
+import DialogNestedDemo from "./dialog-nested-demo.ts";
+import dialogNestedSource from "./dialog-nested-demo.ts?raw";
 import TooltipDemo from "./tooltip-demo.ts";
 import tooltipSource from "./tooltip-demo.ts?raw";
 import AlertDialogDemo from "./alert-dialog-demo.ts";
@@ -51,6 +59,8 @@ import DropdownMenuDemo from "./dropdown-menu-demo.ts";
 import dropdownMenuSource from "./dropdown-menu-demo.ts?raw";
 import MenubarDemo from "./menubar-demo.ts";
 import menubarSource from "./menubar-demo.ts?raw";
+import ToastDemo from "./toast-demo.ts";
+import toastSource from "./toast-demo.ts?raw";
 
 export type Demo = {
 	/** The demo's source text: shown in the editor and, once edited, compiled and run live. */
@@ -79,6 +89,11 @@ export const demos: Record<string, Demo> = {
 	"dropdown-menu": { source: dropdownMenuSource, component: DropdownMenuDemo },
 	menubar: { source: menubarSource, component: MenubarDemo },
 	avatar: { source: avatarSource, component: AvatarDemo },
+	calendar: { source: calendarSource, component: CalendarDemo },
+	"range-calendar": {
+		source: rangeCalendarSource,
+		component: RangeCalendarDemo,
+	},
 	collapsible: { source: collapsibleSource, component: CollapsibleDemo },
 	checkbox: { source: checkboxSource, component: CheckboxDemo },
 	switch: { source: switchSource, component: SwitchDemo },
@@ -102,10 +117,16 @@ export const demos: Record<string, Demo> = {
 		source: selectMultipleSource,
 		component: SelectMultipleDemo,
 	},
+	"select-group": {
+		source: selectGroupSource,
+		component: SelectGroupDemo,
+	},
 	separator: { source: separatorSource, component: SeparatorDemo },
 	toggle: { source: toggleSource, component: ToggleDemo },
 	"toggle-group": { source: toggleGroupSource, component: ToggleGroupDemo },
 	dialog: { source: dialogSource, component: DialogDemo },
+	"dialog-nested": { source: dialogNestedSource, component: DialogNestedDemo },
 	"alert-dialog": { source: alertDialogSource, component: AlertDialogDemo },
 	tooltip: { source: tooltipSource, component: TooltipDemo },
+	toast: { source: toastSource, component: ToastDemo },
 };

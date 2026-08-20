@@ -3,31 +3,35 @@ import { CheckIcon, ChevronDownIcon, XIcon } from "@implementjs/lucide";
 import {
 	Select as SelectPrimitive,
 	SelectContent as SelectContentPrimitive,
+	SelectGroup as SelectGroupPrimitive,
+	SelectGroupHeading as SelectGroupHeadingPrimitive,
 	SelectItem as SelectItemPrimitive,
 	SelectTrigger as SelectTriggerPrimitive,
 	SelectValue as SelectValuePrimitive,
 } from "@implementjs/primitives";
+import { menuGroupHeadingClasses } from "./dropdown-menu";
 
 export type SelectProps = ComponentProps<typeof SelectPrimitive>;
 export type SelectTriggerProps = ComponentProps<typeof SelectTriggerPrimitive>;
 export type SelectContentProps = ComponentProps<typeof SelectContentPrimitive>;
 export type SelectItemProps = ComponentProps<typeof SelectItemPrimitive>;
+export type SelectGroupProps = ComponentProps<typeof SelectGroupPrimitive>;
+export const SelectGroup = SelectGroupPrimitive;
+export type SelectGroupHeadingProps = ComponentProps<typeof SelectGroupHeadingPrimitive>;
 
 export type SelectValueProps = {
 	placeholder?: string;
-	/** Maps an item's value to its display label. Defaults to showing the value itself. */
-	label?: (value: string) => string;
 };
 
-export function SelectValue({ placeholder = "", label = (value) => value }: SelectValueProps = {}) {
+export function SelectValue({ placeholder = "" }: SelectValueProps = {}) {
 	return SelectValuePrimitive({
 		render: (props) => {
 			if (props.type === "single") {
 				return Span(
 					{ "data-slot": "select-value", class: "truncate" },
-					If(props.value.bind((selected) => selected === null))
+					If(props.selected.bind((selected) => selected === null))
 						.Then(Span({ class: "text-muted-foreground" }, placeholder))
-						.Else(props.value.bind((selected) => (selected === null ? "" : label(selected)))),
+						.Else(props.selected.bind((selected) => selected?.label ?? "")),
 				);
 			}
 
@@ -46,28 +50,31 @@ export function SelectValue({ placeholder = "", label = (value) => value }: Sele
 					class:
 						"flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
 				},
-				If(props.value.bind((selected) => selected.length === 0)).Then(
+				If(props.selected.bind((selected) => selected.length === 0)).Then(
 					Span({ class: "text-muted-foreground" }, placeholder),
 				),
 				ForEach(
-					props.value,
-					(id) => id,
-					(id) =>
+					props.selected,
+					(item) => item.value,
+					(item) =>
 						Span(
 							{
 								class:
 									"inline-flex shrink-0 items-center gap-0.5 rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium",
 							},
-							Span({ class: "truncate" }, id.bind(label)),
+							Span(
+								{ class: "truncate" },
+								item.bind((current) => current.label),
+							),
 							Span(
 								{
 									role: "button",
 									tabIndex: -1,
-									"aria-label": id.bind((current) => `Remove ${label(current)}`),
+									"aria-label": item.bind((current) => `Remove ${current.label}`),
 									class:
 										"flex size-3.5 shrink-0 items-center justify-center rounded-sm hover:bg-foreground/10",
 									onPointerdown: (event) => event.stopPropagation(),
-									onClick: (event) => removeValue(event, id.get()),
+									onClick: (event) => removeValue(event, item.get().value),
 								},
 								XIcon({ class: "size-3", "aria-hidden": true }),
 							),
@@ -160,5 +167,19 @@ export function SelectItem({ class: className, ...props }: SelectItemProps, ...c
 				class: "size-4 opacity-0 group-data-selected/select-item:opacity-100",
 			}),
 		),
+	);
+}
+
+export function SelectGroupHeading(
+	{ class: className, ...props }: SelectGroupHeadingProps,
+	...children: Child[]
+) {
+	return SelectGroupHeadingPrimitive(
+		{
+			...props,
+			"data-slot": "select-group-heading",
+			class: [menuGroupHeadingClasses, className],
+		},
+		...children,
 	);
 }

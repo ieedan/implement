@@ -25,7 +25,7 @@ LinkPreview(
 
 Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props on the trigger and the content are forwarded onto the underlying `A` or `Div`.
 
-This is a hover affordance, not a way to reach content. It never opens on touch, and everything inside the panel is taken out of the tab order, so put nothing in it that isn't also reachable somewhere else.
+This is a hover affordance, not a way to reach content. It never opens on touch, and everything inside the panel is taken out of the tab order, so put nothing in it that isn't also reachable somewhere else. While open, the page behind cannot scroll; pass `preventScroll: false` to leave it scrollable.
 
 ## The trigger
 

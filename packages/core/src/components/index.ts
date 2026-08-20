@@ -174,11 +174,12 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	}
 
 	unmount(): void {
-		this.#props.this?.set(null);
 		this.#unsubscribeProps?.();
 		this.#unsubscribeProps = null;
+		// children unmount first so their `onUnmount` hooks still read this element
 		this.#mountedChildren.forEach((child) => child.unmount());
 		this.#mountedChildren = [];
+		this.#props.this?.set(null);
 		this.#element?.remove();
 		this.#element = null;
 	}

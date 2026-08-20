@@ -6,6 +6,7 @@ import {
 	If,
 	Implement,
 	navigateTo,
+	P,
 	signal,
 	Span,
 	type Mountable,
@@ -56,7 +57,22 @@ function LessonLink(lesson: Tutorial, direction: "prev" | "next"): Mountable {
 	);
 }
 
+function IncompleteLesson(lesson: Tutorial): Mountable {
+	return Div(
+		{ class: "flex flex-col items-center gap-2 py-24" },
+		Span({ class: "text-sm font-medium" }, `${lesson.title} has no starter files yet`),
+		P(
+			{ class: "text-[13px] text-foreground/50" },
+			"Add a code.ts or an app/ directory next to this lesson's index.md.",
+		),
+	);
+}
+
 export function TutorialPage(lesson: Tutorial): Mountable {
+	// A lesson whose starter files haven't been written yet (see `contentError`);
+	// there is nothing to put in the editor.
+	if (lesson.files.length === 0) return IncompleteLesson(lesson);
+
 	const files = signal<PlaygroundFile[]>(
 		lesson.files.map((file) => ({ path: file.path, content: signal(file.content) })),
 	);

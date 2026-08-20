@@ -128,13 +128,15 @@ export function Menubar(
 export type MenubarMenuProps = {
 	/** Identifies the menu. Must be unique within the menubar. */
 	value: string;
+	/** When true, the page behind cannot scroll while this menu is open. Defaults to true. */
+	preventScroll?: boolean;
 };
 
 const MenubarMenuCtx = context<{ value: string; menu: MenuState; menubar: MenubarState }>();
 
-export function MenubarMenu({ value }: MenubarMenuProps, ...children: Child[]) {
+export function MenubarMenu({ value, preventScroll }: MenubarMenuProps, ...children: Child[]) {
 	return MenubarCtx.Use((menubar) => {
-		const menu = new MenuState("menubar", {});
+		const menu = new MenuState("menubar", { preventScroll });
 		menubar.registerMenu(value, menu);
 
 		// the bar's value and each menu's open state mirror each other

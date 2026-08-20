@@ -66,7 +66,7 @@ export default function DialogDemo() {
 						Div(
 							{ class: "col-span-3" },
 							Select(
-								{ value: role },
+								{ value: role, items: roles },
 								SelectTrigger(
 									{ id: "role" },
 									Span(
@@ -77,7 +77,6 @@ export default function DialogDemo() {
 											.Case("admin", RoleIcon(CrownIcon)),
 										SelectValue({
 											placeholder: "Select a role",
-											label: (id) => roles.find((item) => item.value === id)?.label ?? id,
 										}),
 									),
 								),

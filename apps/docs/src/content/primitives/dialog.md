@@ -51,6 +51,8 @@ Button({ onClick: () => open.set(false) }, "Close");
 
 If it starts open (`open: true`, or a signal that's already true) focus moves into the panel on mount. Closing returns focus to the trigger that opened it, or the one marked `default`.
 
+While open, the page behind cannot scroll. Pass `preventScroll: false` to leave it scrollable. The overlay and panel can still scroll if you give them `overflow`.
+
 ## Overlay and content
 
 `DialogOverlay` is a `Div` that covers the page behind the panel. `DialogContent` is a `Div` with `role="dialog"` and `aria-modal`. Style them against `data-state`; the primitive does not hide them for you, and it does not position the panel. Center it with CSS.
@@ -75,12 +77,12 @@ If you skip the title, set `aria-label` on the content yourself.
 
 `DialogPortal` is the [Portal](/docs/portal) helper under a dialog name. It renders its children into `document.body` by default so the overlay and panel are not clipped by `overflow` or trapped in a parent stacking context. Context still resolves from where you declared it.
 
-Wrap `DialogOverlay` and `DialogContent` in it. Chain `.To(target)` or pass `to` to pick a different parent, and `disabled` to mount in place instead. Nested dialogs typically disable the inner portal so the nested panel stays in the outer overlay:
+Wrap `DialogOverlay` and `DialogContent` in it. Chain `.To(target)` or pass `to` to pick a different parent, and `disabled` to mount in place instead.
 
 ```ts
 DialogPortal(DialogOverlay({}), DialogContent({}, "Hello"));
 
-DialogPortal({ to: overlayRoot, disabled: nested }, DialogOverlay({}), DialogContent({}, "Hello"));
+DialogPortal({ to: overlayRoot }, DialogOverlay({}), DialogContent({}, "Hello"));
 ```
 
 ## Close
@@ -111,29 +113,52 @@ Dialog(
 
 Each `Dialog` provides its own context, so a second root inside the content talks to its own trigger, panel, and close. Put the inner trigger in the outer panel.
 
-Disable the inner portal. If both teleport to `document.body`, closing the outer dialog hides its content but leaves the inner panel on the page.
+Nested dialogs know their parent. Overlay and content get `data-nested` when they sit inside another dialog. While the inner one is open, every ancestor gets `data-nested-open`, `data-nested-count`, and `--ip-nested-count` so you can scale those panels back into a stack. Nested dialogs also set `--ip-nested-level` (0 for the outermost) so you can raise their `z-index` above the parent. Closing a parent closes the nested dialogs with it, so both can portal to `document.body` without leaving an orphan panel behind.
+
+Keep the inner portal enabled. If you disable it, the nested panel lives inside the parent and scales with it instead of stacking on top.
 
 ```ts
 Dialog(
 	{},
-	DialogTrigger({}, "Open dialog"),
+	DialogTrigger({}, "Share"),
 	DialogPortal(
 		DialogOverlay({}),
 		DialogContent(
 			{},
-			"This is the outer dialog.",
+			DialogTitle({}, "Share"),
+			DialogDescription({}, "Anyone with the link can view this project."),
 			Dialog(
 				{},
-				DialogTrigger({}, "Open nested"),
+				DialogTrigger({}, "Invite"),
 				DialogPortal(
-					{ disabled: true },
 					DialogOverlay({}),
-					DialogContent({}, "This is nested inside the first one."),
+					DialogContent(
+						{},
+						DialogTitle({}, "Invite"),
+						DialogDescription({}, "They'll get an email to join this project."),
+						DialogClose({}, "Send invite"),
+					),
 				),
 			),
 		),
 	),
 );
+```
+
+<div data-demo="dialog-nested" data-demo-description="A Share dialog listing who has access, with an Invite button that opens a nested dialog to send an email invite; the parent scales back in the stack and returns when Invite closes."></div>
+
+Style the stack against those attributes. `--ip-nested-count` is the number of open descendants, so deeper stacks can recede further. `--ip-nested-level` is this dialog's depth, so nested panels paint above the parent even when the parent is attached to the document later:
+
+```ts
+DialogContent({
+	class:
+		"fixed top-1/2 left-1/2 z-[calc(50+var(--ip-nested-level,0))] -translate-x-1/2 -translate-y-1/2 transition-[scale,translate] data-[state=open]:scale-[calc(1-0.05*var(--ip-nested-count,0))] data-[nested-open]:-translate-y-[calc(50%+(0.5rem*var(--ip-nested-count,0)))]",
+});
+
+DialogOverlay({
+	class:
+		"fixed inset-0 z-[calc(50+var(--ip-nested-level,0))] bg-black/50 data-[nested]:bg-transparent",
+});
 ```
 
 ## Styling
@@ -160,7 +185,7 @@ DialogContent(
 );
 ```
 
-`data-state` is there for visibility and open versus closed. The overlay sits behind the panel; put it before `DialogContent` in the portal so the panel stacks on top.
+`data-state` is there for visibility and open versus closed. The overlay sits behind the panel; put it before `DialogContent` in the portal so the panel stacks on top. Nested dialogs add `data-nested`, `data-nested-open`, and `--ip-nested-count` for stack motion, covered above.
 
 ## API Reference
 

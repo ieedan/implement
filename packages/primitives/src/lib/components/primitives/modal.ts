@@ -15,7 +15,7 @@ import {
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import { getId, noop, type MaybeReadable } from "../../utils";
+import { getId, LIB_PREFIX, noop, type MaybeReadable } from "../../utils";
 import { tabbable, trapFocus } from "../../focus";
 import { mergeProps } from "../../merge-props";
 import {
@@ -24,9 +24,15 @@ import {
 	InteractOutsideEvent,
 	type DismissBehavior,
 } from "../helpers/dismissable-layer";
+import { ScrollLock } from "../helpers/scroll-lock";
 
-// TODO: scroll locking
-// TODO: nested dialogs
+const NESTED_COUNT_VAR = `--${LIB_PREFIX}-nested-count`;
+const NESTED_LEVEL_VAR = `--${LIB_PREFIX}-nested-level`;
+
+/** Present as an empty data attribute, or omitted. */
+function presence(on: boolean): "" | undefined {
+	return on ? "" : undefined;
+}
 
 /**
  * Shared modal base for Dialog and AlertDialog. The flavors differ only in
@@ -43,6 +49,8 @@ export type ModalConfig = {
 
 export type ModalRootOptions = {
 	open?: Signal<boolean> | boolean;
+	/** When true, the page behind cannot scroll while the modal is open. Defaults to true. */
+	preventScroll?: boolean;
 };
 
 export class ModalState {
@@ -52,16 +60,101 @@ export class ModalState {
 	content = signal<ModalContentState | null>(null);
 	titleId = signal<Bindable<string> | null>(null);
 	descriptionId = signal<Bindable<string> | null>(null);
+	/** Nearest modal this one was declared inside, if any. */
+	parent: ModalState | null = null;
+	/** True when this modal is nested inside another. */
+	nested = signal(false);
+	/** Depth in the modal stack. 0 is the outermost dialog. */
+	nestedLevel = signal(0);
+	/**
+	 * How many open descendant modals sit above this one. Style against
+	 * `data-nested-open` / `--ip-nested-count` to push this panel back in the stack.
+	 */
+	nestedOpenCount = signal(0);
 	/** Element to focus when the modal opens, instead of the first tabbable. */
 	private initialFocus: { get(): HTMLElement | null } | null = null;
 	/** First trigger that registered with `default: true`, if any. */
 	private defaultTriggerId: string | null = null;
+	private readonly children = new Set<ModalState>();
+	private openUnsub: (() => void) | null = null;
 
 	constructor(
 		readonly config: ModalConfig,
 		readonly opts: ModalRootOptions,
 	) {
 		this.open = signal(this.opts.open ?? false);
+	}
+
+	/**
+	 * Wire this modal into its parent (if any) for the lifetime of the root.
+	 * Nested dialogs increment ancestors while open so parents can animate the stack.
+	 */
+	attach(parent: ModalState | null) {
+		this.detach();
+		this.parent = parent;
+		this.nested.set(parent !== null);
+		this.nestedLevel.set(parent ? parent.nestedLevel.get() + 1 : 0);
+		parent?.children.add(this);
+
+		if (this.open.get()) this.addToAncestors(1);
+
+		this.openUnsub = this.open.onChange((open) => {
+			if (open) {
+				this.addToAncestors(1);
+				return;
+			}
+			this.removeFromAncestors(1);
+			this.closeNested();
+		});
+	}
+
+	detach() {
+		this.openUnsub?.();
+		this.openUnsub = null;
+		const n = (this.open.get() ? 1 : 0) + this.nestedOpenCount.get();
+		this.removeFromAncestors(n);
+		this.parent?.children.delete(this);
+		this.parent = null;
+		this.nested.set(false);
+		this.nestedLevel.set(0);
+	}
+
+	get hasNestedOpen(): Readable<boolean> {
+		return this.nestedOpenCount.bind((n) => n > 0);
+	}
+
+	/** Data attributes and CSS variable for stacking nested dialogs. */
+	get nestedProps() {
+		return {
+			"data-nested": this.nested.bind((n) => presence(n)),
+			"data-nested-open": this.hasNestedOpen.bind((on) => presence(on)),
+			"data-nested-count": this.nestedOpenCount,
+			"data-nested-level": this.nestedLevel,
+			style: {
+				[NESTED_COUNT_VAR]: this.nestedOpenCount.bind((n) => String(n)),
+				[NESTED_LEVEL_VAR]: this.nestedLevel.bind((n) => String(n)),
+			},
+		};
+	}
+
+	private addToAncestors(n: number) {
+		if (n === 0) return;
+		for (let ancestor = this.parent; ancestor; ancestor = ancestor.parent) {
+			ancestor.nestedOpenCount.update((count) => count + n);
+		}
+	}
+
+	private removeFromAncestors(n: number) {
+		if (n === 0) return;
+		for (let ancestor = this.parent; ancestor; ancestor = ancestor.parent) {
+			ancestor.nestedOpenCount.update((count) => Math.max(0, count - n));
+		}
+	}
+
+	private closeNested() {
+		for (const child of this.children) {
+			if (child.open.get()) child.close(false);
+		}
 	}
 
 	registerTrigger(triggerId: string, trigger: ModalTriggerState, isDefault = false) {
@@ -118,10 +211,11 @@ export class ModalState {
 		this.open.set(true);
 	}
 
-	close() {
-		const currentTrigger = this.triggerRefs.get(this.currentTriggerId.get() ?? "");
-		if (currentTrigger) {
-			currentTrigger.opts.ref.get()?.focus({ preventScroll: true });
+	close(restoreFocus = true) {
+		this.closeNested();
+		if (restoreFocus) {
+			const currentTrigger = this.triggerRefs.get(this.currentTriggerId.get() ?? "");
+			currentTrigger?.opts.ref.get()?.focus({ preventScroll: true });
 		}
 		this.open.set(false);
 		this.currentTriggerId.set(null);
@@ -172,41 +266,48 @@ export class ModalState {
 export const ModalCtx = context<ModalState>();
 
 export function ModalRoot(state: ModalState, ...children: Child[]) {
-	return DismissableLayer(
-		{
-			open: state.open,
-			close: () => state.close(),
-			anchors: state.triggerRefs.bind((refs) => [...refs.values()].map((t) => t.opts.ref.get())),
-			content: state.contentEl,
-			escapeKeydownBehavior: state.content.bind((c) =>
-				c === null ? "close" : c.opts.escapeKeydownBehavior,
-			),
-			onEscape: state.content.bind((c) => (c === null ? noop : c.opts.onEscape)),
-			onInteractOutside: state.content.bind((c) => (c === null ? noop : c.opts.onInteractOutside)),
-			onInteractOutsideBehavior: state.content.bind((c) =>
-				c === null ? state.config.interactOutsideBehavior : c.opts.onInteractOutsideBehavior,
-			),
-		},
-		ModalCtx.Provide(state).To(
-			Implement.Lifecycle(
-				{
-					onMount: () => {
-						if (state.open.get()) {
-							state.ensureTrigger();
-							state.focusContent();
-						}
-						return state.open.onChange((open) => {
-							if (open) {
+	return ModalCtx.UseOr((parent) => {
+		state.attach(parent);
+		return DismissableLayer(
+			{
+				open: state.open,
+				close: () => state.close(),
+				anchors: state.triggerRefs.bind((refs) => [...refs.values()].map((t) => t.opts.ref.get())),
+				content: state.contentEl,
+				escapeKeydownBehavior: state.content.bind((c) =>
+					c === null ? "close" : c.opts.escapeKeydownBehavior,
+				),
+				onEscape: state.content.bind((c) => (c === null ? noop : c.opts.onEscape)),
+				onInteractOutside: state.content.bind((c) =>
+					c === null ? noop : c.opts.onInteractOutside,
+				),
+				onInteractOutsideBehavior: state.content.bind((c) =>
+					c === null ? state.config.interactOutsideBehavior : c.opts.onInteractOutsideBehavior,
+				),
+			},
+			ScrollLock({ open: state.open, enabled: state.opts.preventScroll !== false }),
+			ModalCtx.Provide(state).To(
+				Implement.Lifecycle(
+					{
+						onMount: () => {
+							if (state.open.get()) {
 								state.ensureTrigger();
 								state.focusContent();
 							}
-						});
+							return state.open.onChange((open) => {
+								if (open) {
+									state.ensureTrigger();
+									state.focusContent();
+								}
+							});
+						},
+						onUnmount: () => state.detach(),
 					},
-				},
-				...children,
+					...children,
+				),
 			),
-		),
-	);
+		);
+	}, null);
 }
 
 export type ModalTriggerProps = Omit<ComponentProps<typeof Button>, "id"> & {
@@ -320,6 +421,7 @@ export function ModalContent(
 					tabIndex: -1,
 					"data-state": rootState.state,
 					onKeydown: (e: KeyboardEvent) => rootState.contentKeydown(e),
+					...rootState.nestedProps,
 				},
 				restProps,
 			),
@@ -341,6 +443,7 @@ export function ModalOverlay(
 					id,
 					[`data-${rootState.config.name}-overlay`]: "",
 					"data-state": rootState.state,
+					...rootState.nestedProps,
 				},
 				restProps,
 			),
