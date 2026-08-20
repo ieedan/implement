@@ -33,6 +33,18 @@ describe("injectSsr", () => {
 		);
 	});
 
+	it("embeds route data as an escaped JSON script tag", () => {
+		const page = injectSsr(shell, { html: "<p>x</p>", head: "", data: { note: "</script>" } });
+		expect(page).toContain(
+			'</div><script type="application/json" data-implement-data>{"note":"\\u003c/script>"}</script>',
+		);
+	});
+
+	it("embeds no data script when the render has no data", () => {
+		const page = injectSsr(shell, { html: "", head: "" });
+		expect(page).not.toContain("data-implement-data");
+	});
+
 	it("escapes style content that would close the tag early", () => {
 		const page = injectSsr(shell, { html: "", head: "" }, [
 			{ id: "/a.css", content: 'q::before { content: "</style>" }' },
@@ -42,14 +54,14 @@ describe("injectSsr", () => {
 });
 
 describe("crawlRoutes", () => {
-	it("follows internal links transitively and skips assets, anchors, and cycles", () => {
+	it("follows internal links transitively and skips assets, anchors, and cycles", async () => {
 		const pages: Record<string, string> = {
 			"/": '<a href="/docs">d</a> <a href="/logo.svg">asset</a> <a href="#top">anchor</a>',
 			"/docs": '<a href="/docs/deep/">trailing</a> <a href="/">back</a>',
 			"/docs/deep": '<a href="/docs">up</a>',
 		};
 		const render = (url: string) => ({ html: pages[url] ?? "", head: "" });
-		expect(crawlRoutes(render).sort()).toEqual(["/", "/docs", "/docs/deep"]);
+		expect((await crawlRoutes(render)).sort()).toEqual(["/", "/docs", "/docs/deep"]);
 	});
 });
 

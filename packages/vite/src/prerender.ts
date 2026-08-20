@@ -2,7 +2,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { injectSsr, type SsrResult } from "./inject.ts";
 
-export type RenderFn = (url: string) => SsrResult;
+/** May be async — a render that resolves route data first returns a promise. */
+export type RenderFn = (url: string) => SsrResult | Promise<SsrResult>;
 
 const INTERNAL_HREF = /href="(\/[^"#?]*)"/g;
 
@@ -18,12 +19,12 @@ export function normalizeRoute(href: string): string {
  * renders — every page a reader can reach through the app's own links gets
  * prerendered. Paths with a dot are skipped as assets.
  */
-export function crawlRoutes(render: RenderFn): string[] {
+export async function crawlRoutes(render: RenderFn): Promise<string[]> {
 	const seen = new Set<string>(["/"]);
 	const queue = ["/"];
 	while (queue.length > 0) {
 		const route = queue.shift()!;
-		const { html } = render(route);
+		const { html } = await render(route);
 		for (const match of html.matchAll(INTERNAL_HREF)) {
 			const href = normalizeRoute(match[1]!);
 			if (href.includes(".") || seen.has(href)) continue;
@@ -34,17 +35,17 @@ export function crawlRoutes(render: RenderFn): string[] {
 	return [...seen];
 }
 
-export function prerenderRoutes(options: {
+export async function prerenderRoutes(options: {
 	render: RenderFn;
 	routes: string[];
 	template: string;
 	outDir: string;
-}): { written: number; failed: string[] } {
+}): Promise<{ written: number; failed: string[] }> {
 	const { render, routes, template, outDir } = options;
 	const failed: string[] = [];
 	for (const route of routes) {
 		try {
-			const page = injectSsr(template, render(route));
+			const page = injectSsr(template, await render(route));
 			const out =
 				route === "/" ? join(outDir, "index.html") : join(outDir, route.slice(1), "index.html");
 			mkdirSync(dirname(out), { recursive: true });

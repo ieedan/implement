@@ -4,6 +4,9 @@ import { join } from "node:path";
 export const PAGE_FILE = "index.ts";
 export const LAYOUT_FILE = "layout.ts";
 export const ERROR_FILE = "error.ts";
+export const ENDPOINT_FILE = "server.ts";
+export const PAGE_SERVER_FILE = "index.server.ts";
+export const LAYOUT_SERVER_FILE = "layout.server.ts";
 
 export type RouteSegment =
 	| { kind: "static"; value: string }
@@ -29,7 +32,25 @@ export type RouteNode = {
 	layout: string | null;
 	/** Layout-reset target of a `layout@<target>.ts` layout; `null` when it inherits normally. */
 	layoutResetTo: string | null;
+	/** Relative path of this directory's `index.server.ts` load, when present. */
+	pageServer: string | null;
+	/** Relative path of this directory's `layout.server.ts` load, when present. */
+	layoutServer: string | null;
+	/** Relative path of this directory's `server.ts` endpoint, when present. */
+	endpoint: string | null;
+	/**
+	 * Extension endpoints from `.<ext>` child directories holding a
+	 * `server.ts` — `.md/server.ts` serves this directory's path + `.md`.
+	 */
+	extensions: ExtensionEndpoint[];
 	children: RouteNode[];
+};
+
+export type ExtensionEndpoint = {
+	/** The extension the endpoint appends to the directory's path, dot included (`".md"`). */
+	extension: string;
+	/** Relative path of the `.<ext>/server.ts` file. */
+	file: string;
 };
 
 export type RouteTree = {
@@ -75,16 +96,28 @@ export function parseRouteFileName(name: string): RouteFileInfo | null {
 	return { kind: match[1] === "index" ? "page" : "layout", resetTo: match[2]! };
 }
 
-/** Whether a filename participates in routing (including `@` reset variants and `error.ts`). */
+/** Whether a filename participates in routing (including `@` reset variants, server files, and `error.ts`). */
 export function isRouteFileName(name: string): boolean {
-	return name === ERROR_FILE || parseRouteFileName(name) !== null;
+	return (
+		name === ERROR_FILE ||
+		name === ENDPOINT_FILE ||
+		name === PAGE_SERVER_FILE ||
+		name === LAYOUT_SERVER_FILE ||
+		parseRouteFileName(name) !== null
+	);
 }
+
+/** `.md`, `.json`, `.tar.gz` — a dot-directory naming the extension its `server.ts` serves. */
+const EXTENSION_DIR = /^(\.[a-z0-9]+)+$/i;
 
 /**
  * Scans a routes directory into a tree of pages and layouts. Only `index.ts`,
- * `layout.ts`, their `@` layout-reset variants, and a root `error.ts` are
- * routing files — anything else is colocated code and ignored. Dot-directories
- * are skipped. `(group)` directories scope layouts without contributing a URL
+ * `layout.ts`, their `@` layout-reset variants, the server files
+ * (`index.server.ts` / `layout.server.ts` loads and `server.ts` endpoints),
+ * and a root `error.ts` are routing files — anything else is colocated code
+ * and ignored. Dot-directories are skipped, except `.<ext>` directories
+ * holding a `server.ts`, which serve the parent path with the extension
+ * appended. `(group)` directories scope layouts without contributing a URL
  * segment.
  */
 export function scanRoutes(routesDir: string): RouteTree {
@@ -117,6 +150,10 @@ function scanDirectory(
 		pageResetTo: null,
 		layout: null,
 		layoutResetTo: null,
+		pageServer: null,
+		layoutServer: null,
+		endpoint: null,
+		extensions: [],
 		children: [],
 	};
 	const absolute = dir === "" ? routesDir : join(routesDir, dir);
@@ -131,6 +168,18 @@ function scanDirectory(
 				if (dir !== "") {
 					throw new Error(`"${relative}" — error.ts is only supported at the routes root`);
 				}
+				continue;
+			}
+			if (entry.name === ENDPOINT_FILE) {
+				node.endpoint = relative;
+				continue;
+			}
+			if (entry.name === PAGE_SERVER_FILE) {
+				node.pageServer = relative;
+				continue;
+			}
+			if (entry.name === LAYOUT_SERVER_FILE) {
+				node.layoutServer = relative;
 				continue;
 			}
 			const info = parseRouteFileName(entry.name);
@@ -155,7 +204,20 @@ function scanDirectory(
 			}
 			continue;
 		}
-		if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+		if (!entry.isDirectory()) continue;
+		if (entry.name.startsWith(".")) {
+			// a `.<ext>` directory holding a server.ts serves this directory's
+			// path with the extension appended; any other dot-directory is skipped
+			if (
+				EXTENSION_DIR.test(entry.name) &&
+				readdirSync(join(absolute, entry.name), { withFileTypes: true }).some(
+					(child) => child.isFile() && child.name === ENDPOINT_FILE,
+				)
+			) {
+				node.extensions.push({ extension: entry.name, file: `${relative}/${ENDPOINT_FILE}` });
+			}
+			continue;
+		}
 
 		const childSegment = parseSegment(entry.name);
 		if (childSegment.kind === "param" || childSegment.kind === "rest") {
@@ -176,6 +238,15 @@ function scanDirectory(
 			);
 		}
 		node.children.push(child);
+	}
+
+	if (node.endpoint !== null && node.page !== null) {
+		throw new Error(
+			`"${node.endpoint}" conflicts with "${node.page}" — a directory serves a page or an endpoint, not both`,
+		);
+	}
+	if (node.pageServer !== null && node.page === null) {
+		throw new Error(`"${node.pageServer}" has no "${dir === "" ? "" : `${dir}/`}index.ts" page to load for`);
 	}
 
 	return node;
@@ -207,9 +278,16 @@ function segmentIsRest(segment: RouteSegment | null): segment is { kind: "rest";
 	return segment !== null && segment.kind === "rest";
 }
 
-/** Whether the subtree contributes any routing (a page or a layout somewhere). */
+/** Whether the subtree contributes any routing (a page, layout, load, or endpoint somewhere). */
 export function hasRouteFiles(node: RouteNode): boolean {
-	return node.page !== null || node.layout !== null || node.children.some(hasRouteFiles);
+	return (
+		node.page !== null ||
+		node.layout !== null ||
+		node.layoutServer !== null ||
+		node.endpoint !== null ||
+		node.extensions.length > 0 ||
+		node.children.some(hasRouteFiles)
+	);
 }
 
 /**
@@ -223,17 +301,27 @@ export function segmentKey(segment: RouteSegment): string {
 	return "";
 }
 
-/** Since `(group)` directories vanish from the URL, distinct pages can collide on one path. */
+/** The URL pattern an extension endpoint serves: its directory's pattern with the extension appended. */
+export function extensionPattern(pattern: string, extension: string): string {
+	return pattern === "/" ? `/${extension}` : `${pattern}${extension}`;
+}
+
+/** Since `(group)` directories vanish from the URL, distinct routes can collide on one path. */
 function assertUniquePatterns(root: RouteNode): void {
 	const seen = new Map<string, string>();
+	const claim = (pattern: string, file: string) => {
+		const existing = seen.get(pattern);
+		if (existing !== undefined) {
+			throw new Error(`"${existing}" and "${file}" both resolve to "${pattern}"`);
+		}
+		seen.set(pattern, file);
+	};
 	const walk = (node: RouteNode, prefix: string) => {
-		if (node.page !== null) {
-			const pattern = prefix === "" ? "/" : prefix;
-			const existing = seen.get(pattern);
-			if (existing !== undefined) {
-				throw new Error(`"${existing}" and "${node.page}" both resolve to "${pattern}"`);
-			}
-			seen.set(pattern, node.page);
+		const pattern = prefix === "" ? "/" : prefix;
+		if (node.page !== null) claim(pattern, node.page);
+		if (node.endpoint !== null) claim(pattern, node.endpoint);
+		for (const extension of node.extensions) {
+			claim(extensionPattern(pattern, extension.extension), extension.file);
 		}
 		for (const child of node.children) walk(child, `${prefix}${segmentKey(child.segment!)}`);
 	};

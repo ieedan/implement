@@ -19,8 +19,10 @@ export {
 	navigateTo,
 	normalizePath,
 	searchParam,
+	setNavigationResolver,
 	withLocationSignal,
 	type NavigateOptions,
+	type NavigationResolver,
 	type RouterLocation,
 	type SearchParam,
 } from "./location";

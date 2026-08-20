@@ -241,6 +241,41 @@ export const apiReference: Record<string, ApiPart[]> = {
 			],
 		},
 	],
+	meter: [
+		{
+			name: "Meter",
+			element: "Div",
+			description:
+				'A static measurement within a known range. Sets role="meter" and the aria value attributes. Give it a track and a fill; it handles the semantics.',
+			props: [
+				{
+					name: "value",
+					type: "Signal<number> | number",
+					default: "0",
+					description:
+						"The current value. Pass a signal to control it from outside; a number seeds uncontrolled state.",
+				},
+				{
+					name: "min",
+					type: "Signal<number> | number",
+					default: "0",
+					description: "The lowest value the meter can take.",
+				},
+				{
+					name: "max",
+					type: "Signal<number> | number",
+					default: "100",
+					description: "The highest value the meter can take.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-meter-root", value: "Present" },
+				{ name: "data-value", value: "The current value" },
+				{ name: "data-min", value: "The minimum value" },
+				{ name: "data-max", value: "The maximum value" },
+			],
+		},
+	],
 	separator: [
 		{
 			name: "Separator",
@@ -375,6 +410,99 @@ export const apiReference: Record<string, ApiPart[]> = {
 			name: "PopoverClose",
 			element: "Button",
 			description: "Closes the popover when clicked. Put it inside the content.",
+		},
+	],
+	dialog: [
+		{
+			name: "Dialog",
+			description:
+				"The root. Owns whether the dialog is open and provides that to the parts inside it.",
+			props: [
+				{
+					name: "open",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+			],
+		},
+		{
+			name: "DialogTrigger",
+			element: "Button",
+			description:
+				"Toggles the dialog open and closed. Clicking a different trigger keeps it open and remembers that button for focus return.",
+			props: [
+				{
+					name: "default",
+					type: "boolean",
+					default: "false",
+					description:
+						"When the dialog starts open, return focus to this trigger instead of the first one in the tree.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-dialog-trigger", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+			],
+		},
+		{
+			name: "DialogOverlay",
+			element: "Div",
+			description:
+				"The backdrop behind the panel. Style it against data-state; the primitive does not hide it for you.",
+			dataAttributes: [
+				{ name: "data-dialog-overlay", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+			],
+		},
+		{
+			name: "DialogContent",
+			element: "Div",
+			description:
+				'The panel. Sets role="dialog" and aria-modal. Style it against data-state; the primitive does not hide or position it for you.',
+			dataAttributes: [
+				{ name: "data-dialog-content", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+			],
+		},
+		{
+			name: "DialogTitle",
+			element: "H2",
+			description: "The heading. Put it inside the content. Wires up aria-labelledby on the panel.",
+			dataAttributes: [{ name: "data-dialog-title", value: "Present" }],
+		},
+		{
+			name: "DialogDescription",
+			element: "P",
+			description:
+				"Supporting text. Put it inside the content. Wires up aria-describedby on the panel.",
+			dataAttributes: [{ name: "data-dialog-description", value: "Present" }],
+		},
+		{
+			name: "DialogPortal",
+			description:
+				"Renders its children into another DOM parent so the overlay and panel escape overflow and stacking. This is the core Portal helper; context still resolves from where the portal is declared.",
+			props: [
+				{
+					name: "to",
+					type: "HTMLElement | Readable<HTMLElement>",
+					default: "document.body",
+					description: "The element to mount into. Also available as chained .To(target).",
+				},
+				{
+					name: "disabled",
+					type: "boolean | Readable<boolean>",
+					default: "false",
+					description:
+						"Mount in place instead of teleporting. Disable the inner portal on a nested dialog so it stays in the outer overlay. Also available as chained .Disabled(value).",
+				},
+			],
+		},
+		{
+			name: "DialogClose",
+			element: "Button",
+			description: "Closes the dialog when clicked. Put it inside the content.",
 		},
 	],
 	select: [

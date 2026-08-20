@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
+import { Meter } from "../components/ui/meter";
 import { Separator } from "../components/ui/separator";
 import { primitivePages, type PrimitivePage } from "@/lib/content";
 import { router } from "../router";
@@ -142,6 +143,30 @@ function CheckboxPreview(): Mountable {
 	);
 }
 
+function MeterPreview(): Mountable {
+	return Div(
+		{ class: "flex w-full max-w-56 flex-col gap-4" },
+		Div(
+			{ class: "flex flex-col gap-2" },
+			Div(
+				{ class: "flex items-center justify-between text-sm font-medium" },
+				Span("Storage"),
+				Span({ class: "text-muted-foreground tabular-nums" }, "75%"),
+			),
+			Meter({ value: 75, "aria-label": "Storage used" }),
+		),
+		Div(
+			{ class: "flex flex-col gap-2" },
+			Div(
+				{ class: "flex items-center justify-between text-sm font-medium" },
+				Span("Battery"),
+				Span({ class: "text-muted-foreground tabular-nums" }, "30%"),
+			),
+			Meter({ value: 30, "aria-label": "Battery level" }),
+		),
+	);
+}
+
 function SelectItemPreview(label: string, selected = false): Mountable {
 	return Div(
 		{
@@ -184,6 +209,57 @@ function SelectPreview(): Mountable {
 	);
 }
 
+function DialogPreview(): Mountable {
+	return Div(
+		{
+			class:
+				"relative flex min-h-52 w-full max-w-80 items-center justify-center overflow-hidden rounded-md",
+		},
+		Div({ class: "absolute inset-0 bg-black/40" }),
+		Div(
+			{
+				class:
+					"relative z-10 w-[min(100%,18rem)] rounded-lg border bg-background p-4 text-foreground shadow-lg",
+			},
+			Div({ class: "text-sm font-semibold" }, "Edit profile"),
+			P(
+				{ class: "mt-1 text-xs text-muted-foreground" },
+				"Make changes to your profile here. Click save when you're done.",
+			),
+			Div(
+				{ class: "mt-3 grid gap-2" },
+				Div(
+					{ class: "grid grid-cols-3 items-center gap-2" },
+					Span({ class: "text-xs text-muted-foreground" }, "Name"),
+					Span(
+						{
+							class: "col-span-2 rounded-md border border-input px-2 py-1 text-xs",
+						},
+						"Aidan Bleser",
+					),
+				),
+				Div(
+					{ class: "grid grid-cols-3 items-center gap-2" },
+					Span({ class: "text-xs text-muted-foreground" }, "Username"),
+					Span(
+						{
+							class: "col-span-2 rounded-md border border-input px-2 py-1 text-xs",
+						},
+						"@ieedan",
+					),
+				),
+			),
+			Div(
+				{
+					class:
+						"mt-3 flex h-8 items-center justify-center rounded-md border bg-background text-xs font-medium",
+				},
+				"Save changes",
+			),
+		),
+	);
+}
+
 function SeparatorPreview(): Mountable {
 	return Div(
 		{ class: "w-full max-w-56" },
@@ -207,9 +283,11 @@ const previews: Record<string, () => Mountable> = {
 	avatar: AvatarPreview,
 	checkbox: CheckboxPreview,
 	collapsible: CollapsiblePreview,
+	meter: MeterPreview,
 	popover: PopoverPreview,
 	select: SelectPreview,
 	separator: SeparatorPreview,
+	dialog: DialogPreview,
 };
 
 /**
@@ -219,9 +297,11 @@ const previews: Record<string, () => Mountable> = {
 const spans: Record<string, string> = {
 	accordion: "sm:col-span-2 sm:row-span-2",
 	collapsible: "sm:col-span-2",
+	meter: "sm:col-span-2",
 	popover: "sm:col-span-2 sm:row-span-2",
 	select: "sm:col-span-2",
 	separator: "sm:col-span-2",
+	dialog: "sm:col-span-2",
 };
 
 function PrimitiveCard(page: PrimitivePage): Mountable {

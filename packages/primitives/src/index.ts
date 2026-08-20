@@ -41,6 +41,7 @@ export {
 	type Side,
 	type Align,
 } from "./lib/components/primitives/popover";
+export { Meter, type MeterProps } from "./lib/components/primitives/meter";
 export { Separator, type SeparatorProps } from "./lib/components/primitives/separator";
 export { mergeProps } from "./lib/merge-props";
 export { Checkbox, type CheckboxProps } from "./lib/components/primitives/checkbox";
@@ -57,3 +58,21 @@ export {
 	type SelectContentProps,
 	type SelectItemsProps,
 } from "./lib/components/primitives/select";
+export {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogOverlay,
+	DialogClose,
+	DialogTitle,
+	DialogDescription,
+	DialogPortal,
+	type DialogRootProps,
+	type DialogTriggerProps,
+	type DialogContentProps,
+	type DialogOverlayProps,
+	type DialogCloseProps,
+	type DialogTitleProps,
+	type DialogDescriptionProps,
+	type DialogPortalProps,
+} from "./lib/components/primitives/dialog";

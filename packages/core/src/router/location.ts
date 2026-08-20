@@ -66,10 +66,54 @@ export function locationSignal(): Signal<RouterLocation> {
 	if (!current) {
 		current = signal(readLocation());
 		window.addEventListener("popstate", () => {
-			current!.set(readLocation());
+			const target = readLocation();
+			resolveNavigation(target, () => current!.set(target));
 		});
 	}
 	return current;
+}
+
+/**
+ * Runs before a navigation commits (before the history entry and the location
+ * signal update), so integrations can resolve what the destination needs —
+ * kit uses this to fetch route data. Returning a promise delays the commit
+ * until it resolves; a rejection cancels the navigation.
+ */
+export type NavigationResolver = (to: RouterLocation) => void | Promise<void>;
+
+let navigationResolver: NavigationResolver | null = null;
+
+/** Install the {@link NavigationResolver} (`null` removes it). Last one wins. */
+export function setNavigationResolver(resolver: NavigationResolver | null): void {
+	navigationResolver = resolver;
+}
+
+let navigationToken = 0;
+
+/** Runs the resolver (if any) and commits — only if no newer navigation started meanwhile. */
+function resolveNavigation(target: RouterLocation, commit: () => void): void {
+	const token = ++navigationToken;
+	if (navigationResolver === null) {
+		commit();
+		return;
+	}
+	let result;
+	try {
+		result = navigationResolver(target);
+	} catch (error) {
+		console.error(error);
+		return;
+	}
+	if (result instanceof Promise) {
+		result.then(
+			() => {
+				if (token === navigationToken) commit();
+			},
+			(error) => console.error(error),
+		);
+	} else {
+		commit();
+	}
 }
 
 export type NavigateOptions = {
@@ -86,16 +130,21 @@ export function navigateTo(href: string, options: NavigateOptions = {}): void {
 	}
 	const url = new URL(href, window.location.href);
 	if (url.href === window.location.href) return;
-	if (options.replace) {
-		history.replaceState(null, "", url);
-	} else {
-		history.pushState(null, "", url);
-		window.scrollTo(0, 0);
-	}
-	locationSignal().set({
+	const target: RouterLocation = {
 		path: normalizePath(url.pathname),
 		search: url.search,
 		hash: url.hash,
+	};
+	// the history entry waits alongside the signal, so the URL never shows a
+	// destination whose data has not resolved yet
+	resolveNavigation(target, () => {
+		if (options.replace) {
+			history.replaceState(null, "", url);
+		} else {
+			history.pushState(null, "", url);
+			window.scrollTo(0, 0);
+		}
+		locationSignal().set(target);
 	});
 }
 

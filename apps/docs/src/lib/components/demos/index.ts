@@ -7,6 +7,8 @@ import CollapsibleDemo from "./collapsible-demo.ts";
 import collapsibleSource from "./collapsible-demo.ts?raw";
 import CheckboxDemo from "./checkbox-demo.ts";
 import checkboxSource from "./checkbox-demo.ts?raw";
+import MeterDemo from "./meter-demo.ts";
+import meterSource from "./meter-demo.ts?raw";
 import PopoverDemo from "./popover-demo.ts";
 import popoverSource from "./popover-demo.ts?raw";
 import PopoverNestedDemo from "./popover-nested-demo.ts";
@@ -19,6 +21,8 @@ import SelectMultipleDemo from "./select-multiple-demo.ts";
 import selectMultipleSource from "./select-multiple-demo.ts?raw";
 import SeparatorDemo from "./separator-demo.ts";
 import separatorSource from "./separator-demo.ts?raw";
+import DialogDemo from "./dialog-demo.ts";
+import dialogSource from "./dialog-demo.ts?raw";
 
 export type Demo = {
 	/** The demo's source text: shown in the editor and, once edited, compiled and run live. */
@@ -45,10 +49,12 @@ export const demos: Record<string, Demo> = {
 	avatar: { source: avatarSource, component: AvatarDemo },
 	collapsible: { source: collapsibleSource, component: CollapsibleDemo },
 	checkbox: { source: checkboxSource, component: CheckboxDemo },
+	meter: { source: meterSource, component: MeterDemo },
 	popover: { source: popoverSource, component: PopoverDemo },
 	"popover-triggers": { source: popoverTriggersSource, component: PopoverTriggersDemo },
 	"popover-nested": { source: popoverNestedSource, component: PopoverNestedDemo },
 	select: { source: selectSource, component: SelectDemo },
 	"select-multiple": { source: selectMultipleSource, component: SelectMultipleDemo },
 	separator: { source: separatorSource, component: SeparatorDemo },
+	dialog: { source: dialogSource, component: DialogDemo },
 };
