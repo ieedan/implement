@@ -1,6 +1,6 @@
 import { Key, type Child, type Readable } from "@implementjs/core";
-import { DocsPage } from "@/views/docs-page";
-import { NotFound } from "@/views/not-found";
+import { DocsPage } from "@/lib/views/docs-page";
+import { NotFound } from "@/lib/views/not-found";
 import type { Page } from "./content";
 
 /** The collection's index page (slug `""`), required for the collection's root route. */

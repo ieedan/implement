@@ -17,7 +17,9 @@ import {
 
 export {
 	navigateTo,
+	normalizePath,
 	searchParam,
+	withLocationSignal,
 	type NavigateOptions,
 	type RouterLocation,
 	type SearchParam,

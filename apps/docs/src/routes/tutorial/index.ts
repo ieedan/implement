@@ -1,6 +1,6 @@
 import { Implement, navigateTo, P, type Child } from "@implementjs/core";
 import { tutorials } from "@/lib/content";
-import { TutorialPage } from "@/views/tutorial-page";
+import { TutorialPage } from "@/lib/views/tutorial-page";
 
 /** Renders the first lesson and settles the URL onto its permalink. */
 export default function Page(): Child {

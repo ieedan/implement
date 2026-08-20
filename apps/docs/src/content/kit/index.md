@@ -76,6 +76,39 @@ export default function Page() {
 }
 ```
 
+## Project structure
+
+A kit app looks like this:
+
+```
+my-app/
+├ src/
+│  ├ lib/
+│  │  ├ components/
+│  │  └ utils.ts
+│  └ routes/
+├ static/
+├ app.css
+└ index.html
+```
+
+`src/routes` is the routing tree — every file in it is a page, layout, or error boundary, covered in [Routing](/kit/routing).
+
+`src/lib` is for everything that isn't a route: components, utilities, shared state. Kit aliases `@/lib` to it automatically — in Vite and, through the generated tsconfig, in TypeScript — so imports stay flat no matter how deep the importing file sits:
+
+```ts
+import { Button } from "@/lib/components/button";
+```
+
+`static/` is for assets served as-is from the site root — `static/favicon.png` is available at `/favicon.png`. Vite serves the directory directly in dev and copies it into `dist/` on build. It's just Vite's [`publicDir`](https://vite.dev/config/shared-options#publicdir) pointed at `static`, so set `publicDir` in your Vite config if you want a different folder.
+
+Global stylesheets like `app.css` live at the root and get imported from the root layout:
+
+```ts
+// src/routes/layout.ts
+import "../../app.css";
+```
+
 ## The .implement directory
 
 When kit runs it writes a `.implement/` directory next to your Vite config. It contains the client and server entries, the tsconfig you extend, and a `$types.d.ts` for every route directory. The whole thing is gitignored (kit writes the `.gitignore` too) and regenerates itself, so you never edit anything in there.
@@ -91,10 +124,23 @@ sync(new URL("..", import.meta.url).pathname);
 
 ## Options
 
-`kit()` takes two options:
+`kit()` takes three options:
 
 - `routes` — the routes directory relative to your Vite root. Defaults to `"src/routes"`.
 - `prerender` — `false` to skip prerendering on build, or `{ entries }` to add dynamic routes to it. Covered in [SSR & Prerendering](/kit/ssr-and-prerendering).
+- `alias` — extra import aliases on top of the automatic `@/lib`, mapped to paths relative to your Vite root. Like `@/lib`, each one is wired into both Vite and the generated tsconfig, so the bundler and the typechecker always agree:
+
+```ts
+kit({
+	alias: {
+		"@/content": "src/content",
+		// a file target aliases a single module
+		"@utils": "src/lib/utils.ts",
+	},
+});
+```
+
+If you run [`sync`](#the-implement-directory) in a check script, pass it the same map so the regenerated tsconfig matches: `sync(root, { alias: { ... } })`.
 
 ## Where to next
 

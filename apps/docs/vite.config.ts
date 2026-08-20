@@ -27,7 +27,11 @@ function entries(): string[] {
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
-		kit({ prerender: { entries } }),
+		kit({
+			prerender: { entries },
+			// Mirrored in scripts/sync.ts, which regenerates the tsconfig without Vite.
+			alias: { "@": "src", "@tutorial/test": "src/lib/tutorial-test.ts" },
+		}),
 		{
 			name: "reload-velite",
 			configureServer(server) {
@@ -46,6 +50,5 @@ export default defineConfig({
 			},
 		},
 	],
-	resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },
 	server: { port: 3004, strictPort: true },
 });

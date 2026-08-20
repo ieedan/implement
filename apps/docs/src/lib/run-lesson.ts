@@ -1,8 +1,10 @@
 import * as implement from "@implementjs/core";
+import * as lucide from "@implementjs/lucide";
 import * as primitives from "@implementjs/primitives";
 import { transform } from "sucrase";
 
 const IMPLEMENT = "@implementjs/core";
+const LUCIDE = "@implementjs/lucide";
 const PRIMITIVES = "@implementjs/primitives";
 
 export type ShimModule = Record<string, unknown>;
@@ -22,10 +24,21 @@ function shimKey(specifier: string): string {
 // parked on the executing realm's globalThis and re-exported from a generated
 // blob the imports are rewritten to point at. Parking happens per-import (see
 // importLessonModule) because the realm may be a fresh preview iframe.
+function isExportableName(name: string): boolean {
+	if (name === "default") return false;
+	if (!/^[A-Za-z_$][\w$]*$/.test(name)) return false;
+	try {
+		new Function(`const ${name} = 1`);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 function moduleShimUrl(specifier: string, moduleObject: ShimModule): string {
 	const cached = shimUrls.get(specifier);
 	if (cached != null) return cached;
-	const names = Object.keys(moduleObject).filter((name) => name !== "default");
+	const names = Object.keys(moduleObject).filter(isExportableName);
 	const source = [
 		`const m = globalThis[${JSON.stringify(shimKey(specifier))}];`,
 		...names.map((name) => `export const ${name} = m[${JSON.stringify(name)}];`),
@@ -65,7 +78,13 @@ function rewriteImports(code: string, modules: Record<string, ShimModule>): stri
 			new RegExp(`from\\s+(["'])${escapeRegExp(specifier)}\\1`, "g"),
 			`from ${JSON.stringify(moduleShimUrl(specifier, moduleObject))}`,
 		);
-		if (rewritten.includes(specifier)) {
+		// Only leftover *imports* of the specifier are unresolved. A string
+		// argument like Repo("@implementjs/core") must be allowed to remain.
+		if (
+			new RegExp(
+				`(?:from\\s+|import\\s*\\(\\s*|import\\s+)(["'])${escapeRegExp(specifier)}\\1`,
+			).test(rewritten)
+		) {
 			throw new Error(`Could not resolve "${specifier}". Import it with a string literal.`);
 		}
 	}
@@ -101,6 +120,7 @@ export async function importLessonModule(
 ): Promise<{ mod: Record<string, unknown>; revoke: () => void }> {
 	const modules: Record<string, ShimModule> = {
 		[IMPLEMENT]: implement as unknown as ShimModule,
+		[LUCIDE]: lucide as unknown as ShimModule,
 		[PRIMITIVES]: primitives as unknown as ShimModule,
 		...extraModules,
 	};
@@ -118,6 +138,98 @@ export async function importLessonModule(
 		return { mod, revoke: () => URL.revokeObjectURL(url) };
 	} catch (error) {
 		URL.revokeObjectURL(url);
+		throw error;
+	}
+}
+
+export type ProjectFile = { path: string; content: string };
+
+/** `from "./x"` / `import "../y"` specifiers, the only ones linked between files. */
+const RELATIVE_IMPORT = /(?:from|import)\s*(["'])(\.\.?\/[^"']+)\1/g;
+
+function resolveRelative(fromPath: string, specifier: string, byPath: Map<string, string>): string {
+	const segments = fromPath.split("/").slice(0, -1);
+	for (const part of specifier.split("/")) {
+		if (part === "" || part === ".") continue;
+		if (part === "..") {
+			if (segments.length === 0) {
+				throw new Error(`"${specifier}" escapes the project (imported from "${fromPath}")`);
+			}
+			segments.pop();
+		} else {
+			segments.push(part);
+		}
+	}
+	const base = segments.join("/");
+	for (const candidate of [base, `${base}.ts`, `${base}/index.ts`]) {
+		if (byPath.has(candidate)) return candidate;
+	}
+	throw new Error(`Could not resolve "${specifier}" imported from "${fromPath}"`);
+}
+
+/**
+ * Compile a multi-file lesson into ES modules executing in `realm`. Relative
+ * imports between lesson files link through per-file blob modules; bare
+ * `@implementjs/*` imports resolve to the playground's shimmed copies (or the
+ * overrides in `extraModules`). Returns the module namespace of every entry.
+ */
+export async function importLessonProject(
+	files: ProjectFile[],
+	entries: string[],
+	extraModules: Record<string, ShimModule> = {},
+	realm: Window = window,
+): Promise<{ modules: Map<string, Record<string, unknown>>; revoke: () => void }> {
+	const shimModules: Record<string, ShimModule> = {
+		[IMPLEMENT]: implement as unknown as ShimModule,
+		[LUCIDE]: lucide as unknown as ShimModule,
+		[PRIMITIVES]: primitives as unknown as ShimModule,
+		...extraModules,
+	};
+	for (const [specifier, moduleObject] of Object.entries(shimModules)) {
+		(realm as Window & ShimModule)[shimKey(specifier)] = moduleObject;
+	}
+
+	const byPath = new Map(files.map((file) => [file.path, file.content]));
+	const urls = new Map<string, string>();
+	const building = new Set<string>();
+	const created: string[] = [];
+
+	const urlFor = (path: string): string => {
+		const cached = urls.get(path);
+		if (cached != null) return cached;
+		if (building.has(path)) {
+			throw new Error(`Import cycle through "${path}" — break the cycle to run this app.`);
+		}
+		building.add(path);
+		const source = byPath.get(path);
+		if (source == null) throw new Error(`Missing file "${path}"`);
+		const linked = rewriteImports(transpile(source), shimModules).replace(
+			RELATIVE_IMPORT,
+			(match, quote: string, specifier: string) =>
+				match.replace(
+					`${quote}${specifier}${quote}`,
+					JSON.stringify(urlFor(resolveRelative(path, specifier, byPath))),
+				),
+		);
+		building.delete(path);
+		const url = URL.createObjectURL(new Blob([linked], { type: "text/javascript" }));
+		urls.set(path, url);
+		created.push(url);
+		return url;
+	};
+
+	const revoke = () => {
+		for (const url of created) URL.revokeObjectURL(url);
+	};
+
+	try {
+		const modules = new Map<string, Record<string, unknown>>();
+		for (const entry of entries) {
+			modules.set(entry, await importInRealm(realm, urlFor(entry)));
+		}
+		return { modules, revoke };
+	} catch (error) {
+		revoke();
 		throw error;
 	}
 }

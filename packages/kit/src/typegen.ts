@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { pageRoutes, type PageRoute } from "./codegen.ts";
 import { type RouteNode, type RouteTree } from "./scan.ts";
 
@@ -26,14 +26,30 @@ export function render(url: string): RenderToStringResult {
 }
 `;
 
-/** rootDirs merges the app root with the generated types dir, so route files resolve \`./$types\`. */
-const TSCONFIG = `{
-	"compilerOptions": {
-		"rootDirs": ["..", "./types"]
-	},
-	"include": ["./types/**/*.d.ts", "./*.ts", "../src/**/*"]
+/** Aliases every kit app gets; \`KitOptions.alias\` entries merge over them. */
+export const DEFAULT_ALIASES: Record<string, string> = { "@/lib": "src/lib" };
+
+/**
+ * The tsconfig apps extend. rootDirs merges the app root with the generated
+ * types dir, so route files resolve \`./$types\`; paths mirrors the aliases
+ * the plugin sets up in Vite (relative paths in an extended config resolve
+ * against this file, so root-relative targets get a \`../\` prefix).
+ */
+export function generateTsconfig(aliases: Record<string, string>): string {
+	const paths: Record<string, string[]> = {};
+	for (const [name, target] of Object.entries(aliases)) {
+		const normalized = target.replaceAll("\\", "/").replace(/\/+$/, "");
+		const base = isAbsolute(normalized) ? normalized : `../${normalized}`;
+		paths[name] = [base];
+		// a target ending in a file extension aliases one module, not a tree
+		if (!/\.[^/]+$/.test(base)) paths[`${name}/*`] = [`${base}/*`];
+	}
+	const tsconfig = {
+		compilerOptions: { rootDirs: ["..", "./types"], paths },
+		include: ["./types/**/*.d.ts", "./*.ts", "../src/**/*"],
+	};
+	return `${JSON.stringify(tsconfig, null, "\t")}\n`;
 }
-`;
 
 function paramsType(params: string[]): string {
 	if (params.length === 0) return "{}";
@@ -72,6 +88,8 @@ ${entries}
 export type SyncOptions = {
 	/** Routes directory relative to the app root. @default "src/routes" */
 	routes?: string;
+	/** Extra aliases (name → path relative to the app root) for the generated tsconfig, on top of `@/lib` → `src/lib`. */
+	alias?: Record<string, string>;
 };
 
 /**
@@ -89,7 +107,10 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	writeIfChanged(join(outDir, ".gitignore"), "*\n");
 	writeIfChanged(join(outDir, "entry-client.ts"), ENTRY_CLIENT);
 	writeIfChanged(join(outDir, "entry-server.ts"), ENTRY_SERVER);
-	writeIfChanged(join(outDir, "tsconfig.json"), TSCONFIG);
+	writeIfChanged(
+		join(outDir, "tsconfig.json"),
+		generateTsconfig({ ...DEFAULT_ALIASES, ...options.alias }),
+	);
 	writeIfChanged(join(typesDir, "$implement.d.ts"), generateRouterDeclaration(pageRoutes(tree)));
 
 	const expected = new Set<string>();

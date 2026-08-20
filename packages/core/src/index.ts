@@ -69,8 +69,10 @@ export {
 export { context } from "./context";
 export {
 	navigateTo,
+	normalizePath,
 	Router,
 	searchParam,
+	withLocationSignal,
 	type LinkProps,
 	type NavigateOptions,
 	type RouterError,

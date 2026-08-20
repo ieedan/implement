@@ -103,12 +103,19 @@ const tutorials = defineCollection({
 	schema: markdown
 		.extend({
 			section: s.string().max(99),
+			/** File open in the editor when the lesson loads (multi-file lessons). */
+			focus: s.string().optional(),
 		})
-		.transform((data) => ({
-			...data,
-			lessonDir: toLessonDir(data.slug),
-			...toPermalink(data.slug, "/tutorial", "lessons"),
-		})),
+		.transform((data) => {
+			const lessonDir = toLessonDir(data.slug);
+			return {
+				...data,
+				lessonDir,
+				// Top-level lesson directory ("implement", "kit") the lesson belongs to.
+				part: stripOrderPrefixes(lessonDir).split("/")[0] ?? "",
+				...toPermalink(data.slug, "/tutorial", "lessons"),
+			};
+		}),
 });
 
 export default defineConfig({
@@ -116,9 +123,11 @@ export default defineConfig({
 	strict: true,
 	output: {
 		data: ".velite",
-		// Vite copies public/ into dist on build (dist itself is wiped by every build).
-		assets: "public/static",
-		base: "/static/",
+		// Vite copies static/ into dist on build (dist itself is wiped by every
+		// build). Velite owns static/velite — clean: true wipes it every run,
+		// so hand-placed files belong directly in static/ instead.
+		assets: "static/velite",
+		base: "/velite/",
 		clean: true,
 	},
 	collections: { pages, tutorials, primitives, lucide, kit },

@@ -122,6 +122,53 @@ export const apiReference: Record<string, ApiPart[]> = {
 			],
 		},
 	],
+	collapsible: [
+		{
+			name: "Collapsible",
+			element: "Div",
+			description:
+				"The root. Owns whether the content is open and provides that to the parts inside it.",
+			props: [
+				{
+					name: "open",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-collapsible-root", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+			],
+		},
+		{
+			name: "CollapsibleTrigger",
+			element: "Button",
+			description: "Toggles the content open and closed.",
+			dataAttributes: [
+				{ name: "data-collapsible-trigger", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+			],
+		},
+		{
+			name: "CollapsibleContent",
+			element: "Div",
+			description: "The body. Hidden with the `hidden` attribute while closed.",
+			props: [
+				{
+					name: "hiddenUntilFound",
+					type: "boolean",
+					default: "false",
+					description: 'Closed content uses hidden="until-found" so find-in-page can reveal it.',
+				},
+			],
+			dataAttributes: [
+				{ name: "data-collapsible-content", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+			],
+		},
+	],
 	avatar: [
 		{
 			name: "Avatar",

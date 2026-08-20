@@ -1,7 +1,7 @@
 import { Key, type Child } from "@implementjs/core";
 import { tutorials } from "@/lib/content";
-import { NotFound } from "@/views/not-found";
-import { TutorialPage } from "@/views/tutorial-page";
+import { NotFound } from "@/lib/views/not-found";
+import { TutorialPage } from "@/lib/views/tutorial-page";
 import type { PageProps } from "./$types";
 
 export default function Page({ params }: PageProps): Child {

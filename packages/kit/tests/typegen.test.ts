@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { scanRoutes } from "../src/scan.ts";
-import { generateRouteTypes, generateRouterDeclaration, writeGenerated } from "../src/typegen.ts";
+import {
+	generateRouteTypes,
+	generateRouterDeclaration,
+	generateTsconfig,
+	writeGenerated,
+} from "../src/typegen.ts";
 
 let root: string | null = null;
 
@@ -51,6 +56,27 @@ describe("generateRouterDeclaration", () => {
 		expect(declaration).toContain(
 			'"/docs/:...slug": (params: { "slug": Readable<string> }) => Child;',
 		);
+	});
+});
+
+describe("generateTsconfig", () => {
+	it("maps each alias to root-relative exact and glob paths", () => {
+		const tsconfig = JSON.parse(
+			generateTsconfig({ "@/lib": "src/lib", "@/content": "src/content/" }),
+		) as { compilerOptions: { paths: Record<string, string[]> } };
+		expect(tsconfig.compilerOptions.paths).toEqual({
+			"@/lib": ["../src/lib"],
+			"@/lib/*": ["../src/lib/*"],
+			"@/content": ["../src/content"],
+			"@/content/*": ["../src/content/*"],
+		});
+	});
+
+	it("skips the glob entry for file targets", () => {
+		const tsconfig = JSON.parse(generateTsconfig({ "@utils": "src/lib/utils.ts" })) as {
+			compilerOptions: { paths: Record<string, string[]> };
+		};
+		expect(tsconfig.compilerOptions.paths).toEqual({ "@utils": ["../src/lib/utils.ts"] });
 	});
 });
 

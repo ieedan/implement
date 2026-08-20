@@ -1,4 +1,6 @@
-import { rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
+import { createServer as createHttpServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import type { RenderToStringResult } from "@implementjs/core/server";
 import { createServer, type ViteDevServer } from "vite";
@@ -17,7 +19,7 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			configFile: false,
 			logLevel: "error",
 			server: { middlewareMode: true, watch: null },
-			plugins: [kit()],
+			plugins: [kit({ alias: { $lib: "src/lib" } })],
 		});
 		const entry = (await server.ssrLoadModule("/.implement/entry-server.ts")) as {
 			render: typeof render;
@@ -64,5 +66,48 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect(html).toContain('<main class="shell">');
 		expect(html).toContain("<p>print view</p>");
 		expect(html).not.toContain('class="authed"');
+	});
+
+	it("resolves @/lib imports to src/lib", () => {
+		expect(render("/lib-alias").html).toContain("<p>hello from lib</p>");
+	});
+
+	it("resolves aliases from the alias option, in Vite and the generated tsconfig", () => {
+		expect(render("/custom-alias").html).toContain("<p>custom alias says: hello from lib</p>");
+		const tsconfig = JSON.parse(
+			readFileSync(join(fixture, ".implement/tsconfig.json"), "utf8"),
+		) as { compilerOptions: { paths: Record<string, string[]> } };
+		expect(tsconfig.compilerOptions.paths["$lib/*"]).toEqual(["../src/lib/*"]);
+		expect(tsconfig.compilerOptions.paths["@/lib/*"]).toEqual(["../src/lib/*"]);
+	});
+
+	it("serves static files from static/ by default", async () => {
+		expect(server.config.publicDir).toBe(join(fixture, "static"));
+		const listener = createHttpServer(server.middlewares);
+		await new Promise<void>((done) => listener.listen(0, done));
+		try {
+			const { port } = listener.address() as AddressInfo;
+			const response = await fetch(`http://localhost:${port}/hello.txt`);
+			expect(response.status).toBe(200);
+			expect(await response.text()).toBe("static hello\n");
+		} finally {
+			await new Promise((done) => listener.close(done));
+		}
+	});
+
+	it("leaves a user-configured publicDir alone", async () => {
+		const custom = await createServer({
+			root: fixture,
+			configFile: false,
+			logLevel: "error",
+			server: { middlewareMode: true, watch: null },
+			publicDir: "public",
+			plugins: [kit()],
+		});
+		try {
+			expect(custom.config.publicDir).toBe(join(fixture, "public"));
+		} finally {
+			await custom.close();
+		}
 	});
 });

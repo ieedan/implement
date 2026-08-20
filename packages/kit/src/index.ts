@@ -1,4 +1,4 @@
-import { basename, join, sep } from "node:path";
+import { basename, join, resolve, sep } from "node:path";
 import {
 	crawlRoutes,
 	implement,
@@ -9,7 +9,7 @@ import {
 import type { Plugin } from "vite";
 import { generateRouterModule, staticRoutePaths } from "./codegen.ts";
 import { isRouteFileName, scanRoutes, type RouteTree } from "./scan.ts";
-import { IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
+import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
 export type { PageRoute } from "./codegen.ts";
 export type { RouteTree } from "./scan.ts";
@@ -33,6 +33,16 @@ export type KitOptions = {
 	routes?: string;
 	/** Prerender the built site. @default true */
 	prerender?: boolean | KitPrerenderOptions;
+	/**
+	 * Extra import aliases, mapped to paths relative to the Vite root. Each
+	 * entry is wired into both Vite's `resolve.alias` and the generated
+	 * tsconfig's `paths`, on top of the automatic `@/lib` → `src/lib`.
+	 *
+	 * ```ts
+	 * kit({ alias: { "@/content": "src/content" } });
+	 * ```
+	 */
+	alias?: Record<string, string>;
 };
 
 /**
@@ -46,6 +56,12 @@ export type KitOptions = {
  * prerenderer. The router itself is exposed as the `$implement/router`
  * virtual module; generated entries, `./$types` declarations, and the
  * tsconfig apps extend land in `.implement/`.
+ *
+ * Kit also sets up the app conventions: static assets in `static/` are
+ * served at the site root and copied into the build (unless the app sets
+ * its own Vite `publicDir`), and `@/lib` resolves to `src/lib` — in Vite
+ * and, through the generated tsconfig, in TypeScript. The `alias` option
+ * adds more aliases wired up the same way.
  *
  * ```ts
  * // vite.config.ts
@@ -62,6 +78,8 @@ export type KitOptions = {
 export function kit(options: KitOptions = {}): Plugin[] {
 	const routes = options.routes ?? "src/routes";
 	const routesBase = `/${routes.replaceAll("\\", "/")}`;
+	const aliases = { ...DEFAULT_ALIASES, ...options.alias };
+	const genOptions = { routes, alias: options.alias };
 	let root = process.cwd();
 	let routesDir = join(root, routes);
 	let tree: RouteTree | null = null;
@@ -89,11 +107,21 @@ export function kit(options: KitOptions = {}): Plugin[] {
 
 	const kitPlugin: Plugin = {
 		name: "implement-kit",
+		config(userConfig) {
+			const appRoot = resolve(userConfig.root ?? ".");
+			const alias = Object.fromEntries(
+				Object.entries(aliases).map(([name, target]) => [name, resolve(appRoot, target)]),
+			);
+			return {
+				publicDir: userConfig.publicDir ?? "static",
+				resolve: { alias },
+			};
+		},
 		configResolved(config) {
 			root = config.root;
 			routesDir = join(root, routes);
 			const scanned = scan();
-			writeGenerated(root, scanned, { routes });
+			writeGenerated(root, scanned, genOptions);
 			if (scanned.error !== null) prerenderConfig.notFound = NOT_FOUND_ROUTE;
 		},
 		resolveId(id) {
@@ -111,7 +139,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				file.startsWith(routesDir + sep) && isRouteFileName(basename(file));
 			const regenerate = () => {
 				try {
-					writeGenerated(root, scan(), { routes });
+					writeGenerated(root, scan(), genOptions);
 				} catch (error) {
 					server.config.logger.error(
 						`route scan failed: ${error instanceof Error ? error.message : String(error)}`,

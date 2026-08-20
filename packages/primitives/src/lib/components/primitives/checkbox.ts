@@ -7,6 +7,7 @@ import {
 	type Signal,
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
+import { getId } from "../../utils";
 
 export type CheckboxProps = ComponentProps<typeof Button> & {
 	checked?: Signal<boolean> | boolean;
@@ -48,13 +49,14 @@ class CheckboxState {
 }
 
 export function Checkbox(
-	{ checked, indeterminate, ...restProps }: CheckboxProps,
+	{ id = getId(), checked, indeterminate, ...restProps }: CheckboxProps,
 	...children: Child[]
 ) {
 	const state = new CheckboxState({ checked, indeterminate });
 	return Button(
 		mergeProps(
 			{
+				id,
 				type: "button",
 				role: "checkbox",
 				"data-checkbox-root": "",

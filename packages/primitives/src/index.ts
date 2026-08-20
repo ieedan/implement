@@ -11,6 +11,14 @@ export {
 	type AccordionHeaderProps,
 } from "./lib/components/primitives/accordion";
 export {
+	Collapsible,
+	CollapsibleTrigger,
+	CollapsibleContent,
+	type CollapsibleRootProps,
+	type CollapsibleTriggerProps,
+	type CollapsibleContentProps,
+} from "./lib/components/primitives/collapsible";
+export {
 	Avatar,
 	AvatarImage,
 	AvatarFallback,

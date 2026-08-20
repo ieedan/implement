@@ -80,6 +80,32 @@ layout@(authed).ts   this layout inherits up to and including (authed)
 
 Resets never change the URL — only which layouts wrap the page.
 
+## Project Structure & Static Files
+
+The default shape of a kit app:
+
+```
+my-app/
+    /src
+        /lib             @/lib alias, configured automatically (Vite + generated tsconfig)
+            /components
+            utils.ts
+        /routes
+    /static              served as-is from the site root, copied into dist on build
+    index.html
+    app.css              global css, imported from the root layout
+```
+
+`static/` is Vite's `publicDir` — kit defaults it to `static` but a `publicDir`
+set in the app's Vite config wins.
+
+Extra aliases (SvelteKit-style) go through the plugin, which wires them into
+Vite and the generated tsconfig together:
+
+```ts
+kit({ alias: { "@/content": "src/content" } });
+```
+
 ## Server Files (Phase 2)
 
 ⚠️ This is a WIP DO NOT IMPLEMENT
