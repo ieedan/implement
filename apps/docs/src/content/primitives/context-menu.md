@@ -31,7 +31,7 @@ Each part takes a props object first and then children, the same shape as the [e
 
 ## Opening
 
-The trigger intercepts the `contextmenu` event, so the browser menu is replaced inside the area. The panel anchors to the pointer position — right-clicking somewhere else while open moves it there. On touch, a long press (700ms) opens it. Pass `disabled` on the trigger to fall back to the native browser menu.
+The trigger intercepts the `contextmenu` event, so the browser menu is replaced inside the area. The panel anchors to the pointer position — right-clicking somewhere else while open moves it there. On touch, a long press (700ms) opens it. Pass `disabled` on the trigger to fall back to the native browser menu. While open, the page behind cannot scroll; pass `preventScroll: false` on the root to leave it scrollable.
 
 ## Items, structure, and keyboard
 

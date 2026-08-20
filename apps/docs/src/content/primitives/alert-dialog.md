@@ -41,7 +41,7 @@ Each part takes a props object first (even if it is empty) and then children, th
 
 ## How it differs from Dialog
 
-Everything from [Dialog](/primitives/docs/dialog) — open state, multiple triggers, title and description wiring, the portal, nesting — works the same here. Three things change:
+Everything from [Dialog](/primitives/docs/dialog) — open state, multiple triggers, title and description wiring, the portal, nesting and stacks — works the same here. Three things change:
 
 - The panel is `role="alertdialog"` instead of `role="dialog"`, so screen readers announce it as needing a response.
 - Clicking outside does **not** dismiss it. The user has to pick an answer (or press Escape, which still cancels).

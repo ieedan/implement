@@ -42,6 +42,8 @@ Button({ onClick: () => open.set(false) }, "Close");
 
 If it starts open (`open: true`, or a signal that's already true) the panel anchors to the first trigger in the tree, or the one marked `default`. Positioning runs on mount, once the nodes are in the document.
 
+The page behind stays scrollable while the popover is open. Pass `preventScroll: true` to lock it.
+
 ## The trigger and the content
 
 `PopoverTrigger` renders a `Button`. Clicking it toggles the popover. `PopoverContent` is a `Div` that holds whatever you put in the panel: text, a form, another component.

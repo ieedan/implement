@@ -50,7 +50,7 @@ export const menuIndicatorItemClasses = "py-1.5 pr-2 pl-8";
 export const menuIndicatorClasses =
 	"pointer-events-none absolute left-2 flex size-3.5 items-center justify-center";
 
-export const menuGroupHeadingClasses = "px-2 py-1.5 text-sm font-medium";
+export const menuGroupHeadingClasses = "px-2 py-1.5 text-xs font-medium text-muted-foreground";
 
 export const menuSeparatorClasses = "-mx-1 my-1 h-px bg-border";
 

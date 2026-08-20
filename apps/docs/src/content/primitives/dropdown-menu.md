@@ -78,7 +78,7 @@ The trigger opens with Enter, Space, or ArrowDown — keyboard opens focus the f
 
 ## Positioning and styling
 
-`DropdownMenuContent` positions against the trigger with `side`, `align`, and `offset`, and stays put on scroll and resize. Like [Popover](/primitives/docs/popover), the primitive does not hide the closed panel — style it against `data-state`:
+`DropdownMenuContent` positions against the trigger with `side`, `align`, and `offset`, and stays put on scroll and resize. Like [Popover](/primitives/docs/popover), the primitive does not hide the closed panel — style it against `data-state`. While open, the page behind cannot scroll; pass `preventScroll: false` on the root to leave it scrollable.
 
 ```ts
 DropdownMenuContent({

@@ -4,6 +4,7 @@ import {
 	derived,
 	Div,
 	Implement,
+	isReadable,
 	ref,
 	Ref,
 	signal,
@@ -14,7 +15,7 @@ import {
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import { getId, noop, type MaybeReadable } from "../../utils";
+import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
 import {
 	DismissableLayer,
@@ -23,31 +24,75 @@ import {
 	type DismissBehavior,
 } from "../helpers/dismissable-layer";
 import { positionFloatingElement, type Align, type Side } from "../helpers/floating-ui";
+import { ScrollLock } from "../helpers/scroll-lock";
 
-// TODO: grouping support
-// TODO: scroll locking
-// TODO: allow for "items" array to be passed to root
-// TODO: provide labels to the value component
+/** One option in {@link SelectProps.items}. */
+export type SelectItemData = {
+	value: string;
+	label: string;
+	disabled?: boolean;
+};
+
+/** A selected option as shown by {@link SelectValue}. */
+export type SelectSelectedItem = {
+	value: string;
+	label: string;
+};
 
 export type SelectProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
 	? { type: "multiple"; value?: Signal<string[]> }
 	: { type?: "single"; value?: Signal<string | null> }) & {
 	open?: Signal<boolean>;
 	closeOnSelect?: boolean;
+	/** When true, the page behind cannot scroll while the list is open. Defaults to false. */
+	preventScroll?: boolean;
+	/**
+	 * Value/label pairs used by {@link SelectValue}. When omitted, labels come
+	 * from each item's `label` prop or its text content.
+	 */
+	items?: MaybeReadable<SelectItemData[]>;
 };
+
+function labelForValue(
+	value: string,
+	items: readonly SelectItemData[],
+	labels: ReadonlyMap<string, string>,
+): string {
+	const fromItems = items.find((item) => item.value === value)?.label;
+	if (fromItems !== undefined) return fromItems;
+	return labels.get(value) ?? value;
+}
+
+/** Immediate label from a sole string child, so SelectValue does not wait for mount. */
+function textChild(children: Child[]): string | undefined {
+	if (children.length === 1 && typeof children[0] === "string") {
+		const text = children[0].trim();
+		if (text !== "") return text;
+	}
+	return undefined;
+}
 
 const SelectCtx = context<SelectState>();
 
 abstract class SelectState {
 	open: Signal<boolean>;
+	items: Readable<SelectItemData[]>;
+	itemLabels = Implement.Map<string, string>();
 	trigger = ref<HTMLButtonElement>();
 	content = signal<SelectContentState | null>(null);
 	autoUpdateDispose: (() => void) | null = null;
 	constructor(readonly opts: SelectProps<any>) {
 		this.open = signal(this.opts.open ?? false);
+		this.items = isReadable<SelectItemData[]>(this.opts.items)
+			? this.opts.items
+			: signal(this.opts.items ?? []);
 	}
 
 	abstract value(): Signal<string | null> | Signal<string[]>;
+
+	registerItemLabel(value: string, label: string) {
+		this.itemLabels.set(value, label);
+	}
 
 	registerContent(content: SelectContentState) {
 		this.content.set(content);
@@ -119,6 +164,14 @@ abstract class SelectState {
 	}
 
 	handleTypeahead(e: KeyboardEvent) {
+		if (!this.open.get()) {
+			const match = this.items
+				.get()
+				.find((item) => !item.disabled && item.label.toLowerCase().startsWith(e.key.toLowerCase()));
+			if (match) this.toggle(match.value);
+			return;
+		}
+
 		const items = this.getActiveItems();
 		let start = false;
 		for (const item of items) {
@@ -256,6 +309,7 @@ export function Select(props: SelectProps<"single" | "multiple">, ...children: C
 				c === null ? "close" : c.opts.onInteractOutsideBehavior,
 			),
 		},
+		ScrollLock({ open: state.open, enabled: state.opts.preventScroll === true }),
 		SelectCtx.Provide(state).To(
 			Implement.Lifecycle(
 				{
@@ -296,29 +350,46 @@ export function SelectTrigger(
 }
 
 export type SelectValueRenderProps =
-	| { type: "single"; value: Signal<string | null> }
-	| { type: "multiple"; value: Signal<string[]> };
+	| {
+			type: "single";
+			value: Signal<string | null>;
+			selected: Readable<SelectSelectedItem | null>;
+	  }
+	| {
+			type: "multiple";
+			value: Signal<string[]>;
+			selected: Readable<SelectSelectedItem[]>;
+	  };
 
 export type SelectValueProps = ComponentProps<typeof Span> & {
 	placeholder?: string;
 	render?: (props: SelectValueRenderProps) => Child;
 };
 
-export function SelectValue({ render }: SelectValueProps) {
+export function SelectValue({ render, placeholder = "" }: SelectValueProps) {
 	return SelectCtx.Use((state) => {
-		const props: SelectValueRenderProps =
-			state.opts.type === "multiple"
-				? { type: "multiple", value: state.value() as Signal<string[]> }
-				: { type: "single", value: state.value() as Signal<string | null> };
-
-		if (render) {
-			return render(props);
+		if (state.opts.type === "multiple") {
+			const value = state.value() as Signal<string[]>;
+			const selected = derived([value, state.items, state.itemLabels], (values, items, labels) =>
+				values.map((current) => ({
+					value: current,
+					label: labelForValue(current, items, labels),
+				})),
+			);
+			const props: SelectValueRenderProps = { type: "multiple", value, selected };
+			if (render) return render(props);
+			return selected.bind((selection) =>
+				selection.length === 0 ? placeholder : selection.map((item) => item.label).join(", "),
+			);
 		}
 
-		if (props.type === "multiple") {
-			return props.value.bind((v) => v.join(", "));
-		}
-		return props.value.bind((v) => v ?? "");
+		const value = state.value() as Signal<string | null>;
+		const selected = derived([value, state.items, state.itemLabels], (current, items, labels) =>
+			current == null ? null : { value: current, label: labelForValue(current, items, labels) },
+		);
+		const props: SelectValueRenderProps = { type: "single", value, selected };
+		if (render) return render(props);
+		return selected.bind((selection) => selection?.label ?? placeholder);
 	});
 }
 
@@ -418,23 +489,86 @@ export function SelectItem(
 ) {
 	return SelectCtx.Use((rootState) => {
 		const state = new SelectItemState(rootState, { value, disabled });
-		return Div(
-			mergeProps(
-				{
-					id,
-					"data-select-item": "",
-					role: "option",
-					"aria-selected": state.selected,
-					"aria-disabled": state.disabled,
-					"data-value": value,
-					"data-label": label,
-					"data-selected": state.selected.bind((selected) => (selected ? "" : undefined)),
-					"data-disabled": state.disabled.bind((disabled) => (disabled ? "" : undefined)),
-					onClick: () => state.toggle(),
-					onPointerover: () => rootState.setActiveItem(value),
+		const itemRef = ref<HTMLDivElement>();
+		const immediateLabel =
+			label ??
+			textChild(children) ??
+			rootState.items.get().find((item) => item.value === value)?.label;
+		if (immediateLabel !== undefined) rootState.registerItemLabel(value, immediateLabel);
+
+		return Implement.Lifecycle(
+			{
+				onMount: () => {
+					if (immediateLabel !== undefined) return;
+					const text = itemRef.get()?.textContent?.trim();
+					if (text) rootState.registerItemLabel(value, text);
 				},
-				restProps,
+			},
+			Div(
+				mergeProps(
+					{
+						id,
+						this: itemRef,
+						"data-select-item": "",
+						role: "option",
+						"aria-selected": state.selected,
+						"aria-disabled": state.disabled,
+						"data-value": value,
+						"data-label": immediateLabel,
+						"data-selected": state.selected.bind((selected) => (selected ? "" : undefined)),
+						"data-disabled": state.disabled.bind((disabled) => (disabled ? "" : undefined)),
+						onClick: () => state.toggle(),
+						onPointerover: () => rootState.setActiveItem(value),
+					},
+					restProps,
+				),
+				...children,
 			),
+		);
+	});
+}
+
+class SelectGroupState {
+	headingId = signal<string | null>(null);
+}
+
+const SelectGroupCtx = context<SelectGroupState>();
+
+export type SelectGroupProps = ComponentProps<typeof Div>;
+
+export function SelectGroup(
+	{ id = getId(), ...restProps }: SelectGroupProps,
+	...children: Child[]
+) {
+	return SelectCtx.Use(() => {
+		const group = new SelectGroupState();
+		return SelectGroupCtx.Provide(group).To(
+			Div(
+				mergeProps(
+					{
+						id,
+						role: "group",
+						"data-select-group": "",
+						"aria-labelledby": group.headingId.bind((headingId) => headingId ?? undefined),
+					},
+					restProps,
+				),
+				...children,
+			),
+		);
+	});
+}
+
+export type SelectGroupHeadingProps = ComponentProps<typeof Div>;
+
+export function SelectGroupHeading(
+	{ id = getId(), ...restProps }: SelectGroupHeadingProps,
+	...children: Child[]
+) {
+	return SelectGroupCtx.Use((group) => {
+		group.headingId.set(getReadableValue(id));
+		return Div(
+			mergeProps({ id, role: "presentation", "data-select-group-heading": "" }, restProps),
 			...children,
 		);
 	});

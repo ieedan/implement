@@ -290,11 +290,441 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 }
 
 /**
+ * The parts Calendar and RangeCalendar share — identical behavior, with data
+ * attributes named after the flavor.
+ */
+function calendarParts(prefix: string, variant: string): ApiPart[] {
+	const stateAttrs: ApiDataAttribute[] = [
+		{ name: "data-disabled", value: "Present when the calendar is disabled" },
+		{ name: "data-readonly", value: "Present when the calendar is readonly" },
+	];
+	return [
+		{
+			name: `${prefix}Header`,
+			element: "Div",
+			description: "Wraps the heading and the nav buttons.",
+			dataAttributes: [{ name: `data-${variant}-header`, value: "Present" }, ...stateAttrs],
+		},
+		{
+			name: `${prefix}Heading`,
+			element: "Div",
+			description:
+				"Shows the visible month(s). Renders the formatted heading unless children are passed. aria-hidden — assistive technology hears the root's label instead.",
+			dataAttributes: [{ name: `data-${variant}-heading`, value: "Present" }, ...stateAttrs],
+		},
+		{
+			name: `${prefix}PrevButton`,
+			element: "Button",
+			description:
+				"Pages the view backwards. Disables itself when the previous page falls entirely before minValue.",
+			dataAttributes: [
+				{ name: `data-${variant}-prev-button`, value: "Present" },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+		{
+			name: `${prefix}NextButton`,
+			element: "Button",
+			description:
+				"Pages the view forwards. Disables itself when the next page falls entirely after maxValue.",
+			dataAttributes: [
+				{ name: `data-${variant}-next-button`, value: "Present" },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+		{
+			name: `${prefix}Grid`,
+			element: "Table",
+			description: 'One month\'s grid. Sets role="grid" and the aria disabled/readonly state.',
+			dataAttributes: [{ name: `data-${variant}-grid`, value: "Present" }, ...stateAttrs],
+		},
+		{
+			name: `${prefix}GridHead`,
+			element: "Thead",
+			description: "Holds the weekday header row.",
+			dataAttributes: [{ name: `data-${variant}-grid-head`, value: "Present" }, ...stateAttrs],
+		},
+		{
+			name: `${prefix}GridRow`,
+			element: "Tr",
+			description: "One row: the weekday names in the head, a week in the body.",
+			dataAttributes: [{ name: `data-${variant}-grid-row`, value: "Present" }, ...stateAttrs],
+		},
+		{
+			name: `${prefix}HeadCell`,
+			element: "Th",
+			description: "One weekday name. Render the strings from the weekdays render prop into these.",
+			dataAttributes: [{ name: `data-${variant}-head-cell`, value: "Present" }, ...stateAttrs],
+		},
+		{
+			name: `${prefix}GridBody`,
+			element: "Tbody",
+			description: "Holds the week rows.",
+			dataAttributes: [{ name: `data-${variant}-grid-body`, value: "Present" }, ...stateAttrs],
+		},
+		{
+			name: `${prefix}MonthSelect`,
+			element: "Select",
+			description:
+				"A native select that jumps the view to a month. Renders localized options for every month unless narrowed with the months prop.",
+			props: [
+				{
+					name: "months",
+					type: "number[]",
+					default: "[1 … 12]",
+					description: "The month numbers to offer.",
+				},
+				{
+					name: "monthFormat",
+					type: 'Intl.DateTimeFormatOptions["month"] | ((month: number) => string)',
+					description: "How option labels are formatted. Defaults to the root's monthFormat.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Prevents changing the month.",
+				},
+			],
+			dataAttributes: [
+				{ name: `data-${variant}-month-select`, value: "Present" },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+		{
+			name: `${prefix}YearSelect`,
+			element: "Select",
+			description:
+				"A native select that jumps the view to a year. Offers roughly the last hundred years through the next ten, bounded by minValue/maxValue.",
+			props: [
+				{
+					name: "years",
+					type: "number[]",
+					description: "The years to offer. Defaults to a window around the current year.",
+				},
+				{
+					name: "yearFormat",
+					type: 'Intl.DateTimeFormatOptions["year"] | ((year: number) => string)',
+					description: "How option labels are formatted. Defaults to the root's yearFormat.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Prevents changing the year.",
+				},
+			],
+			dataAttributes: [
+				{ name: `data-${variant}-year-select`, value: "Present" },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+	];
+}
+
+/** The root props Calendar and RangeCalendar share. */
+function calendarSharedRootProps(): ApiProp[] {
+	return [
+		{
+			name: "placeholder",
+			type: "Signal<CalendarDate> | CalendarDate",
+			default: "today",
+			description:
+				"The date the view starts on and keyboard focus follows. Pass a signal to control the view from outside.",
+		},
+		{
+			name: "minValue",
+			type: "CalendarDate",
+			description: "The earliest selectable date. Earlier dates are disabled.",
+		},
+		{
+			name: "maxValue",
+			type: "CalendarDate",
+			description: "The latest selectable date. Later dates are disabled.",
+		},
+		{
+			name: "isDateDisabled",
+			type: "(date: CalendarDate) => boolean",
+			description: "Marks dates as disabled: not selectable and skipped by the keyboard.",
+		},
+		{
+			name: "isDateUnavailable",
+			type: "(date: CalendarDate) => boolean",
+			description:
+				"Marks dates as unavailable: focusable and rendered, but not selectable. Sets data-unavailable.",
+		},
+		{
+			name: "preventDeselect",
+			type: "boolean",
+			default: "false",
+			description: "Whether clicking a selected date again keeps it selected.",
+		},
+		{
+			name: "disabled",
+			type: "Signal<boolean> | boolean",
+			default: "false",
+			description: "Disables the whole calendar.",
+		},
+		{
+			name: "readonly",
+			type: "Signal<boolean> | boolean",
+			default: "false",
+			description: "The value can be read but not changed.",
+		},
+		{
+			name: "fixedWeeks",
+			type: "boolean",
+			default: "false",
+			description: "Always render six weeks per month so the grid height never changes.",
+		},
+		{
+			name: "numberOfMonths",
+			type: "number",
+			default: "1",
+			description: "How many consecutive months are rendered.",
+		},
+		{
+			name: "pagedNavigation",
+			type: "boolean",
+			default: "false",
+			description: "Whether prev/next move by numberOfMonths months instead of one.",
+		},
+		{
+			name: "weekStartsOn",
+			type: "0 | 1 | 2 | 3 | 4 | 5 | 6",
+			description:
+				"The day the week starts on, 0 being Sunday. Defaults to the locale's week start where the runtime knows it.",
+		},
+		{
+			name: "weekdayFormat",
+			type: '"narrow" | "short" | "long"',
+			default: '"narrow"',
+			description: "The Intl width of the weekday names handed to the render function.",
+		},
+		{
+			name: "disableDaysOutsideMonth",
+			type: "boolean",
+			default: "true",
+			description: "Whether the leading and trailing days outside the month are disabled.",
+		},
+		{
+			name: "locale",
+			type: "string",
+			default: '"en-US"',
+			description: "BCP 47 locale tag used for all formatting.",
+		},
+		{
+			name: "calendarLabel",
+			type: "string",
+			default: '"Event"',
+			description:
+				"Prefixed onto the visible month to label the calendar for assistive technology.",
+		},
+		{
+			name: "monthFormat",
+			type: 'Intl.DateTimeFormatOptions["month"] | ((month: number) => string)',
+			default: '"long"',
+			description: "How the heading and month select format month names.",
+		},
+		{
+			name: "yearFormat",
+			type: 'Intl.DateTimeFormatOptions["year"] | ((year: number) => string)',
+			default: '"numeric"',
+			description: "How the heading and year select format years.",
+		},
+	];
+}
+
+/** The state attributes shared by both variants' cells and days. */
+function calendarCellDataAttributes(variant: string, part: "cell" | "day"): ApiDataAttribute[] {
+	return [
+		{ name: `data-${variant}-${part}`, value: "Present" },
+		{ name: "data-value", value: "The cell's date as YYYY-MM-DD" },
+		{ name: "data-selected", value: "Present when selected" },
+		{ name: "data-focused", value: "Present when the placeholder is this date" },
+		{ name: "data-today", value: "Present on today's date" },
+		{ name: "data-outside-month", value: "Present on leading/trailing days" },
+		{
+			name: "data-outside-visible-months",
+			value: "Present when the date falls outside every rendered month",
+		},
+		{ name: "data-disabled", value: "Present when disabled" },
+		{ name: "data-unavailable", value: "Present when unavailable" },
+	];
+}
+
+const rangeCellDataAttributes: ApiDataAttribute[] = [
+	{ name: "data-selection-start", value: "Present on the range's start date" },
+	{ name: "data-selection-end", value: "Present on the range's end date" },
+	{ name: "data-range-start", value: "Present on the visual start, even while the end is unset" },
+	{ name: "data-range-end", value: "Present on the visual end, even while the end is unset" },
+	{ name: "data-range-middle", value: "Present strictly inside a complete range" },
+	{
+		name: "data-highlighted",
+		value: "Present on the prospective span while the end is being picked",
+	},
+];
+
+/**
  * API reference tables, keyed by the `data-api` attribute a docs page uses to
  * place them: `<div data-api="avatar"></div>` in the markdown renders the
  * tables for every part of that primitive at that spot.
  */
 export const apiReference: Record<string, ApiPart[]> = {
+	calendar: [
+		{
+			name: "Calendar",
+			element: "Div",
+			description:
+				'The root. Owns the selected value and the visible months, and calls its children render function with { months, weekdays }. Sets role="application" and a full aria-label.',
+			props: [
+				{
+					name: "type",
+					type: '"single" | "multiple"',
+					default: '"single"',
+					description: "Whether one date is selected, or several can be.",
+				},
+				{
+					name: "value",
+					type: "Signal<CalendarDate | null> | Signal<CalendarDate[]>",
+					description:
+						'The selection. CalendarDate | null when type is "single", CalendarDate[] when "multiple". Pass a signal to control it from outside.',
+				},
+				{
+					name: "maxDays",
+					type: "number",
+					description:
+						'Only for type "multiple": the most dates that can be selected. Exceeding it restarts the selection at the clicked date.',
+				},
+				{
+					name: "onDateSelect",
+					type: "() => void",
+					description: "Runs after a date is selected (not after a deselection).",
+				},
+				...calendarSharedRootProps(),
+			],
+			dataAttributes: [
+				{ name: "data-calendar-root", value: "Present" },
+				{ name: "data-invalid", value: "Present when the value is disabled or unavailable" },
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-readonly", value: "Present when readonly" },
+			],
+		},
+		{
+			name: "CalendarCell",
+			element: "Td",
+			description:
+				'One grid cell. Sets role="gridcell" plus aria-selected/aria-disabled, and computes the day\'s state for everything inside it.',
+			props: [
+				{
+					name: "date",
+					type: "CalendarDate | Readable<CalendarDate>",
+					required: true,
+					description: "The date this cell renders.",
+				},
+				{
+					name: "month",
+					type: "CalendarDate | Month | Readable<CalendarDate | Month>",
+					required: true,
+					description:
+						"The month whose grid the cell sits in — pass the render function's month straight through.",
+				},
+			],
+			dataAttributes: calendarCellDataAttributes("calendar", "cell"),
+		},
+		{
+			name: "CalendarDay",
+			element: "Div",
+			description:
+				'The selectable day inside a cell. Sets role="button" with a full date label; renders the day number unless children are passed. The focused day is the calendar\'s one Tab stop.',
+			dataAttributes: calendarCellDataAttributes("calendar", "day"),
+		},
+		...calendarParts("Calendar", "calendar"),
+	],
+	"range-calendar": [
+		{
+			name: "RangeCalendar",
+			element: "Div",
+			description:
+				'The root. Owns the selected range and the visible months, and calls its children render function with { months, weekdays }. Sets role="application" and a full aria-label.',
+			props: [
+				{
+					name: "value",
+					type: "Signal<DateRange> | DateRange",
+					default: "{ start: null, end: null }",
+					description:
+						"The selected range. Inverted writes are reordered. Pass a signal to control it from outside.",
+				},
+				{
+					name: "minDays",
+					type: "number",
+					description: "The fewest days a range may span. Shorter picks restart the selection.",
+				},
+				{
+					name: "maxDays",
+					type: "number",
+					description: "The most days a range may span. Longer picks restart the selection.",
+				},
+				{
+					name: "excludeDisabled",
+					type: "boolean",
+					default: "false",
+					description: "Clear the range if it would contain a disabled date.",
+				},
+				{
+					name: "onRangeSelect",
+					type: "() => void",
+					description: "Runs after both ends of the range are selected.",
+				},
+				...calendarSharedRootProps(),
+			],
+			dataAttributes: [
+				{ name: "data-range-calendar-root", value: "Present" },
+				{
+					name: "data-invalid",
+					value: "Present when an end is disabled/unavailable or the range is inverted",
+				},
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-readonly", value: "Present when readonly" },
+			],
+		},
+		{
+			name: "RangeCalendarCell",
+			element: "Td",
+			description:
+				'One grid cell. Sets role="gridcell" plus aria-selected/aria-disabled, and computes the day\'s range state for everything inside it.',
+			props: [
+				{
+					name: "date",
+					type: "CalendarDate | Readable<CalendarDate>",
+					required: true,
+					description: "The date this cell renders.",
+				},
+				{
+					name: "month",
+					type: "CalendarDate | Month | Readable<CalendarDate | Month>",
+					required: true,
+					description:
+						"The month whose grid the cell sits in — pass the render function's month straight through.",
+				},
+			],
+			dataAttributes: [
+				...calendarCellDataAttributes("range-calendar", "cell"),
+				...rangeCellDataAttributes,
+			],
+		},
+		{
+			name: "RangeCalendarDay",
+			element: "Div",
+			description:
+				'The selectable day inside a cell. Sets role="button" with a full date label; renders the day number unless children are passed. Hovering or focusing it drives the range highlight.',
+			dataAttributes: [
+				...calendarCellDataAttributes("range-calendar", "day"),
+				...rangeCellDataAttributes,
+			],
+		},
+		...calendarParts("RangeCalendar", "range-calendar"),
+	],
 	accordion: [
 		{
 			name: "Accordion",
@@ -684,6 +1114,13 @@ export const apiReference: Record<string, ApiPart[]> = {
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
+				{
+					name: "preventScroll",
+					type: "boolean",
+					default: "true",
+					description:
+						"When true, the page behind cannot scroll while the menu is open. The panel can still scroll if you give it overflow.",
+				},
 			],
 		},
 		{
@@ -719,6 +1156,13 @@ export const apiReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "preventScroll",
+					type: "boolean",
+					default: "true",
+					description:
+						"When true, the page behind cannot scroll while the menu is open. The panel can still scroll if you give it overflow.",
 				},
 			],
 		},
@@ -778,6 +1222,13 @@ export const apiReference: Record<string, ApiPart[]> = {
 					type: "string",
 					required: true,
 					description: "Identifies the menu. Must be unique within the menubar.",
+				},
+				{
+					name: "preventScroll",
+					type: "boolean",
+					default: "true",
+					description:
+						"When true, the page behind cannot scroll while this menu is open. The panel can still scroll if you give it overflow.",
 				},
 			],
 		},
@@ -1221,6 +1672,13 @@ export const apiReference: Record<string, ApiPart[]> = {
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "preventScroll",
+					type: "boolean",
+					default: "true",
+					description:
+						"When true, the page behind cannot scroll while the preview is open. The panel can still scroll if you give it overflow.",
+				},
+				{
 					name: "disabled",
 					type: "Signal<boolean> | boolean",
 					default: "false",
@@ -1531,6 +1989,13 @@ export const apiReference: Record<string, ApiPart[]> = {
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
+				{
+					name: "preventScroll",
+					type: "boolean",
+					default: "false",
+					description:
+						"When true, the page behind cannot scroll while the popover is open. The panel can still scroll if you give it overflow.",
+				},
 			],
 		},
 		{
@@ -1641,6 +2106,13 @@ export const apiReference: Record<string, ApiPart[]> = {
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
+				{
+					name: "preventScroll",
+					type: "boolean",
+					default: "true",
+					description:
+						"When true, the page behind cannot scroll while the dialog is open. The overlay and panel can still scroll if you give them overflow.",
+				},
 			],
 		},
 		{
@@ -1670,6 +2142,22 @@ export const apiReference: Record<string, ApiPart[]> = {
 			dataAttributes: [
 				{ name: "data-dialog-overlay", value: "Present" },
 				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-nested", value: "Present when this dialog is nested in another" },
+				{ name: "data-nested-open", value: "Present when a nested dialog is open" },
+				{ name: "data-nested-count", value: "Number of open nested dialogs" },
+				{ name: "data-nested-level", value: "Depth in the stack; 0 is the outermost dialog" },
+			],
+			cssVariables: [
+				{
+					name: "--ip-nested-count",
+					description:
+						"How many nested dialogs are open above this one. Use it to scale or translate the parent in a stack, e.g. scale(calc(1 - 0.05 * var(--ip-nested-count))).",
+				},
+				{
+					name: "--ip-nested-level",
+					description:
+						"This dialog's depth in the stack, 0 for the outermost. Raise z-index with it so nested dialogs paint above their parent, e.g. z-index: calc(50 + var(--ip-nested-level)).",
+				},
 			],
 		},
 		{
@@ -1680,6 +2168,22 @@ export const apiReference: Record<string, ApiPart[]> = {
 			dataAttributes: [
 				{ name: "data-dialog-content", value: "Present" },
 				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-nested", value: "Present when this dialog is nested in another" },
+				{ name: "data-nested-open", value: "Present when a nested dialog is open" },
+				{ name: "data-nested-count", value: "Number of open nested dialogs" },
+				{ name: "data-nested-level", value: "Depth in the stack; 0 is the outermost dialog" },
+			],
+			cssVariables: [
+				{
+					name: "--ip-nested-count",
+					description:
+						"How many nested dialogs are open above this one. Use it to scale or translate the parent in a stack, e.g. scale(calc(1 - 0.05 * var(--ip-nested-count))).",
+				},
+				{
+					name: "--ip-nested-level",
+					description:
+						"This dialog's depth in the stack, 0 for the outermost. Raise z-index with it so nested dialogs paint above their parent, e.g. z-index: calc(50 + var(--ip-nested-level)).",
+				},
 			],
 		},
 		{
@@ -1711,7 +2215,7 @@ export const apiReference: Record<string, ApiPart[]> = {
 					type: "boolean | Readable<boolean>",
 					default: "false",
 					description:
-						"Mount in place instead of teleporting. Disable the inner portal on a nested dialog so it stays in the outer overlay. Also available as chained .Disabled(value).",
+						"Mount in place instead of teleporting. Keep nested dialogs portaled so they stack above the parent. Also available as chained .Disabled(value).",
 				},
 			],
 		},
@@ -1733,6 +2237,13 @@ export const apiReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "preventScroll",
+					type: "boolean",
+					default: "true",
+					description:
+						"When true, the page behind cannot scroll while the alert dialog is open. The overlay and panel can still scroll if you give them overflow.",
 				},
 			],
 		},
@@ -1763,6 +2274,22 @@ export const apiReference: Record<string, ApiPart[]> = {
 			dataAttributes: [
 				{ name: "data-alert-dialog-overlay", value: "Present" },
 				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-nested", value: "Present when this dialog is nested in another" },
+				{ name: "data-nested-open", value: "Present when a nested dialog is open" },
+				{ name: "data-nested-count", value: "Number of open nested dialogs" },
+				{ name: "data-nested-level", value: "Depth in the stack; 0 is the outermost dialog" },
+			],
+			cssVariables: [
+				{
+					name: "--ip-nested-count",
+					description:
+						"How many nested dialogs are open above this one. Use it to scale or translate the parent in a stack, e.g. scale(calc(1 - 0.05 * var(--ip-nested-count))).",
+				},
+				{
+					name: "--ip-nested-level",
+					description:
+						"This dialog's depth in the stack, 0 for the outermost. Raise z-index with it so nested dialogs paint above their parent, e.g. z-index: calc(50 + var(--ip-nested-level)).",
+				},
 			],
 		},
 		{
@@ -1773,6 +2300,22 @@ export const apiReference: Record<string, ApiPart[]> = {
 			dataAttributes: [
 				{ name: "data-alert-dialog-content", value: "Present" },
 				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-nested", value: "Present when this dialog is nested in another" },
+				{ name: "data-nested-open", value: "Present when a nested dialog is open" },
+				{ name: "data-nested-count", value: "Number of open nested dialogs" },
+				{ name: "data-nested-level", value: "Depth in the stack; 0 is the outermost dialog" },
+			],
+			cssVariables: [
+				{
+					name: "--ip-nested-count",
+					description:
+						"How many nested dialogs are open above this one. Use it to scale or translate the parent in a stack, e.g. scale(calc(1 - 0.05 * var(--ip-nested-count))).",
+				},
+				{
+					name: "--ip-nested-level",
+					description:
+						"This dialog's depth in the stack, 0 for the outermost. Raise z-index with it so nested dialogs paint above their parent, e.g. z-index: calc(50 + var(--ip-nested-level)).",
+				},
 			],
 		},
 		{
@@ -1804,7 +2347,7 @@ export const apiReference: Record<string, ApiPart[]> = {
 					type: "boolean | Readable<boolean>",
 					default: "false",
 					description:
-						"Mount in place instead of teleporting. Disable the inner portal on a nested dialog so it stays in the outer overlay. Also available as chained .Disabled(value).",
+						"Mount in place instead of teleporting. Keep nested dialogs portaled so they stack above the parent. Also available as chained .Disabled(value).",
 				},
 			],
 		},
@@ -1847,6 +2390,19 @@ export const apiReference: Record<string, ApiPart[]> = {
 					description:
 						"The open state. Pass a signal to control it from outside; omit it for uncontrolled state.",
 				},
+				{
+					name: "preventScroll",
+					type: "boolean",
+					default: "false",
+					description:
+						"When true, the page behind cannot scroll while the list is open. The list can still scroll if you give it overflow.",
+				},
+				{
+					name: "items",
+					type: "SelectItemData[] | Readable<SelectItemData[]>",
+					description:
+						"Value/label pairs for SelectValue. When omitted, labels come from each item's label prop or its text content.",
+				},
 			],
 		},
 		{
@@ -1858,13 +2414,19 @@ export const apiReference: Record<string, ApiPart[]> = {
 		{
 			name: "SelectValue",
 			description:
-				"The selected label. Put it inside the trigger. Pass render to turn stored values into text.",
+				"The selected label. Put it inside the trigger. Uses items on the root when provided, otherwise each option's label or text.",
 			props: [
+				{
+					name: "placeholder",
+					type: "string",
+					default: '""',
+					description: "Shown when nothing is selected.",
+				},
 				{
 					name: "render",
 					type: "(props: SelectValueRenderProps) => Child",
 					description:
-						'Called with the current selection. Discriminate on props.type: value is Signal<string | null> for "single", Signal<string[]> for "multiple". Omit it to show the raw value, or a comma-separated list.',
+						"Called with the current selection. Discriminate on props.type: value is the stored ids, selected is { value, label } (or an array of those). Omit it to show the label, or a comma-separated list.",
 				},
 			],
 		},
@@ -1934,6 +2496,12 @@ export const apiReference: Record<string, ApiPart[]> = {
 					description: "Identifies the item. Must be unique within the select.",
 				},
 				{
+					name: "label",
+					type: "string",
+					description:
+						"Display and typeahead text. Defaults to the item's text content, or the matching entry in items.",
+				},
+				{
 					name: "disabled",
 					type: "Signal<boolean> | boolean",
 					default: "false",
@@ -1945,6 +2513,201 @@ export const apiReference: Record<string, ApiPart[]> = {
 				{ name: "data-selected", value: "Present when selected" },
 				{ name: "data-highlighted", value: "Present when highlighted" },
 				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+		{
+			name: "SelectGroup",
+			element: "Div",
+			description: 'Wraps related items in role="group", labeled by the heading placed inside it.',
+			dataAttributes: [{ name: "data-select-group", value: "Present" }],
+		},
+		{
+			name: "SelectGroupHeading",
+			element: "Div",
+			description: "Names the group it sits in; the group points aria-labelledby at it.",
+			dataAttributes: [{ name: "data-select-group-heading", value: "Present" }],
+		},
+	],
+	toast: [
+		{
+			name: "createToastManager",
+			description:
+				"Creates the ToastManager that owns the toast list and the clocks. toasts is a signal holding the list frontmost-first; add, update, close, remove, promise, pause, and resume change it. Usually created at module scope so any code can push a message.",
+			props: [
+				{
+					name: "timeout",
+					type: "number",
+					default: "5000",
+					description: "Auto-dismiss delay in ms for toasts that don't set their own. 0 disables.",
+				},
+				{
+					name: "limit",
+					type: "number",
+					default: "3",
+					description:
+						"How many toasts show at once. Extra toasts stay in the list with data-limited and their clocks held.",
+				},
+			],
+		},
+		{
+			name: "ToastProvider",
+			description:
+				"Provides the manager and timing to every toast part inside it. Pauses every clock while the pointer is over the stack, while it holds focus, and while the window is blurred or the tab hidden. Makes its own manager when none is passed.",
+			props: [
+				{
+					name: "manager",
+					type: "ToastManager",
+					description:
+						"A manager from createToastManager(). Omitted, the provider creates a private one.",
+				},
+				{
+					name: "timeout",
+					type: "number",
+					default: "5000",
+					description: "Overrides the manager's default auto-dismiss delay.",
+				},
+				{
+					name: "limit",
+					type: "number",
+					default: "3",
+					description: "Overrides the manager's visible-toast limit.",
+				},
+				{
+					name: "gap",
+					type: "number",
+					default: "16",
+					description: "Pixels between expanded toasts, used when computing --toast-offset-y.",
+				},
+				{
+					name: "hotkey",
+					type: "string",
+					default: '"F6"',
+					description: "The key that moves focus into the viewport.",
+				},
+			],
+		},
+		{
+			name: "ToastViewport",
+			element: "Div",
+			description:
+				'The landmark region holding the stack. Sets role="region" with an aria-label naming the hotkey. Position it yourself; render the toasts inside it with ForEach over manager.toasts. Hover or focus expands the stack and pauses the clocks.',
+			dataAttributes: [
+				{ name: "data-toast-viewport", value: "Present" },
+				{ name: "data-expanded", value: "Present while hovered or focused" },
+			],
+		},
+		{
+			name: "Toast",
+			element: "Div",
+			description:
+				'One toast. Sets role="status" with aria-live from the toast\'s priority, handles swipe-to-dismiss and Escape, and removes itself after the exit transition (data-state="closed") finishes. Focusable.',
+			props: [
+				{
+					name: "toast",
+					type: "Readable<ToastData>",
+					required: true,
+					description: "The toast to render — the readable ForEach hands the render function.",
+				},
+				{
+					name: "swipeDirection",
+					type: "SwipeDirection | SwipeDirection[]",
+					default: '["down", "right"]',
+					description: "Which swipe direction(s) dismiss the toast.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-toast-root", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-type", value: "The toast's type, when set" },
+				{ name: "data-expanded", value: "Present while the stack is expanded" },
+				{ name: "data-behind", value: "Present when not the frontmost toast" },
+				{ name: "data-limited", value: "Present when past the visible limit" },
+				{ name: "data-swiping", value: "Present while a swipe is in flight" },
+				{
+					name: "data-swipe-direction",
+					value: '"up" | "down" | "left" | "right" while swiping and through the exit',
+				},
+			],
+			cssVariables: [
+				{
+					name: "--toast-index",
+					description: "Position from the front; 0 is the frontmost toast.",
+				},
+				{
+					name: "--toast-offset-y",
+					description:
+						"Distance in px to this toast's expanded slot, from measured heights plus the provider's gap.",
+				},
+				{ name: "--toast-height", description: "This toast's measured height in px." },
+				{
+					name: "--toast-frontmost-height",
+					description:
+						"The frontmost toast's measured height in px, for clamping a collapsed stack.",
+				},
+				{
+					name: "--toast-swipe-movement-x",
+					description: "Horizontal pointer travel in px during a swipe.",
+				},
+				{
+					name: "--toast-swipe-movement-y",
+					description: "Vertical pointer travel in px during a swipe.",
+				},
+			],
+		},
+		{
+			name: "ToastTitle",
+			element: "Div",
+			description: "The toast's heading. The root points aria-labelledby at it.",
+			dataAttributes: [
+				{ name: "data-toast-title", value: "Present" },
+				{ name: "data-type", value: "The toast's type, when set" },
+			],
+		},
+		{
+			name: "ToastDescription",
+			element: "Div",
+			description: "Supporting copy. The root points aria-describedby at it.",
+			dataAttributes: [
+				{ name: "data-toast-description", value: "Present" },
+				{ name: "data-type", value: "The toast's type, when set" },
+			],
+		},
+		{
+			name: "ToastAction",
+			element: "Button",
+			description:
+				"A button for the toast's action (undo, retry, …). Runs your onClick, then closes the toast.",
+			dataAttributes: [
+				{ name: "data-toast-action", value: "Present" },
+				{ name: "data-type", value: "The toast's type, when set" },
+			],
+		},
+		{
+			name: "ToastClose",
+			element: "Button",
+			description: "Dismisses its toast. Labelled for assistive technology by default.",
+			dataAttributes: [
+				{ name: "data-toast-close", value: "Present" },
+				{ name: "data-type", value: "The toast's type, when set" },
+			],
+		},
+		{
+			name: "ToastPortal",
+			description:
+				"Renders its children into another DOM parent so the stack escapes overflow and stacking contexts. This is the core Portal helper; context still resolves from where the portal is declared.",
+			props: [
+				{
+					name: "to",
+					type: "HTMLElement | Ref<HTMLElement>",
+					default: "document.body",
+					description: "The parent to teleport into.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Mounts the children in place instead of teleporting.",
+				},
 			],
 		},
 	],

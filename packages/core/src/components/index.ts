@@ -177,9 +177,8 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	unmount(): void {
 		this.#unsubscribeProps?.();
 		this.#unsubscribeProps = null;
+		// children unmount first so their `onUnmount` hooks still read this element
 		teardownAll(this.#mountedChildren);
-		// after the children: a child's `onUnmount` still needs the element to
-		// measure or clean up against, and nulling first left it reading null
 		this.#props.this?.set(null);
 		this.#element?.remove();
 		this.#element = null;

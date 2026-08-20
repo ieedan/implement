@@ -10,6 +10,7 @@ import {
 	type PrimitivePage,
 	type Tutorial as GeneratedTutorial,
 } from "../../.velite";
+import { contentError } from "./content-error";
 import { stripLessonSource } from "./lesson-source";
 
 export {
@@ -82,14 +83,17 @@ export const tutorials: Tutorial[] = generated.map(({ lessonDir, ...lesson }) =>
 /**
  * A lesson is either a single-file playground (`code.ts` / `solution.ts`
  * sidecars) or a multi-file app (`app/` / `solution/` directories mirroring a
- * project root, e.g. `app/src/routes/index.ts`).
+ * project root, e.g. `app/src/routes/index.ts`). A lesson still being written
+ * has neither yet, so in dev this reports the gap and yields no files — the
+ * lesson page renders a placeholder instead of taking the site down.
  */
 function lessonFiles(lessonDir: string): LessonFile[] {
 	const app = dirFiles(appFiles, lessonDir, "app");
 	if (app.length > 0) return app;
 	const single = codeFiles[`../content/lessons/${lessonDir}/code.ts`];
 	if (single == null) {
-		throw new Error(`Missing code.ts or app/ next to lessons/${lessonDir}/index.md`);
+		contentError(`Missing code.ts or app/ next to lessons/${lessonDir}/index.md`);
+		return [];
 	}
 	return [{ path: "index.ts", content: stripLessonSource(single) }];
 }
@@ -99,7 +103,8 @@ function lessonSolutionFiles(lessonDir: string): LessonFile[] {
 	if (app.length > 0) return app;
 	const single = solutionFiles[`../content/lessons/${lessonDir}/solution.ts`];
 	if (single == null) {
-		throw new Error(`Missing solution.ts or solution/ next to lessons/${lessonDir}/index.md`);
+		contentError(`Missing solution.ts or solution/ next to lessons/${lessonDir}/index.md`);
+		return [];
 	}
 	return [{ path: "index.ts", content: stripLessonSource(single) }];
 }

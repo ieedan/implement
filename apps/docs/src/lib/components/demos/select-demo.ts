@@ -21,12 +21,11 @@ export default function SelectDemo() {
 	return Div(
 		{ class: "flex w-full max-w-xs flex-col items-center gap-3" },
 		Select(
-			{ value },
+			{ value, items: fruits },
 			SelectTrigger(
 				{ class: "w-48 min-w-48 max-w-48" },
 				SelectValue({
 					placeholder: "Select a fruit",
-					label: (id) => fruits.find((fruit) => fruit.value === id)?.label ?? id,
 				}),
 			),
 			SelectContent(
