@@ -1,3 +1,4 @@
+import { teardownAll } from "../../exit";
 import { dom } from "../../dom";
 import { subscribe } from "../../signal";
 import { mountChild } from "../../tree";
@@ -115,8 +116,7 @@ export const Head: HeadHelper = Object.assign(
 					}
 				},
 				unmount() {
-					for (const child of mounted) child.unmount();
-					mounted = [];
+					teardownAll(mounted);
 				},
 				getFirstDomNode() {
 					// renders into document.head; logical siblings must never anchor against it

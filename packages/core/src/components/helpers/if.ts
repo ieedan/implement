@@ -1,4 +1,5 @@
 import { dom } from "../../dom";
+import { exitingNodes, firstExitingNode, removeChildren, teardownChildren } from "../../exit";
 import { isReadable, subscribe, type Getter, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
@@ -103,13 +104,15 @@ export function If(condition: IfCondition, getterOrChild?: unknown, ...rest: Chi
 			let unsubscribe: Unsubscribe | null = null;
 			let showing: number | "else" | null = null;
 			let mounted: IMountable[] = [];
+			/** Branches animating out: still on screen, no longer the shown branch. */
+			const exiting: IMountable[] = [];
 			const endMarker = dom.createComment("");
 
 			const childrenFor = (target: number | "else"): Child[] =>
 				target === "else" ? elseChildren : branches[target]!.children;
 
 			const clear = () => {
-				for (const child of mounted) child.unmount();
+				removeChildren(mounted, exiting);
 				mounted = [];
 			};
 
@@ -130,7 +133,10 @@ export function If(condition: IfCondition, getterOrChild?: unknown, ...rest: Chi
 				});
 				syncDomOrder(
 					parent,
-					mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
+					[
+						...exitingNodes(exiting),
+						...mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
+					],
 					endMarker,
 				);
 			};
@@ -149,7 +155,7 @@ export function If(condition: IfCondition, getterOrChild?: unknown, ...rest: Chi
 			node = {
 				mount(p: HTMLElement) {
 					unsubscribe?.();
-					clear();
+					teardownChildren(mounted, exiting);
 					showing = null;
 					parent = p;
 					dom.attach(parent, endMarker);
@@ -161,12 +167,14 @@ export function If(condition: IfCondition, getterOrChild?: unknown, ...rest: Chi
 				unmount() {
 					unsubscribe?.();
 					unsubscribe = null;
-					clear();
+					teardownChildren(mounted, exiting);
 					showing = null;
 					endMarker.remove();
 					parent = null;
 				},
 				getFirstDomNode() {
+					const leaving = firstExitingNode(exiting);
+					if (leaving) return leaving;
 					for (const child of mounted) {
 						const first = child.getFirstDomNode();
 						if (first) return first;

@@ -1,4 +1,5 @@
 import { dom } from "../../dom";
+import { exitingNodes, firstExitingNode, removeChildren, teardownChildren } from "../../exit";
 import equal from "fast-deep-equal";
 import { isReadable, subscribe, type Getter, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
@@ -61,13 +62,15 @@ export function Switch<T>(
 			let unsubscribe: Unsubscribe | null = null;
 			let showing: number | "default" | null = null;
 			let mounted: IMountable[] = [];
+			/** Cases animating out: still on screen, no longer the shown case. */
+			const exiting: IMountable[] = [];
 			const endMarker = dom.createComment("");
 
 			const childrenFor = (target: number | "default"): Child[] =>
 				target === "default" ? defaultChildren : cases[target]!.children;
 
 			const clear = () => {
-				for (const child of mounted) child.unmount();
+				removeChildren(mounted, exiting);
 				mounted = [];
 			};
 
@@ -88,7 +91,10 @@ export function Switch<T>(
 				});
 				syncDomOrder(
 					parent,
-					mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
+					[
+						...exitingNodes(exiting),
+						...mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
+					],
 					endMarker,
 				);
 			};
@@ -108,7 +114,7 @@ export function Switch<T>(
 			node = {
 				mount(p: HTMLElement) {
 					unsubscribe?.();
-					clear();
+					teardownChildren(mounted, exiting);
 					showing = null;
 					parent = p;
 					dom.attach(parent, endMarker);
@@ -119,12 +125,14 @@ export function Switch<T>(
 				unmount() {
 					unsubscribe?.();
 					unsubscribe = null;
-					clear();
+					teardownChildren(mounted, exiting);
 					showing = null;
 					endMarker.remove();
 					parent = null;
 				},
 				getFirstDomNode() {
+					const leaving = firstExitingNode(exiting);
+					if (leaving) return leaving;
 					for (const child of mounted) {
 						const first = child.getFirstDomNode();
 						if (first) return first;

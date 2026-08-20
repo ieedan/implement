@@ -31,6 +31,11 @@ export function parentOf(node: IMountable): IMountable | null {
 	return parents.get(node) ?? null;
 }
 
+/** The node being mounted, or null outside a mount pass. */
+export function currentNode(): IMountable | null {
+	return current;
+}
+
 const boundaries = new WeakMap<IMountable, (error: Error) => void>();
 
 /** Mark `node` as an error boundary. Errors raised at or below it route to `handler`. */

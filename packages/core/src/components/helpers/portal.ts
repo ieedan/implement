@@ -1,4 +1,5 @@
 import { dom } from "../../dom";
+import { teardownAll } from "../../exit";
 import { isReadable, subscribe, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
@@ -75,9 +76,13 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 				return isReadable<HTMLElement>(to) ? to.get() : to;
 			};
 
+			/**
+			 * Re-teleporting rebuilds the children in the new target, so this is a
+			 * move rather than a removal: any exit in flight below is aborted
+			 * instead of held, and nothing is left animating in the old target.
+			 */
 			const clear = () => {
-				for (const child of mounted) child.unmount();
-				mounted = [];
+				teardownAll(mounted);
 			};
 
 			const mountInto = (target: HTMLElement) => {

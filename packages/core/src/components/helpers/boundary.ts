@@ -1,4 +1,5 @@
 import { dom } from "../../dom";
+import { forceUnmount } from "../../exit";
 import { asParent, mountChild, parentOf, raiseError, registerBoundary } from "../../tree";
 import { syncDomOrder, toError } from "../../utils";
 import { reconcileChildren } from "..";
@@ -41,15 +42,18 @@ export function Boundary(...children: Child[]): BoundaryHelper {
 			const endMarker = dom.createComment("");
 			let node: IMountable;
 
+			/**
+			 * Forced, never deferred: a subtree that threw is not in a state to
+			 * animate itself out, and the `Catch` branch has to replace it now.
+			 */
 			const clear = () => {
-				for (const child of mounted) {
+				for (const child of mounted.splice(0)) {
 					try {
-						child.unmount();
+						forceUnmount(child);
 					} catch {
 						// best-effort teardown: the subtree may have failed mid-mount
 					}
 				}
-				mounted = [];
 			};
 
 			const show = (branch: Child[]) => {

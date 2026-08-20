@@ -1,4 +1,5 @@
 import { dom } from "../../dom";
+import { exitingNodes, firstExitingNode, removeChildren, teardownChildren } from "../../exit";
 import { isReadable, Signal, subscribe, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
@@ -47,6 +48,8 @@ export function Await<T>(
 			let parent: HTMLElement | null = null;
 			let showing: AwaitBranch | null = null;
 			let mounted: IMountable[] = [];
+			/** Branches animating out: still on screen, no longer the shown branch. */
+			const exiting: IMountable[] = [];
 			const endMarker = dom.createComment("");
 
 			const thenArg = (): T | Readable<T> => {
@@ -61,7 +64,7 @@ export function Await<T>(
 			};
 
 			const clear = () => {
-				for (const child of mounted) child.unmount();
+				removeChildren(mounted, exiting);
 				mounted = [];
 			};
 
@@ -103,7 +106,10 @@ export function Await<T>(
 				});
 				syncDomOrder(
 					parent,
-					mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
+					[
+						...exitingNodes(exiting),
+						...mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
+					],
 					endMarker,
 				);
 			};
@@ -163,7 +169,7 @@ export function Await<T>(
 			node = {
 				mount(p: HTMLElement) {
 					unsubscribe?.();
-					clear();
+					teardownChildren(mounted, exiting);
 					showing = null;
 					parent = p;
 					dom.attach(parent, endMarker);
@@ -175,12 +181,14 @@ export function Await<T>(
 				unmount() {
 					unsubscribe?.();
 					unsubscribe = null;
-					clear();
+					teardownChildren(mounted, exiting);
 					showing = null;
 					endMarker.remove();
 					parent = null;
 				},
 				getFirstDomNode() {
+					const leaving = firstExitingNode(exiting);
+					if (leaving) return leaving;
 					for (const child of mounted) {
 						const first = child.getFirstDomNode();
 						if (first) return first;

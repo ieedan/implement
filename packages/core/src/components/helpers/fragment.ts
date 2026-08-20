@@ -1,3 +1,4 @@
+import { teardownAll } from "../../exit";
 import { isReadable } from "../../signal";
 import { mountChild } from "../../tree";
 import { reconcileChildren } from "..";
@@ -46,8 +47,7 @@ export function Fragment(propsOrChild?: FragmentProps | Child, ...rest: Child[])
 				});
 			},
 			unmount: () => {
-				mountedChildren.forEach((child) => child.unmount());
-				mountedChildren.length = 0;
+				teardownAll(mountedChildren);
 			},
 			getFirstDomNode: () => {
 				for (const child of mountedChildren) {

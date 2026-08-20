@@ -2,6 +2,13 @@ import { reconcileChildren, type Child, type IMountable, type Mountable } from "
 import { A } from "../components/elements";
 import type { ElementProps } from "../components/props";
 import { dom } from "../dom";
+import {
+	exitingNodes,
+	firstExitingNode,
+	forceUnmount,
+	removeChildren,
+	teardownChildren,
+} from "../exit";
 import { derived, isReadable, signal, subscribe, type Readable, type Signal } from "../signal";
 import { asParent, mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
@@ -289,6 +296,8 @@ function buildHref(path: string, params: Record<string, string | number> = {}): 
 class Outlet {
 	#parent: HTMLElement | null = null;
 	#mounted: IMountable[] = [];
+	/** Routes animating out: still on screen, no longer the mounted route. */
+	#exiting: IMountable[] = [];
 	#children: Child[] = [];
 	#endMarker = dom.createComment("");
 	#node: IMountable;
@@ -301,11 +310,13 @@ class Outlet {
 				this.#render();
 			},
 			unmount: () => {
-				this.#clear();
+				teardownChildren(this.#mounted, this.#exiting);
 				this.#endMarker.remove();
 				this.#parent = null;
 			},
 			getFirstDomNode: () => {
+				const leaving = firstExitingNode(this.#exiting);
+				if (leaving) return leaving;
 				for (const child of this.#mounted) {
 					const first = child.getFirstDomNode();
 					if (first) return first;
@@ -323,7 +334,7 @@ class Outlet {
 	}
 
 	#clear() {
-		for (const child of this.#mounted) child.unmount();
+		removeChildren(this.#mounted, this.#exiting);
 		this.#mounted = [];
 	}
 
@@ -338,7 +349,12 @@ class Outlet {
 		});
 		syncDomOrder(
 			this.#parent!,
-			this.#mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
+			[
+				...exitingNodes(this.#exiting),
+				...this.#mounted
+					.map((child) => child.getFirstDomNode())
+					.filter((n): n is Node => n !== null),
+			],
 			this.#endMarker,
 		);
 	}
@@ -511,7 +527,7 @@ export function Router<T extends Routes<T>>(
 			unmount() {
 				unsubscribe?.();
 				unsubscribe = null;
-				rootNode.unmount();
+				forceUnmount(rootNode);
 				chain = [];
 				outlets.length = 1;
 				paramSignals.clear();

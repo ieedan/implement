@@ -25,21 +25,20 @@ The other half does not exist for vanilla Motion at all. `whileHover`,
 `motion-dom`'s `VisualElement` / feature / projection system. There is no
 "use the JS API harder" path to them.
 
-And one thing is a hard wall today: **exit animations are impossible in
-implement**, at any level of effort, from userland. `unmount()` is
-synchronous everywhere (`If`, `ForEach`, `Key`, `Switch`, `Await`, `Portal`,
-the router), so an element is out of the DOM before the next microtask
-(verified). A package cannot work around it either, because the tree API a
-control-flow helper needs (`mountChild`, `asParent`, `guarded`) is not
-exported, and hand-rolling it breaks `context` and error boundaries
-(verified — the hand-rolled version throws `context.Use() was called without
-a matching context.Provide()` the second time it mounts).
+One thing _was_ a hard wall: exit animations. `unmount()` was synchronous
+everywhere (`If`, `ForEach`, `Key`, `Switch`, `Await`, `Portal`, the router),
+so an element left the DOM before the next microtask, and userland could not
+work around it — the tree API a control-flow helper needs (`mountChild`,
+`asParent`, `guarded`) is unexported, and hand-rolling it breaks `context`
+and error boundaries. **That is fixed** (§4): removal now runs through one
+path in `src/exit.ts`, and `Implement.Lifecycle({ onExit })` holds a leaving
+subtree on screen until its promise settles.
 
-So: **yes, build a package** — but the presence protocol belongs in
-`@implementjs/core`, not in it. The package's job is lifetime, reactivity and
-declarative props; core's job is "this subtree is leaving, hold the DOM
-still until it says it's done". Getting that split wrong means the motion
-package ships its own `If`/`ForEach`, and the framework forks in half.
+So: **yes, build a package** — but presence stayed in `@implementjs/core`
+rather than going in it. The package's job is lifetime, reactivity and
+declarative props; core's job is "this subtree is leaving, hold the DOM still
+until it says it's done". Getting that split wrong would have meant the motion
+package shipping its own `If`/`ForEach`, and the framework forking in half.
 
 ## 1. What Motion actually is
 
@@ -211,12 +210,12 @@ single owner of a property. The wrapper needs the same rule — a property is
 owned by the animation _or_ by a binding, and it should be a type error, or
 at least a dev warning, to do both.
 
-**4. Exit animations are impossible.** The wall. `If`'s `clear()`, `ForEach`'s
-removal pass, `Key.remount`, `Switch`, `Await`, `Portal` and the router all
-call `child.unmount()` synchronously, and `Component.unmount()` calls
-`element.remove()` in the same tick. Verified: with the node captured in a
-closure, `onUnmount` fires, and by the very next microtask
-`node.isConnected === false`. The exit animation runs — invisibly, on a
+**4. Exit animations were impossible — now fixed (§4).** `If`'s `clear()`,
+`ForEach`'s removal pass, `Key.remount`, `Switch`, `Await`, `Portal` and the
+router all called `child.unmount()` synchronously, and `Component.unmount()`
+called `element.remove()` in the same tick. Verified at the time: with the
+node captured in a closure, `onUnmount` fired, and by the very next microtask
+`node.isConnected === false` — the exit animation ran invisibly, on a
 detached node.
 
 There is no CSS escape either. The reason `apps/docs` animates dialogs and
@@ -225,7 +224,8 @@ primitives keep content mounted and toggle `data-state`. That works, and it
 is the right call today, but it means every animatable thing must be
 permanently mounted, and it rules out list transitions entirely.
 
-**5. A userland package cannot fix #4.** A control-flow helper that defers
+**5. A userland package could not have fixed #4** — which is why it landed in
+core. A control-flow helper that defers
 `unmount()` is easy to write — the deferred version animated out correctly on
 the first try. But mounting children _correctly_ needs `mountChild`,
 `asParent` and `guarded` from `src/tree.ts`, none of which are exported (nor
@@ -247,16 +247,16 @@ them means building a binding on `motion-dom` the way `motion-v` did.
 Yes — `@implementjs/motion`, with `motion` as a peer dependency. But the split
 matters more than the answer:
 
-- **Core owns presence.** "This subtree is leaving; hold it until it says
-  it's done" is a property of the tree, not of an animation library. If the
-  motion package owns it, it must ship `Motion.If`, `Motion.ForEach`,
-  `Motion.Key` and a `Motion.Router`, and users pick a side per call site.
-  That is the failure mode to design against.
-- **Core exports the tree API.** `mountChild`, `asParent`, `guarded`,
+- **Core owns presence — done, see §6.** "This subtree is leaving; hold it
+  until it says it's done" is a property of the tree, not of an animation
+  library. Had the motion package owned it, it would have had to ship
+  `Motion.If`, `Motion.ForEach`, `Motion.Key` and a `Motion.Router`, with
+  users picking a side per call site. It lives in `src/exit.ts` instead, and
+  `Implement.Lifecycle({ onExit })` is the whole user-facing surface.
+- **Core still owes the tree API.** `mountChild`, `asParent`, `guarded`,
   `parentOf` under a `@implementjs/core/tree` entry, documented as the
-  contract for third-party helpers. Right now implement has no story for
-  anyone writing a control-flow helper outside core — the motion package is
-  just the first to need it.
+  contract for third-party helpers. Presence no longer needs it, but implement
+  still has no story for anyone writing a control-flow helper outside core.
 - **The package owns lifetime, reactivity and props.** Everything else:
   `Motion.Div(...)`, variants, gestures, MotionValue bridging, config
   context.
@@ -374,44 +374,67 @@ Div({ style: { width: fromMotionValue(mapValue(progress, [0, 1], ["0%", "100%"])
 const smooth = springValue(toMotionValue(scrollY)); // implement signal -> MotionValue
 ```
 
-## 6. What core has to grow
+## 6. What core grew (implemented)
 
-Three changes; only the third is real work.
+The presence protocol landed, along with the ordering fix behind papercut #2.
+What is left for later is exporting the tree API (`@implementjs/core/tree`:
+`mountChild`, `asParent`, `guarded`, `parentOf`) for third-party helpers.
 
-**A. Export the tree API** (`@implementjs/core/tree`: `mountChild`,
-`asParent`, `guarded`, `parentOf`). Unblocks any third-party helper, not just
-this one.
+**One removal path.** Every helper used to call `child.unmount()` directly.
+They all go through `removeChild(child)` in `src/exit.ts` now, which splits
+removal from teardown:
 
-**B. Fix the `this`-before-children ordering** (papercut #2), and pass the
-element to `Lifecycle.onUnmount`.
+- `removeChild` — the swap paths (`If` changing branch, `ForEach` dropping a
+  row, `Key` remounting, `Switch`, `Await`, the router's outlet). May defer.
+- `forceUnmount` / `teardownChildren` — the teardown paths (a helper's own
+  `unmount`, `App.unmount` on HMR dispose, a hydration mismatch discard, a
+  `Boundary` swapping in `Catch`, a `Portal` re-teleporting). Never defers,
+  and aborts any exit already in flight so nothing animates over a tree that
+  is going away.
 
-**C. A presence protocol in the removal path.** Today every helper calls
-`child.unmount()`. Route them all through one `removeChild(child)` in
-`tree.ts`:
+**Registration walks up, not down.** `registerExit(hook)` reads the node
+being mounted and adds the hook to every ancestor's set, so a removal at any
+depth answers "does this subtree animate out?" with one `WeakMap` lookup. An
+app that never registers a hook pays nothing and removes exactly as
+synchronously as before — that is the invariant the first test pins down.
 
-- A node may register an exit hook (`registerExit(node, () => Promise<void>)`)
-  — `Motion.Div` does this on mount when it has an `exit` prop.
-- `removeChild` collects hooks in the subtree. **None → unmount synchronously,
-  exactly as today.** No async, no cost, no behavior change for every app
-  that does not animate.
-- Some → mark the subtree exiting, run the hooks, unmount when they all
-  settle. An exiting subtree stays in the DOM but out of the logical tree.
-- `syncDomOrder` learns about exiting nodes so `If`/`ForEach`/`Key` can place
-  incoming siblings around one that is still leaving.
-- Re-adding the same `ForEach` key while it is exiting must interrupt the exit
-  and re-adopt the node — the case that makes hand-rolled presence wrong.
+**Deferral keeps the subtree whole.** Nothing is unmounted while it leaves:
+the nodes stay on screen, subscriptions stay attached, and `unmount()` runs
+only once the hooks settle. That makes cancellation free — a `ForEach` key
+re-added mid-exit aborts the hook and puts the same live instance back, no
+remount and no lost state — and it is why the leaving subtree keeps updating
+from outer signals, which is the one behavior worth knowing about. Aborting a
+hook does not oblige it to settle, so each run carries a generation and a
+cancelled run that resolves late is ignored rather than cutting short the exit
+that replaced it.
 
-The payoff is bigger than Motion: once removal has one path, `Portal`, the
-router, `Await` and `Switch` all get exit transitions, and any future
-animation approach (CSS, Web Animations, GSAP) can use the same hook. It is
-also the piece with the most design risk, which is why §7 puts a prototype
-in front of the package.
+**Ordering follows the previous DOM order, not indices.** A live row's index
+is in the new list's coordinate space and a leaving row's in the old one, so
+mixing them mis-sorts (the first cut did: dropping two of three rows ordered
+them `a c b`). `ForEach` keeps the last key order and splices each leaving
+row back behind the neighbour it followed, so it holds its slot and the rows
+around it close the gap only once it is gone. `If`/`Switch`/`Key`/`Await` and
+the router keep leaving children ahead of incoming ones — Motion's `sync`
+mode. `mode: "wait"` (hold the new content until the old one finishes) is a
+later addition, not a redesign.
+
+Verified in Chromium with real Motion: an `If` branch fades out (opacity
+`0.30` mid-exit) and then leaves; a dropped `ForEach` row holds its slot at
+`0.43` while `[a, b, c]` stays put, settling to `[a, c]`; re-adding the key
+mid-exit revives the same node at full opacity with no duplicate. Nine tests
+in `packages/core/tests/exit.test.ts` cover the same ground headless, and the
+existing 65 still pass unchanged.
+
+The payoff is bigger than Motion: `Portal`, the router, `Await` and `Switch`
+all got exit transitions from the same change, and any other animation
+approach — CSS, Web Animations, GSAP — uses the same hook.
 
 ## 7. Plan
 
-**Phase 0 — core hooks.** A and B above, plus `removeChild` as a pure
-refactor (no behavior change) so every removal already goes through one
-place. Small, independently useful, no new dependency.
+**Phase 0 — core hooks. Done.** The presence protocol, the single removal
+path, and the `this`-before-children ordering fix, all in core with no
+dependency on Motion (§6). What is still open from this phase is exporting
+the tree API for third-party helpers.
 
 **Phase 1 — `@implementjs/motion`, thin.** Peer-dep `motion`, re-export the
 vanilla API, ship `fromMotionValue` / `toMotionValue` and a `Motion.Animate`
@@ -419,11 +442,12 @@ helper that is `ref` + `Lifecycle` with the ceremony removed. Deletes the
 boilerplate from §3.1 without committing to a declarative model. This alone
 covers most of what `demos/tracker` and `apps/docs` would ask for.
 
-**Phase 2 — presence.** Core change C, then `Motion.Presence` on top. This is
-the phase that unblocks the primitives: dialogs, menus, popovers and toasts
-stop needing permanently-mounted content and `transition-discrete` tricks.
-Prototype the exiting-node bookkeeping in `packages/core/tests/` before the
-package depends on it.
+**Phase 2 — presence ergonomics.** The protocol is in; what is left is the
+sugar. `Motion.Presence` as a wrapper reads better than an `onExit` hook at
+every call site, and `mode: "wait"` / `"popLayout"` are still to come. This is
+also the phase that unblocks the primitives: dialogs, menus, popovers and
+toasts can stop keeping content permanently mounted with
+`transition-discrete` tricks and mount conditionally like anything else.
 
 **Phase 3 — declarative props.** `Motion.Div` and friends: `initial`,
 `animate`, `exit`, `variants`, `transition`, `while*`, `viewport`, config
@@ -459,5 +483,9 @@ demo that `animateView` cannot serve.
   nobody here has run it, and we should not claim support until someone with
   a license does.
 - **`packages/kit`**: route transitions want `animateView` around
-  `navigateTo` plus presence on the router outlet — worth designing together
-  with Phase 2 rather than after it.
+  `navigateTo`; the router outlet already defers on exit hooks, so what is
+  left is deciding the API for it.
+- **Should an exiting subtree freeze?** It stays subscribed today, so
+  bindings reading outer signals keep updating while it animates out. Freezing
+  would need a way to suspend a subtree's subscriptions, which core does not
+  have and which would cost more than it buys until something demands it.

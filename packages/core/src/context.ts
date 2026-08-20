@@ -1,4 +1,5 @@
 import { reconcileChildren } from "./components";
+import { teardownAll } from "./exit";
 import type { Child, IMountable, Mountable } from "./components/types";
 import { mountChild, parentOf } from "./tree";
 
@@ -25,8 +26,7 @@ class ContextProvideBuilder<T> {
 					}
 				},
 				unmount() {
-					for (const child of mountedChildren) child.unmount();
-					mountedChildren.length = 0;
+					teardownAll(mountedChildren);
 				},
 				getFirstDomNode() {
 					for (const child of mountedChildren) {
@@ -50,8 +50,7 @@ function contextUse<T, Fallback = T>(
 		let mounted: IMountable[] = [];
 		const node: IMountable = {
 			mount(parent: HTMLElement) {
-				for (const child of mounted) child.unmount();
-				mounted = [];
+				teardownAll(mounted);
 
 				const result = context.lookup(node);
 				let value: T | Fallback;
@@ -70,8 +69,7 @@ function contextUse<T, Fallback = T>(
 				}
 			},
 			unmount() {
-				for (const child of mounted) child.unmount();
-				mounted = [];
+				teardownAll(mounted);
 			},
 			getFirstDomNode() {
 				for (const child of mounted) {

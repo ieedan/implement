@@ -1,4 +1,5 @@
 import { dom } from "../../dom";
+import { cancelExit, forceUnmount, removeChild } from "../../exit";
 import {
 	isReadable,
 	isWritable,
@@ -169,6 +170,10 @@ export function ForEach<T>(
 		let parent: HTMLElement | null = null;
 		let unsubscribe: Unsubscribe | null = null;
 		const rendered: Map<string, RenderedEntry<T>> = new Map();
+		/** Rows animating out, by key: still on screen, no longer in the list. */
+		const exiting: Map<string, RenderedEntry<T>> = new Map();
+		/** Keys in DOM order after the last pass, exiting rows included. */
+		let lastOrder: string[] = [];
 		const endMarker = dom.createComment("");
 
 		let node: IMountable;
@@ -179,7 +184,7 @@ export function ForEach<T>(
 			asParent(node, () => {
 				const value = getItems();
 				const mountedKeys = new Map<string, number>();
-				const ordered: IMountable[] = [];
+				const liveKeys: string[] = [];
 
 				for (let i = 0; i < value.length; i++) {
 					const currentVal = value[i]!;
@@ -192,11 +197,11 @@ export function ForEach<T>(
 						);
 					}
 					mountedKeys.set(key, i);
-					const existing = rendered.get(key);
+					liveKeys.push(key);
+					const existing = rendered.get(key) ?? revive(key);
 					if (existing) {
 						existing.item.sync(currentVal);
 						existing.index.set(i);
-						ordered.push(existing.instance);
 						continue;
 					}
 
@@ -208,33 +213,83 @@ export function ForEach<T>(
 					const instance = render(item, index)();
 					mountChild(instance, parent!);
 					rendered.set(key, { instance, item, index });
-					ordered.push(instance);
 				}
 
-				for (const [key, { instance }] of rendered.entries()) {
-					if (!mountedKeys.has(key)) {
-						instance.unmount();
-						rendered.delete(key);
+				for (const [key, entry] of rendered.entries()) {
+					if (mountedKeys.has(key)) continue;
+					rendered.delete(key);
+					const deferred = removeChild(entry.instance, () => exiting.delete(key));
+					if (deferred) exiting.set(key, entry);
+				}
+
+				const order = placeExiting(liveKeys);
+				lastOrder = order;
+				syncDomOrder(parent!, nodesFor(order), endMarker);
+			});
+		};
+
+		/**
+		 * A key that comes back while its row is still animating out keeps the
+		 * row it had: the exit is cancelled and the instance — never unmounted,
+		 * so still live — goes back into the list.
+		 */
+		const revive = (key: string): RenderedEntry<T> | null => {
+			const leaving = exiting.get(key);
+			if (!leaving) return null;
+			exiting.delete(key);
+			cancelExit(leaving.instance);
+			rendered.set(key, leaving);
+			return leaving;
+		};
+
+		/**
+		 * Splices the exiting rows back into the live order, each one behind the
+		 * neighbour it followed before it left. Indices cannot do this — a live
+		 * row's index is in the new list's coordinates and an exiting row's in
+		 * the old one — so placement follows the previous DOM order instead,
+		 * which keeps a leaving row in its slot while the rows around it move.
+		 */
+		const placeExiting = (liveKeys: string[]): string[] => {
+			if (exiting.size === 0) return liveKeys;
+			const order = [...liveKeys];
+			for (let i = 0; i < lastOrder.length; i++) {
+				const key = lastOrder[i]!;
+				if (!exiting.has(key) || order.includes(key)) continue;
+				let at = 0;
+				for (let before = i - 1; before >= 0; before--) {
+					const anchor = order.indexOf(lastOrder[before]!);
+					if (anchor !== -1) {
+						at = anchor + 1;
+						break;
 					}
 				}
+				order.splice(at, 0, key);
+			}
+			return order;
+		};
 
-				syncDomOrder(
-					parent!,
-					ordered
-						.map((child) => child.getFirstDomNode())
-						.filter((childNode): childNode is Node => childNode !== null),
-					endMarker,
-				);
-			});
+		const nodesFor = (order: readonly string[]): Node[] => {
+			const nodes: Node[] = [];
+			for (const key of order) {
+				const entry = rendered.get(key) ?? exiting.get(key);
+				const first = entry?.instance.getFirstDomNode();
+				if (first) nodes.push(first);
+			}
+			return nodes;
+		};
+
+		const teardown = () => {
+			for (const entry of exiting.values()) forceUnmount(entry.instance);
+			exiting.clear();
+			lastOrder = [];
+			for (const { instance } of rendered.values()) forceUnmount(instance);
+			rendered.clear();
 		};
 
 		node = {
 			mount(p: HTMLElement) {
 				unsubscribe?.();
-				for (const { instance } of rendered.values()) {
-					instance.unmount();
-				}
-				rendered.clear();
+				teardown();
 
 				parent = p;
 				dom.attach(parent, endMarker);
@@ -243,19 +298,19 @@ export function ForEach<T>(
 			unmount() {
 				unsubscribe?.();
 				unsubscribe = null;
-				for (const { instance } of rendered.values()) {
-					instance.unmount();
-				}
-				rendered.clear();
+				teardown();
 				endMarker.remove();
 				parent = null;
 			},
 			getFirstDomNode() {
-				let first: RenderedEntry<T> | null = null;
-				for (const entry of rendered.values()) {
-					if (!first || entry.index.get() < first.index.get()) first = entry;
+				// lastOrder is DOM order, so the first row still on screen — live
+				// or leaving — is what logical siblings anchor against
+				for (const key of lastOrder) {
+					const entry = rendered.get(key) ?? exiting.get(key);
+					const first = entry?.instance.getFirstDomNode();
+					if (first) return first;
 				}
-				return first?.instance.getFirstDomNode() ?? (endMarker.isConnected ? endMarker : null);
+				return endMarker.isConnected ? endMarker : null;
 			},
 		};
 		return node;

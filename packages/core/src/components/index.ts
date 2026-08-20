@@ -1,4 +1,5 @@
 import { dom } from "../dom";
+import { forceUnmount, teardownAll } from "../exit";
 import { beginHydration, endHydration } from "../hydrate";
 import { isReadable } from "../signal";
 import { mountChild } from "../tree";
@@ -174,11 +175,12 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	}
 
 	unmount(): void {
-		this.#props.this?.set(null);
 		this.#unsubscribeProps?.();
 		this.#unsubscribeProps = null;
-		this.#mountedChildren.forEach((child) => child.unmount());
-		this.#mountedChildren = [];
+		teardownAll(this.#mountedChildren);
+		// after the children: a child's `onUnmount` still needs the element to
+		// measure or clean up against, and nulling first left it reading null
+		this.#props.this?.set(null);
 		this.#element?.remove();
 		this.#element = null;
 	}
@@ -237,7 +239,7 @@ export function App(options: { target: HTMLElement }) {
 					console.warn("hydration mismatch: discarding server-rendered markup and mounting fresh");
 					for (const instance of hydrated) {
 						try {
-							instance.unmount();
+							forceUnmount(instance);
 						} catch {
 							// best-effort teardown of a partially adopted tree
 						}
@@ -253,7 +255,9 @@ export function App(options: { target: HTMLElement }) {
 			}
 			const unmount = () => {
 				roots.delete(unmount);
-				instances.forEach((instance) => instance.unmount());
+				// forced: an app root going away (HMR dispose, a test teardown)
+				// takes exits with it rather than waiting on them
+				instances.forEach((instance) => forceUnmount(instance));
 			};
 			roots.add(unmount);
 			return unmount;

@@ -173,25 +173,37 @@ deterministic to hydrate; input typed before hydration is overwritten when
 hydrates its pending branch and refetches on the client (the data/query
 layer owns serialization when it lands).
 
-## 13. Exit animations, and the tree API third-party helpers need
+## 13. Exit animations **(fixed)**, and the tree API third-party helpers need
 
-`unmount()` is synchronous everywhere — `If`, `ForEach`, `Key`, `Switch`,
-`Await`, `Portal` and the router all call `child.unmount()`, and
-`Component.unmount()` calls `element.remove()` in the same tick — so a
-leaving element is detached before the next microtask and cannot be animated
-out. The primitives work around it by keeping content mounted and toggling
-`data-state` + `hidden` (CSS `transition-discrete` + `@starting-style`),
-which costs a permanent mount per animatable thing and rules out list
-transitions.
+`unmount()` used to be synchronous everywhere — `If`, `ForEach`, `Key`,
+`Switch`, `Await`, `Portal` and the router all called `child.unmount()`, and
+`Component.unmount()` called `element.remove()` in the same tick — so a
+leaving element was detached before the next microtask and could not be
+animated out. The primitives worked around it by keeping content mounted and
+toggling `data-state` + `hidden` (CSS `transition-discrete` +
+`@starting-style`), which costs a permanent mount per animatable thing and
+rules out list transitions.
 
-Userland cannot fix this: a helper that defers `unmount()` is easy, but
-mounting children correctly needs `mountChild`/`asParent`/`guarded` from
-`src/tree.ts`, which are not exported (the package exposes only `.`,
-`./elements`, `./router`, `./server`). Mounting an instance directly
-orphans the subtree — `context` lookups walk past the provider and error
-boundaries never see its throws.
+`Implement.Lifecycle({ onExit })` fixes it. Removal runs through one path
+(`src/exit.ts`): `removeChild` for the swap paths, `forceUnmount` for
+teardown. A hook registered anywhere in a subtree defers the removal of every
+ancestor above it — the nodes stay on screen and the subtree stays mounted
+until the returned promise settles — and the `AbortSignal` it receives fires
+when the exit is cancelled, which is how a `ForEach` key coming back
+mid-exit revives the same live instance instead of remounting. Registration
+walks up from the registering node, so a tree with no hooks still removes
+exactly as synchronously as before. Leaving children hold their DOM slot
+(`ForEach` splices them back behind the neighbour they followed; the branch
+helpers keep them ahead of the incoming branch, Motion's `sync` mode), and an
+exiting subtree stays subscribed, so bindings reading outer signals keep
+updating while it animates. Still open: `mode: "wait"`, and a `Presence`
+wrapper so this reads as control flow rather than a hook.
 
-Both halves — a presence protocol in a single `removeChild` path, and a
-documented tree API for third-party helpers — are specced in
-[implement-motion.md](implement-motion.md), which came out of investigating
-what a Motion integration would need.
+The other half is unbuilt. Writing a control-flow helper outside core still
+needs `mountChild`/`asParent`/`guarded` from `src/tree.ts`, which are not
+exported (the package exposes only `.`, `./elements`, `./router`,
+`./server`). Mounting an instance directly orphans the subtree — `context`
+lookups walk past the provider and error boundaries never see its throws.
+
+Both halves came out of [implement-motion.md](implement-motion.md), the
+investigation into what a Motion integration would need.

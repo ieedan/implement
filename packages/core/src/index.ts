@@ -67,6 +67,7 @@ export {
 	type WindowProps,
 } from "./components/helpers";
 export { context } from "./context";
+export { registerExit, type ExitHook } from "./exit";
 export {
 	navigateTo,
 	normalizePath,

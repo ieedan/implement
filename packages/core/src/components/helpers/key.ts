@@ -1,4 +1,5 @@
 import { dom } from "../../dom";
+import { exitingNodes, firstExitingNode, removeChildren, teardownChildren } from "../../exit";
 import { isReadable, subscribe, type Readable } from "../../signal";
 import { asParent, guarded, mountChild } from "../../tree";
 import type { Unsubscribe } from "../../types";
@@ -31,11 +32,13 @@ export function Key(
 		let parent: HTMLElement | null = null;
 		let unsubscribe: Unsubscribe | null = null;
 		let mounted: IMountable[] = [];
+		/** The previous instance, animating out while the fresh one mounts. */
+		const exiting: IMountable[] = [];
 		const endMarker = dom.createComment("");
 		let node: IMountable;
 
 		const clear = () => {
-			for (const child of mounted) child.unmount();
+			removeChildren(mounted, exiting);
 			mounted = [];
 		};
 
@@ -52,7 +55,10 @@ export function Key(
 			});
 			syncDomOrder(
 				parent,
-				mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
+				[
+					...exitingNodes(exiting),
+					...mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
+				],
 				endMarker,
 			);
 		};
@@ -60,7 +66,7 @@ export function Key(
 		node = {
 			mount(p: HTMLElement) {
 				unsubscribe?.();
-				clear();
+				teardownChildren(mounted, exiting);
 				parent = p;
 				dom.attach(parent, endMarker);
 				unsubscribe = subscribe(signals, () => guarded(node, remount));
@@ -68,11 +74,13 @@ export function Key(
 			unmount() {
 				unsubscribe?.();
 				unsubscribe = null;
-				clear();
+				teardownChildren(mounted, exiting);
 				endMarker.remove();
 				parent = null;
 			},
 			getFirstDomNode() {
+				const leaving = firstExitingNode(exiting);
+				if (leaving) return leaving;
 				for (const child of mounted) {
 					const first = child.getFirstDomNode();
 					if (first) return first;
