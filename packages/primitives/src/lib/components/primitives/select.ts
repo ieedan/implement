@@ -137,6 +137,7 @@ abstract class SelectState {
 	}
 
 	handleEnterKey(e: KeyboardEvent) {
+		if (!this.open.get()) return;
 		e.preventDefault();
 		const activeItems = this.getActiveItems();
 		const currentIndex = activeItems.findIndex(
@@ -192,7 +193,10 @@ class SelectStateSingle extends SelectState {
 
 	override toggle(value: string) {
 		const currentValue = this.#value.get();
-		if (currentValue === value) return;
+		if (currentValue === value) {
+			if (this.opts.closeOnSelect) this.close();
+			return;
+		}
 		this.#value.set(value);
 		if (this.opts.closeOnSelect) this.close();
 	}
