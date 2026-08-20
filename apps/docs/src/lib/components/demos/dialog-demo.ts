@@ -42,7 +42,7 @@ function RoleIcon(icon: IconComponent) {
 }
 
 export default function DialogDemo() {
-	const role = signal("user");
+	const role = signal<string | null>("user");
 
 	return Dialog(
 		{},
