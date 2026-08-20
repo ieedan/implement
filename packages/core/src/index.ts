@@ -95,5 +95,6 @@ export {
 	type ReactiveMap,
 	type ReactiveSet,
 	type Signal,
+	type Unwrapped,
 	type Writable,
 } from "./signal";

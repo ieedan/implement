@@ -1,6 +1,7 @@
 import {
 	Button,
 	context,
+	derived,
 	Div,
 	Implement,
 	ref,
@@ -12,14 +13,20 @@ import {
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
+import { noop, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
-import { DismissableLayer } from "../helpers/dismissable-layer";
 import {
-	handleOutsideClick,
-	positionFloatingElement,
-	type Align,
-	type Side,
-} from "../helpers/floating-ui";
+	DismissableLayer,
+	EscapeEvent,
+	InteractOutsideEvent,
+	type DismissBehavior,
+} from "../helpers/dismissable-layer";
+import { positionFloatingElement, type Align, type Side } from "../helpers/floating-ui";
+
+// TODO: grouping support
+// TODO: scroll locking
+// TODO: allow for "items" array to be passed to root
+// TODO: provide labels to the value component
 
 export type SelectProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
 	? { type: "multiple"; value?: Signal<string[]> }
@@ -33,7 +40,7 @@ const SelectCtx = context<SelectState>();
 abstract class SelectState {
 	open: Signal<boolean>;
 	trigger = ref<HTMLButtonElement>();
-	content: SelectContentState | null = null;
+	content = signal<SelectContentState | null>(null);
 	autoUpdateDispose: (() => void) | null = null;
 	constructor(readonly opts: SelectProps<any>) {
 		this.open = signal(this.opts.open ?? false);
@@ -42,7 +49,15 @@ abstract class SelectState {
 	abstract value(): Signal<string | null> | Signal<string[]>;
 
 	registerContent(content: SelectContentState) {
-		this.content = content;
+		this.content.set(content);
+	}
+
+	get state() {
+		return this.open.bind((open) => (open ? "open" : "closed"));
+	}
+
+	get contentEl() {
+		return derived([this.content], (c) => (c === null ? null : c.opts.ref.get()));
 	}
 
 	abstract toggle(value: string): void;
@@ -57,7 +72,7 @@ abstract class SelectState {
 		this.open.set(true);
 
 		const triggerEl = this.trigger.get();
-		const content = this.content;
+		const content = this.content.get();
 		const contentEl = content?.opts.ref.get();
 		if (!triggerEl || !contentEl || !content) return;
 
@@ -80,17 +95,11 @@ abstract class SelectState {
 
 	private getActiveItems(): HTMLElement[] {
 		return Array.from(
-			this.content?.opts.ref.get()?.querySelectorAll("[data-select-item]:not([data-disabled])") ??
-				[],
+			this.content
+				.get()
+				?.opts.ref.get()
+				?.querySelectorAll("[data-select-item]:not([data-disabled])") ?? [],
 		);
-	}
-
-	onPointerdown(e: PointerEvent) {
-		if (!this.open.get()) return;
-
-		handleOutsideClick(e, [this.trigger.get()], this.content?.opts.ref.get(), {
-			onClose: () => this.close(),
-		});
 	}
 
 	onKeydown(e: KeyboardEvent) {
@@ -103,7 +112,27 @@ abstract class SelectState {
 				this.handleEnterKey(e);
 				break;
 			default:
+				this.handleTypeahead(e);
 				return;
+		}
+	}
+
+	handleTypeahead(e: KeyboardEvent) {
+		const items = this.getActiveItems();
+		let start = false;
+		for (const item of items) {
+			const label = item.getAttribute("data-label") ?? item.innerText;
+			if (item.getAttribute("data-highlighted") !== null) {
+				start = true;
+				continue;
+			}
+
+			if (!start) continue;
+
+			if (label.toLowerCase().startsWith(e.key.toLowerCase())) {
+				this.setActiveItem(item.getAttribute("data-value") ?? "");
+				break;
+			}
 		}
 	}
 
@@ -208,11 +237,21 @@ export function Select(props: SelectProps<"single" | "multiple">, ...children: C
 	const state =
 		props.type === "multiple" ? new SelectStateMultiple(props) : new SelectStateSingle(props);
 	return DismissableLayer(
-		{ open: state.open, onDismiss: () => state.close() },
+		{
+			open: state.open,
+			close: () => state.close(),
+			anchors: state.trigger.bind((t): (HTMLElement | null | undefined)[] => [t]),
+			content: state.contentEl,
+			escapeKeydownBehavior: state.content.bind((c) =>
+				c === null ? "close" : c.opts.escapeKeydownBehavior,
+			),
+			onEscape: state.content.bind((c) => (c === null ? noop : c.opts.onEscape)),
+			onInteractOutside: state.content.bind((c) => (c === null ? noop : c.opts.onInteractOutside)),
+			onInteractOutsideBehavior: state.content.bind((c) =>
+				c === null ? "close" : c.opts.onInteractOutsideBehavior,
+			),
+		},
 		SelectCtx.Provide(state).To(
-			Implement.Document({
-				onPointerdown: (e) => state.onPointerdown(e),
-			}),
 			Implement.Lifecycle(
 				{
 					onUnmount: () => state.dispose(),
@@ -232,6 +271,7 @@ export function SelectTrigger({ ...restProps }: SelectTriggerProps, ...children:
 				{
 					this: state.trigger,
 					type: "button",
+					"data-state": state.state,
 					onClick: () => state.toggleOpen(),
 					onKeydown: (e: KeyboardEvent) => state.onKeydown(e),
 					// onBlur: () => state.close()
@@ -270,23 +310,38 @@ export function SelectValue({ render }: SelectValueProps) {
 	});
 }
 
-export type SelectContentProps = ComponentProps<typeof Div> & {
-	align?: Align;
-	side?: Side;
-	offset?: number;
+type SelectContentOptions = {
+	side: Side;
+	align: Align;
+	offset: number;
+	onInteractOutside: (e: InteractOutsideEvent) => void;
+	onInteractOutsideBehavior: MaybeReadable<DismissBehavior>;
+	onEscape: (e: EscapeEvent) => void;
+	escapeKeydownBehavior: MaybeReadable<DismissBehavior>;
 };
+
+export type SelectContentProps = ComponentProps<typeof Div> & Partial<SelectContentOptions>;
 
 class SelectContentState {
 	constructor(
 		readonly rootState: SelectState,
-		readonly opts: { ref: Ref<HTMLDivElement>; side: Side; align: Align; offset: number },
+		readonly opts: SelectContentOptions & { ref: Ref<HTMLDivElement> },
 	) {
 		rootState.registerContent(this);
 	}
 }
 
 export function SelectContent(
-	{ side = "bottom", align = "start", offset = 0, ...restProps }: SelectContentProps,
+	{
+		side = "bottom",
+		align = "start",
+		offset = 0,
+		onInteractOutside = noop,
+		onInteractOutsideBehavior = "close",
+		onEscape = noop,
+		escapeKeydownBehavior = "close",
+		...restProps
+	}: SelectContentProps,
 	...children: Child[]
 ) {
 	return SelectCtx.Use((state) => {
@@ -296,6 +351,10 @@ export function SelectContent(
 			side,
 			align,
 			offset,
+			onInteractOutside,
+			onInteractOutsideBehavior,
+			onEscape,
+			escapeKeydownBehavior,
 		});
 		return Div(
 			mergeProps(
@@ -304,6 +363,7 @@ export function SelectContent(
 					"data-select-content": "",
 					role: "listbox",
 					tabIndex: -1,
+					"data-state": state.state,
 				},
 				restProps,
 			),
@@ -314,6 +374,7 @@ export function SelectContent(
 
 export type SelectItemsProps = ComponentProps<typeof Div> & {
 	value: string;
+	label?: string;
 	disabled?: Signal<boolean> | boolean;
 };
 
@@ -337,7 +398,7 @@ class SelectItemState {
 }
 
 export function SelectItem(
-	{ value, disabled, ...restProps }: SelectItemsProps,
+	{ value, label, disabled, ...restProps }: SelectItemsProps,
 	...children: Child[]
 ) {
 	return SelectCtx.Use((rootState) => {
@@ -350,6 +411,7 @@ export function SelectItem(
 					"aria-selected": state.selected,
 					"aria-disabled": state.disabled,
 					"data-value": value,
+					"data-label": label,
 					"data-selected": state.selected.bind((selected) => (selected ? "" : undefined)),
 					"data-disabled": state.disabled.bind((disabled) => (disabled ? "" : undefined)),
 					onClick: () => state.toggle(),

@@ -361,6 +361,7 @@ export const apiReference: Record<string, ApiPart[]> = {
 			name: "SelectTrigger",
 			element: "Button",
 			description: "Toggles the list open and closed.",
+			dataAttributes: [{ name: "data-state", value: '"open" | "closed"' }],
 		},
 		{
 			name: "SelectValue",
@@ -379,7 +380,7 @@ export const apiReference: Record<string, ApiPart[]> = {
 			name: "SelectContent",
 			element: "Div",
 			description:
-				'The list. Sets role="listbox". Style visibility yourself; the primitive does not hide it for you.',
+				'The list. Sets role="listbox". Style it against data-state and data-side; the primitive does not hide it for you.',
 			props: [
 				{
 					name: "side",
@@ -402,6 +403,7 @@ export const apiReference: Record<string, ApiPart[]> = {
 			],
 			dataAttributes: [
 				{ name: "data-select-content", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
 				{ name: "data-side", value: '"top" | "bottom" | "left" | "right"' },
 				{ name: "data-align", value: '"start" | "center" | "end"' },
 			],

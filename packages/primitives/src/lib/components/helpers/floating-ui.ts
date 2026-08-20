@@ -108,25 +108,3 @@ function toTransformOrigin(
 	if (side === "right") return `0px ${alignOrigin}`;
 	return `${floating.width}px ${alignOrigin}`;
 }
-
-export function handleOutsideClick(
-	e: PointerEvent,
-	anchors: (HTMLElement | null | undefined)[],
-	floating: HTMLElement | null | undefined,
-	opts: { onClose: () => void },
-) {
-	// only close on left clicks
-	const isRightClick = e.button === 2 || (e.button === 0 && e.ctrlKey);
-	if (isRightClick) return;
-
-	// we don't handle trigger clicks here
-	for (const anchor of anchors) {
-		if (anchor?.contains(e.target as Node)) return;
-	}
-
-	if (floating) {
-		if (floating.contains(e.target as Node)) return;
-	}
-
-	opts.onClose();
-}

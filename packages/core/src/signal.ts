@@ -27,6 +27,11 @@ function hasChanged<T>(prev: T, next: T): boolean {
 	if (isThenable(prev) || isThenable(next)) {
 		return true;
 	}
+	// readables compare by identity: two distinct signals may deep-equal now but
+	// diverge later, and a flattened bind must re-follow the new instance
+	if (isReadable(prev) || isReadable(next)) {
+		return true;
+	}
 	return !equal(prev, next);
 }
 
@@ -87,7 +92,12 @@ function bindOnChange<T>(
 	});
 }
 
-/** True when `T` should not be walked for dotted bind paths. */
+/**
+ * True when `T` should not be walked for dotted bind paths. Host objects
+ * (`EventTarget` covers elements, documents, windows; the CSS object model
+ * types are not event targets) are leaves because their types are circular —
+ * element → ownerDocument → defaultView → … never terminates.
+ */
 type PathLeaf<T> = T extends
 	| string
 	| number
@@ -101,16 +111,30 @@ type PathLeaf<T> = T extends
 	| Set<unknown>
 	| ((...args: never[]) => unknown)
 	| readonly unknown[]
+	| EventTarget
+	| CSSStyleDeclaration
+	| CSSRule
+	| StyleSheet
 	? true
 	: false;
 
-type PathsOf<T> = T extends object
-	? {
-			[K in keyof T & string]: PathLeaf<NonNullable<T[K]>> extends true
-				? K
-				: K | `${K}.${PathsOf<NonNullable<T[K]>>}`;
-		}[keyof T & string]
-	: never;
+/** `PrevDepth[N]` counts `PathsOf` recursion down toward `never`. */
+type PrevDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+/**
+ * Depth-bounded so self-referential types (linked lists, trees) terminate
+ * instead of overflowing the checker; paths deeper than the bound fall off
+ * the union.
+ */
+type PathsOf<T, Depth extends PrevDepth[number] = 9> = [Depth] extends [never]
+	? never
+	: T extends object
+		? {
+				[K in keyof T & string]: PathLeaf<NonNullable<T[K]>> extends true
+					? K
+					: K | `${K}.${PathsOf<NonNullable<T[K]>, PrevDepth[Depth]>}`;
+			}[keyof T & string]
+		: never;
 
 /** Dotted paths into a plain object, e.g. `"title"` or `"author.name"`. */
 export type BindableKeys<T> =
@@ -124,6 +148,21 @@ export type BindPathValue<T, P extends string> = P extends `${infer K}.${infer R
 	: P extends keyof NonNullable<T>
 		? NonNullable<T>[P]
 		: never;
+
+/**
+ * Value type of a one-way selector bind after unwrapping nested readables:
+ * `Readable<T>` becomes `T` (up to three levels deep — bounded so the checker
+ * terminates on self-referential types); plain values pass through.
+ * Distributes over unions, so `T | Readable<T>` also becomes `T`.
+ */
+export type Unwrapped<U> =
+	U extends ReadableSource<infer V>
+		? V extends ReadableSource<infer W>
+			? W extends ReadableSource<infer X>
+				? X
+				: W
+			: V
+		: U;
 
 export type BindUpdate<T, U> = (prev: T, next: U) => T | void;
 
@@ -140,11 +179,12 @@ export interface Readable<T> {
 	 */
 	bind<P extends BindableKeys<T>>(path: P): Readable<BindPathValue<T, P>>;
 	/**
-	 * One-way derived value.
+	 * One-way derived value. A selector result that is itself a readable is
+	 * followed and unwrapped, so selecting a nested signal surfaces its value.
 	 * @example
 	 * todo.bind((value) => value.title.toUpperCase())
 	 */
-	bind<U>(selector: (value: T) => U): Readable<U>;
+	bind<U>(selector: (value: T) => U): Readable<Unwrapped<U>>;
 }
 
 export interface Writable<T> extends Readable<T> {
@@ -163,11 +203,12 @@ export interface Writable<T> extends Readable<T> {
 	 */
 	bind<P extends BindableKeys<T>>(path: P): Signal<BindPathValue<T, P>>;
 	/**
-	 * One-way derived value.
+	 * One-way derived value. A selector result that is itself a readable is
+	 * followed and unwrapped, so selecting a nested signal surfaces its value.
 	 * @example
 	 * todo.bind((value) => value.title.toUpperCase())
 	 */
-	bind<U>(selector: (value: T) => U): Readable<U>;
+	bind<U>(selector: (value: T) => U): Readable<Unwrapped<U>>;
 	/**
 	 * Two-way derived value. `update` writes `next` back into `prev`.
 	 * Return a new parent, or mutate `prev` in place and return nothing.
@@ -292,7 +333,7 @@ export class Signal<T> implements Writable<T> {
 	}
 
 	bind<P extends BindableKeys<T>>(path: P): Signal<BindPathValue<T, P>>;
-	bind<U>(selector: (value: T) => U): Readable<U>;
+	bind<U>(selector: (value: T) => U): Readable<Unwrapped<U>>;
 	bind<U>(selector: (value: T) => U, update: BindUpdate<T, U>): Signal<U>;
 	bind(
 		keyOrSelector: PropertyKey | ((value: T) => unknown),
@@ -419,9 +460,11 @@ export class ReactiveSet<T> extends Set<T> implements Readable<ReadonlySet<T>> {
 	}
 
 	bind<P extends BindableKeys<ReadonlySet<T>>>(path: P): Readable<BindPathValue<ReadonlySet<T>, P>>;
-	bind<U>(selector: (value: ReadonlySet<T>) => U): Readable<U>;
+	bind<U>(selector: (value: ReadonlySet<T>) => U): Readable<Unwrapped<U>>;
 	bind(keyOrSelector: PropertyKey | ((value: ReadonlySet<T>) => unknown)): Readable<unknown> {
-		if (typeof keyOrSelector === "function") return new Derived([this], keyOrSelector);
+		if (typeof keyOrSelector === "function") {
+			return new Flattened(new Derived([this], keyOrSelector));
+		}
 		const path = String(keyOrSelector);
 		return new Derived([this], (value) => getAtPath(value, path));
 	}
@@ -507,11 +550,13 @@ export class ReactiveMap<K, V> extends Map<K, V> implements Readable<ReadonlyMap
 	bind<P extends BindableKeys<ReadonlyMap<K, V>>>(
 		path: P,
 	): Readable<BindPathValue<ReadonlyMap<K, V>, P>>;
-	bind<U>(selector: (value: ReadonlyMap<K, V>) => U): Readable<U>;
+	bind<U>(selector: (value: ReadonlyMap<K, V>) => U): Readable<Unwrapped<U>>;
 	bind(keyOrSelector: PropertyKey | ((value: ReadonlyMap<K, V>) => unknown)): Readable<unknown> {
 		// never route through createBinding: `set(key, value)` duck-types as
 		// Writable but is not `Writable.set`
-		if (typeof keyOrSelector === "function") return new Derived([this], keyOrSelector);
+		if (typeof keyOrSelector === "function") {
+			return new Flattened(new Derived([this], keyOrSelector));
+		}
 		const path = String(keyOrSelector);
 		return new Derived([this], (value) => getAtPath(value, path));
 	}
@@ -581,7 +626,7 @@ abstract class LazyReadable<T> implements Readable<T> {
 	}
 
 	bind<P extends BindableKeys<T>>(path: P): Readable<BindPathValue<T, P>>;
-	bind<U>(selector: (value: T) => U): Readable<U>;
+	bind<U>(selector: (value: T) => U): Readable<Unwrapped<U>>;
 	bind(keyOrSelector: PropertyKey | ((value: T) => unknown)): Readable<unknown> {
 		return createBinding(this, keyOrSelector) as Readable<unknown>;
 	}
@@ -611,6 +656,54 @@ export class Derived<T, Signals extends readonly Readable<any>[]> extends LazyRe
 
 	protected watch(onValue: (value: T) => void): Unsubscribe {
 		return subscribe(this.signals, (...values) => onValue(this.getter(...values)));
+	}
+}
+
+/**
+ * Readable view of `source` with nested readables unwrapped: when the source's
+ * value is itself a readable, this follows it (recursively) and surfaces the
+ * innermost plain value. Selector binds route through this so
+ * `content.bind((c) => c.opts.behavior)` works when `behavior` is a signal.
+ */
+class Flattened<U> extends LazyReadable<Unwrapped<U>> {
+	constructor(private readonly source: ReadableSource<U>) {
+		super();
+		this.value = this.read();
+	}
+
+	protected read(): Unwrapped<U> {
+		let value: unknown = this.source.get();
+		while (isReadable(value)) value = value.get();
+		return value as Unwrapped<U>;
+	}
+
+	protected watch(onValue: (value: Unwrapped<U>) => void): Unsubscribe {
+		// one unsubscriber per nested readable; index 0 is the source's own value
+		const inner: Unsubscribe[] = [];
+
+		const clearFrom = (depth: number) => {
+			while (inner.length > depth) inner.pop()!();
+		};
+
+		// `value` was emitted by the readable at `depth - 1` (or the source when
+		// depth is 0), so every subscription at or below `depth` is stale
+		const follow = (value: unknown, depth: number) => {
+			clearFrom(depth);
+			while (isReadable(value)) {
+				const readable = value;
+				const nextDepth = inner.length + 1;
+				inner.push(readable.subscribe((next) => follow(next, nextDepth)));
+				value = readable.get();
+			}
+			onValue(value as Unwrapped<U>);
+		};
+
+		const unsubscribe = this.source.subscribe((value) => follow(value, 0));
+		follow(this.source.get(), 0);
+		return () => {
+			unsubscribe();
+			clearFrom(0);
+		};
 	}
 }
 
@@ -756,7 +849,7 @@ function createBinding<T>(
 			}
 			return new BoundSelector(source, keyOrSelector, update);
 		}
-		return new Derived([source], keyOrSelector);
+		return new Flattened(new Derived([source], keyOrSelector));
 	}
 	const path = String(keyOrSelector);
 	if (isWritable<T>(source)) {

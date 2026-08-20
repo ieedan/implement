@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Signal, signal, type Writable } from "../src/signal";
+import { Signal, signal, type Readable, type Writable } from "../src/signal";
 
 describe("writable bind", () => {
 	it("returns a Signal whose helpers write through a path", () => {
@@ -46,6 +46,83 @@ describe("writable bind", () => {
 		const done = todo.bind((t) => t.done);
 		expect(done).not.toBeInstanceOf(Signal);
 		expect("set" in done).toBe(false);
+	});
+});
+
+describe("selector bind unwrapping", () => {
+	it("unwraps a nested readable returned by the selector", () => {
+		const behavior = signal<"close" | "ignore">("close");
+		const content = signal<{ behavior: Readable<"close" | "ignore"> } | null>({ behavior });
+
+		const bound: Readable<"close" | "ignore"> = content.bind((c) =>
+			c === null ? "ignore" : c.behavior,
+		);
+		expect(bound.get()).toBe("close");
+	});
+
+	it("propagates changes from the inner readable to subscribers", () => {
+		const behavior = signal<"close" | "ignore">("close");
+		const content = signal<{ behavior: Readable<"close" | "ignore"> } | null>({ behavior });
+		const bound = content.bind((c) => (c === null ? "ignore" : c.behavior));
+
+		const seen: string[] = [];
+		const unsubscribe = bound.subscribe((value) => seen.push(value));
+
+		behavior.set("ignore");
+		expect(seen).toEqual(["ignore"]);
+		expect(bound.get()).toBe("ignore");
+
+		content.set(null);
+		expect(bound.get()).toBe("ignore");
+		behavior.set("close");
+		// detached from the old inner readable once the selector returned a plain value
+		expect(bound.get()).toBe("ignore");
+
+		unsubscribe();
+	});
+
+	it("re-follows a swapped inner readable", () => {
+		const first = signal(1);
+		const second = signal(10);
+		const source = signal<{ inner: Signal<number> }>({ inner: first });
+		const bound = source.bind((s) => s.inner);
+
+		const seen: number[] = [];
+		const unsubscribe = bound.subscribe((value) => seen.push(value));
+
+		source.set({ inner: second });
+		expect(seen).toEqual([10]);
+
+		first.set(2); // stale inner must not leak through
+		second.set(20);
+		expect(seen).toEqual([10, 20]);
+
+		unsubscribe();
+	});
+
+	it("unwraps readables nested more than one level deep", () => {
+		const innermost = signal("a");
+		// signal() would return an existing writable as-is, so nest explicitly
+		const middle = new Signal<Signal<string>>(innermost);
+		const source = signal<{ value: Signal<Signal<string>> }>({ value: middle });
+		const bound: Readable<string> = source.bind((s) => s.value);
+
+		expect(bound.get()).toBe("a");
+
+		const seen: string[] = [];
+		const unsubscribe = bound.subscribe((value) => seen.push(value));
+		innermost.set("b");
+		expect(seen).toEqual(["b"]);
+
+		unsubscribe();
+	});
+
+	it("leaves plain selector results untouched", () => {
+		const count = signal(1);
+		const doubled = count.bind((n) => n * 2);
+		expect(doubled.get()).toBe(2);
+		count.set(3);
+		expect(doubled.get()).toBe(6);
 	});
 });
 
