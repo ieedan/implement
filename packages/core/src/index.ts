@@ -73,6 +73,7 @@ export {
 	searchParam,
 	type LinkProps,
 	type NavigateOptions,
+	type RouterError,
 	type RouterHelper,
 	type RouterLocation,
 	type RouterOptions,

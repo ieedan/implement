@@ -7,3 +7,7 @@ Just some experimentation.
 - project scaffolding
     - kit
     - vite
+
+- kit
+    - server functions
+    - environment variables

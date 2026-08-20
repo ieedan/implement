@@ -32,6 +32,13 @@ const groups: PackageGroup[] = [
 				docs: { label: "Read the docs", to: "/docs" },
 				sourceDir: "core",
 			},
+			{
+				name: "@implementjs/kit",
+				description:
+					"File-based routing, SSR, and prerendering on top of Vite. Write pages and layouts as files; kit wires up the router with typed params.",
+				docs: { label: "Read the docs", to: "/kit" },
+				sourceDir: "kit",
+			},
 		],
 	},
 	{

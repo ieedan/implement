@@ -44,6 +44,42 @@ export default function Page({ params, url }) {
 }
 ```
 
+## Route Groups & Layout Resets
+
+(Just like in SvelteKit.)
+
+A `(group)` directory scopes a layout without contributing a URL segment, so
+sibling trees can share a layout the URL never shows:
+
+```
+src/routes
+    /(authed)
+        layout.ts            wraps everything in the group
+        /dashboard
+            index.ts         -> /dashboard
+    /(marketing)
+        layout.ts
+        /about
+            index.ts         -> /about
+    index.ts                 -> /
+```
+
+Two pages may not resolve to the same path through different groups — the scan
+rejects that.
+
+`@` in a page or layout filename resets which layouts it inherits. The name
+after `@` is the ancestor directory segment whose layout chain to keep; `@`
+alone resets to the root layout:
+
+```
+index@.ts            page rendered with only the root layout
+index@(authed).ts    page keeps layouts up to and including (authed)
+layout@.ts           this layout inherits only the root layout
+layout@(authed).ts   this layout inherits up to and including (authed)
+```
+
+Resets never change the URL — only which layouts wrap the page.
+
 ## Server Files (Phase 2)
 
 ⚠️ This is a WIP DO NOT IMPLEMENT

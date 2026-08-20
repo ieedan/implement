@@ -51,4 +51,18 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 	it("renders the error page for unmatched paths", () => {
 		expect(render("/nope/nope").html).toContain("<p>not found</p>");
 	});
+
+	it("renders (group) routes without the group in the path", () => {
+		const { html } = render("/dashboard");
+		expect(html).toContain('<main class="shell">');
+		expect(html).toContain('<div class="authed">');
+		expect(html).toContain("<p>dashboard</p>");
+	});
+
+	it("skips intermediate layouts for an index@ reset page", () => {
+		const { html } = render("/dashboard/print");
+		expect(html).toContain('<main class="shell">');
+		expect(html).toContain("<p>print view</p>");
+		expect(html).not.toContain('class="authed"');
+	});
 });

@@ -8,7 +8,7 @@ import {
 } from "@implementjs/vite";
 import type { Plugin } from "vite";
 import { generateRouterModule, staticRoutePaths } from "./codegen.ts";
-import { ERROR_FILE, LAYOUT_FILE, PAGE_FILE, scanRoutes, type RouteTree } from "./scan.ts";
+import { isRouteFileName, scanRoutes, type RouteTree } from "./scan.ts";
 import { IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
 export type { PageRoute } from "./codegen.ts";
@@ -31,8 +31,6 @@ export type KitPrerenderOptions = {
 export type KitOptions = {
 	/** Routes directory relative to the Vite root. @default "src/routes" */
 	routes?: string;
-	/** Stylesheets linked into dev pages so SSR markup paints styled. See `@implementjs/vite`. */
-	stylesheets?: string[];
 	/** Prerender the built site. @default true */
 	prerender?: boolean | KitPrerenderOptions;
 };
@@ -40,7 +38,10 @@ export type KitOptions = {
 /**
  * File-based routing for implement apps. Scans `src/routes` — `index.ts` is a
  * page, `layout.ts` wraps everything beneath it, `[param]` and `[...rest]`
- * directories bind params, and a root `error.ts` renders unmatched paths —
+ * directories bind params, `(group)` directories scope a layout without
+ * adding a URL segment, `index@<segment>.ts` / `layout@<segment>.ts` reset
+ * the layout chain to an ancestor segment (`index@.ts` resets to the root),
+ * and a root `error.ts` renders unmatched paths and render errors —
  * and serves the app through `@implementjs/vite`'s SSR dev server and
  * prerenderer. The router itself is exposed as the `$implement/router`
  * virtual module; generated entries, `./$types` declarations, and the
@@ -107,8 +108,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		},
 		configureServer(server) {
 			const isRouteFile = (file: string) =>
-				file.startsWith(routesDir + sep) &&
-				[PAGE_FILE, LAYOUT_FILE, ERROR_FILE].includes(basename(file));
+				file.startsWith(routesDir + sep) && isRouteFileName(basename(file));
 			const regenerate = () => {
 				try {
 					writeGenerated(root, scan(), { routes });
@@ -138,7 +138,6 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		kitPlugin,
 		implement({
 			entry: `/${IMPLEMENT_DIR}/entry-server.ts`,
-			stylesheets: options.stylesheets,
 			prerender: options.prerender === false ? false : prerenderConfig,
 		}),
 	];

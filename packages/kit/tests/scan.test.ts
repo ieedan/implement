@@ -23,10 +23,11 @@ afterEach(() => {
 });
 
 describe("parseSegment", () => {
-	it("classifies static, param, and rest directories", () => {
+	it("classifies static, param, rest, and group directories", () => {
 		expect(parseSegment("docs")).toEqual({ kind: "static", value: "docs" });
 		expect(parseSegment("[id]")).toEqual({ kind: "param", name: "id" });
 		expect(parseSegment("[...slug]")).toEqual({ kind: "rest", name: "slug" });
+		expect(parseSegment("(authed)")).toEqual({ kind: "group", name: "authed" });
 	});
 
 	it("rejects malformed names", () => {
@@ -35,6 +36,9 @@ describe("parseSegment", () => {
 		expect(() => parseSegment("[id")).toThrow(/Invalid route directory/);
 		expect(() => parseSegment("id]")).toThrow(/Invalid route directory/);
 		expect(() => parseSegment("a:b")).toThrow(/reserved/);
+		expect(() => parseSegment("()")).toThrow(/Invalid route directory/);
+		expect(() => parseSegment("(authed")).toThrow(/Invalid route directory/);
+		expect(() => parseSegment("(au@thed)")).toThrow(/Invalid route directory/);
 	});
 });
 
@@ -87,5 +91,76 @@ describe("scanRoutes", () => {
 
 	it("rejects error.ts outside the routes root", () => {
 		expect(() => scanRoutes(makeRoutes(["docs/error.ts"]))).toThrow(/routes root/);
+	});
+
+	it("excludes (group) directories from URL patterns", () => {
+		const tree = scanRoutes(
+			makeRoutes([
+				"(marketing)/index.ts",
+				"(marketing)/about/index.ts",
+				"(authed)/layout.ts",
+				"(authed)/dashboard/index.ts",
+				"(authed)/dashboard/[id]/index.ts",
+			]),
+		);
+		expect(pageRoutes(tree)).toEqual([
+			{ pattern: "/dashboard", params: [] },
+			{ pattern: "/dashboard/:id", params: ["id"] },
+			{ pattern: "/", params: [] },
+			{ pattern: "/about", params: [] },
+		]);
+		expect(staticRoutePaths(tree)).toEqual(["/dashboard", "/", "/about"]);
+	});
+
+	it("rejects pages that collide through groups", () => {
+		expect(() => scanRoutes(makeRoutes(["(a)/about/index.ts", "about/index.ts"]))).toThrow(
+			/both resolve to "\/about"/,
+		);
+		expect(() => scanRoutes(makeRoutes(["(a)/index.ts", "(b)/index.ts"]))).toThrow(
+			/both resolve to "\/"/,
+		);
+	});
+
+	it("records @ layout resets on pages and layouts", () => {
+		const tree = scanRoutes(
+			makeRoutes([
+				"layout.ts",
+				"(authed)/layout.ts",
+				"(authed)/dashboard/index@.ts",
+				"(authed)/settings/index@(authed).ts",
+				"(authed)/admin/layout@.ts",
+				"(authed)/admin/index.ts",
+			]),
+		);
+		const authed = tree.root.children[0]!;
+		const [admin, dashboard, settings] = authed.children;
+		expect(dashboard!.page).toBe("(authed)/dashboard/index@.ts");
+		expect(dashboard!.pageResetTo).toBe("");
+		expect(settings!.pageResetTo).toBe("(authed)");
+		expect(admin!.layout).toBe("(authed)/admin/layout@.ts");
+		expect(admin!.layoutResetTo).toBe("");
+		// resets do not change URL patterns
+		expect(staticRoutePaths(tree)).toEqual(["/admin", "/dashboard", "/settings"]);
+	});
+
+	it("rejects a reset targeting a segment that is not an ancestor", () => {
+		expect(() => scanRoutes(makeRoutes(["docs/index@(missing).ts"]))).toThrow(
+			/no ancestor segment "\(missing\)"/,
+		);
+		// a layout cannot target its own directory
+		expect(() => scanRoutes(makeRoutes(["(a)/layout@(a).ts"]))).toThrow(/no ancestor segment/);
+	});
+
+	it("rejects a root layout reset", () => {
+		expect(() => scanRoutes(makeRoutes(["layout@.ts"]))).toThrow(/nothing to reset/);
+	});
+
+	it("rejects conflicting page or layout declarations in one directory", () => {
+		expect(() => scanRoutes(makeRoutes(["docs/index.ts", "docs/index@.ts"]))).toThrow(
+			/declares one page/,
+		);
+		expect(() => scanRoutes(makeRoutes(["docs/layout.ts", "docs/layout@.ts"]))).toThrow(
+			/declares one layout/,
+		);
 	});
 });

@@ -14,6 +14,18 @@
 			"port": 3999
 		},
 		{
+			"name": "docs-dev-3998",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["--filter", "@apps/docs", "exec", "vite", "--port", "3998"],
+			"port": 3998
+		},
+		{
+			"name": "docs-dev-3997",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["--filter", "@apps/docs", "exec", "vite", "--port", "3997"],
+			"port": 3997
+		},
+		{
 			"name": "docs-preview",
 			"runtimeExecutable": "pnpm",
 			"runtimeArgs": ["--filter", "@apps/docs", "preview"],

@@ -3,9 +3,11 @@ import { isAbsolute, join } from "node:path";
 import { createServer, type Plugin, type ResolvedConfig, type ViteDevServer } from "vite";
 import { injectSsr } from "./inject.ts";
 import { crawlRoutes, prerenderRoutes, type RenderFn } from "./prerender.ts";
+import { collectDevStyles } from "./styles.ts";
 
 export { injectSsr, type SsrResult } from "./inject.ts";
 export { crawlRoutes, normalizeRoute, prerenderRoutes, type RenderFn } from "./prerender.ts";
+export { collectDevStyles, devStyleTags, type DevStyle } from "./styles.ts";
 
 export type PrerenderOptions = {
 	/**
@@ -25,12 +27,6 @@ export type ImplementOptions = {
 	entry?: string;
 	/** Prerender the built site into the output directory. @default true */
 	prerender?: boolean | PrerenderOptions;
-	/**
-	 * Stylesheet URLs linked into dev pages so server-rendered markup paints
-	 * styled — dev CSS otherwise arrives through JS modules, after first
-	 * paint. Builds don't need this: the extracted CSS link already blocks.
-	 */
-	stylesheets?: string[];
 };
 
 /**
@@ -67,7 +63,11 @@ export function implement(options: ImplementOptions = {}): Plugin {
 				if (!server) return html;
 				try {
 					const { render } = (await server.ssrLoadModule(entry)) as { render: RenderFn };
-					return injectSsr(html, render(ctx.originalUrl ?? "/"), options.stylesheets);
+					const result = render(ctx.originalUrl ?? "/");
+					// inline the graph's CSS so SSR markup paints styled — dev CSS
+					// otherwise arrives through JS modules, after first paint.
+					// Builds don't need this: the extracted CSS link already blocks.
+					return injectSsr(html, result, await collectDevStyles(server, entry));
 				} catch (error) {
 					server.config.logger.error(
 						`ssr render failed for ${ctx.originalUrl}: ${error instanceof Error ? error.message : String(error)}`,

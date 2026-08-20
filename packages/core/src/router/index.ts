@@ -63,14 +63,19 @@ type Routes<T, Params extends object = {}> = {
 		? LayoutHandler<Params>
 		: K extends "/"
 			? RouteHandler<Params>
-			: K extends `/${string}` | `:${string}`
+			: K extends `/${string}` | `:${string}` | `(${string})`
 				? T[K] extends (...args: never) => unknown
 					? RouteHandler<Prettify<Params & PathParams<K & string>>>
 					: Routes<T[K], Prettify<Params & PathParams<K & string>>>
 				: never;
 };
 
-type NormalizeKey<K extends string> = K extends `/${string}` ? K : `/${K}`;
+/** `(group)` keys nest layouts without contributing a path segment. */
+type NormalizeKey<K extends string> = K extends `(${string})`
+	? ""
+	: K extends `/${string}`
+		? K
+		: `/${K}`;
 
 /** Union of every full path in the tree that has a render (`"/"` or bare handler). */
 type RoutePaths<T, Prefix extends string = ""> = {
@@ -105,9 +110,18 @@ export type LinkProps<P extends string> = Omit<ElementProps<"a">, "href"> & {
 	replace?: boolean;
 } & ([PathParamNames<P>] extends [never] ? { params?: undefined } : { params: LinkParams<P> });
 
+export type RouterError = {
+	/** HTTP-style status — `404` for unmatched paths, `500` for render errors. */
+	code: number;
+	message: string;
+};
+
 export type RouterOptions = {
-	/** Rendered when no route matches the current path. */
-	fallback?: () => Child;
+	/**
+	 * Rendered when no route matches the current path (`code` 404) or a route
+	 * render throws (`code` 500, or the thrown `{ code, message }` as-is).
+	 */
+	fallback?: (error: RouterError) => Child;
 };
 
 export type RouterHelper<T> = Mountable & {
@@ -147,14 +161,18 @@ type LeafRoute = {
 
 function parseKey(key: string): Segment[] {
 	const raw = key.startsWith("/") ? key : `/${key}`;
-	return raw
-		.split("/")
-		.filter(Boolean)
-		.map((part) => {
-			if (part.startsWith(":...")) return { param: true, rest: true, name: part.slice(4) };
-			if (part.startsWith(":")) return { param: true, rest: false, name: part.slice(1) };
-			return { param: false, value: part };
-		});
+	return (
+		raw
+			.split("/")
+			.filter(Boolean)
+			// `(group)` segments scope layouts without matching any part of the path
+			.filter((part) => !(part.startsWith("(") && part.endsWith(")")))
+			.map((part) => {
+				if (part.startsWith(":...")) return { param: true, rest: true, name: part.slice(4) };
+				if (part.startsWith(":")) return { param: true, rest: false, name: part.slice(1) };
+				return { param: false, value: part };
+			})
+	);
 }
 
 function compileNode(
@@ -316,6 +334,23 @@ class Outlet {
 
 const FALLBACK = Symbol("router.fallback");
 
+const NOT_FOUND: RouterError = { code: 404, message: "Not Found" };
+
+/** A thrown `{ code, message }` passes through; anything else is a 500. */
+function toRouterError(thrown: unknown): RouterError {
+	if (
+		typeof thrown === "object" &&
+		thrown !== null &&
+		"code" in thrown &&
+		typeof thrown.code === "number" &&
+		"message" in thrown &&
+		typeof thrown.message === "string"
+	) {
+		return { code: thrown.code, message: thrown.message };
+	}
+	return { code: 500, message: thrown instanceof Error ? thrown.message : String(thrown) };
+}
+
 /**
  * Defers to the active location signal per call. `Router(...)` commonly runs at
  * module scope, which must not touch `window` (server) or eagerly create the
@@ -337,7 +372,9 @@ const lazyLocation: Readable<RouterLocation> = {
  * A trailing `:...rest` segment catches one or more remaining segments,
  * surfacing them joined with `/` (`/docs/:...slug` matches `/docs/a/b` with
  * `slug` = `"a/b"`); static segments outrank `:param`s, which outrank
- * catch-alls.
+ * catch-alls. A `"(group)"` key nests a subtree (and its `layout`) without
+ * contributing a path segment, so siblings can share a layout that the URL
+ * never shows.
  *
  * The router is a `Mountable` — `app.render(router)` works, and so does
  * mounting one deep inside a layout. Navigating between children of a shared
@@ -395,17 +432,28 @@ export function Router<T extends Routes<T>>(
 			return route.render(params);
 		};
 
-		const showFallback = () => {
-			if (chain.length === 1 && chain[0] === FALLBACK) return;
+		let shownError: RouterError | null = null;
+
+		const showFallback = (error: RouterError) => {
+			if (
+				chain.length === 1 &&
+				chain[0] === FALLBACK &&
+				shownError !== null &&
+				shownError.code === error.code &&
+				shownError.message === error.message
+			) {
+				return;
+			}
 			chain = [FALLBACK];
+			shownError = error;
 			outlets.length = 1;
-			root.set(options.fallback ? options.fallback() : null);
+			root.set(options.fallback ? options.fallback(error) : null);
 		};
 
 		const onLocation = ({ path }: RouterLocation) => {
 			const match = matchRoute(compiled, path);
 			if (!match) {
-				showFallback();
+				showFallback(NOT_FOUND);
 				return;
 			}
 
@@ -433,8 +481,14 @@ export function Router<T extends Routes<T>>(
 			if (diverged === chain.length && diverged === next.length) return;
 
 			chain = next;
-			outlets[diverged]!.set(build(match.route, diverged));
-			outlets.length = next.length;
+			shownError = null;
+			try {
+				outlets[diverged]!.set(build(match.route, diverged));
+				outlets.length = next.length;
+			} catch (thrown) {
+				console.error(thrown);
+				showFallback(toRouterError(thrown));
+			}
 		};
 
 		return {

@@ -24,9 +24,20 @@ describe("injectSsr", () => {
 		expect(page).toContain('<meta name="description" content="d" />');
 	});
 
-	it("links dev stylesheets into the head", () => {
-		const page = injectSsr(shell, { html: "", head: "" }, ["/app.css"]);
-		expect(page).toContain('<link rel="stylesheet" href="/app.css" />');
+	it("inlines dev styles into the head, tagged for Vite's client to adopt", () => {
+		const page = injectSsr(shell, { html: "", head: "" }, [
+			{ id: "/src/app.css", content: "body { color: red }" },
+		]);
+		expect(page).toContain(
+			'<style type="text/css" data-vite-dev-id="/src/app.css">body { color: red }</style>',
+		);
+	});
+
+	it("escapes style content that would close the tag early", () => {
+		const page = injectSsr(shell, { html: "", head: "" }, [
+			{ id: "/a.css", content: 'q::before { content: "</style>" }' },
+		]);
+		expect(page).toContain('content: "<\\/style>"');
 	});
 });
 

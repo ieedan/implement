@@ -29,7 +29,9 @@ describe("generateRouteTypes", () => {
 			segment: { kind: "rest", name: "slug" },
 			params: ["slug"],
 			page: "docs/[...slug]/index.ts",
+			pageResetTo: null,
 			layout: null,
+			layoutResetTo: null,
 			children: [],
 		});
 		expect(types).toContain('export type RouteParams = { "slug": Readable<string> };');

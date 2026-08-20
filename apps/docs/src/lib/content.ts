@@ -1,8 +1,10 @@
 import {
+	kit as kitPages,
 	lucide as lucidePages,
 	pages,
 	primitives as primitivePages,
 	tutorials as generated,
+	type KitPage,
 	type LucidePage,
 	type Page,
 	type PrimitivePage,
@@ -10,7 +12,16 @@ import {
 } from "../../.velite";
 import { stripLessonSource } from "./lesson-source";
 
-export { lucidePages, pages, primitivePages, type LucidePage, type Page, type PrimitivePage };
+export {
+	kitPages,
+	lucidePages,
+	pages,
+	primitivePages,
+	type KitPage,
+	type LucidePage,
+	type Page,
+	type PrimitivePage,
+};
 
 const codeFiles = import.meta.glob<string>("../content/lessons/**/code.ts", {
 	query: "?raw",

@@ -42,12 +42,12 @@ function paramsType(params: string[]): string {
 
 /** The \`./$types\` module for one route directory. */
 export function generateRouteTypes(node: RouteNode): string {
-	return `import type { Mountable, Readable, RouterLocation } from "@implementjs/core";
+	return `import type { Mountable, Readable, RouterError, RouterLocation } from "@implementjs/core";
 
 export type RouteParams = ${paramsType(node.params)};
 export type PageProps = { params: RouteParams; url: Readable<RouterLocation> };
 export type LayoutProps = { children: Mountable; params: RouteParams; url: Readable<RouterLocation> };
-export type ErrorProps = { url: Readable<RouterLocation> };
+export type ErrorProps = { error: RouterError; url: Readable<RouterLocation> };
 `;
 }
 

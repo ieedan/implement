@@ -19,6 +19,7 @@ function entries(): string[] {
 		...collect("pages.json"),
 		...collect("primitives.json"),
 		...collect("lucide.json"),
+		...collect("kit.json"),
 		...collect("tutorials.json"),
 	];
 }
@@ -26,7 +27,7 @@ function entries(): string[] {
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
-		kit({ stylesheets: ["/app.css"], prerender: { entries } }),
+		kit({ prerender: { entries } }),
 		{
 			name: "reload-velite",
 			configureServer(server) {
