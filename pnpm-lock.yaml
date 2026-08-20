@@ -215,13 +215,13 @@ importers:
 
   packages/kit:
     dependencies:
+      '@implementjs/core':
+        specifier: workspace:*
+        version: link:../core
       '@implementjs/vite':
         specifier: workspace:*
         version: link:../vite
     devDependencies:
-      '@implementjs/core':
-        specifier: workspace:*
-        version: link:../core
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0

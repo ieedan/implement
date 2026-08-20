@@ -1,12 +1,15 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
-import { pageRoutes, type PageRoute } from "./codegen.ts";
+import { dataChains, pageRoutes, type DataChain, type PageRoute } from "./codegen.ts";
 import { type RouteNode, type RouteTree } from "./scan.ts";
 
 export const IMPLEMENT_DIR = ".implement";
 
 const ENTRY_CLIENT = `import { App } from "@implementjs/core";
+import { initClientData } from "@implementjs/kit/runtime";
 import { router } from "$implement/router";
+
+initClientData();
 
 const app = App({ target: document.body });
 
@@ -19,10 +22,17 @@ app.render(router);
 `;
 
 const ENTRY_SERVER = `import { renderToString, type RenderToStringResult } from "@implementjs/core/server";
+import { resolveLoads, seedData, type RouteData } from "@implementjs/kit/runtime";
+import { loads } from "$implement/loads";
 import { router } from "$implement/router";
 
-export function render(url: string): RenderToStringResult {
-	return renderToString(router, { location: url });
+export type RenderResult = RenderToStringResult & { data?: RouteData };
+
+export async function render(url: string): Promise<RenderResult> {
+	const data = await resolveLoads(loads, url);
+	if (data !== null) seedData(data);
+	const result = renderToString(router, { location: url });
+	return data === null ? result : { ...result, data };
 }
 `;
 
@@ -56,18 +66,62 @@ function paramsType(params: string[]): string {
 	return `{ ${params.map((name) => `${JSON.stringify(name)}: Readable<string>`).join("; ")} }`;
 }
 
-/** The \`./$types\` module for one route directory. */
-export function generateRouteTypes(node: RouteNode): string {
-	return `import type { Mountable, Readable, RouterError, RouterLocation } from "@implementjs/core";
+function serverParamsType(params: string[]): string {
+	if (params.length === 0) return "{}";
+	return `{ ${params.map((name) => `${JSON.stringify(name)}: string`).join("; ")} }`;
+}
 
+/** The relative specifier resolving a routes-relative file from a route directory's \`$types\`. */
+function relativeImport(dir: string, file: string): string {
+	const up = dir === "" ? 0 : dir.split("/").length;
+	return up === 0 ? `./${file}` : `${"../".repeat(up)}${file}`;
+}
+
+/** \`Merge<Merge<{}, LoadData<...>>, LoadData<...>>\` over a route's server files. */
+function dataType(dir: string, files: string[]): string {
+	let expr = "{}";
+	for (const file of files) {
+		const specifier = JSON.stringify(relativeImport(dir, file));
+		expr = `Merge<${expr}, LoadData<typeof import(${specifier}).default>>`;
+	}
+	return expr;
+}
+
+/** The \`./$types\` module for one route directory. */
+export function generateRouteTypes(node: RouteNode, chain: DataChain): string {
+	const helpers =
+		chain.layoutFiles.length === 0 && chain.pageFiles.length === 0
+			? ""
+			: `
+type Merge<A, B> = Omit<A, keyof B> & B;
+type LoadData<T> = T extends (...args: never) => infer R
+	? Awaited<R> extends object
+		? Awaited<R>
+		: {}
+	: {};
+`;
+	return `import type { Mountable, Readable, RouterError, RouterLocation } from "@implementjs/core";
+${helpers}
 export type RouteParams = ${paramsType(node.params)};
-export type PageProps = { params: RouteParams; url: Readable<RouterLocation> };
-export type LayoutProps = { children: Mountable; params: RouteParams; url: Readable<RouterLocation> };
+export type ServerParams = ${serverParamsType(node.params)};
+export type LoadEvent = { params: ServerParams; url: URL };
+export type RequestEvent = { request: Request; params: ServerParams; url: URL };
+export type LayoutData = ${dataType(node.dir, chain.layoutFiles)};
+export type PageData = ${dataType(node.dir, chain.pageFiles)};
+export type PageProps = { params: RouteParams; url: Readable<RouterLocation>; data: Readable<PageData> };
+export type LayoutProps = { children: Mountable; params: RouteParams; url: Readable<RouterLocation>; data: Readable<LayoutData> };
 export type ErrorProps = { error: RouterError; url: Readable<RouterLocation> };
 `;
 }
 
-/** The ambient declaration typing the \`$implement/router\` virtual module. */
+/** The \`./$types\` module for a \`.<ext>\` extension-endpoint directory. */
+export function generateExtensionTypes(node: RouteNode): string {
+	return `export type ServerParams = ${serverParamsType(node.params)};
+export type RequestEvent = { request: Request; params: ServerParams; url: URL };
+`;
+}
+
+/** The ambient declarations typing the \`$implement/*\` virtual modules. */
 export function generateRouterDeclaration(routes: PageRoute[]): string {
 	const entries = routes
 		.map(
@@ -81,6 +135,18 @@ export function generateRouterDeclaration(routes: PageRoute[]): string {
 	export const router: RouterHelper<{
 ${entries}
 	}>;
+}
+
+declare module "$implement/loads" {
+	import type { LoadRoute } from "@implementjs/kit/runtime";
+
+	export const loads: LoadRoute[];
+}
+
+declare module "$implement/endpoints" {
+	import type { EndpointRoute } from "@implementjs/kit/runtime";
+
+	export const endpoints: EndpointRoute[];
 }
 `;
 }
@@ -113,23 +179,40 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	);
 	writeIfChanged(join(typesDir, "$implement.d.ts"), generateRouterDeclaration(pageRoutes(tree)));
 
+	const chains = dataChains(tree);
 	const expected = new Set<string>();
+	const write = (target: string, content: string) => {
+		expected.add(target);
+		mkdirSync(dirname(target), { recursive: true });
+		writeIfChanged(target, content);
+	};
 	const emit = (node: RouteNode) => {
-		if (node.page !== null || node.layout !== null) {
-			const target = join(typesDir, routesDir, node.dir, "$types.d.ts");
-			expected.add(target);
-			mkdirSync(dirname(target), { recursive: true });
-			writeIfChanged(target, generateRouteTypes(node));
+		if (
+			node.page !== null ||
+			node.layout !== null ||
+			node.layoutServer !== null ||
+			node.endpoint !== null
+		) {
+			write(
+				join(typesDir, routesDir, node.dir, "$types.d.ts"),
+				generateRouteTypes(node, chains.get(node)!),
+			);
+		}
+		for (const extension of node.extensions) {
+			write(
+				join(typesDir, routesDir, node.dir, extension.extension, "$types.d.ts"),
+				generateExtensionTypes(node),
+			);
 		}
 		for (const child of node.children) emit(child);
 	};
 	emit(tree.root);
 	// error.ts imports the root ./$types too
-	if (tree.error !== null && tree.root.page === null && tree.root.layout === null) {
-		const target = join(typesDir, routesDir, "$types.d.ts");
-		expected.add(target);
-		mkdirSync(dirname(target), { recursive: true });
-		writeIfChanged(target, generateRouteTypes(tree.root));
+	if (tree.error !== null && !expected.has(join(typesDir, routesDir, "$types.d.ts"))) {
+		write(
+			join(typesDir, routesDir, "$types.d.ts"),
+			generateRouteTypes(tree.root, chains.get(tree.root)!),
+		);
 	}
 	pruneStaleTypes(join(typesDir, routesDir), expected);
 }

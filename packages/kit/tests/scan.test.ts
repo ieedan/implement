@@ -93,6 +93,58 @@ describe("scanRoutes", () => {
 		expect(() => scanRoutes(makeRoutes(["docs/error.ts"]))).toThrow(/routes root/);
 	});
 
+	it("collects load files next to their page and layout", () => {
+		const tree = scanRoutes(
+			makeRoutes(["index.ts", "index.server.ts", "layout.ts", "layout.server.ts"]),
+		);
+		expect(tree.root.pageServer).toBe("index.server.ts");
+		expect(tree.root.layoutServer).toBe("layout.server.ts");
+	});
+
+	it("collects endpoints and extension endpoints", () => {
+		const tree = scanRoutes(
+			makeRoutes([
+				"index.ts",
+				"api/server.ts",
+				"docs/[...slug]/index.ts",
+				"docs/[...slug]/.md/server.ts",
+			]),
+		);
+		const api = tree.root.children.find((child) => child.dir === "api")!;
+		expect(api.endpoint).toBe("api/server.ts");
+		const slug = tree.root.children.find((child) => child.dir === "docs")!.children[0]!;
+		expect(slug.extensions).toEqual([{ extension: ".md", file: "docs/[...slug]/.md/server.ts" }]);
+	});
+
+	it("keeps a directory holding only server files", () => {
+		const tree = scanRoutes(makeRoutes(["index.ts", "api/server.ts"]));
+		expect(tree.root.children).toHaveLength(1);
+	});
+
+	it("still skips dot-directories without a server.ts", () => {
+		const tree = scanRoutes(makeRoutes(["index.ts", ".md/helpers.ts"]));
+		expect(tree.root.extensions).toEqual([]);
+		expect(tree.root.children).toHaveLength(0);
+	});
+
+	it("rejects an endpoint sharing a directory with a page", () => {
+		expect(() => scanRoutes(makeRoutes(["docs/index.ts", "docs/server.ts"]))).toThrow(
+			/a page or an endpoint/,
+		);
+	});
+
+	it("rejects an index.server.ts without an index.ts", () => {
+		expect(() => scanRoutes(makeRoutes(["index.ts", "docs/index.server.ts"]))).toThrow(
+			/no "docs\/index.ts" page/,
+		);
+	});
+
+	it("rejects endpoints that collide with pages through groups", () => {
+		expect(() => scanRoutes(makeRoutes(["(a)/about/index.ts", "about/server.ts"]))).toThrow(
+			/both resolve to "\/about"/,
+		);
+	});
+
 	it("excludes (group) directories from URL patterns", () => {
 		const tree = scanRoutes(
 			makeRoutes([

@@ -9,6 +9,7 @@ import {
 	Span,
 	type Mountable,
 } from "@implementjs/core";
+import { CopyPage } from "../components/docs/copy-page";
 import { TocDisclosure, TocSidebar } from "../components/docs/toc";
 import { Typeset } from "../components/docs/typeset";
 import { pages, type Page } from "@/lib/content";
@@ -51,7 +52,11 @@ export function DocsPage(page: Page, collection: Page[] = pages): Mountable {
 				Implement.Head.Meta({ name: "description", content: page.description }),
 			),
 
-			H1({ class: "text-3xl font-semibold tracking-tight" }, page.title),
+			Div(
+				{ class: "flex items-start justify-between gap-4" },
+				H1({ class: "text-3xl font-semibold tracking-tight" }, page.title),
+				CopyPage(page.permalink),
+			),
 			P({ class: "text-lg text-foreground/60" }, page.description),
 			...(hasToc ? [TocDisclosure(toc)] : []),
 			Typeset(page.content, "space-y-4"),

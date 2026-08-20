@@ -188,7 +188,7 @@ export function LessonPreview(
 					if (urlPath.get() !== value) urlPath.set(value);
 				});
 				const stopPath = watch([urlPath], (value) => {
-					if (value !== "") app.navigate(value);
+					if (value !== "") void app.navigate(value);
 				});
 				return () => {
 					stopPath();

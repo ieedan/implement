@@ -246,7 +246,9 @@ function scanDirectory(
 		);
 	}
 	if (node.pageServer !== null && node.page === null) {
-		throw new Error(`"${node.pageServer}" has no "${dir === "" ? "" : `${dir}/`}index.ts" page to load for`);
+		throw new Error(
+			`"${node.pageServer}" has no "${dir === "" ? "" : `${dir}/`}index.ts" page to load for`,
+		);
 	}
 
 	return node;

@@ -17,8 +17,10 @@ import { LessonMenu } from "../components/tutorials/lesson-menu";
 import { Playground, type PlaygroundFile } from "../components/tutorials/playground";
 import { Button } from "../components/ui/button";
 import type { Tutorial } from "@/lib/content";
-import { checkLesson } from "@/lib/lesson-test";
+import { checkKitLesson, checkLesson } from "@/lib/lesson-test";
+import { isKitLesson } from "@/lib/run-kit-lesson";
 import { tutorialNeighbors } from "@/lib/tutorials";
+import { UnsavedChangesGuard, withoutUnsavedChangesPrompt } from "@/lib/unsaved-changes";
 
 type CheckState = { status: "idle" | "running" | "pass" } | { status: "fail"; message: string };
 
@@ -35,7 +37,8 @@ function LessonLink(lesson: Tutorial, direction: "prev" | "next"): Mountable {
 				if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 				if (event.button !== 0) return;
 				event.preventDefault();
-				navigateTo(lesson.permalink);
+				// moving between lessons is deliberate — skip the unsaved prompt
+				withoutUnsavedChangesPrompt(() => navigateTo(lesson.permalink));
 			},
 		},
 		Span(
@@ -61,6 +64,15 @@ export function TutorialPage(lesson: Tutorial): Mountable {
 	const dirty = derived(contents, (...values) =>
 		values.some((value, index) => value !== lesson.files[index]!.content),
 	);
+	const solutionByPath = new Map(lesson.solution.map((file) => [file.path, file.content]));
+	// Work worth a leave prompt: differs from the starter AND the solution —
+	// pristine and solved states are both one click away, nothing is lost.
+	const tainted = derived(contents, (...values) =>
+		values.some((value, index) => {
+			const file = lesson.files[index]!;
+			return value !== file.content && value !== solutionByPath.get(file.path);
+		}),
+	);
 	const check = signal<CheckState>({ status: "idle" });
 	watch(contents, () => check.set({ status: "idle" }));
 
@@ -71,25 +83,30 @@ export function TutorialPage(lesson: Tutorial): Mountable {
 	};
 
 	const solve = () => {
-		const byPath = new Map(lesson.solution.map((file) => [file.path, file.content]));
 		for (const file of files) {
-			const solved = byPath.get(file.path);
+			const solved = solutionByPath.get(file.path);
 			if (solved != null) file.content.set(solved);
 		}
 	};
 
-	// Checks run against the single-file lesson module (kit lessons carry no tests).
+	// Single-file lessons check their one module; kit lessons boot the whole app.
 	const checked = files.find((file) => file.path === "index.ts");
+	const kitLesson = isKitLesson(files);
+	const checkable = lesson.test != null && (kitLesson || checked != null);
 
 	const runCheck = () => {
 		const test = lesson.test;
-		if (test == null || checked == null) return;
-		const source = checked.content.get();
+		if (test == null) return;
+		const snapshot = files.map((file) => ({ path: file.path, content: file.content.get() }));
 		check.set({ status: "running" });
-		void checkLesson(source, test).then((result) => {
+		const result = kitLesson
+			? checkKitLesson(snapshot, test)
+			: checkLesson(snapshot.find((file) => file.path === "index.ts")!.content, test);
+		void result.then((outcome) => {
 			// The user kept editing while the check ran; this result is stale.
-			if (checked.content.get() !== source) return;
-			check.set(result.passed ? { status: "pass" } : { status: "fail", message: result.message });
+			const stale = files.some((file, index) => file.content.get() !== snapshot[index]!.content);
+			if (stale) return;
+			check.set(outcome.passed ? { status: "pass" } : { status: "fail", message: outcome.message });
 		});
 	};
 
@@ -99,6 +116,7 @@ export function TutorialPage(lesson: Tutorial): Mountable {
 			Implement.Head.Title(`${lesson.title} ~ tutorial ~ implement`),
 			Implement.Head.Meta({ name: "description", content: lesson.description }),
 		),
+		UnsavedChangesGuard(tainted, "You have unsaved edits in this lesson — leave anyway?"),
 		Div(
 			{ class: "flex h-10 shrink-0 items-center gap-2 border-b border-border px-2 sm:px-3" },
 			Button(
@@ -113,12 +131,16 @@ export function TutorialPage(lesson: Tutorial): Mountable {
 			),
 			Span(
 				{ class: "min-w-0 flex-1 truncate text-sm text-foreground/60" },
+				Span(
+					{ class: "text-foreground/40" },
+					lesson.part.charAt(0).toUpperCase() + lesson.part.slice(1),
+				),
+				Span({ class: "px-1.5 text-foreground/25" }, "/"),
 				Span({ class: "text-foreground/40" }, lesson.section),
 				Span({ class: "px-1.5 text-foreground/25" }, "/"),
 				Span({ class: "text-foreground" }, lesson.title),
 			),
-			lesson.test != null &&
-				checked != null &&
+			checkable &&
 				If(dirty).Then(
 					Button(
 						{

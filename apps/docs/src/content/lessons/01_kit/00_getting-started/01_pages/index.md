@@ -20,4 +20,8 @@ Because this app now has more than one route, the preview has grown a URL bar. N
 A({ href: "/about" }, "About");
 ```
 
-The home page already links to `/about`, but that page is unfinished. Give it a heading that says "About" and a paragraph about yourself, then click between the two pages.
+## Your task
+
+1. In `src/routes/about/index.ts`, make the page return an `H1` that says `About` and a `P` with a sentence about yourself.
+
+You're done when clicking the **About** link on the home page shows your heading and paragraph, and the URL bar reads `/about`.

@@ -27,21 +27,46 @@ afterEach(() => {
 	root = null;
 });
 
+const slugNode = {
+	dir: "docs/[...slug]",
+	segment: { kind: "rest", name: "slug" } as const,
+	params: ["slug"],
+	page: "docs/[...slug]/index.ts",
+	pageResetTo: null,
+	layout: null,
+	layoutResetTo: null,
+	pageServer: null,
+	layoutServer: null,
+	endpoint: null,
+	extensions: [],
+	children: [],
+};
+
 describe("generateRouteTypes", () => {
-	it("types params as Readables", () => {
-		const types = generateRouteTypes({
-			dir: "docs/[...slug]",
-			segment: { kind: "rest", name: "slug" },
-			params: ["slug"],
-			page: "docs/[...slug]/index.ts",
-			pageResetTo: null,
-			layout: null,
-			layoutResetTo: null,
-			children: [],
-		});
+	it("types params as Readables and server params as strings", () => {
+		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] });
 		expect(types).toContain('export type RouteParams = { "slug": Readable<string> };');
+		expect(types).toContain('export type ServerParams = { "slug": string };');
+		expect(types).toContain("export type LoadEvent = { params: ServerParams; url: URL };");
+		expect(types).toContain(
+			"export type RequestEvent = { request: Request; params: ServerParams; url: URL };",
+		);
 		expect(types).toContain("export type PageProps = { params: RouteParams;");
+		expect(types).toContain("data: Readable<PageData>");
 		expect(types).toContain("children: Mountable");
+	});
+
+	it("types data as the merged load chain", () => {
+		const types = generateRouteTypes(slugNode, {
+			layoutFiles: ["layout.server.ts"],
+			pageFiles: ["layout.server.ts", "docs/[...slug]/index.server.ts"],
+		});
+		expect(types).toContain(
+			'export type LayoutData = Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>;',
+		);
+		expect(types).toContain(
+			'export type PageData = Merge<Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>, LoadData<typeof import("../../docs/[...slug]/index.server.ts").default>>;',
+		);
 	});
 });
 
@@ -97,6 +122,37 @@ describe("writeGenerated", () => {
 		expect(existsSync(join(app, ".implement/types/src/routes/docs/[...slug]/$types.d.ts"))).toBe(
 			true,
 		);
+	});
+
+	it("writes $types for server-only and extension-endpoint directories", () => {
+		const app = makeApp([
+			"index.ts",
+			"index.server.ts",
+			"layout.server.ts",
+			"docs/.md/server.ts",
+			"docs/index.ts",
+			"api/server.ts",
+		]);
+		writeGenerated(app, scanRoutes(join(app, "src/routes")));
+
+		const rootTypes = readFileSync(join(app, ".implement/types/src/routes/$types.d.ts"), "utf8");
+		expect(rootTypes).toContain(
+			'export type PageData = Merge<Merge<{}, LoadData<typeof import("./layout.server.ts").default>>, LoadData<typeof import("./index.server.ts").default>>;',
+		);
+		expect(existsSync(join(app, ".implement/types/src/routes/api/$types.d.ts"))).toBe(true);
+		const extensionTypes = readFileSync(
+			join(app, ".implement/types/src/routes/docs/.md/$types.d.ts"),
+			"utf8",
+		);
+		expect(extensionTypes).toContain("export type RequestEvent =");
+	});
+
+	it("declares the server-only virtual modules", () => {
+		const app = makeApp(["index.ts"]);
+		writeGenerated(app, scanRoutes(join(app, "src/routes")));
+		const declaration = readFileSync(join(app, ".implement/types/$implement.d.ts"), "utf8");
+		expect(declaration).toContain('declare module "$implement/loads"');
+		expect(declaration).toContain('declare module "$implement/endpoints"');
 	});
 
 	it("prunes $types for removed routes", () => {

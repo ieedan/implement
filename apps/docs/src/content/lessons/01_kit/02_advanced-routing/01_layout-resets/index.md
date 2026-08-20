@@ -29,4 +29,8 @@ src/routes
             index@.ts        -> /zen, header skipped
 ```
 
-Give the zen page some calm content, then flip between `/about` (header) and `/zen` (no header).
+## Your task
+
+1. In `src/routes/(app)/zen/index@.ts`, give the zen page some calm content of your own — a heading and a sentence is plenty.
+
+You're done when `/about` renders with the header nav and `/zen` renders without it. The `@` in `index@.ts` is doing that — rename it to plain `index.ts` in your head and imagine the header coming back.

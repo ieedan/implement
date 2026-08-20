@@ -35,17 +35,25 @@ const solutionFiles = import.meta.glob<string>("../content/lessons/**/solution.t
 	eager: true,
 });
 
-const appFiles = import.meta.glob<string>("../content/lessons/**/app/**/*", {
-	query: "?raw",
-	import: "default",
-	eager: true,
-});
+// The second pattern reaches into `.<ext>` extension-endpoint directories
+// (`about/.md/server.ts`) — globs skip dot-directories unless matched literally.
+const appFiles = import.meta.glob<string>(
+	["../content/lessons/**/app/**/*", "../content/lessons/**/app/**/.*/**"],
+	{
+		query: "?raw",
+		import: "default",
+		eager: true,
+	},
+);
 
-const appSolutionFiles = import.meta.glob<string>("../content/lessons/**/solution/**/*", {
-	query: "?raw",
-	import: "default",
-	eager: true,
-});
+const appSolutionFiles = import.meta.glob<string>(
+	["../content/lessons/**/solution/**/*", "../content/lessons/**/solution/**/.*/**"],
+	{
+		query: "?raw",
+		import: "default",
+		eager: true,
+	},
+);
 
 const testFiles = import.meta.glob<string>("../content/lessons/**/test.ts", {
 	query: "?raw",

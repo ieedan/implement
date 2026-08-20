@@ -4,7 +4,7 @@ description: Choose one value, or several, from a list of options.
 section: Components
 ---
 
-<div data-demo="select"></div>
+<div data-demo="select" data-demo-description="A single-select of five fruits (Grapes disabled) with a “Select a fruit” placeholder; the current selection is echoed in text below."></div>
 
 A select is a button that opens a list of options. `Select` is the root, `SelectTrigger` is the control that toggles it, `SelectValue` is the selected label inside the trigger, `SelectContent` is the list, and `SelectItem` is one option.
 
@@ -114,7 +114,7 @@ Select(
 
 Every item needs a stable `value`. That string is what the root tracks, so it also has to be unique within the select.
 
-<div data-demo="select-multiple"></div>
+<div data-demo="select-multiple" data-demo-description="A multiple-select of five pizza toppings; the trigger summarizes the picks and the selected values are echoed below."></div>
 
 ## The selected label
 

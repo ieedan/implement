@@ -4,7 +4,7 @@ description: Expand and collapse sections of content, one at a time or several a
 section: Components
 ---
 
-<div data-demo="accordion"></div>
+<div data-demo="accordion" data-demo-description="A three-item FAQ accordion (type multiple) about implement; clicking a question expands its answer, several can stay open."></div>
 
 An accordion is a stack of items that open and close. `Accordion` is the root, `AccordionItem` is one section, `AccordionTrigger` is the control that toggles it, and `AccordionContent` is the body.
 

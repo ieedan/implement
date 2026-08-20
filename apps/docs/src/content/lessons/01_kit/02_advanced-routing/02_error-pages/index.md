@@ -16,4 +16,8 @@ export default function ErrorPage({ error, url }) {
 
 `error.ts` lives directly in `src/routes` and only there — one error page per app.
 
-This app has two ways to fail: type a path that doesn't exist into the URL bar (a 404), or visit `/broken`, whose page throws on render (a 500). Right now the error page shrugs with the same message for both. Show `error.code` and `error.message` so you can tell them apart.
+## Your task
+
+1. In `src/routes/error.ts`, render `error.code` and `error.message` instead of the generic text.
+
+You're done when the two failure modes look different: typing a nonsense path like `/nope` into the URL bar shows **404** with "Not Found", and visiting `/broken` (its page throws on render) shows **500** with the thrown message.

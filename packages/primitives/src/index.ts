@@ -41,10 +41,38 @@ export {
 	type Side,
 	type Align,
 } from "./lib/components/primitives/popover";
+export { AspectRatio, type AspectRatioProps } from "./lib/components/primitives/aspect-ratio";
 export { Meter, type MeterProps } from "./lib/components/primitives/meter";
+export { Progress, type ProgressProps } from "./lib/components/primitives/progress";
 export { Separator, type SeparatorProps } from "./lib/components/primitives/separator";
+export { Toggle, type ToggleProps } from "./lib/components/primitives/toggle";
+export {
+	ToggleGroup,
+	ToggleGroupItem,
+	type ToggleGroupRootProps,
+	type ToggleGroupItemProps,
+} from "./lib/components/primitives/toggle-group";
+export {
+	RadioGroup,
+	RadioGroupItem,
+	type RadioGroupRootProps,
+	type RadioGroupItemProps,
+} from "./lib/components/primitives/radio-group";
+export {
+	RatingGroup,
+	RatingGroupItem,
+	type RatingGroupRootProps,
+	type RatingGroupItemProps,
+	type RatingGroupItemStateValue,
+} from "./lib/components/primitives/rating-group";
 export { mergeProps } from "./lib/merge-props";
 export { Checkbox, type CheckboxProps } from "./lib/components/primitives/checkbox";
+export {
+	Switch,
+	SwitchThumb,
+	type SwitchProps,
+	type SwitchThumbProps,
+} from "./lib/components/primitives/switch";
 export {
 	Select,
 	SelectTrigger,

@@ -8,6 +8,10 @@
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
 		},
+		"./runtime": {
+			"types": "./src/runtime.ts",
+			"default": "./src/runtime.ts"
+		},
 		"./sync": {
 			"types": "./src/sync.ts",
 			"default": "./src/sync.ts"
@@ -20,13 +24,13 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@implementjs/core": "workspace:*",
 		"@implementjs/vite": "workspace:*"
 	},
 	"peerDependencies": {
 		"vite": "^7.0.0"
 	},
 	"devDependencies": {
-		"@implementjs/core": "workspace:*",
 		"@types/node": "^26.2.0",
 		"tsdown": "^0.22.14",
 		"typescript": "^7.0.2",

@@ -1,6 +1,24 @@
-import { A, Div, H1, H2, H3, Implement, Main, P, Section, type Mountable } from "@implementjs/core";
+import {
+	A,
+	derived,
+	Div,
+	H1,
+	H2,
+	H3,
+	Implement,
+	Main,
+	P,
+	Section,
+	Span,
+	type Mountable,
+	type Readable,
+} from "@implementjs/core";
+import type { PackageInfo } from "../../routes/packages/index.server";
 import { SiteHeader } from "../components/site-header";
 import { router } from "../router";
+
+/** The packages route's server-load data: workspace manifests read off disk. */
+export type PackagesData = { packages: Record<string, PackageInfo> };
 
 /** Static routes only — `[param]` patterns would require Link params. */
 type RoutePath = Exclude<Parameters<(typeof router)["Link"]>[0]["to"], `${string}:${string}`>;
@@ -69,13 +87,21 @@ const groups: PackageGroup[] = [
 	},
 ];
 
-function PackageCard(pkg: Package): Mountable {
+function PackageCard(pkg: Package, data: Readable<PackagesData>): Mountable {
+	const version = derived([data], (value) => {
+		const info = value.packages?.[pkg.sourceDir];
+		return info === undefined ? "" : `v${info.version}`;
+	});
 	return Div(
 		{
 			class:
 				"flex flex-col gap-2 rounded-xl border border-border bg-background p-4 transition-colors hover:border-foreground/25",
 		},
-		H3({ class: "font-mono text-sm font-medium" }, pkg.name),
+		Div(
+			{ class: "flex items-baseline justify-between gap-2" },
+			H3({ class: "font-mono text-sm font-medium" }, pkg.name),
+			Span({ class: "font-mono text-xs text-foreground/40" }, version),
+		),
 		P({ class: "flex-1 text-sm text-foreground/60" }, pkg.description),
 		Div(
 			{ class: "mt-1 flex items-center gap-4 text-sm" },
@@ -97,7 +123,7 @@ function PackageCard(pkg: Package): Mountable {
 	);
 }
 
-function PackageGroupSection(group: PackageGroup): Mountable {
+function PackageGroupSection(group: PackageGroup, data: Readable<PackagesData>): Mountable {
 	return Section(
 		{ class: "flex flex-col gap-3" },
 		Div(
@@ -107,12 +133,12 @@ function PackageGroupSection(group: PackageGroup): Mountable {
 		),
 		Div(
 			{ class: "grid grid-cols-1 gap-4 md:grid-cols-2" },
-			...group.packages.map((pkg) => PackageCard(pkg)),
+			...group.packages.map((pkg) => PackageCard(pkg, data)),
 		),
 	);
 }
 
-export function PackagesPage(): Mountable {
+export function PackagesPage(data: Readable<PackagesData>): Mountable {
 	return Div(
 		{ class: "flex min-h-dvh flex-col" },
 		Implement.Head(
@@ -135,7 +161,7 @@ export function PackagesPage(): Mountable {
 			),
 			Div(
 				{ class: "mt-8 flex flex-col gap-10" },
-				...groups.map((group) => PackageGroupSection(group)),
+				...groups.map((group) => PackageGroupSection(group, data)),
 			),
 		),
 	);

@@ -18,10 +18,12 @@ import {
 export {
 	navigateTo,
 	normalizePath,
+	registerNavigationGuard,
 	searchParam,
 	setNavigationResolver,
 	withLocationSignal,
 	type NavigateOptions,
+	type NavigationGuard,
 	type NavigationResolver,
 	type RouterLocation,
 	type SearchParam,
@@ -126,6 +128,12 @@ export type RouterOptions = {
 	 * render throws (`code` 500, or the thrown `{ code, message }` as-is).
 	 */
 	fallback?: (error: RouterError) => Child;
+	/**
+	 * Receives whatever a route render threw, before the fallback renders —
+	 * integrators embedding a router (previews, sandboxes) route it to their
+	 * own console. @default console.error
+	 */
+	onError?: (thrown: unknown) => void;
 };
 
 export type RouterHelper<T> = Mountable & {
@@ -490,7 +498,7 @@ export function Router<T extends Routes<T>>(
 				outlets[diverged]!.set(build(match.route, diverged));
 				outlets.length = next.length;
 			} catch (thrown) {
-				console.error(thrown);
+				(options.onError ?? console.error)(thrown);
 				showFallback(toRouterError(thrown));
 			}
 		};

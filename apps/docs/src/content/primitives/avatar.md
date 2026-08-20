@@ -4,7 +4,7 @@ description: Show a user image with an automatic fallback while it loads or when
 section: Components
 ---
 
-<div data-demo="avatar"></div>
+<div data-demo="avatar" data-demo-description="Three arrangements: an avatar loading a GitHub photo, one with a broken image URL falling back to initials, and an overlapping stack of three avatars."></div>
 
 An avatar renders an image with a fallback for when the image is loading or unavailable. `Avatar` is the root, `AvatarImage` is the picture, and `AvatarFallback` is what shows until the image has actually loaded (initials, an icon, anything).
 

@@ -17,4 +17,8 @@ export default function Layout({ children }) {
 
 Navigating between pages only swaps `children` — the layout itself stays mounted, so its state (a scrolled sidebar, an open menu) survives navigation.
 
-This app's root layout currently renders its pages with nothing around them. Add a `Nav` with links to `/` and `/about` above `children`, then click between the pages and notice the nav sticks around.
+## Your task
+
+1. In `src/routes/layout.ts`, render a `Nav` containing two `A` links — one to `/` and one to `/about` — above `children`.
+
+You're done when both pages show the same nav, and clicking between them swaps only the content below it — the nav never remounts.

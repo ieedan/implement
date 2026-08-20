@@ -83,6 +83,27 @@ const kit = defineCollection({
 		})),
 });
 
+/**
+ * The same docs files as raw markdown, for the `.md` server routes — keyed by
+ * cleaned path (`kit/routing`, `primitives/accordion`, `getting-started`).
+ * Server-only: nothing in the client bundle imports it.
+ */
+const raws = defineCollection({
+	name: "RawPage",
+	pattern: ["*.md", "kit/*.md", "primitives/*.md", "lucide/*.md"],
+	// s.path() flattens `kit/index` to `kit`, colliding with the root kit.md —
+	// key by the real file path instead.
+	schema: s.object({ raw: s.raw() }).transform((data, { meta }) => ({
+		path: stripOrderPrefixes(
+			meta.path
+				.split(/[\\/]src[\\/]content[\\/]/)[1]!
+				.replace(/\.md$/, "")
+				.replaceAll("\\", "/"),
+		),
+		raw: data.raw,
+	})),
+});
+
 const lucide = defineCollection({
 	name: "LucidePage",
 	pattern: "lucide/*.md",
@@ -130,7 +151,7 @@ export default defineConfig({
 		base: "/velite/",
 		clean: true,
 	},
-	collections: { pages, tutorials, primitives, lucide, kit },
+	collections: { pages, tutorials, primitives, lucide, kit, raws },
 	markdown: {
 		remarkPlugins: [
 			// Velite bundles its own unified types, which don't match remark/rehype plugins'.

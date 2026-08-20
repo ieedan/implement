@@ -18,4 +18,8 @@ The matched segments surface as a single readable, joined with `/` — visiting 
 
 A catch-all must be the last thing in its path: nothing can route below it. And when routes compete for the same URL, static segments beat `[param]`s, which beat catch-alls — so you can add a `docs/index.ts` later without the catch-all swallowing it.
 
-The docs page ignores the requested path. Render `params.path` so you can tell which document you're on, then try some deep paths in the URL bar.
+## Your task
+
+1. In `src/routes/docs/[...path]/index.ts`, render `params.path` in the page so it shows which document was requested.
+
+You're done when `/docs/guides/routing` shows `guides/routing` on the page. Try a few deeper paths in the URL bar — one page catches them all.

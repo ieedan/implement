@@ -4,7 +4,7 @@ description: A control that toggles between checked, unchecked, and indeterminat
 section: Components
 ---
 
-<div data-demo="checkbox"></div>
+<div data-demo="checkbox" data-demo-description="Four labeled checkboxes: unchecked (Accept terms and conditions), checked (Send me product updates), indeterminate (Select all notifications), and checked but disabled."></div>
 
 A checkbox is a button that turns a value on and off. `Checkbox` renders a `Button` with `role="checkbox"` and keeps `aria-checked` in sync — you give it a size, a border, and the indicator that shows inside it.
 
@@ -56,6 +56,20 @@ Div(
 	Label({ for: "terms" }, "Accept terms and conditions"),
 );
 ```
+
+## Forms
+
+Pass `name` and the checkbox renders a visually hidden native input that submits with the form. The value is `"on"` while checked; pass `value` to change it. `required` and `disabled` apply to that input too:
+
+```ts
+Form(
+	{ method: "post" },
+	Checkbox({ name: "terms", value: "accepted" }),
+	Button({ type: "submit" }, "Continue"),
+);
+```
+
+Without `name`, no hidden input is rendered. An indeterminate checkbox submits as unchecked.
 
 ## Styling
 

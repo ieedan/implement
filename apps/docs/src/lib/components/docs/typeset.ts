@@ -46,8 +46,9 @@ function addCopyButton(pre: HTMLPreElement) {
 	wrapper.append(button);
 }
 
-// The literal form the placeholders keep through the markdown pipeline.
-const placeholderPattern = /<div data-(demo|api)="([^"]+)"><\/div>/g;
+// The literal form the placeholders keep through the markdown pipeline. Extra
+// attributes (data-demo-description feeds the `.md` twin) are tolerated.
+const placeholderPattern = /<div data-(demo|api)="([^"]+)"[^>]*><\/div>/g;
 
 // demos and api tables style themselves; data-not-typeset opts the subtree
 // out of typeset styles

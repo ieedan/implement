@@ -4,7 +4,7 @@ description: Display a measurement within a known range.
 section: Components
 ---
 
-<div data-demo="meter"></div>
+<div data-demo="meter" data-demo-description="A “Tokens used” meter showing 3000 / 4000 as a labeled bar three quarters full."></div>
 
 A meter is a static measurement within a known range — CPU usage, battery level, a token quota. `Meter` renders a `Div` with `role="meter"` and the aria value attributes; you draw the track and the fill.
 

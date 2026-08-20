@@ -234,10 +234,74 @@ export const apiReference: Record<string, ApiPart[]> = {
 					description:
 						'Partial selection. While true, data-state is "indeterminate" and aria-checked is "mixed". A click clears it and checks the box.',
 				},
+				{
+					name: "name",
+					type: "string",
+					description: "If set, a hidden checkbox is rendered so the value submits with a form.",
+				},
+				{
+					name: "value",
+					type: "string",
+					default: '"on"',
+					description: "The value submitted while checked. Only used when name is set.",
+				},
+				{
+					name: "required",
+					type: "boolean",
+					default: "false",
+					description: "Marks the hidden input as required. Sets aria-required on the button.",
+				},
 			],
 			dataAttributes: [
 				{ name: "data-checkbox-root", value: "Present" },
 				{ name: "data-state", value: '"checked" | "unchecked" | "indeterminate"' },
+			],
+		},
+	],
+	switch: [
+		{
+			name: "Switch",
+			element: "Button",
+			description:
+				'A toggle that is on or off. Sets role="switch" and aria-checked. Give it a track and a thumb; it handles the state.',
+			props: [
+				{
+					name: "checked",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"The checked state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "name",
+					type: "string",
+					description: "If set, a hidden checkbox is rendered so the value submits with a form.",
+				},
+				{
+					name: "value",
+					type: "string",
+					default: '"on"',
+					description: "The value submitted while checked. Only used when name is set.",
+				},
+				{
+					name: "required",
+					type: "boolean",
+					default: "false",
+					description: "Marks the hidden input as required. Sets aria-required on the button.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-switch-root", value: "Present" },
+				{ name: "data-state", value: '"checked" | "unchecked"' },
+			],
+		},
+		{
+			name: "SwitchThumb",
+			element: "Span",
+			description: "The knob. Put it inside the switch and slide it with data-state.",
+			dataAttributes: [
+				{ name: "data-switch-thumb", value: "Present" },
+				{ name: "data-state", value: '"checked" | "unchecked"' },
 			],
 		},
 	],
@@ -274,6 +338,332 @@ export const apiReference: Record<string, ApiPart[]> = {
 				{ name: "data-min", value: "The minimum value" },
 				{ name: "data-max", value: "The maximum value" },
 			],
+		},
+	],
+	progress: [
+		{
+			name: "Progress",
+			element: "Div",
+			description:
+				'Completion status of a task. Sets role="progressbar" and the aria value attributes. Give it a track and a fill; it handles the semantics.',
+			props: [
+				{
+					name: "value",
+					type: "Signal<number | null> | number | null",
+					default: "0",
+					description:
+						"The current value; null renders an indeterminate bar. Pass a signal to control it from outside; a number seeds uncontrolled state.",
+				},
+				{
+					name: "min",
+					type: "Signal<number> | number",
+					default: "0",
+					description: "The value the bar starts from.",
+				},
+				{
+					name: "max",
+					type: "Signal<number> | number",
+					default: "100",
+					description: "The value at which the task is complete.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-progress-root", value: "Present" },
+				{ name: "data-state", value: '"loading" | "loaded" | "indeterminate"' },
+				{ name: "data-value", value: "The current value; absent while indeterminate" },
+				{ name: "data-min", value: "The minimum value" },
+				{ name: "data-max", value: "The maximum value" },
+				{ name: "data-indeterminate", value: "Present while the value is null" },
+			],
+		},
+	],
+	toggle: [
+		{
+			name: "Toggle",
+			element: "Button",
+			description:
+				"A two-state button that can be on or off. Sets aria-pressed. Give it a look and children; it handles the state.",
+			props: [
+				{
+					name: "pressed",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"The pressed state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Prevents toggling. Sets the native disabled attribute and data-disabled.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-toggle-root", value: "Present" },
+				{ name: "data-state", value: '"on" | "off"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+	],
+	"toggle-group": [
+		{
+			name: "ToggleGroup",
+			element: "Div",
+			description:
+				'The root. Owns which items are pressed and the arrow-key focus movement. Sets role="group".',
+			props: [
+				{
+					name: "type",
+					type: '"single" | "multiple"',
+					default: '"single"',
+					description: "Whether pressing an item releases the others, or several can stay on.",
+				},
+				{
+					name: "value",
+					type: "Signal<string | null> | Signal<string[]>",
+					description:
+						'The pressed value(s). string | null when type is "single", string[] when "multiple". Pass a signal to control it from outside.',
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Disables every item in the group.",
+				},
+				{
+					name: "loop",
+					type: "boolean",
+					default: "true",
+					description: "Whether arrow keys wrap from the last item back to the first.",
+				},
+				{
+					name: "orientation",
+					type: '"horizontal" | "vertical"',
+					default: '"horizontal"',
+					description: "Which arrow keys move focus, and the data-orientation attributes.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-toggle-group-root", value: "Present" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+		{
+			name: "ToggleGroupItem",
+			element: "Button",
+			description:
+				'One toggle. role="radio" with aria-checked in a single group, aria-pressed in a multiple group.',
+			props: [
+				{
+					name: "value",
+					type: "string",
+					required: true,
+					description: "Identifies the item. Must be unique within the group.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Prevents pressing the item. Sets disabled and data-disabled.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-toggle-group-item", value: "Present" },
+				{ name: "data-state", value: '"on" | "off"' },
+				{ name: "data-value", value: "The item's value" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+	],
+	"radio-group": [
+		{
+			name: "RadioGroup",
+			element: "Div",
+			description:
+				'The root. Owns which item is checked and the arrow-key focus movement. Sets role="radiogroup".',
+			props: [
+				{
+					name: "value",
+					type: "Signal<string | null> | string | null",
+					default: "null",
+					description:
+						"The checked item. Pass a signal to control it from outside; a string seeds uncontrolled state.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Disables every item in the group.",
+				},
+				{
+					name: "required",
+					type: "boolean",
+					default: "false",
+					description: "Sets aria-required on the group.",
+				},
+				{
+					name: "loop",
+					type: "boolean",
+					default: "true",
+					description: "Whether arrow keys wrap from the last item back to the first.",
+				},
+				{
+					name: "orientation",
+					type: '"horizontal" | "vertical"',
+					default: '"vertical"',
+					description: "Announced to assistive technology and set as data-orientation.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-radio-group-root", value: "Present" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+		{
+			name: "RadioGroupItem",
+			element: "Button",
+			description:
+				'One option. Sets role="radio" and aria-checked; arrowing to it checks it. Give it a look and an indicator.',
+			props: [
+				{
+					name: "value",
+					type: "string",
+					required: true,
+					description: "Identifies the item. Must be unique within the group.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Prevents checking the item. Sets disabled and data-disabled.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-radio-group-item", value: "Present" },
+				{ name: "data-state", value: '"checked" | "unchecked"' },
+				{ name: "data-value", value: "The item's value" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+	],
+	"rating-group": [
+		{
+			name: "RatingGroup",
+			element: "Div",
+			description:
+				'The root and the single focusable control. Announces as a slider: role="slider" with the aria value attributes.',
+			props: [
+				{
+					name: "value",
+					type: "Signal<number> | number",
+					default: "0",
+					description:
+						"The current rating. Pass a signal to control it from outside; a number seeds uncontrolled state.",
+				},
+				{
+					name: "min",
+					type: "number",
+					default: "0",
+					description: "The lowest value the rating can take.",
+				},
+				{
+					name: "max",
+					type: "number",
+					default: "5",
+					description: "The highest value the rating can take.",
+				},
+				{
+					name: "allowHalf",
+					type: "boolean",
+					default: "false",
+					description: "Work in half steps: pointer position picks the half, arrows move by 0.5.",
+				},
+				{
+					name: "readonly",
+					type: "boolean",
+					default: "false",
+					description: "The value can be read but not changed.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Prevents changes and removes the group from the Tab order.",
+				},
+				{
+					name: "hoverPreview",
+					type: "boolean",
+					default: "true",
+					description: "Preview the value under the pointer before clicking.",
+				},
+				{
+					name: "orientation",
+					type: '"horizontal" | "vertical"',
+					default: '"horizontal"',
+					description: "The axis pointer positions are measured along for half steps.",
+				},
+				{
+					name: "required",
+					type: "boolean",
+					default: "false",
+					description: "Sets aria-required on the group.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-rating-group-root", value: "Present" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-readonly", value: "Present when readonly" },
+			],
+		},
+		{
+			name: "RatingGroupItem",
+			element: "Div",
+			description:
+				'One visual step. role="presentation" — the root carries the semantics. Fill it with an icon and style against data-state.',
+			props: [
+				{
+					name: "index",
+					type: "number",
+					required: true,
+					description: "Zero-based position; the item represents the rating index + 1.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Ignores pointer input on this item.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-rating-group-item", value: "Present" },
+				{ name: "data-state", value: '"active" | "partial" | "inactive"' },
+				{ name: "data-value", value: "The rating the item represents" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-readonly", value: "Present when readonly" },
+			],
+		},
+	],
+	"aspect-ratio": [
+		{
+			name: "AspectRatio",
+			element: "Div",
+			description:
+				"Constrains content to a width / height ratio. Renders a sized wrapper around the root your props and children land on.",
+			props: [
+				{
+					name: "ratio",
+					type: "Signal<number> | number",
+					default: "1",
+					description: "Width divided by height, e.g. 16 / 9.",
+				},
+			],
+			dataAttributes: [{ name: "data-aspect-ratio-root", value: "Present" }],
 		},
 	],
 	separator: [

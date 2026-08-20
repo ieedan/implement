@@ -67,10 +67,42 @@ export function locationSignal(): Signal<RouterLocation> {
 		current = signal(readLocation());
 		window.addEventListener("popstate", () => {
 			const target = readLocation();
+			if (!guardsAllow(target)) {
+				// the history entry already moved — put the kept location back on top
+				const kept = current!.get();
+				history.pushState(null, "", kept.path + kept.search + kept.hash);
+				return;
+			}
 			resolveNavigation(target, () => current!.set(target));
 		});
 	}
 	return current;
+}
+
+/**
+ * Runs before a navigation is attempted; returning `false` cancels it — the
+ * location signal never updates and (for `navigateTo`) no history entry is
+ * pushed. Guards are synchronous so they can wrap `confirm()`-style prompts
+ * ("you have unsaved edits — leave anyway?"). They only cover in-app
+ * navigation; pair one with a `beforeunload` listener for refresh/close.
+ */
+export type NavigationGuard = (to: RouterLocation) => boolean;
+
+const navigationGuards = new Set<NavigationGuard>();
+
+/** Install a {@link NavigationGuard}; returns its unregister function. */
+export function registerNavigationGuard(guard: NavigationGuard): () => void {
+	navigationGuards.add(guard);
+	return () => {
+		navigationGuards.delete(guard);
+	};
+}
+
+function guardsAllow(target: RouterLocation): boolean {
+	for (const guard of navigationGuards) {
+		if (!guard(target)) return false;
+	}
+	return true;
 }
 
 /**
@@ -135,6 +167,7 @@ export function navigateTo(href: string, options: NavigateOptions = {}): void {
 		search: url.search,
 		hash: url.hash,
 	};
+	if (!guardsAllow(target)) return;
 	// the history entry waits alongside the signal, so the URL never shows a
 	// destination whose data has not resolved yet
 	resolveNavigation(target, () => {

@@ -4,7 +4,7 @@ description: Expand and collapse a region of content.
 section: Components
 ---
 
-<div data-demo="collapsible"></div>
+<div data-demo="collapsible" data-demo-description="A “@ieedan starred 3 packages” header with a chevron toggle: one repo stays visible, expanding reveals two more."></div>
 
 A collapsible is a single region that opens and closes. `Collapsible` is the root, `CollapsibleTrigger` is the control that toggles it, and `CollapsibleContent` is the body. Use it when one piece of UI should hide and show. For a stack of sections, use [Accordion](/primitives/docs/accordion).
 

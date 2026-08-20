@@ -4,44 +4,8 @@
 		{
 			"name": "docs",
 			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["dev:docs"],
-			"port": 3004
-		},
-		{
-			"name": "docs-dev-ssr",
-			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["--filter", "@apps/docs", "exec", "vite", "--port", "3999"],
-			"port": 3999
-		},
-		{
-			"name": "docs-dev-3998",
-			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["--filter", "@apps/docs", "exec", "vite", "--port", "3998"],
-			"port": 3998
-		},
-		{
-			"name": "docs-dev-3997",
-			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["--filter", "@apps/docs", "exec", "vite", "--port", "3997"],
-			"port": 3997
-		},
-		{
-			"name": "docs-dev-3996",
-			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["--filter", "@apps/docs", "exec", "vite", "--port", "3996"],
-			"port": 3996
-		},
-		{
-			"name": "docs-dev-4611",
-			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["--filter", "@apps/docs", "exec", "vite", "--port", "4611"],
-			"port": 4611
-		},
-		{
-			"name": "docs-preview",
-			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["--filter", "@apps/docs", "preview"],
-			"port": 4173
+			"runtimeArgs": ["-C", "apps/docs", "exec", "vite", "--port", "3104"],
+			"port": 3104
 		}
 	]
 }

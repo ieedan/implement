@@ -7,16 +7,25 @@ import {
 	type PrerenderOptions,
 } from "@implementjs/vite";
 import type { Plugin } from "vite";
-import { generateRouterModule, staticRoutePaths } from "./codegen.ts";
-import { isRouteFileName, scanRoutes, type RouteTree } from "./scan.ts";
+import {
+	generateEndpointsModule,
+	generateLoadsModule,
+	generateRouterModule,
+	serverRoutes,
+	staticRoutePaths,
+} from "./codegen.ts";
+import { ENDPOINTS_ID, handleServerRequest, LOADS_ID, prerenderServerFiles } from "./dev.ts";
+import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
 import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
-export type { PageRoute } from "./codegen.ts";
-export type { RouteTree } from "./scan.ts";
+export type { DataChain, PageRoute, ServerRoute } from "./codegen.ts";
+export type { ExtensionEndpoint, RouteTree } from "./scan.ts";
 export { sync } from "./sync.ts";
 
 const ROUTER_ID = "$implement/router";
 const RESOLVED_ROUTER_ID = "\0$implement/router";
+const RESOLVED_LOADS_ID = `\0${LOADS_ID}`;
+const RESOLVED_ENDPOINTS_ID = `\0${ENDPOINTS_ID}`;
 /** Deliberately unmatched, so the fallback renders for the 404 page. */
 const NOT_FOUND_ROUTE = "/__implement__/not-found";
 
@@ -45,6 +54,9 @@ export type KitOptions = {
 	alias?: Record<string, string>;
 };
 
+const treeHasLoads = (node: RouteNode): boolean =>
+	node.pageServer !== null || node.layoutServer !== null || node.children.some(treeHasLoads);
+
 /**
  * File-based routing for implement apps. Scans `src/routes` — `index.ts` is a
  * page, `layout.ts` wraps everything beneath it, `[param]` and `[...rest]`
@@ -56,6 +68,15 @@ export type KitOptions = {
  * prerenderer. The router itself is exposed as the `$implement/router`
  * virtual module; generated entries, `./$types` declarations, and the
  * tsconfig apps extend land in `.implement/`.
+ *
+ * Server files run only on the server (dev requests and the prerender):
+ * `index.server.ts` / `layout.server.ts` export a load function whose result
+ * reaches the page or layout as its `data` readable — serialized into the
+ * prerendered page, and fetched from `__data.json` on client navigation.
+ * A `server.ts` exports request handlers (`GET`, `POST`, …) serving its
+ * directory's path; inside a `.<ext>` directory it serves the parent path
+ * with the extension appended (`docs/.md/server.ts` → `/docs.md`), and GET
+ * endpoints are prerendered into static files.
  *
  * Kit also sets up the app conventions: static assets in `static/` are
  * served at the site root and copied into the build (unless the app sets
@@ -99,9 +120,20 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			const all = new Set([
 				...staticRoutePaths(tree ?? scan()).map(normalizeRoute),
 				...entries.map(normalizeRoute),
-				...crawlRoutes(render),
+				...(await crawlRoutes(render)),
 			]);
 			return [...all];
+		},
+		after: async ({ routes: prerendered, outDir, load }) => {
+			const scanned = tree ?? scan();
+			await prerenderServerFiles({
+				routes: prerendered,
+				outDir,
+				load,
+				hasLoads: treeHasLoads(scanned.root),
+				serverRoutes: serverRoutes(scanned),
+				logger: console,
+			});
 		},
 	};
 
@@ -126,11 +158,22 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		},
 		resolveId(id) {
 			if (id === ROUTER_ID) return RESOLVED_ROUTER_ID;
+			if (id === LOADS_ID) return RESOLVED_LOADS_ID;
+			if (id === ENDPOINTS_ID) return RESOLVED_ENDPOINTS_ID;
 			return null;
 		},
-		load(id) {
+		load(id, loadOptions) {
 			if (id === RESOLVED_ROUTER_ID) {
 				return generateRouterModule(tree ?? scan(), routesBase);
+			}
+			if (id === RESOLVED_LOADS_ID || id === RESOLVED_ENDPOINTS_ID) {
+				// server files must never reach the browser bundle
+				if (loadOptions?.ssr !== true) {
+					throw new Error(`${id.slice(1)} is server-only and cannot be imported by client code`);
+				}
+				return id === RESOLVED_LOADS_ID
+					? generateLoadsModule(tree ?? scan(), routesBase)
+					: generateEndpointsModule(tree ?? scan(), routesBase);
 			}
 			return null;
 		},
@@ -146,8 +189,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 					);
 					return;
 				}
-				const mod = server.moduleGraph.getModuleById(RESOLVED_ROUTER_ID);
-				if (mod) server.moduleGraph.invalidateModule(mod);
+				for (const id of [RESOLVED_ROUTER_ID, RESOLVED_LOADS_ID, RESOLVED_ENDPOINTS_ID]) {
+					const mod = server.moduleGraph.getModuleById(id);
+					if (mod) server.moduleGraph.invalidateModule(mod);
+				}
 				server.ws.send({ type: "full-reload" });
 			};
 			const onFile = (file: string) => {
@@ -159,6 +204,19 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			server.watcher.on("add", onFile);
 			server.watcher.on("unlink", onFile);
 			server.watcher.on("unlinkDir", onDir);
+
+			server.middlewares.use((req, res, next) => {
+				const scanned = tree ?? scan();
+				handleServerRequest({
+					server,
+					req,
+					res,
+					hasLoads: treeHasLoads(scanned.root),
+					hasEndpoints: serverRoutes(scanned).length > 0,
+				}).then((handled) => {
+					if (!handled) next();
+				}, next);
+			});
 		},
 	};
 

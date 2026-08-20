@@ -18,4 +18,8 @@ export default function Page() {
 }
 ```
 
-Try changing the heading to say "Hello, kit!" — the preview below the editor updates as you type.
+## Your task
+
+1. In `src/routes/index.ts`, change the heading text to say `Hello, kit!`.
+
+You're done when the preview below the editor shows **Hello, kit!** — it updates as you type.

@@ -24,4 +24,8 @@ export default function Page({ params }) {
 
 Because params are readable signals, navigating from `/blog/one` to `/blog/two` doesn't remount the page — the `slug` value just updates in place.
 
-The home page links to two posts, but the post page ignores its param. Render `params.slug` in the heading so each post shows its own name. You can also try typing any `/blog/...` path into the URL bar.
+## Your task
+
+1. In `src/routes/blog/[slug]/index.ts`, replace the hardcoded `"Some post"` heading with `params.slug`.
+
+You're done when `/blog/hello-world` and `/blog/routing-deep-dive` each show their own slug as the heading. Then try typing any other `/blog/...` path into the URL bar — the same page serves it.

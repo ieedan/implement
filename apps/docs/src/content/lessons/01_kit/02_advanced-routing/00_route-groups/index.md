@@ -22,4 +22,8 @@ Here `/about` and `/contact` render inside the marketing layout, while `/` doesn
 
 Two pages may not resolve to the same path through different groups; kit rejects that at scan time.
 
-The marketing layout is currently empty. Add a `Nav` linking `/`, `/about`, and `/contact`, then compare: the home page has no nav, the marketing pages share one.
+## Your task
+
+1. In `src/routes/(marketing)/layout.ts`, add a `Nav` with links to `/`, `/about`, and `/contact` above `children`.
+
+You're done when `/about` and `/contact` share the nav while `/` has none — the group scoped the layout without ever appearing in the URL.

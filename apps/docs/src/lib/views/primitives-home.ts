@@ -8,10 +8,18 @@ import {
 	Main,
 	navigateTo,
 	P,
+	signal,
 	Span,
 	type Mountable,
 } from "@implementjs/core";
-import { CheckIcon, ChevronDownIcon, ChevronsUpDownIcon } from "@implementjs/lucide";
+import {
+	BoldIcon,
+	CheckIcon,
+	ChevronDownIcon,
+	ChevronsUpDownIcon,
+	ItalicIcon,
+	UnderlineIcon,
+} from "@implementjs/lucide";
 import { SiteHeader } from "../components/site-header";
 import {
 	Accordion,
@@ -19,12 +27,19 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "../components/ui/accordion";
+import { AspectRatio } from "../components/ui/aspect-ratio";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
 import { Meter } from "../components/ui/meter";
+import { Progress } from "../components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
+import { RatingGroup, RatingGroupItem } from "../components/ui/rating-group";
 import { Separator } from "../components/ui/separator";
+import { Switch } from "../components/ui/switch";
+import { Toggle } from "../components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { primitivePages, type PrimitivePage } from "@/lib/content";
 import { router } from "../router";
 
@@ -143,6 +158,27 @@ function CheckboxPreview(): Mountable {
 	);
 }
 
+function SwitchPreview(): Mountable {
+	return Div(
+		{ class: "flex w-full max-w-56 flex-col gap-3" },
+		Div(
+			{ class: "flex items-center gap-2" },
+			Switch({ checked: true }),
+			Label({ class: "text-sm leading-none font-medium" }, "Airplane mode"),
+		),
+		Div(
+			{ class: "flex items-center gap-2" },
+			Switch({}),
+			Label({ class: "text-sm leading-none font-medium" }, "Marketing emails"),
+		),
+		Div(
+			{ class: "flex items-center gap-2" },
+			Switch({ checked: true, disabled: true }),
+			Label({ class: "text-sm leading-none font-medium opacity-50" }, "Disabled"),
+		),
+	);
+}
+
 function MeterPreview(): Mountable {
 	return Div(
 		{ class: "flex w-full max-w-56 flex-col gap-4" },
@@ -163,6 +199,95 @@ function MeterPreview(): Mountable {
 				Span({ class: "text-muted-foreground tabular-nums" }, "30%"),
 			),
 			Meter({ value: 30, "aria-label": "Battery level" }),
+		),
+	);
+}
+
+function ProgressPreview(): Mountable {
+	return Div(
+		{ class: "flex w-full max-w-56 flex-col gap-4" },
+		Div(
+			{ class: "flex flex-col gap-2" },
+			Div(
+				{ class: "flex items-center justify-between text-sm font-medium" },
+				Span("Uploading photos"),
+				Span({ class: "text-muted-foreground tabular-nums" }, "66%"),
+			),
+			Progress({ value: 66, "aria-label": "Uploading photos" }),
+		),
+		Div(
+			{ class: "flex flex-col gap-2" },
+			Div({ class: "text-sm font-medium" }, "Preparing"),
+			Progress({ value: null, "aria-label": "Preparing" }),
+		),
+	);
+}
+
+function TogglePreview(): Mountable {
+	return Div(
+		{ class: "flex items-center gap-1" },
+		Toggle({ pressed: true, "aria-label": "Toggle bold" }, BoldIcon({ "aria-hidden": true })),
+		Toggle({ pressed: true, "aria-label": "Toggle italic" }, ItalicIcon({ "aria-hidden": true })),
+		Toggle({ "aria-label": "Toggle underline" }, UnderlineIcon({ "aria-hidden": true })),
+	);
+}
+
+function AspectRatioPreview(): Mountable {
+	return Div(
+		{ class: "w-full max-w-56" },
+		AspectRatio(
+			{
+				ratio: 16 / 9,
+				class:
+					"flex items-center justify-center overflow-hidden rounded-lg border bg-muted text-sm text-muted-foreground",
+			},
+			"16 : 9",
+		),
+	);
+}
+
+function RadioGroupPreview(): Mountable {
+	function Option(value: string, label: string) {
+		return Div(
+			{ class: "flex items-center gap-2" },
+			RadioGroupItem({ value }),
+			Span({ class: "text-sm leading-none font-medium" }, label),
+		);
+	}
+
+	return RadioGroup(
+		{ value: "comfortable", "aria-label": "Density" },
+		Option("default", "Default"),
+		Option("comfortable", "Comfortable"),
+		Option("compact", "Compact"),
+	);
+}
+
+function RatingGroupPreview(): Mountable {
+	return Div(
+		{ class: "flex flex-col items-center gap-2" },
+		RatingGroup(
+			{ value: 3, "aria-label": "Rating" },
+			...Array.from({ length: 5 }, (_, index) => RatingGroupItem({ index })),
+		),
+		Span({ class: "text-sm text-muted-foreground tabular-nums" }, "3 out of 5"),
+	);
+}
+
+function ToggleGroupPreview(): Mountable {
+	return ToggleGroup(
+		{ type: "multiple", value: signal(["bold", "italic"]), "aria-label": "Text formatting" },
+		ToggleGroupItem(
+			{ value: "bold", variant: "outline", "aria-label": "Toggle bold" },
+			BoldIcon({ "aria-hidden": true }),
+		),
+		ToggleGroupItem(
+			{ value: "italic", variant: "outline", "aria-label": "Toggle italic" },
+			ItalicIcon({ "aria-hidden": true }),
+		),
+		ToggleGroupItem(
+			{ value: "underline", variant: "outline", "aria-label": "Toggle underline" },
+			UnderlineIcon({ "aria-hidden": true }),
 		),
 	);
 }
@@ -280,13 +405,20 @@ function SeparatorPreview(): Mountable {
 /** Live, non-interactive card previews, keyed by page slug. */
 const previews: Record<string, () => Mountable> = {
 	accordion: AccordionPreview,
+	"aspect-ratio": AspectRatioPreview,
 	avatar: AvatarPreview,
 	checkbox: CheckboxPreview,
+	switch: SwitchPreview,
 	collapsible: CollapsiblePreview,
 	meter: MeterPreview,
 	popover: PopoverPreview,
+	progress: ProgressPreview,
+	"radio-group": RadioGroupPreview,
+	"rating-group": RatingGroupPreview,
 	select: SelectPreview,
 	separator: SeparatorPreview,
+	toggle: TogglePreview,
+	"toggle-group": ToggleGroupPreview,
 	dialog: DialogPreview,
 };
 
@@ -296,9 +428,11 @@ const previews: Record<string, () => Mountable> = {
  */
 const spans: Record<string, string> = {
 	accordion: "sm:col-span-2 sm:row-span-2",
+	"aspect-ratio": "sm:col-span-2",
 	collapsible: "sm:col-span-2",
 	meter: "sm:col-span-2",
 	popover: "sm:col-span-2 sm:row-span-2",
+	progress: "sm:col-span-2",
 	select: "sm:col-span-2",
 	separator: "sm:col-span-2",
 	dialog: "sm:col-span-2",

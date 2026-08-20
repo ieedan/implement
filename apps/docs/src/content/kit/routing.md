@@ -5,11 +5,12 @@ section: Guides
 order: 10
 ---
 
-Routes are directories under `src/routes`. Three file names mean something to kit, everything else in there is yours:
+Routes are directories under `src/routes`. A handful of file names mean something to kit, everything else in there is yours:
 
 - `index.ts` is a page. It renders when the URL matches its directory.
 - `layout.ts` wraps every page beneath it (including its own directory's page).
 - `error.ts` at the routes root renders when nothing matches or a render throws.
+- `index.server.ts` and `layout.server.ts` are [load functions](/kit/loading-data), and `server.ts` is a [server route](/kit/server-routes) — they run only on the server.
 
 So a routes directory like this:
 
