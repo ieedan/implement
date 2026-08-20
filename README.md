@@ -5,9 +5,9 @@ Just some experimentation.
 ## TODOS
 
 - project scaffolding
-    - kit
-    - vite
+  - kit
+  - vite
 
 - kit
-    - server functions
-    - environment variables
+  - server functions
+  - environment variables

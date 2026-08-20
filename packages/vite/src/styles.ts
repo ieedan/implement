@@ -14,10 +14,7 @@ const SKIP_QUERY_RE = /[?&](?:raw|url|inline|direct)\b/;
  * first paint — inlining these lets server-rendered markup paint styled.
  * Call after `ssrLoadModule(entry)` so the graph is populated.
  */
-export async function collectDevStyles(
-	server: ViteDevServer,
-	entry: string,
-): Promise<DevStyle[]> {
+export async function collectDevStyles(server: ViteDevServer, entry: string): Promise<DevStyle[]> {
 	const entryModule = await server.moduleGraph.getModuleByUrl(entry, true);
 	if (!entryModule) return [];
 	const seen = new Set<ModuleNode>();
