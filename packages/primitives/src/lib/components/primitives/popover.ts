@@ -13,16 +13,18 @@ import {
 	type PortalProps,
 	type Signal,
 } from "@implementjs/core";
-import { getId } from "../../utils";
+import { getId, noop, type MaybeReadable } from "../../utils";
 import { focusFirst, trapFocus } from "../../focus";
 import { mergeProps } from "../../merge-props";
-import { DismissableLayer } from "../helpers/dismissable-layer";
 import {
-	positionFloatingElement,
-	handleOutsideClick,
-	type Side,
-	type Align,
-} from "../helpers/floating-ui";
+	DismissableLayer,
+	EscapeEvent,
+	InteractOutsideEvent,
+	type DismissBehavior,
+} from "../helpers/dismissable-layer";
+import { positionFloatingElement, type Side, type Align } from "../helpers/floating-ui";
+
+// TODO: scroll locking
 
 export type { Side, Align };
 
@@ -33,8 +35,8 @@ export type PopoverRootProps = {
 class PopoverState {
 	open: Signal<boolean>;
 	currentTriggerId = signal<string | null>(null);
-	triggerRefs = new Map<string, PopoverTriggerState>();
-	content: PopoverContentState | null = null;
+	triggerRefs = Implement.Map<string, PopoverTriggerState>();
+	content = signal<PopoverContentState | null>(null);
 	autoUpdateDispose: (() => void) | null = null;
 	/** First trigger that registered with `default: true`, if any. */
 	private defaultTriggerId: string | null = null;
@@ -53,11 +55,15 @@ class PopoverState {
 	}
 
 	registerContent(content: PopoverContentState) {
-		this.content = content;
+		this.content.set(content);
 	}
 
 	get state() {
 		return this.open.bind((open) => (open ? "open" : "closed"));
+	}
+
+	get contentEl() {
+		return derived([this.content], (c) => (c === null ? null : c.opts.ref.get()));
 	}
 
 	toggle(triggerId: string) {
@@ -76,7 +82,7 @@ class PopoverState {
 
 	private openAndFocus() {
 		this.open.set(true);
-		focusFirst(this.content?.opts.ref.get());
+		focusFirst(this.content.get()?.opts.ref.get());
 	}
 
 	close() {
@@ -114,11 +120,11 @@ class PopoverState {
 
 	private follow(triggerId: string) {
 		const trigger = this.triggerRefs.get(triggerId);
-		const content = this.content;
-		if (!trigger || !content) return;
+		const content = this.content.get();
+		if (!trigger || content === null) return;
 
 		const triggerEl = trigger.opts.ref.get();
-		const contentEl = content.opts.ref.get();
+		const contentEl = content?.opts.ref.get();
 		if (!triggerEl || !contentEl) return;
 
 		this.unfollow();
@@ -137,23 +143,10 @@ class PopoverState {
 		this.autoUpdateDispose = null;
 	}
 
-	onPointerdown(e: PointerEvent) {
-		if (!this.open.get()) return;
-
-		handleOutsideClick(
-			e,
-			[...this.triggerRefs.values()].map((t) => t.opts.ref.get()),
-			this.content?.opts.ref.get(),
-			{
-				onClose: () => this.close(),
-			},
-		);
-	}
-
 	contentKeydown(e: KeyboardEvent) {
 		switch (e.key) {
 			case "Tab":
-				trapFocus(e, this.content?.opts.ref.get());
+				trapFocus(e, this.content.get()?.opts.ref.get());
 				return;
 		}
 	}
@@ -168,11 +161,21 @@ const PopoverContext = context<PopoverState>();
 export function Popover(props: PopoverRootProps, ...children: Child[]) {
 	const state = new PopoverState(props);
 	return DismissableLayer(
-		{ open: state.open, onDismiss: () => state.close() },
+		{
+			open: state.open,
+			close: () => state.close(),
+			anchors: state.triggerRefs.bind((refs) => [...refs.values()].map((t) => t.opts.ref.get())),
+			content: state.contentEl,
+			escapeKeydownBehavior: state.content.bind((c) =>
+				c === null ? "close" : c.opts.escapeKeydownBehavior,
+			),
+			onEscape: state.content.bind((c) => (c === null ? noop : c.opts.onEscape)),
+			onInteractOutside: state.content.bind((c) => (c === null ? noop : c.opts.onInteractOutside)),
+			onInteractOutsideBehavior: state.content.bind((c) =>
+				c === null ? "close" : c.opts.onInteractOutsideBehavior,
+			),
+		},
 		PopoverContext.Provide(state).To(
-			Implement.Document({
-				onPointerdown: (e) => state.onPointerdown(e),
-			}),
 			Implement.Lifecycle(
 				{
 					onMount: () => {
@@ -250,23 +253,38 @@ export function PopoverTrigger(
 	});
 }
 
-export type PopoverContentProps = ComponentProps<typeof Div> & {
-	side?: Side;
-	align?: Align;
-	offset?: number;
+type PopoverContentOptions = {
+	side: Side;
+	align: Align;
+	offset: number;
+	onInteractOutside: (e: InteractOutsideEvent) => void;
+	onInteractOutsideBehavior: MaybeReadable<DismissBehavior>;
+	onEscape: (e: EscapeEvent) => void;
+	escapeKeydownBehavior: MaybeReadable<DismissBehavior>;
 };
+
+export type PopoverContentProps = ComponentProps<typeof Div> & Partial<PopoverContentOptions>;
 
 class PopoverContentState {
 	constructor(
 		readonly rootState: PopoverState,
-		readonly opts: { ref: Ref<HTMLDivElement>; side: Side; align: Align; offset: number },
+		readonly opts: PopoverContentOptions & { ref: Ref<HTMLDivElement> },
 	) {
 		rootState.registerContent(this);
 	}
 }
 
 export function PopoverContent(
-	{ side = "bottom", align = "start", offset = 0, ...restProps }: PopoverContentProps,
+	{
+		side = "bottom",
+		align = "start",
+		offset = 0,
+		onInteractOutside = noop,
+		onInteractOutsideBehavior = "close",
+		onEscape = noop,
+		escapeKeydownBehavior = "close",
+		...restProps
+	}: PopoverContentProps,
 	...children: Child[]
 ) {
 	return PopoverContext.Use((rootState) => {
@@ -276,6 +294,10 @@ export function PopoverContent(
 			side,
 			align,
 			offset,
+			onInteractOutside,
+			onInteractOutsideBehavior,
+			onEscape,
+			escapeKeydownBehavior,
 		});
 
 		return Div(

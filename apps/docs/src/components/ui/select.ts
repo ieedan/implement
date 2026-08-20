@@ -1,5 +1,5 @@
-import { Div, Span, type Child, type ComponentProps } from "@implementjs/core";
-import { CheckIcon, ChevronDownIcon } from "@implementjs/lucide";
+import { Div, ForEach, If, Span, type Child, type ComponentProps } from "@implementjs/core";
+import { CheckIcon, ChevronDownIcon, XIcon } from "@implementjs/lucide";
 import {
 	Select as SelectPrimitive,
 	SelectContent as SelectContentPrimitive,
@@ -13,7 +13,70 @@ export type SelectTriggerProps = ComponentProps<typeof SelectTriggerPrimitive>;
 export type SelectContentProps = ComponentProps<typeof SelectContentPrimitive>;
 export type SelectItemProps = ComponentProps<typeof SelectItemPrimitive>;
 
-export const SelectValue = SelectValuePrimitive;
+export type SelectValueProps = {
+	placeholder?: string;
+	/** Maps an item's value to its display label. Defaults to showing the value itself. */
+	label?: (value: string) => string;
+};
+
+export function SelectValue({ placeholder = "", label = (value) => value }: SelectValueProps = {}) {
+	return SelectValuePrimitive({
+		render: (props) => {
+			if (props.type === "single") {
+				return Span(
+					{ "data-slot": "select-value", class: "truncate" },
+					If(props.value.bind((selected) => selected === null))
+						.Then(Span({ class: "text-muted-foreground" }, placeholder))
+						.Else(props.value.bind((selected) => (selected === null ? "" : label(selected)))),
+				);
+			}
+
+			const values = props.value;
+
+			function removeValue(event: Event, id: string) {
+				event.preventDefault();
+				event.stopPropagation();
+				const index = values.get().indexOf(id);
+				if (index !== -1) values.splice(index, 1);
+			}
+
+			return Div(
+				{
+					"data-slot": "select-value",
+					class:
+						"flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+				},
+				If(props.value.bind((selected) => selected.length === 0)).Then(
+					Span({ class: "text-muted-foreground" }, placeholder),
+				),
+				ForEach(
+					props.value,
+					(id) => id,
+					(id) =>
+						Span(
+							{
+								class:
+									"inline-flex shrink-0 items-center gap-0.5 rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium",
+							},
+							Span({ class: "truncate" }, id.bind(label)),
+							Span(
+								{
+									role: "button",
+									tabIndex: -1,
+									"aria-label": id.bind((current) => `Remove ${label(current)}`),
+									class:
+										"flex size-3.5 shrink-0 items-center justify-center rounded-sm hover:bg-foreground/10",
+									onPointerdown: (event) => event.stopPropagation(),
+									onClick: (event) => removeValue(event, id.get()),
+								},
+								XIcon({ class: "size-3", "aria-hidden": true }),
+							),
+						),
+				),
+			);
+		},
+	});
+}
 
 export function Select(props: SelectProps, ...children: Child[]) {
 	return SelectPrimitive(props, Div({ class: "relative" }, ...children));
@@ -56,9 +119,15 @@ export function SelectContent(
 			align,
 			"data-slot": "select-content",
 			class: [
-				"absolute top-full left-0 z-50 mt-1 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-none",
+				"absolute z-50 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-none",
 				"w-[var(--ip-select-anchor-width,100%)] min-w-32 origin-(--ip-select-content-transform-origin)",
 				"max-h-(--ip-select-content-available-height)",
+				"transition-[opacity,translate,scale,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
+				"data-[state=open]:block data-[state=open]:translate-0 data-[state=open]:scale-100 data-[state=open]:opacity-100",
+				"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:scale-95 data-[state=closed]:opacity-0",
+				"data-[state=closed]:data-[side=bottom]:-translate-y-2 data-[state=closed]:data-[side=top]:translate-y-2 data-[state=closed]:data-[side=left]:translate-x-2 data-[state=closed]:data-[side=right]:-translate-x-2",
+				"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
+				"starting:data-[state=open]:data-[side=bottom]:-translate-y-2 starting:data-[state=open]:data-[side=top]:translate-y-2 starting:data-[state=open]:data-[side=left]:translate-x-2 starting:data-[state=open]:data-[side=right]:-translate-x-2",
 				className,
 			],
 		},

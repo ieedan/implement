@@ -219,6 +219,21 @@ const upper = todo.bind((t) => t.title.toUpperCase());
 // @ts-expect-error one-way bind is not writable
 upper.set("nope");
 
+// binding a DOM-element ref must not overflow the checker on circular DOM types
+const button = new Ref<HTMLButtonElement>();
+const buttonAnchors: Readable<(HTMLButtonElement | null)[]> = button.bind((t) => [t]);
+const buttonDisabled: Readable<boolean> = button.bind("disabled");
+Span(
+	buttonAnchors.bind((a) => String(a.length)),
+	buttonDisabled.bind(String),
+);
+
+// self-referential plain types terminate via the PathsOf depth bound
+type LinkedNode = { label: string; next: LinkedNode | null };
+const linked = signal<LinkedNode>({ label: "a", next: { label: "b", next: null } });
+const nextLabel: Signal<string> = linked.bind("next.label");
+Span(nextLabel);
+
 type _AssertEqual<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 
 type DivProps = ComponentProps<typeof Div>;

@@ -66,7 +66,7 @@ Select(
 Button({ onClick: () => open.set(false) }, "Close");
 ```
 
-The primitive does not hide the content for you. Bind `hidden` to `open`, or style visibility yourself, the same way [Popover](/primitives/docs/popover) leaves `data-state` to CSS.
+The primitive does not hide the content for you. Style it against `data-state`, the same way [Popover](/primitives/docs/popover) does.
 
 ## Single or multiple
 
@@ -163,7 +163,7 @@ SelectItem({ value: "apple" }, "Apple");
 
 ## Styling
 
-Trigger, content, and items expose `data-select-*` attributes so you can target them in CSS. Content also gets `data-side` and `data-align` once it is placed. Items expose `data-selected`, `data-highlighted`, and `data-disabled`.
+Trigger and content expose `data-state` as `"open"` or `"closed"`. Content also sets `data-side` (`"top"`, `"bottom"`, `"left"`, `"right"`) so motion can slide in from the trigger. Items expose `data-selected`, `data-highlighted`, and `data-disabled`.
 
 Positioning writes CSS variables on the content: `--ip-select-content-transform-origin` for origin-aware scale, `--ip-select-anchor-width` / `--ip-select-anchor-height` to match the trigger, and `--ip-select-content-available-width` / `--ip-select-content-available-height` to stay inside the viewport.
 
@@ -183,7 +183,7 @@ SelectTrigger(
 SelectContent(
 	{
 		class:
-			"absolute z-50 min-w-32 origin-(--ip-select-content-transform-origin) rounded-md border bg-popover p-1 shadow-md",
+			"absolute z-50 min-w-32 origin-(--ip-select-content-transform-origin) rounded-md border bg-popover p-1 shadow-md transition data-[state=closed]:hidden data-[state=closed]:data-[side=bottom]:-translate-y-2",
 	},
 	SelectItem(
 		{
@@ -195,6 +195,8 @@ SelectContent(
 	),
 );
 ```
+
+`data-state` is there for visibility and open versus closed. `data-side` is the actual placed side (after flip), so enter and exit stay pointed at the trigger.
 
 ## API Reference
 
