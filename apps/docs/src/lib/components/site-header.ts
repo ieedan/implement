@@ -1,5 +1,6 @@
-import { derived, Header, Nav, type Mountable } from "@implementjs/core";
+import { derived, Div, Header, Nav, type Mountable } from "@implementjs/core";
 import { router } from "../router";
+import { DocsSearch } from "./docs/search";
 
 function navClass(active: boolean): string {
 	return active ? "text-sm text-foreground" : "text-sm text-foreground/50 hover:text-foreground";
@@ -55,5 +56,6 @@ export function SiteHeader(): Mountable {
 			),
 			router.Link({ to: "/repl", class: derived([onRepl], (active) => navClass(active)) }, "REPL"),
 		),
+		Div({ class: "ml-auto flex items-center" }, DocsSearch()),
 	);
 }

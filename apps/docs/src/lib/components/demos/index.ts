@@ -61,6 +61,10 @@ import MenubarDemo from "./menubar-demo.ts";
 import menubarSource from "./menubar-demo.ts?raw";
 import ToastDemo from "./toast-demo.ts";
 import toastSource from "./toast-demo.ts?raw";
+import CommandDemo from "./command-demo.ts";
+import commandSource from "./command-demo.ts?raw";
+import CommandGridDemo from "./command-grid-demo.ts";
+import commandGridSource from "./command-grid-demo.ts?raw";
 
 export type Demo = {
 	/** The demo's source text: shown in the editor and, once edited, compiled and run live. */
@@ -129,4 +133,6 @@ export const demos: Record<string, Demo> = {
 	"alert-dialog": { source: alertDialogSource, component: AlertDialogDemo },
 	tooltip: { source: tooltipSource, component: TooltipDemo },
 	toast: { source: toastSource, component: ToastDemo },
+	command: { source: commandSource, component: CommandDemo },
+	"command-grid": { source: commandGridSource, component: CommandGridDemo },
 };

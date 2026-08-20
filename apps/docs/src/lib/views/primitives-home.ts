@@ -19,6 +19,7 @@ import {
 	ChevronDownIcon,
 	ChevronsUpDownIcon,
 	ItalicIcon,
+	SearchIcon,
 	UnderlineIcon,
 } from "@implementjs/lucide";
 import { SiteHeader } from "../components/site-header";
@@ -616,9 +617,41 @@ function TooltipPreview(): Mountable {
 	);
 }
 
+function CommandPreview(): Mountable {
+	const item = (label: string, selected = false) =>
+		Div(
+			{
+				class: [
+					"rounded-sm px-2 py-1.5",
+					selected ? "bg-accent text-accent-foreground" : "text-foreground/70",
+				],
+			},
+			label,
+		);
+	return Div(
+		{ class: "w-56 overflow-hidden rounded-md border bg-background text-xs shadow-sm" },
+		Div(
+			{ class: "flex items-center gap-2 border-b px-3 py-2 text-foreground/40" },
+			SearchIcon({ class: "size-3.5" }),
+			"Type a command...",
+		),
+		Div(
+			{ class: "p-1" },
+			Div(
+				{ class: "px-2 py-1 text-[10px] font-medium tracking-wide text-foreground/40 uppercase" },
+				"Suggestions",
+			),
+			item("Calendar", true),
+			item("Calculator"),
+			item("Settings"),
+		),
+	);
+}
+
 /** Live, non-interactive card previews, keyed by page slug. */
 const previews: Record<string, () => Mountable> = {
 	accordion: AccordionPreview,
+	command: CommandPreview,
 	"aspect-ratio": AspectRatioPreview,
 	avatar: AvatarPreview,
 	checkbox: CheckboxPreview,
@@ -649,6 +682,7 @@ const previews: Record<string, () => Mountable> = {
  */
 const spans: Record<string, string> = {
 	accordion: "sm:col-span-2 sm:row-span-2",
+	command: "sm:col-span-2 sm:row-span-2",
 	"aspect-ratio": "sm:col-span-2",
 	collapsible: "sm:col-span-2",
 	"context-menu": "sm:col-span-2 sm:row-span-2",
