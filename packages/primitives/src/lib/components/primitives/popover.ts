@@ -1,13 +1,4 @@
 import {
-	autoUpdate,
-	computePosition,
-	flip,
-	offset,
-	shift,
-	size,
-	type Placement,
-} from "@floating-ui/dom";
-import {
 	Button,
 	context,
 	derived,
@@ -26,9 +17,14 @@ import { getId } from "../../utils";
 import { focusFirst, trapFocus } from "../../focus";
 import { mergeProps } from "../../merge-props";
 import { DismissableLayer } from "../helpers/dismissable-layer";
+import {
+	positionFloatingElement,
+	handleOutsideClick,
+	type Side,
+	type Align,
+} from "../helpers/floating-ui";
 
-export type Side = "top" | "bottom" | "left" | "right";
-export type Align = "start" | "center" | "end";
+export type { Side, Align };
 
 export type PopoverRootProps = {
 	open?: Signal<boolean> | boolean;
@@ -125,14 +121,15 @@ class PopoverState {
 		const contentEl = content.opts.ref.get();
 		if (!triggerEl || !contentEl) return;
 
-		this.autoUpdate(triggerEl, contentEl, () =>
-			this.position(triggerEl, {
-				el: contentEl,
-				side: content.opts.side,
-				align: content.opts.align,
-				offset: content.opts.offset,
-			}),
-		);
+		this.unfollow();
+		this.autoUpdateDispose = positionFloatingElement(triggerEl, contentEl, {
+			componentName: "popover",
+			side: content.opts.side,
+			align: content.opts.align,
+			offset: content.opts.offset,
+			strategy: "absolute",
+			autoUpdate: true,
+		});
 	}
 
 	private unfollow() {
@@ -140,60 +137,17 @@ class PopoverState {
 		this.autoUpdateDispose = null;
 	}
 
-	private autoUpdate(trigger: HTMLButtonElement, content: HTMLDivElement, callback: () => void) {
-		this.unfollow();
-		this.autoUpdateDispose = autoUpdate(trigger, content, callback);
-	}
-
-	private position(
-		trigger: HTMLButtonElement,
-		content: { el: HTMLDivElement; side: Side; align: Align; offset: number },
-	) {
-		const placement = toFloatingUIPlacement(content.side, content.align);
-		void computePosition(trigger, content.el, {
-			placement,
-			strategy: "absolute",
-			middleware: [
-				offset(content.offset),
-				shift(),
-				flip(),
-				size({
-					apply({ availableWidth, availableHeight, rects, elements, placement: resolved }) {
-						applyPopoverCssVars(elements.floating, {
-							placement: resolved,
-							availableWidth,
-							availableHeight,
-							anchor: rects.reference,
-							floating: rects.floating,
-						});
-					},
-				}),
-			],
-		}).then(({ x, y, placement: resolved }) => {
-			content.el.style.left = `${x}px`;
-			content.el.style.top = `${y}px`;
-			const [side, align] = resolved.split("-");
-			content.el.dataset.side = side;
-			content.el.dataset.align = align;
-		});
-	}
-
 	onPointerdown(e: PointerEvent) {
 		if (!this.open.get()) return;
-		// only close on left clicks
-		const isRightClick = e.button === 2 || (e.button === 0 && e.ctrlKey);
-		if (isRightClick) return;
 
-		// we don't handle trigger clicks here
-		for (const trigger of this.triggerRefs.values()) {
-			if (trigger.opts.ref.get()?.contains(e.target as Node)) return;
-		}
-
-		if (this.content) {
-			if (this.content.opts.ref.get()?.contains(e.target as Node)) return;
-		}
-
-		this.close();
+		handleOutsideClick(
+			e,
+			[...this.triggerRefs.values()].map((t) => t.opts.ref.get()),
+			this.content?.opts.ref.get(),
+			{
+				onClose: () => this.close(),
+			},
+		);
 	}
 
 	contentKeydown(e: KeyboardEvent) {
@@ -207,52 +161,6 @@ class PopoverState {
 	dispose() {
 		this.unfollow();
 	}
-}
-
-export function toFloatingUIPlacement(side: Side, align: Align): Placement {
-	if (align === "center") return side;
-	return `${side}-${align}`;
-}
-
-const ALIGN_ORIGIN: Record<Align, string> = {
-	start: "0%",
-	center: "50%",
-	end: "100%",
-};
-
-/** Transform origin so scale/fade animations grow from the trigger. */
-function toTransformOrigin(
-	side: Side,
-	align: Align,
-	floating: { width: number; height: number },
-): string {
-	const alignOrigin = ALIGN_ORIGIN[align];
-	if (side === "bottom") return `${alignOrigin} 0px`;
-	if (side === "top") return `${alignOrigin} ${floating.height}px`;
-	if (side === "right") return `0px ${alignOrigin}`;
-	return `${floating.width}px ${alignOrigin}`;
-}
-
-function applyPopoverCssVars(
-	el: HTMLElement,
-	opts: {
-		placement: Placement;
-		availableWidth: number;
-		availableHeight: number;
-		anchor: { width: number; height: number };
-		floating: { width: number; height: number };
-	},
-) {
-	const [side, alignPart] = opts.placement.split("-") as [Side, Align?];
-	const align = alignPart ?? "center";
-	el.style.setProperty(
-		"--bits-popover-content-transform-origin",
-		toTransformOrigin(side, align, opts.floating),
-	);
-	el.style.setProperty("--bits-popover-content-available-width", `${opts.availableWidth}px`);
-	el.style.setProperty("--bits-popover-content-available-height", `${opts.availableHeight}px`);
-	el.style.setProperty("--bits-popover-anchor-width", `${opts.anchor.width}px`);
-	el.style.setProperty("--bits-popover-anchor-height", `${opts.anchor.height}px`);
 }
 
 const PopoverContext = context<PopoverState>();
@@ -363,7 +271,7 @@ export function PopoverContent(
 ) {
 	return PopoverContext.Use((rootState) => {
 		const contentRef = ref<HTMLDivElement>();
-		const _contentState = new PopoverContentState(rootState, {
+		new PopoverContentState(rootState, {
 			ref: contentRef,
 			side,
 			align,

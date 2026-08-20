@@ -330,4 +330,128 @@ export const apiReference: Record<string, ApiPart[]> = {
 			description: "Closes the popover when clicked. Put it inside the content.",
 		},
 	],
+	select: [
+		{
+			name: "Select",
+			description:
+				"The root. Owns whether the list is open, which values are selected, and provides that to the parts inside it.",
+			props: [
+				{
+					name: "type",
+					type: '"single" | "multiple"',
+					default: '"single"',
+					description: "Whether choosing an item replaces the value, or several can stay selected.",
+				},
+				{
+					name: "value",
+					type: "Signal<string | null> | Signal<string[]>",
+					description:
+						'The selected value. string | null when type is "single", string[] when "multiple". Pass a signal to control it from outside.',
+				},
+				{
+					name: "open",
+					type: "Signal<boolean>",
+					default: "false",
+					description:
+						"The open state. Pass a signal to control it from outside; omit it for uncontrolled state.",
+				},
+			],
+		},
+		{
+			name: "SelectTrigger",
+			element: "Button",
+			description: "Toggles the list open and closed.",
+		},
+		{
+			name: "SelectValue",
+			description:
+				"The selected label. Put it inside the trigger. Pass render to turn stored values into text.",
+			props: [
+				{
+					name: "render",
+					type: "(props: SelectValueRenderProps) => Child",
+					description:
+						'Called with the current selection. Discriminate on props.type: value is Signal<string | null> for "single", Signal<string[]> for "multiple". Omit it to show the raw value, or a comma-separated list.',
+				},
+			],
+		},
+		{
+			name: "SelectContent",
+			element: "Div",
+			description:
+				'The list. Sets role="listbox". Style visibility yourself; the primitive does not hide it for you.',
+			props: [
+				{
+					name: "side",
+					type: '"top" | "bottom" | "left" | "right"',
+					default: '"bottom"',
+					description: "Preferred side of the trigger to place the list.",
+				},
+				{
+					name: "align",
+					type: '"start" | "center" | "end"',
+					default: '"start"',
+					description: "How the list aligns along the chosen side.",
+				},
+				{
+					name: "offset",
+					type: "number",
+					default: "0",
+					description: "Distance in pixels between the trigger and the list.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-select-content", value: "Present" },
+				{ name: "data-side", value: '"top" | "bottom" | "left" | "right"' },
+				{ name: "data-align", value: '"start" | "center" | "end"' },
+			],
+			cssVariables: [
+				{
+					name: "--ip-select-content-transform-origin",
+					description: "The transform origin of the content element.",
+				},
+				{
+					name: "--ip-select-content-available-width",
+					description: "The available width of the content element.",
+				},
+				{
+					name: "--ip-select-content-available-height",
+					description: "The available height of the content element.",
+				},
+				{
+					name: "--ip-select-anchor-width",
+					description: "The width of the trigger.",
+				},
+				{
+					name: "--ip-select-anchor-height",
+					description: "The height of the trigger.",
+				},
+			],
+		},
+		{
+			name: "SelectItem",
+			element: "Div",
+			description: 'One option. Sets role="option" and aria-selected.',
+			props: [
+				{
+					name: "value",
+					type: "string",
+					required: true,
+					description: "Identifies the item. Must be unique within the select.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Prevents selecting the item. Sets data-disabled and aria-disabled.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-select-item", value: "Present" },
+				{ name: "data-selected", value: "Present when selected" },
+				{ name: "data-highlighted", value: "Present when highlighted" },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+	],
 };

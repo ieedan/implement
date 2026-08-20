@@ -11,6 +11,10 @@ import PopoverNestedDemo from "./popover-nested-demo.ts";
 import popoverNestedSource from "./popover-nested-demo.ts?raw";
 import PopoverTriggersDemo from "./popover-triggers-demo.ts";
 import popoverTriggersSource from "./popover-triggers-demo.ts?raw";
+import SelectDemo from "./select-demo.ts";
+import selectSource from "./select-demo.ts?raw";
+import SelectMultipleDemo from "./select-multiple-demo.ts";
+import selectMultipleSource from "./select-multiple-demo.ts?raw";
 import SeparatorDemo from "./separator-demo.ts";
 import separatorSource from "./separator-demo.ts?raw";
 
@@ -41,5 +45,7 @@ export const demos: Record<string, Demo> = {
 	popover: { source: popoverSource, component: PopoverDemo },
 	"popover-triggers": { source: popoverTriggersSource, component: PopoverTriggersDemo },
 	"popover-nested": { source: popoverNestedSource, component: PopoverNestedDemo },
+	select: { source: selectSource, component: SelectDemo },
+	"select-multiple": { source: selectMultipleSource, component: SelectMultipleDemo },
 	separator: { source: separatorSource, component: SeparatorDemo },
 };

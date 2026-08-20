@@ -19,8 +19,9 @@ import {
 	AccordionTrigger,
 } from "../components/ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
+import { Select, SelectTrigger } from "../components/ui/select";
 import { Separator } from "../components/ui/separator";
 import { primitivePages, type PrimitivePage } from "../lib/content";
 import { router } from "../router";
@@ -65,18 +66,12 @@ function AvatarPreview(): Mountable {
 
 function PopoverPreview(): Mountable {
 	return Div(
-		{ class: "flex flex-col items-center gap-3" },
-		Popover(
-			{ open: true },
-			PopoverTrigger({ variant: "outline" }, "Open popover"),
-			PopoverContent(
-				{ class: "w-64" },
-				Div(
-					{ class: "grid gap-1.5" },
-					Div({ class: "text-sm font-medium" }, "Dimensions"),
-					P({ class: "text-sm text-muted-foreground" }, "Set the dimensions for the layer."),
-				),
-			),
+		{ class: "flex w-full max-w-56 flex-col items-center gap-2" },
+		Button({ variant: "outline", size: "sm" }, "Open popover"),
+		Div(
+			{ class: "w-full rounded-md border bg-popover p-3 text-popover-foreground shadow-md" },
+			Div({ class: "text-sm font-medium" }, "Dimensions"),
+			P({ class: "mt-1 text-xs text-muted-foreground" }, "Set the dimensions for the layer."),
 		),
 	);
 }
@@ -102,6 +97,10 @@ function CheckboxPreview(): Mountable {
 	);
 }
 
+function SelectPreview(): Mountable {
+	return Select({}, SelectTrigger({ class: "w-40" }, "Apple"));
+}
+
 function SeparatorPreview(): Mountable {
 	return Div(
 		{ class: "w-full max-w-56" },
@@ -124,6 +123,7 @@ const previews: Record<string, () => Mountable> = {
 	avatar: AvatarPreview,
 	checkbox: CheckboxPreview,
 	popover: PopoverPreview,
+	select: SelectPreview,
 	separator: SeparatorPreview,
 };
 

@@ -157,10 +157,7 @@ export function AccordionItem({ value, ...restProps }: AccordionItemProps, ...ch
 
 export type AccordionTriggerProps = ComponentProps<typeof Button>;
 
-export function AccordionTrigger(
-	{ ...restProps }: AccordionTriggerProps,
-	...children: Child[]
-) {
+export function AccordionTrigger({ ...restProps }: AccordionTriggerProps, ...children: Child[]) {
 	return AccordionItemCtx.Use((state) => {
 		return Button(
 			mergeProps(

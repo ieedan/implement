@@ -36,3 +36,16 @@ export {
 export { Separator, type SeparatorProps } from "./lib/components/primitives/separator";
 export { mergeProps } from "./lib/merge-props";
 export { Checkbox, type CheckboxProps } from "./lib/components/primitives/checkbox";
+export {
+	Select,
+	SelectTrigger,
+	SelectValue,
+	SelectContent,
+	SelectItem,
+	type SelectProps,
+	type SelectTriggerProps,
+	type SelectValueProps,
+	type SelectValueRenderProps,
+	type SelectContentProps,
+	type SelectItemsProps,
+} from "./lib/components/primitives/select";
