@@ -15,6 +15,10 @@ const router = Router(
 		"/users": {
 			"/:id": ({ id }) => Div({ "data-id": id }),
 		},
+		"/docs": {
+			"/": () => Div(),
+			"/:...slug": ({ slug }) => Div({ "data-slug": slug }),
+		},
 	},
 	{ fallback: () => Div({}, "Not found") },
 );
@@ -40,3 +44,9 @@ router.Link({ to: "/issues/:id", params: { id: "42" } }, "Open");
 router.Link({ to: "/users/:id", params: { id: "42" } }, "Open");
 // @ts-expect-error params are required for parameterized links
 router.Link({ to: "/issues/:id" }, "Open");
+router.href("/docs");
+router.href("/docs/:...slug", { slug: "guide/install" });
+// @ts-expect-error params are required for catch-all paths
+router.href("/docs/:...slug");
+router.navigate("/docs/:...slug", { slug: "guide" });
+router.Link({ to: "/docs/:...slug", params: { slug: "guide/install" } }, "Guide");

@@ -1,0 +1,54 @@
+import { rmSync } from "node:fs";
+import { join } from "node:path";
+import type { RenderToStringResult } from "@implementjs/core/server";
+import { createServer, type ViteDevServer } from "vite";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { kit } from "../src/index.ts";
+
+const fixture = join(import.meta.dirname, "fixtures/basic");
+
+describe("kit plugin (dev SSR through the generated entries)", () => {
+	let server: ViteDevServer;
+	let render: (url: string) => RenderToStringResult;
+
+	beforeAll(async () => {
+		server = await createServer({
+			root: fixture,
+			configFile: false,
+			logLevel: "error",
+			server: { middlewareMode: true, watch: null },
+			plugins: [kit()],
+		});
+		const entry = (await server.ssrLoadModule("/.implement/entry-server.ts")) as {
+			render: typeof render;
+		};
+		render = entry.render;
+	});
+
+	afterAll(async () => {
+		await server.close();
+		rmSync(join(fixture, ".implement"), { recursive: true, force: true });
+	});
+
+	it("renders the root page through the root layout", () => {
+		const { html } = render("/");
+		expect(html).toContain('<main class="shell">');
+		expect(html).toContain("<h1>home</h1>");
+	});
+
+	it("renders nested static pages", () => {
+		expect(render("/docs").html).toContain("<p>docs home</p>");
+	});
+
+	it("renders catch-all params joined with slashes", () => {
+		expect(render("/docs/guide/install").html).toContain("<p>guide/install</p>");
+	});
+
+	it("renders [param] pages", () => {
+		expect(render("/users/42").html).toContain("<p>user 42</p>");
+	});
+
+	it("renders the error page for unmatched paths", () => {
+		expect(render("/nope/nope").html).toContain("<p>not found</p>");
+	});
+});

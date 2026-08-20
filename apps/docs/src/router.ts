@@ -1,26 +1,12 @@
-import { Router } from "@implementjs/core";
-import { docsRoutes, lucideDocsRoutes, primitivesDocsRoutes } from "./lib/docs-routes";
-import { tutorialRoutes } from "./lib/tutorial-routes";
-import { Home } from "./views/home";
-import { NotFound } from "./views/not-found";
-import { PackagesPage } from "./views/packages";
-import { PrimitivesHome } from "./views/primitives-home";
-import { ReplPage } from "./views/repl-page";
+import { router } from "$implement/router";
 
-export const router = Router(
-	{
-		"/": () => Home(),
-		"/docs": docsRoutes(),
-		"/primitives": {
-			"/": () => PrimitivesHome(),
-			"/docs": primitivesDocsRoutes(),
-		},
-		"/lucide": lucideDocsRoutes(),
-		"/packages": () => PackagesPage(),
-		"/tutorial": tutorialRoutes(),
-		"/repl": () => ReplPage(),
-	},
-	{ fallback: () => NotFound() },
-);
+export { router };
 
-export const Link = router.Link.bind(router);
+type LinkFn = (typeof router)["Link"];
+
+/**
+ * Deferred (not `.bind`) so this module can sit inside the route-module
+ * import cycle: views import `Link` here while `$implement/router` is still
+ * evaluating them.
+ */
+export const Link: LinkFn = (props, ...children) => router.Link(props, ...children);

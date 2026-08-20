@@ -1,15 +1,23 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { createServer, type Plugin, type ResolvedConfig, type ViteDevServer } from "vite";
 import { injectSsr } from "./inject.ts";
 import { crawlRoutes, prerenderRoutes, type RenderFn } from "./prerender.ts";
 
-export type { SsrResult } from "./inject.ts";
-export type { RenderFn } from "./prerender.ts";
+export { injectSsr, type SsrResult } from "./inject.ts";
+export { crawlRoutes, normalizeRoute, prerenderRoutes, type RenderFn } from "./prerender.ts";
 
 export type PrerenderOptions = {
-	/** Routes to prerender. Defaults to crawling internal links from `/`. */
-	routes?: string[] | (() => string[] | Promise<string[]>);
+	/**
+	 * Routes to prerender. Defaults to crawling internal links from `/`.
+	 * A function receives the render so it can crawl and add to the result.
+	 */
+	routes?: string[] | ((render: RenderFn) => string[] | Promise<string[]>);
+	/**
+	 * A path matching no route, rendered into `404.html` so static hosts
+	 * serve the app's not-found fallback for unknown URLs.
+	 */
+	notFound?: string;
 };
 
 export type ImplementOptions = {
@@ -89,12 +97,16 @@ export function implement(options: ImplementOptions = {}): Plugin {
 					routesOption == null
 						? crawlRoutes(render)
 						: typeof routesOption === "function"
-							? await routesOption()
+							? await routesOption(render)
 							: routesOption;
 				const { written, failed } = prerenderRoutes({ render, routes, template, outDir });
 				config.logger.info(`prerendered ${written}/${routes.length} routes`);
 				if (failed.length > 0) {
 					throw new Error(`prerender failed:\n  ${failed.join("\n  ")}`);
+				}
+				const notFound = typeof prerender === "object" ? prerender.notFound : undefined;
+				if (notFound !== undefined) {
+					writeFileSync(join(outDir, "404.html"), injectSsr(template, render(notFound)));
 				}
 			} finally {
 				await dev.close();

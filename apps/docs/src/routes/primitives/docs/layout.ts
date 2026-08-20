@@ -1,0 +1,8 @@
+import type { Child } from "@implementjs/core";
+import { DocsLayout } from "@/components/docs/layout";
+import { primitivePages } from "@/lib/content";
+import type { LayoutProps } from "./$types";
+
+export default function Layout({ children }: LayoutProps): Child {
+	return DocsLayout(children, { pages: primitivePages, label: "Primitives" });
+}

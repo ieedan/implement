@@ -229,6 +229,52 @@ describe("router", () => {
 		expect(renderToString(router, { location: "/missing" }).html).toBe("<p>not found</p><!---->");
 	});
 
+	const makeCatchAllRouter = () =>
+		Router(
+			{
+				"/docs": {
+					"/": () => P("docs home"),
+					"/guide": () => P("static guide"),
+					"/:...slug": ({ slug }) => P(slug),
+				},
+			},
+			{ fallback: () => P("not found") },
+		);
+
+	it("matches a catch-all across one or more segments", () => {
+		const router = makeCatchAllRouter();
+		expect(renderToString(router, { location: "/docs/intro" }).html).toBe("<p>intro</p><!---->");
+		expect(renderToString(router, { location: "/docs/a/b/c" }).html).toBe("<p>a/b/c</p><!---->");
+	});
+
+	it("prefers static segments and exact matches over the catch-all", () => {
+		const router = makeCatchAllRouter();
+		expect(renderToString(router, { location: "/docs" }).html).toBe("<p>docs home</p><!---->");
+		expect(renderToString(router, { location: "/docs/guide" }).html).toBe(
+			"<p>static guide</p><!---->",
+		);
+	});
+
+	it("does not match a catch-all with zero segments", () => {
+		const router = Router(
+			{ "/docs": { "/:...slug": ({ slug }) => P(slug) } },
+			{ fallback: () => P("not found") },
+		);
+		expect(renderToString(router, { location: "/docs" }).html).toBe("<p>not found</p><!---->");
+	});
+
+	it("decodes catch-all segments and builds encoded hrefs", () => {
+		const router = makeCatchAllRouter();
+		expect(renderToString(router, { location: "/docs/a%20b/c" }).html).toBe("<p>a b/c</p><!---->");
+		expect(router.href("/docs/:...slug", { slug: "a b/c" })).toBe("/docs/a%20b/c");
+	});
+
+	it("rejects a catch-all that is not the last segment", () => {
+		expect(() => Router({ "/:...rest": { "/deeper": () => P("nope") } } as never)).toThrow(
+			/must be the last path segment/,
+		);
+	});
+
 	it("renders Link as a plain anchor", () => {
 		const router = makeRouter();
 		const routes = Router({

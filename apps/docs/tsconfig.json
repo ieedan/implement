@@ -1,5 +1,5 @@
 {
-	"extends": "../../tsconfig.json",
+	"extends": ["../../tsconfig.json", "./.implement/tsconfig.json"],
 	"compilerOptions": {
 		"types": ["node", "vite/client"],
 		"allowImportingTsExtensions": true,
@@ -8,5 +8,12 @@
 			"@tutorial/test": ["./src/lib/tutorial-test.ts"]
 		}
 	},
-	"include": ["src/**/*.ts", "*.config.ts", ".velite/**/*.d.ts"]
+	"include": [
+		"src/**/*.ts",
+		"scripts/**/*.ts",
+		"*.config.ts",
+		".velite/**/*.d.ts",
+		".implement/**/*.ts",
+		".implement/types/**/*.d.ts"
+	]
 }

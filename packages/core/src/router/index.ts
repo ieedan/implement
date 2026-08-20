@@ -25,9 +25,11 @@ export {
 
 type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
-type SegmentParam<S extends string> = S extends `:${infer Name}`
+type SegmentParam<S extends string> = S extends `:...${infer Name}`
 	? { [K in Name]: Readable<string> }
-	: {};
+	: S extends `:${infer Name}`
+		? { [K in Name]: Readable<string> }
+		: {};
 
 type PathParams<Path extends string> = Path extends `/${infer Rest}`
 	? PathParams<Rest>
@@ -35,7 +37,11 @@ type PathParams<Path extends string> = Path extends `/${infer Rest}`
 		? SegmentParam<Head> & PathParams<Tail>
 		: SegmentParam<Path>;
 
-type ParamName<S extends string> = S extends `:${infer Name}` ? Name : never;
+type ParamName<S extends string> = S extends `:...${infer Name}`
+	? Name
+	: S extends `:${infer Name}`
+		? Name
+		: never;
 
 type PathParamNames<Path extends string> = Path extends `/${infer Rest}`
 	? PathParamNames<Rest>
@@ -125,7 +131,7 @@ export type RouterHelper<T> = Mountable & {
 // Runtime
 // ---------------------------------------------------------------------------
 
-type Segment = { param: false; value: string } | { param: true; name: string };
+type Segment = { param: false; value: string } | { param: true; name: string; rest: boolean };
 
 type RuntimeParams = Record<string, Readable<string>>;
 
@@ -144,9 +150,11 @@ function parseKey(key: string): Segment[] {
 	return raw
 		.split("/")
 		.filter(Boolean)
-		.map((part) =>
-			part.startsWith(":") ? { param: true, name: part.slice(1) } : { param: false, value: part },
-		);
+		.map((part) => {
+			if (part.startsWith(":...")) return { param: true, rest: true, name: part.slice(4) };
+			if (part.startsWith(":")) return { param: true, rest: false, name: part.slice(1) };
+			return { param: false, value: part };
+		});
 }
 
 function compileNode(
@@ -160,29 +168,38 @@ function compileNode(
 	for (const [key, value] of Object.entries(node)) {
 		if (key === "layout") continue;
 		if (key === "/") {
+			assertRestIsLast(prefix);
 			out.push({ segments: prefix, layouts: scope, render: value as LeafRoute["render"] });
 			continue;
 		}
 		// A bare handler at a path key is shorthand for `{ "/": handler }`.
 		if (typeof value === "function") {
-			out.push({
-				segments: [...prefix, ...parseKey(key)],
-				layouts: scope,
-				render: value as LeafRoute["render"],
-			});
+			const segments = [...prefix, ...parseKey(key)];
+			assertRestIsLast(segments);
+			out.push({ segments, layouts: scope, render: value as LeafRoute["render"] });
 			continue;
 		}
 		compileNode(value as Record<string, unknown>, [...prefix, ...parseKey(key)], scope, out);
 	}
 }
 
-/** Static segments outrank params, position by position. */
+/** A `:...rest` segment swallows the remainder of the path, so nothing may follow it. */
+function assertRestIsLast(segments: Segment[]): void {
+	for (let i = 0; i < segments.length - 1; i++) {
+		const segment = segments[i]!;
+		if (segment.param && segment.rest) {
+			throw new Error(`Catch-all segment ":...${segment.name}" must be the last path segment`);
+		}
+	}
+}
+
+/** Static segments outrank params, and params outrank catch-alls, position by position. */
 function compareRoutes(a: LeafRoute, b: LeafRoute): number {
+	const rank = (segment: Segment) => (segment.param ? (segment.rest ? 2 : 1) : 0);
 	const length = Math.min(a.segments.length, b.segments.length);
 	for (let i = 0; i < length; i++) {
-		const aParam = a.segments[i]!.param;
-		const bParam = b.segments[i]!.param;
-		if (aParam !== bParam) return aParam ? 1 : -1;
+		const difference = rank(a.segments[i]!) - rank(b.segments[i]!);
+		if (difference !== 0) return difference;
 	}
 	return a.segments.length - b.segments.length;
 }
@@ -193,13 +210,18 @@ function matchRoute(
 ): { route: LeafRoute; params: Record<string, string> } | null {
 	const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
 	for (const route of routes) {
-		if (route.segments.length !== parts.length) continue;
+		const last = route.segments[route.segments.length - 1];
+		const hasRest = last !== undefined && last.param && last.rest;
+		// a catch-all consumes one or more trailing segments; everything else is exact
+		if (hasRest ? parts.length < route.segments.length : route.segments.length !== parts.length) {
+			continue;
+		}
 		const params: Record<string, string> = {};
 		let matched = true;
-		for (let i = 0; i < parts.length; i++) {
+		for (let i = 0; i < route.segments.length; i++) {
 			const segment = route.segments[i]!;
 			if (segment.param) {
-				params[segment.name] = parts[i]!;
+				params[segment.name] = segment.rest ? parts.slice(i).join("/") : parts[i]!;
 			} else if (segment.value !== parts[i]) {
 				matched = false;
 				break;
@@ -215,11 +237,15 @@ function buildHref(path: string, params: Record<string, string | number> = {}): 
 		.split("/")
 		.map((part) => {
 			if (!part.startsWith(":")) return part;
-			const value = params[part.slice(1)];
+			const rest = part.startsWith(":...");
+			const name = part.slice(rest ? 4 : 1);
+			const value = params[name];
 			if (value === undefined) {
-				throw new Error(`Missing param "${part.slice(1)}" building href for "${path}"`);
+				throw new Error(`Missing param "${name}" building href for "${path}"`);
 			}
-			return encodeURIComponent(`${value}`);
+			if (!rest) return encodeURIComponent(`${value}`);
+			// a catch-all value spans segments: encode each, keep the slashes
+			return `${value}`.split("/").filter(Boolean).map(encodeURIComponent).join("/");
 		})
 		.join("/");
 	return built === "" ? "/" : built;
@@ -308,6 +334,10 @@ const lazyLocation: Readable<RouterLocation> = {
  * render below them, `"/"` renders a level, and `layout` wraps everything
  * beneath it (receiving the matched child). A path key may also map straight
  * to a handler — `"/about": () => About()` — shorthand for `{ "/": handler }`.
+ * A trailing `:...rest` segment catches one or more remaining segments,
+ * surfacing them joined with `/` (`/docs/:...slug` matches `/docs/a/b` with
+ * `slug` = `"a/b"`); static segments outrank `:param`s, which outrank
+ * catch-alls.
  *
  * The router is a `Mountable` — `app.render(router)` works, and so does
  * mounting one deep inside a layout. Navigating between children of a shared

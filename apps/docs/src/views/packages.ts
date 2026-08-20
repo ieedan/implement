@@ -2,7 +2,8 @@ import { A, Div, H1, H2, H3, Implement, Main, P, Section, type Mountable } from 
 import { SiteHeader } from "../components/site-header";
 import { router } from "../router";
 
-type RoutePath = Parameters<(typeof router)["Link"]>[0]["to"];
+/** Static routes only — `[param]` patterns would require Link params. */
+type RoutePath = Exclude<Parameters<(typeof router)["Link"]>[0]["to"], `${string}:${string}`>;
 
 type Package = {
 	name: string;
