@@ -153,6 +153,110 @@ Shared-element transitions across route changes are the same call around
 This matters for scoping: the single most-wanted feature of `motion.div`
 (`layout`) has a working vanilla answer here _today_, without projection.
 
+### Enter and exit, end to end
+
+With `onExit` in core (§6), the whole loop works without the package. This is
+a real file, running in Chromium against `motion@13`:
+
+```ts
+Button({ onClick: () => open.toggle() }, "toggle");
+
+If(open).Then(
+	Div(
+		{ class: "dialog" },
+		Animate({
+			initial: { opacity: 0, scale: 0.9, y: 8 },
+			animate: { opacity: 1, scale: 1, y: 0 },
+			exit: { opacity: 0, scale: 0.95, y: 4 },
+			transition: { type: "spring", bounce: 0.25, duration: 0.4 },
+		}),
+		"dialog",
+	),
+);
+
+ForEach(
+	items,
+	(item) => item.id,
+	(item) =>
+		Div(
+			{ class: "row" },
+			Animate({
+				initial: { opacity: 0, y: 20 },
+				animate: { opacity: 1, y: 0 },
+				exit: { opacity: 0, scale: 0.6 },
+				whileHover: { scale: 1.1 },
+				whilePress: { scale: 0.95 },
+				transition: { duration: 0.35 },
+			}),
+			item.bind((i) => i.label),
+		),
+);
+```
+
+`Animate` is a co-mounted child rather than a wrapper element, which is the
+shape core already suggests: `Lifecycle.onMount` hands over the element it
+mounted into, so there is no `ref` at the call site and no extra DOM node. The
+whole thing is about forty lines:
+
+```ts
+export function Animate(props: MotionProps = {}): Mountable {
+	let el: HTMLElement | null = null;
+	const to = (keyframes: DOMKeyframesDefinition, options?: AnimationOptions) =>
+		el ? animate(el, keyframes, options ?? props.transition) : undefined;
+
+	return Implement.Lifecycle({
+		onMount: (parent) => {
+			el = parent;
+			// written as styles, not animated: an animation would resolve on the
+			// next frame and the enter animation would read the wrong start value
+			for (const [key, value] of Object.entries(props.initial ?? {})) {
+				setStyle(parent, key, value as string | number);
+			}
+			if (props.animate) to(props.animate);
+
+			const gesture = (active: DOMKeyframesDefinition | undefined, bind: typeof hover) => {
+				if (!active) return null;
+				const rest = baseValues(parent, props, Object.keys(active));
+				return bind(parent, () => {
+					to(active);
+					return () => to(rest);
+				});
+			};
+
+			const stops = [gesture(props.whileHover, hover), gesture(props.whilePress, press)];
+			return () => stops.forEach((stop) => stop?.());
+		},
+		onExit: (signal) => {
+			if (!props.exit) return;
+			const animation = to(props.exit);
+			signal.addEventListener("abort", () => {
+				animation?.stop();
+				if (props.animate) to(props.animate);
+			});
+			return animation;
+		},
+	});
+}
+```
+
+Two details in there are the ones a sketch gets wrong, and both showed up as
+bugs the first time. `initial` has to be written as a style rather than a
+zero-duration animation, or Motion resolves it on the next frame and the enter
+animation starts from the wrong value — the element simply appears. And a
+gesture needs somewhere to animate _back_ to: `whileHover: { scale: 1.1 }`
+with an `animate` that never mentions `scale` leaves the element stuck at
+`1.1` unless the base value is resolved up front (`readTransformValue` for
+transforms, computed style otherwise). Motion for React solves the same
+problem with variant priority and `prevResolvedValues`; this is the
+two-property version of it, and the fact that it is subtle at forty lines is
+most of the argument for §5.
+
+Verified: the dialog reads `0.81` opacity 60ms after opening and `0.08`
+mid-exit; a new row fades in at `0.33`; a dropped row holds its slot
+(`[a, b, c, x3]` stays put at `0.43`) and settles to `[a, c, x3]`; hover
+scales to `1.1` and releases back to `none`; and `mapValue(springValue(...))`
+drives a `width` prop from `733px` mid-spring to its settled `1215px`.
+
 ### Bundle cost
 
 Measured with esbuild, minified + gzipped:
@@ -266,6 +370,12 @@ matters more than the answer:
   The rule: _wrap only what touches the tree_.
 
 ## 5. Proposed API
+
+`Animate` (§2) already covers a lot at forty lines. What the package adds is
+the part that does not stay small: variants and their priority order, base
+values resolved properly rather than per-gesture, MotionValues accepted
+directly as props, reduced-motion config, and the element factories that make
+it read as one thing instead of a child hanging off every animated element.
 
 ### 5.1 Element factories
 
