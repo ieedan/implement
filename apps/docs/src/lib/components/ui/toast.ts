@@ -1,4 +1,12 @@
-import { Div, ForEach, If, Span, type Child, type ComponentProps, type Readable } from "@implementjs/core";
+import {
+	Div,
+	ForEach,
+	If,
+	Span,
+	type Child,
+	type ComponentProps,
+	type Readable,
+} from "@implementjs/core";
 import {
 	CircleAlertIcon,
 	CircleCheckIcon,
@@ -113,7 +121,10 @@ export function ToastDescription(
 	);
 }
 
-export function ToastAction({ class: className, ...props }: ToastActionProps, ...children: Child[]) {
+export function ToastAction(
+	{ class: className, ...props }: ToastActionProps,
+	...children: Child[]
+) {
 	return ToastActionPrimitive(
 		{
 			...props,
@@ -167,9 +178,15 @@ export function Toaster({ manager, ...props }: ToastProviderProps & { manager: T
 								ToastIcon(toast),
 								Div(
 									{ class: "grid flex-1 gap-1" },
-									ToastTitle({}, toast.bind((t) => t.title ?? "")),
+									ToastTitle(
+										{},
+										toast.bind((t) => t.title ?? ""),
+									),
 									If(toast.bind((t) => t.description !== undefined)).Then(
-										ToastDescription({}, toast.bind((t) => t.description ?? "")),
+										ToastDescription(
+											{},
+											toast.bind((t) => t.description ?? ""),
+										),
 									),
 								),
 								If(toast.bind((t) => actionOf(t) !== undefined)).Then(

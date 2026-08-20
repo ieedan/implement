@@ -183,7 +183,8 @@ export class ToastManager {
 	 * or error state. Returns the same promise, still rejecting on error.
 	 */
 	promise<T>(promise: Promise<T>, options: ToastPromiseOptions<T>): Promise<T> {
-		const loading = typeof options.loading === "string" ? { title: options.loading } : options.loading;
+		const loading =
+			typeof options.loading === "string" ? { title: options.loading } : options.loading;
 		const id = this.add({ type: "loading", ...loading, timeout: loading.timeout ?? 0 });
 
 		promise.then(
@@ -358,7 +359,10 @@ export type ToastViewportProps = ComponentProps<typeof Div>;
  * `ForEach(manager.toasts, (t) => t.id, (toast) => Toast({ toast }, ...))`.
  * Hover or focus expands the stack; the provider's hotkey focuses it.
  */
-export function ToastViewport({ id = getId(), ...restProps }: ToastViewportProps, ...children: Child[]) {
+export function ToastViewport(
+	{ id = getId(), ...restProps }: ToastViewportProps,
+	...children: Child[]
+) {
 	return ToastProviderContext.Use((provider) => {
 		const viewportRef = ref<HTMLDivElement>();
 
@@ -440,7 +444,9 @@ function exitDurationMs(el: HTMLElement): number {
 	const longest = (durations: string, delays: string) => {
 		const delayList = delays.split(",");
 		return Math.max(
-			...durations.split(",").map((d, i) => toMs(d) + toMs(delayList[i % delayList.length] ?? "0s")),
+			...durations
+				.split(",")
+				.map((d, i) => toMs(d) + toMs(delayList[i % delayList.length] ?? "0s")),
 			0,
 		);
 	};
@@ -515,10 +521,7 @@ class ToastRootState {
 	}
 
 	get limited() {
-		return derived(
-			[this.index],
-			(index) => index >= this.manager.options.limit,
-		);
+		return derived([this.index], (index) => index >= this.manager.options.limit);
 	}
 
 	onMount() {
@@ -685,9 +688,7 @@ export function Toast(
 							style: {
 								"--toast-index": state.index.bind(String),
 								"--toast-offset-y": state.offsetY.bind((v) => `${v}px`),
-								"--toast-height": provider.manager.heights.bind(
-									(h) => `${h.get(state.id) ?? 0}px`,
-								),
+								"--toast-height": provider.manager.heights.bind((h) => `${h.get(state.id) ?? 0}px`),
 								"--toast-frontmost-height": state.frontmostHeight.bind((v) => `${v}px`),
 								"--toast-swipe-movement-x": state.swipeX.bind((v) => `${v}px`),
 								"--toast-swipe-movement-y": state.swipeY.bind((v) => `${v}px`),
@@ -752,7 +753,10 @@ export function ToastDescription(
 export type ToastActionProps = ComponentProps<typeof Button>;
 
 /** A button for the toast's action (undo, retry, …). Closes the toast after your `onClick`. */
-export function ToastAction({ id = getId(), ...restProps }: ToastActionProps, ...children: Child[]) {
+export function ToastAction(
+	{ id = getId(), ...restProps }: ToastActionProps,
+	...children: Child[]
+) {
 	return ToastRootContext.Use((rootState) => {
 		return Button(
 			mergeProps(
