@@ -172,3 +172,26 @@ deterministic to hydrate; input typed before hydration is overwritten when
 `value` re-applies; and there is still no async data story — `Await`
 hydrates its pending branch and refetches on the client (the data/query
 layer owns serialization when it lands).
+
+## 13. Exit animations, and the tree API third-party helpers need
+
+`unmount()` is synchronous everywhere — `If`, `ForEach`, `Key`, `Switch`,
+`Await`, `Portal` and the router all call `child.unmount()`, and
+`Component.unmount()` calls `element.remove()` in the same tick — so a
+leaving element is detached before the next microtask and cannot be animated
+out. The primitives work around it by keeping content mounted and toggling
+`data-state` + `hidden` (CSS `transition-discrete` + `@starting-style`),
+which costs a permanent mount per animatable thing and rules out list
+transitions.
+
+Userland cannot fix this: a helper that defers `unmount()` is easy, but
+mounting children correctly needs `mountChild`/`asParent`/`guarded` from
+`src/tree.ts`, which are not exported (the package exposes only `.`,
+`./elements`, `./router`, `./server`). Mounting an instance directly
+orphans the subtree — `context` lookups walk past the provider and error
+boundaries never see its throws.
+
+Both halves — a presence protocol in a single `removeChild` path, and a
+documented tree API for third-party helpers — are specced in
+[implement-motion.md](implement-motion.md), which came out of investigating
+what a Motion integration would need.
