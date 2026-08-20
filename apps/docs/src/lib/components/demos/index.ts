@@ -9,8 +9,12 @@ import CollapsibleDemo from "./collapsible-demo.ts";
 import collapsibleSource from "./collapsible-demo.ts?raw";
 import CheckboxDemo from "./checkbox-demo.ts";
 import checkboxSource from "./checkbox-demo.ts?raw";
+import TabsDemo from "./tabs-demo.ts";
+import tabsSource from "./tabs-demo.ts?raw";
 import SwitchDemo from "./switch-demo.ts";
 import switchSource from "./switch-demo.ts?raw";
+import LinkPreviewDemo from "./link-preview-demo.ts";
+import linkPreviewSource from "./link-preview-demo.ts?raw";
 import MeterDemo from "./meter-demo.ts";
 import meterSource from "./meter-demo.ts?raw";
 import PopoverDemo from "./popover-demo.ts";
@@ -37,6 +41,16 @@ import ToggleGroupDemo from "./toggle-group-demo.ts";
 import toggleGroupSource from "./toggle-group-demo.ts?raw";
 import DialogDemo from "./dialog-demo.ts";
 import dialogSource from "./dialog-demo.ts?raw";
+import TooltipDemo from "./tooltip-demo.ts";
+import tooltipSource from "./tooltip-demo.ts?raw";
+import AlertDialogDemo from "./alert-dialog-demo.ts";
+import alertDialogSource from "./alert-dialog-demo.ts?raw";
+import ContextMenuDemo from "./context-menu-demo.ts";
+import contextMenuSource from "./context-menu-demo.ts?raw";
+import DropdownMenuDemo from "./dropdown-menu-demo.ts";
+import dropdownMenuSource from "./dropdown-menu-demo.ts?raw";
+import MenubarDemo from "./menubar-demo.ts";
+import menubarSource from "./menubar-demo.ts?raw";
 
 export type Demo = {
 	/** The demo's source text: shown in the editor and, once edited, compiled and run live. */
@@ -61,21 +75,37 @@ export type Demo = {
 export const demos: Record<string, Demo> = {
 	accordion: { source: accordionSource, component: AccordionDemo },
 	"aspect-ratio": { source: aspectRatioSource, component: AspectRatioDemo },
+	"context-menu": { source: contextMenuSource, component: ContextMenuDemo },
+	"dropdown-menu": { source: dropdownMenuSource, component: DropdownMenuDemo },
+	menubar: { source: menubarSource, component: MenubarDemo },
 	avatar: { source: avatarSource, component: AvatarDemo },
 	collapsible: { source: collapsibleSource, component: CollapsibleDemo },
 	checkbox: { source: checkboxSource, component: CheckboxDemo },
 	switch: { source: switchSource, component: SwitchDemo },
+	tabs: { source: tabsSource, component: TabsDemo },
+	"link-preview": { source: linkPreviewSource, component: LinkPreviewDemo },
 	meter: { source: meterSource, component: MeterDemo },
 	popover: { source: popoverSource, component: PopoverDemo },
-	"popover-triggers": { source: popoverTriggersSource, component: PopoverTriggersDemo },
-	"popover-nested": { source: popoverNestedSource, component: PopoverNestedDemo },
+	"popover-triggers": {
+		source: popoverTriggersSource,
+		component: PopoverTriggersDemo,
+	},
+	"popover-nested": {
+		source: popoverNestedSource,
+		component: PopoverNestedDemo,
+	},
 	progress: { source: progressSource, component: ProgressDemo },
 	"radio-group": { source: radioGroupSource, component: RadioGroupDemo },
 	"rating-group": { source: ratingGroupSource, component: RatingGroupDemo },
 	select: { source: selectSource, component: SelectDemo },
-	"select-multiple": { source: selectMultipleSource, component: SelectMultipleDemo },
+	"select-multiple": {
+		source: selectMultipleSource,
+		component: SelectMultipleDemo,
+	},
 	separator: { source: separatorSource, component: SeparatorDemo },
 	toggle: { source: toggleSource, component: ToggleDemo },
 	"toggle-group": { source: toggleGroupSource, component: ToggleGroupDemo },
 	dialog: { source: dialogSource, component: DialogDemo },
+	"alert-dialog": { source: alertDialogSource, component: AlertDialogDemo },
+	tooltip: { source: tooltipSource, component: TooltipDemo },
 };

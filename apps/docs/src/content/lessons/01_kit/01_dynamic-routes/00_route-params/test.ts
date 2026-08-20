@@ -1,6 +1,7 @@
-import { expect, navigate, screen } from "@tutorial/test";
+import { expect, navigate, screen, source } from "@tutorial/test";
 
 export default async function test() {
+	source("src/routes/blog/[slug]/index.ts");
 	await navigate("/blog/hello-world");
 	expect(
 		screen.getByRole("heading"),

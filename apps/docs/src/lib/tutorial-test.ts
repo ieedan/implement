@@ -42,7 +42,9 @@ export function source(path?: string): string {
 	const lesson = activeLesson();
 	if (path == null) return lesson.source;
 	const file = lesson.files?.find((entry) => entry.path === path);
-	if (file == null) throw new Error(`The lesson has no file "${path}".`);
+	if (file == null) {
+		throw new Error(`The lesson has no file "${path}" — create it with the file tree's + buttons.`);
+	}
 	return file.content;
 }
 

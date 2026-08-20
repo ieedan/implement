@@ -14,6 +14,7 @@ import {
 } from "@implementjs/core";
 import {
 	BoldIcon,
+	CalendarDaysIcon,
 	CheckIcon,
 	ChevronDownIcon,
 	ChevronsUpDownIcon,
@@ -40,6 +41,7 @@ import { Separator } from "../components/ui/separator";
 import { Switch } from "../components/ui/switch";
 import { Toggle } from "../components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { primitivePages, type PrimitivePage } from "@/lib/content";
 import { router } from "../router";
 
@@ -66,7 +68,9 @@ function AccordionPreview(): Mountable {
 
 function AvatarPreview(): Mountable {
 	return Div(
-		{ class: "flex -space-x-3 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background" },
+		{
+			class: "flex -space-x-3 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background",
+		},
 		Avatar(
 			{ class: "size-12" },
 			AvatarImage({ src: "https://github.com/ieedan.png", alt: "" }),
@@ -81,12 +85,53 @@ function AvatarPreview(): Mountable {
 	);
 }
 
+function LinkPreviewPreview(): Mountable {
+	return Div(
+		{ class: "flex w-full max-w-72 flex-col items-center gap-3" },
+		P(
+			{ class: "text-sm text-muted-foreground" },
+			"Maintained by ",
+			Span({ class: "font-medium text-foreground underline underline-offset-4" }, "@ieedan"),
+			".",
+		),
+		Div(
+			{
+				class:
+					"flex w-full gap-3 rounded-md border bg-popover p-3 text-popover-foreground shadow-md",
+			},
+			Avatar(
+				{ class: "size-10" },
+				AvatarImage({ src: "https://github.com/ieedan.png", alt: "" }),
+				AvatarFallback({}, "AB"),
+			),
+			Div(
+				{ class: "space-y-1" },
+				Div({ class: "text-sm font-semibold" }, "@ieedan"),
+				P(
+					{ class: "text-xs text-muted-foreground" },
+					"Building implement \u2014 a signal-based UI framework.",
+				),
+				Div(
+					{ class: "flex items-center gap-2 pt-0.5" },
+					CalendarDaysIcon({
+						"aria-hidden": true,
+						class: "size-3.5 opacity-70",
+					}),
+					Span({ class: "text-xs text-muted-foreground" }, "Joined December 2021"),
+				),
+			),
+		),
+	);
+}
+
 function PopoverPreview(): Mountable {
 	return Div(
 		{ class: "flex w-full max-w-64 flex-col items-center gap-3" },
 		Button({ variant: "outline", size: "sm" }, "Open popover"),
 		Div(
-			{ class: "w-full rounded-md border bg-popover p-3 text-popover-foreground shadow-md" },
+			{
+				class: "w-full rounded-md border bg-popover p-3 text-popover-foreground shadow-md",
+			},
 			Div({ class: "text-sm font-medium" }, "Dimensions"),
 			P({ class: "mt-1 text-xs text-muted-foreground" }, "Set the dimensions for the layer."),
 			Div(
@@ -276,7 +321,11 @@ function RatingGroupPreview(): Mountable {
 
 function ToggleGroupPreview(): Mountable {
 	return ToggleGroup(
-		{ type: "multiple", value: signal(["bold", "italic"]), "aria-label": "Text formatting" },
+		{
+			type: "multiple",
+			value: signal(["bold", "italic"]),
+			"aria-label": "Text formatting",
+		},
 		ToggleGroupItem(
 			{ value: "bold", variant: "outline", "aria-label": "Toggle bold" },
 			BoldIcon({ "aria-hidden": true }),
@@ -286,8 +335,106 @@ function ToggleGroupPreview(): Mountable {
 			ItalicIcon({ "aria-hidden": true }),
 		),
 		ToggleGroupItem(
-			{ value: "underline", variant: "outline", "aria-label": "Toggle underline" },
+			{
+				value: "underline",
+				variant: "outline",
+				"aria-label": "Toggle underline",
+			},
 			UnderlineIcon({ "aria-hidden": true }),
+		),
+	);
+}
+
+function TabsPreview(): Mountable {
+	return Tabs(
+		{ value: "account", class: "w-full max-w-64" },
+		TabsList(
+			{ class: "w-full" },
+			TabsTrigger({ value: "account" }, "Account"),
+			TabsTrigger({ value: "password" }, "Password"),
+		),
+		TabsContent(
+			{ value: "account", class: "rounded-lg border p-3" },
+			P({ class: "text-xs text-muted-foreground" }, "Change your name here."),
+			Div({ class: "mt-2 rounded-md border border-input px-2 py-1 text-xs" }, "Aidan Bleser"),
+		),
+		TabsContent({ value: "password" }),
+	);
+}
+
+function MenuPanelPreview(...rows: Mountable[]): Mountable {
+	return Div(
+		{
+			class: "min-w-44 rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+		},
+		...rows,
+	);
+}
+
+function MenuItemPreview(label: string, highlighted = false): Mountable {
+	return Div(
+		{
+			class: [
+				"flex items-center rounded-sm px-2 py-1.5 text-sm",
+				highlighted && "bg-accent text-accent-foreground",
+			],
+		},
+		label,
+	);
+}
+
+function DropdownMenuPreview(): Mountable {
+	return Div(
+		{ class: "flex w-full max-w-56 flex-col items-start gap-2" },
+		Button({ variant: "outline", size: "sm" }, "Open menu"),
+		MenuPanelPreview(
+			Div({ class: "px-2 py-1.5 text-sm font-medium" }, "My Account"),
+			MenuItemPreview("Profile", true),
+			MenuItemPreview("Billing"),
+			Div({ class: "-mx-1 my-1 h-px bg-border" }),
+			MenuItemPreview("Log out"),
+		),
+	);
+}
+
+function ContextMenuPreview(): Mountable {
+	return Div(
+		{ class: "relative flex w-full max-w-64 flex-col" },
+		Div(
+			{
+				class:
+					"flex h-40 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground",
+			},
+			"Right click here",
+		),
+		Div(
+			{ class: "absolute top-16 left-24" },
+			MenuPanelPreview(
+				MenuItemPreview("Back"),
+				MenuItemPreview("Reload", true),
+				Div({ class: "-mx-1 my-1 h-px bg-border" }),
+				MenuItemPreview("Inspect"),
+			),
+		),
+	);
+}
+
+function MenubarPreview(): Mountable {
+	return Div(
+		{ class: "flex w-full max-w-64 flex-col items-start gap-2" },
+		Div(
+			{
+				class: "flex items-center gap-1 rounded-md border bg-background p-1 shadow-xs",
+			},
+			Span({ class: "rounded-sm bg-accent px-2 py-1 text-sm font-medium" }, "File"),
+			Span({ class: "px-2 py-1 text-sm font-medium" }, "Edit"),
+			Span({ class: "px-2 py-1 text-sm font-medium" }, "View"),
+		),
+		MenuPanelPreview(
+			MenuItemPreview("New file", true),
+			MenuItemPreview("Open…"),
+			Div({ class: "-mx-1 my-1 h-px bg-border" }),
+			MenuItemPreview("Save"),
 		),
 	);
 }
@@ -303,7 +450,9 @@ function SelectItemPreview(label: string, selected = false): Mountable {
 		Span({ class: "flex-1 truncate" }, label),
 		selected
 			? Span(
-					{ class: "absolute right-2 flex size-3.5 items-center justify-center" },
+					{
+						class: "absolute right-2 flex size-3.5 items-center justify-center",
+					},
 					CheckIcon({ "aria-hidden": true, class: "size-4" }),
 				)
 			: null,
@@ -319,7 +468,10 @@ function SelectPreview(): Mountable {
 					"flex h-9 w-40 shrink-0 items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm shadow-xs",
 			},
 			"Apple",
-			ChevronDownIcon({ "aria-hidden": true, class: "size-4 shrink-0 opacity-50" }),
+			ChevronDownIcon({
+				"aria-hidden": true,
+				class: "size-4 shrink-0 opacity-50",
+			}),
 		),
 		Div(
 			{
@@ -328,7 +480,12 @@ function SelectPreview(): Mountable {
 			SelectItemPreview("Apple", true),
 			SelectItemPreview("Banana"),
 			SelectItemPreview("Blueberry"),
-			Span({ class: "flex items-center rounded-sm py-1.5 pr-8 pl-2 text-sm opacity-50" }, "Grapes"),
+			Span(
+				{
+					class: "flex items-center rounded-sm py-1.5 pr-8 pl-2 text-sm opacity-50",
+				},
+				"Grapes",
+			),
 			SelectItemPreview("Pineapple"),
 		),
 	);
@@ -385,6 +542,44 @@ function DialogPreview(): Mountable {
 	);
 }
 
+function AlertDialogPreview(): Mountable {
+	return Div(
+		{
+			class:
+				"relative flex min-h-52 w-full max-w-80 items-center justify-center overflow-hidden rounded-md",
+		},
+		Div({ class: "absolute inset-0 bg-black/40" }),
+		Div(
+			{
+				class:
+					"relative z-10 w-[min(100%,18rem)] rounded-lg border bg-background p-4 text-foreground shadow-lg",
+			},
+			Div({ class: "text-sm font-semibold" }, "Are you absolutely sure?"),
+			P(
+				{ class: "mt-1 text-xs text-muted-foreground" },
+				"This action cannot be undone. This will permanently delete your account.",
+			),
+			Div(
+				{ class: "mt-3 flex justify-end gap-2" },
+				Div(
+					{
+						class:
+							"flex h-8 items-center justify-center rounded-md border bg-background px-3 text-xs font-medium",
+					},
+					"Cancel",
+				),
+				Div(
+					{
+						class:
+							"flex h-8 items-center justify-center rounded-md bg-destructive px-3 text-xs font-medium text-white",
+					},
+					"Delete account",
+				),
+			),
+		),
+	);
+}
+
 function SeparatorPreview(): Mountable {
 	return Div(
 		{ class: "w-full max-w-56" },
@@ -402,6 +597,25 @@ function SeparatorPreview(): Mountable {
 	);
 }
 
+function TooltipPreview(): Mountable {
+	return Div(
+		{ class: "flex flex-col items-center gap-2" },
+		Div(
+			{
+				class: "w-fit rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground",
+			},
+			"Add to library",
+		),
+		Div(
+			{
+				class:
+					"flex h-8 items-center justify-center rounded-md border bg-background px-3 text-xs font-medium",
+			},
+			"Hover",
+		),
+	);
+}
+
 /** Live, non-interactive card previews, keyed by page slug. */
 const previews: Record<string, () => Mountable> = {
 	accordion: AccordionPreview,
@@ -410,7 +624,11 @@ const previews: Record<string, () => Mountable> = {
 	checkbox: CheckboxPreview,
 	switch: SwitchPreview,
 	collapsible: CollapsiblePreview,
+	"context-menu": ContextMenuPreview,
+	"dropdown-menu": DropdownMenuPreview,
+	menubar: MenubarPreview,
 	meter: MeterPreview,
+	"link-preview": LinkPreviewPreview,
 	popover: PopoverPreview,
 	progress: ProgressPreview,
 	"radio-group": RadioGroupPreview,
@@ -419,7 +637,10 @@ const previews: Record<string, () => Mountable> = {
 	separator: SeparatorPreview,
 	toggle: TogglePreview,
 	"toggle-group": ToggleGroupPreview,
+	tabs: TabsPreview,
 	dialog: DialogPreview,
+	"alert-dialog": AlertDialogPreview,
+	tooltip: TooltipPreview,
 };
 
 /**
@@ -430,12 +651,18 @@ const spans: Record<string, string> = {
 	accordion: "sm:col-span-2 sm:row-span-2",
 	"aspect-ratio": "sm:col-span-2",
 	collapsible: "sm:col-span-2",
+	"context-menu": "sm:col-span-2 sm:row-span-2",
+	"dropdown-menu": "sm:col-span-2 sm:row-span-2",
+	menubar: "sm:col-span-2 sm:row-span-2",
 	meter: "sm:col-span-2",
+	"link-preview": "sm:col-span-2",
 	popover: "sm:col-span-2 sm:row-span-2",
 	progress: "sm:col-span-2",
 	select: "sm:col-span-2",
 	separator: "sm:col-span-2",
 	dialog: "sm:col-span-2",
+	tabs: "sm:col-span-2",
+	"alert-dialog": "sm:col-span-2",
 };
 
 function PrimitiveCard(page: PrimitivePage): Mountable {
@@ -501,7 +728,10 @@ export function PrimitivesHome(): Mountable {
 					{ class: "max-w-xl text-foreground/60" },
 					"Unstyled, composable building blocks on top of implement. They own the behavior and the accessibility; you own the look. ",
 					router.Link(
-						{ to: "/primitives/docs", class: "text-foreground underline underline-offset-4" },
+						{
+							to: "/primitives/docs",
+							class: "text-foreground underline underline-offset-4",
+						},
 						"Read the docs",
 					),
 				),

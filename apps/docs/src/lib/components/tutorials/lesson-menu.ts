@@ -1,18 +1,7 @@
-import {
-	A,
-	Aside,
-	Button,
-	derived,
-	Div,
-	H2,
-	Implement,
-	navigateTo,
-	Span,
-	type Mountable,
-	type Writable,
-} from "@implementjs/core";
+import { A, Div, Fragment, navigateTo, Span, type Child, type Writable } from "@implementjs/core";
 import type { Tutorial } from "@/lib/content";
 import { tutorialParts, type TutorialSection } from "@/lib/tutorials";
+import { SheetContent, SheetOverlay, SheetTitle } from "../ui/sheet";
 
 function SectionGroup(section: TutorialSection, current: Tutorial, open: Writable<boolean>) {
 	return Div(
@@ -49,51 +38,18 @@ function SectionGroup(section: TutorialSection, current: Tutorial, open: Writabl
 	);
 }
 
-export function LessonMenu(open: Writable<boolean>, current: Tutorial): Mountable {
+/**
+ * The lesson list as sheet parts (overlay + sliding panel) — mount inside
+ * the tutorial page's `Sheet` root, whose header button is the trigger.
+ */
+export function LessonMenu(open: Writable<boolean>, current: Tutorial): Child {
 	const parts = tutorialParts();
 
-	return Div(
-		{
-			class: derived([open], (isOpen) => [
-				"absolute inset-0 z-20",
-				!isOpen && "pointer-events-none",
-			]),
-		},
-		Implement.Window({
-			onKeydown: (event) => {
-				if (event.key === "Escape" && open.get()) open.set(false);
-			},
-		}),
-		Button({
-			type: "button",
-			tabIndex: derived([open], (isOpen) => (isOpen ? 0 : -1)),
-			class: derived([open], (isOpen) => [
-				"absolute inset-0 bg-black/60 transition-opacity",
-				isOpen ? "opacity-100" : "opacity-0",
-			]),
-			"aria-label": "Close lesson list",
-			onClick: () => open.set(false),
-		}),
-		Aside(
-			{
-				class: derived([open], (isOpen) => [
-					"absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-border bg-background transition-transform",
-					isOpen ? "translate-x-0" : "-translate-x-full",
-				]),
-				inert: derived([open], (isOpen) => !isOpen),
-			},
-			Div(
-				{ class: "flex items-center justify-between border-b border-border px-4 py-3" },
-				H2({ class: "text-sm font-semibold" }, "Lessons"),
-				Button(
-					{
-						type: "button",
-						class: "rounded-md px-2 py-1 text-xs text-foreground/60 hover:text-foreground",
-						onClick: () => open.set(false),
-					},
-					"Close",
-				),
-			),
+	return Fragment(
+		SheetOverlay({}),
+		SheetContent(
+			{ side: "left" },
+			Div({ class: "border-b border-border px-4 py-3" }, SheetTitle({}, "Lessons")),
 			Div(
 				{ class: "flex-1 overflow-y-auto px-3 py-4" },
 				...parts.map((part, index) =>

@@ -2,7 +2,7 @@
 title: Catch-all routes
 description: "[...rest] matches one or more remaining segments."
 section: Dynamic routes
-focus: src/routes/docs/[...path]/index.ts
+focus: src/routes/index.ts
 ---
 
 A `[param]` directory matches exactly one segment. To match one _or more_ trailing segments — a docs tree, a file browser — prefix the name with `...`:
@@ -20,6 +20,9 @@ A catch-all must be the last thing in its path: nothing can route below it. And 
 
 ## Your task
 
-1. In `src/routes/docs/[...path]/index.ts`, render `params.path` in the page so it shows which document was requested.
+The home page links into `/docs/...`, but the docs tree doesn't exist yet.
+
+1. Create the file `src/routes/docs/[...path]/index.ts` in the file tree — one `[...path]` directory catches every depth.
+2. Default-export a page that renders `params.path` so it shows which document was requested.
 
 You're done when `/docs/guides/routing` shows `guides/routing` on the page. Try a few deeper paths in the URL bar — one page catches them all.

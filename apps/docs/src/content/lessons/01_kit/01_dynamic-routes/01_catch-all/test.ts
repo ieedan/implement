@@ -1,6 +1,7 @@
-import { expect, navigate, screen } from "@tutorial/test";
+import { expect, navigate, screen, source } from "@tutorial/test";
 
 export default async function test() {
+	source("src/routes/docs/[...path]/index.ts");
 	await navigate("/docs/guides/routing");
 	expect(
 		screen.container,

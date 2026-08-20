@@ -1,13 +1,11 @@
 import {
 	A,
-	Details,
 	Div,
 	Implement,
 	Li,
 	Nav,
 	signal,
 	Span,
-	Summary,
 	Ul,
 	derived,
 	type Mountable,
@@ -15,6 +13,8 @@ import {
 } from "@implementjs/core";
 import type { TocEntry } from "@/lib/toc";
 import { ChevronRightIcon } from "@implementjs/lucide";
+import { Collapsible as CollapsiblePrimitive } from "@implementjs/primitives";
+import { CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 function flatten(entries: TocEntry[]): TocEntry[] {
 	return entries.flatMap((entry) => [entry, ...flatten(entry.items)]);
@@ -94,23 +94,32 @@ export function TocSidebar(entries: TocEntry[]): Mountable {
 	);
 }
 
-/** Collapsed "On this page" disclosure for narrow viewports. Hidden at `xl` and up. */
+/**
+ * Collapsed "On this page" disclosure for narrow viewports. Hidden at `xl`
+ * and up. Dogfoods the Collapsible primitive.
+ */
 export function TocDisclosure(entries: TocEntry[]): Mountable {
-	return Details(
-		{ class: "group rounded-lg border border-border xl:hidden" },
-		Summary(
+	// the primitive root directly: the ui wrapper's flex gap would separate
+	// the trigger row from the expanding body
+	return CollapsiblePrimitive(
+		{ class: "block rounded-lg border border-border xl:hidden" },
+		CollapsibleTrigger(
 			{
 				class:
-					"flex cursor-pointer select-none items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground/80 marker:content-none [&::-webkit-details-marker]:hidden",
+					"w-full justify-start gap-2 rounded-b-none px-4 py-2.5 text-sm font-medium text-foreground/80 [&[data-state=open]>svg]:rotate-90",
 			},
 			ChevronRightIcon({
-				class: "size-3.5 text-foreground/40 transition-transform group-open:rotate-90",
+				"aria-hidden": true,
+				class: "size-3.5 text-foreground/40 transition-transform",
 			}),
 			"On this page",
 		),
-		Nav(
-			{ "aria-label": "On this page", class: "border-t border-border px-4 py-3" },
-			TocList(entries, signal(null)),
+		CollapsibleContent(
+			{},
+			Nav(
+				{ "aria-label": "On this page", class: "border-t border-border px-4 py-3" },
+				TocList(entries, signal(null)),
+			),
 		),
 	);
 }

@@ -1,28 +1,21 @@
 import { Div, If, signal, type Mountable } from "@implementjs/core";
-import {
-	CheckIcon,
-	ChevronDownIcon,
-	CopyIcon,
-	ExternalLinkIcon,
-	FileTextIcon,
-} from "@implementjs/lucide";
+import { CheckIcon, ChevronDownIcon, CopyIcon, FileTextIcon } from "@implementjs/lucide";
+import { ClaudeIcon, OpenAIIcon } from "./brand-icons";
 import { copyText } from "@/lib/copy-text";
 import { Button } from "../ui/button";
 import {
-	Popover,
-	PopoverClose,
-	PopoverContent,
-	PopoverPortal,
-	PopoverTrigger,
-} from "../ui/popover";
-
-const itemClass = "w-full justify-start gap-2 font-normal";
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 /**
  * The page-tools split button on every docs page: "Copy Page" copies the
  * page's plain-markdown twin (the `.md` server route kit serves next to the
  * page), and the dropdown opens that markdown directly or hands it to an
- * assistant. Dogfoods kit's extension server routes.
+ * assistant. Dogfoods kit's extension server routes and the DropdownMenu
+ * primitive.
  */
 export function CopyPage(permalink: string): Mountable {
 	const mdPath = `${permalink}.md`;
@@ -57,44 +50,32 @@ export function CopyPage(permalink: string): Mountable {
 				.Else(CopyIcon({ class: "size-3.5" })),
 			"Copy Page",
 		),
-		Popover(
+		DropdownMenu(
 			{},
-			PopoverTrigger(
+			DropdownMenuTrigger(
 				{
-					variant: "outline",
 					size: "sm",
 					class: "rounded-l-none border-l-0 px-2",
 					"aria-label": "More ways to read this page",
 				},
 				ChevronDownIcon({ class: "size-3.5" }),
 			),
-			PopoverPortal(
-				PopoverContent(
-					{ class: "w-56 p-1", align: "end" },
-					PopoverClose(
-						{
-							class: itemClass,
-							onClick: () => window.open(mdPath, "_blank", "noopener"),
-						},
-						FileTextIcon({ class: "size-4 text-foreground/60" }),
-						"View as Markdown",
-					),
-					PopoverClose(
-						{
-							class: itemClass,
-							onClick: () => openPrompt("https://chatgpt.com/?hints=search&q="),
-						},
-						ExternalLinkIcon({ class: "size-4 text-foreground/60" }),
-						"Open in ChatGPT",
-					),
-					PopoverClose(
-						{
-							class: itemClass,
-							onClick: () => openPrompt("https://claude.ai/new?q="),
-						},
-						ExternalLinkIcon({ class: "size-4 text-foreground/60" }),
-						"Open in Claude",
-					),
+			DropdownMenuContent(
+				{ class: "w-56", align: "end" },
+				DropdownMenuItem(
+					{ onSelect: () => window.open(mdPath, "_blank", "noopener") },
+					FileTextIcon({ class: "size-4 text-foreground/60", "aria-hidden": true }),
+					"View as Markdown",
+				),
+				DropdownMenuItem(
+					{ onSelect: () => openPrompt("https://chatgpt.com/?hints=search&q=") },
+					OpenAIIcon({ class: "size-4", "aria-hidden": true }),
+					"Open in ChatGPT",
+				),
+				DropdownMenuItem(
+					{ onSelect: () => openPrompt("https://claude.ai/new?q=") },
+					ClaudeIcon({ class: "size-4", "aria-hidden": true }),
+					"Open in Claude",
 				),
 			),
 		),

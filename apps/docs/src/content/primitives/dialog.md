@@ -4,7 +4,7 @@ description: A modal window that interrupts the page until the user dismisses it
 section: Components
 ---
 
-<div data-demo="dialog" data-demo-description="An “Edit profile” button opening a modal dialog with a title, description, name and username fields, and a save button; the page behind is dimmed by an overlay."></div>
+<div data-demo="dialog" data-demo-description="An “Edit profile” button opening a modal dialog with a title, description, name, username, and role fields, and a save button; the page behind is dimmed by an overlay."></div>
 
 A dialog is a panel that opens over the page. `Dialog` is the root, `DialogTrigger` is the control that toggles it, and `DialogContent` is the panel. Wrap the overlay and panel in `DialogPortal` when they need to escape overflow, and put `DialogClose` inside the panel for a dismiss control.
 

@@ -2,7 +2,7 @@
 title: Route params
 description: "[param] directories bind a URL segment to a value."
 section: Dynamic routes
-focus: src/routes/blog/[slug]/index.ts
+focus: src/routes/index.ts
 ---
 
 Sometimes one page should serve many URLs — a blog post page for every post, a user page for every user. Wrapping a directory name in square brackets makes that segment a parameter:
@@ -26,6 +26,9 @@ Because params are readable signals, navigating from `/blog/one` to `/blog/two` 
 
 ## Your task
 
-1. In `src/routes/blog/[slug]/index.ts`, replace the hardcoded `"Some post"` heading with `params.slug`.
+The home page links to two posts, but nothing matches `/blog/...` yet — the links 404.
 
-You're done when `/blog/hello-world` and `/blog/routing-deep-dive` each show their own slug as the heading. Then try typing any other `/blog/...` path into the URL bar — the same page serves it.
+1. Create the file `src/routes/blog/[slug]/index.ts` in the file tree — the `[slug]` folder is named brackets and all.
+2. Default-export a page that renders `params.slug` in an `H1`.
+
+You're done when `/blog/hello-world` and `/blog/routing-deep-dive` each show their own slug as the heading. Then try any other `/blog/...` path in the URL bar — the same page serves it.

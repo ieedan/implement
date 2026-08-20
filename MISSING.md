@@ -54,7 +54,7 @@ next, none of which exists:
 - **Not-found within layouts** — the fallback replaces the whole tree
   (PAPERCUTS #11); no catch-all segment.
 - **Navigation guards/blocking (fixed)** — `registerNavigationGuard((to) =>
-  boolean)` runs before a navigation commits (including back/forward, which
+boolean)` runs before a navigation commits (including back/forward, which
   restores the URL on refusal); returning `false` cancels it, so a dirty
   editor can wrap `confirm()`. The docs app's `UnsavedChangesGuard` pairs one
   with a `beforeunload` listener for refresh/close — the tutorial playground

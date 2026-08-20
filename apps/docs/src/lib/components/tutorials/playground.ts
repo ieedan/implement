@@ -32,6 +32,11 @@ export type PlaygroundOptions = {
 	splitRight?: boolean;
 	/** Path of the file open in the editor initially. @default the first file */
 	focus?: string;
+	/**
+	 * File paths the exercise expects the user to create — the only ones the
+	 * file tree's create controls accept. Without any, the tree is read-only.
+	 */
+	creatable?: string[];
 };
 
 /**
@@ -119,51 +124,95 @@ export function Playground(
 	// Kit lessons always show the tree — the project structure is the lesson.
 	const showTree = initial.length > 1 || kitLesson;
 
+	// Folders exist implicitly through file paths; explicitly created (still
+	// empty) ones live here until a file lands inside or a Reset clears them.
+	const extraDirs = signal<string[]>([]);
 	const report = (message: string) => window.alert(message);
 
-	/** Why `path` can't be created, or `null` when it can. */
-	const pathConflict = (path: string): string | null => {
+	// Like the Svelte tutorial, lessons only allow creating the specific files
+	// the exercise expects (folders come along as their parents) — so there is
+	// never a wrong file to clean up.
+	const dirPrefixes = (path: string): string[] => {
+		const segments = path.split("/");
+		return segments.slice(1, -1).map((_, index) => segments.slice(0, index + 2).join("/"));
+	};
+	const creatable = options.creatable ?? [];
+	const allowedFiles = new Set(creatable);
+	// only folders the starter doesn't already have count as creatable
+	const starterDirs = new Set(initial.flatMap((file) => dirPrefixes(file.path)));
+	const allowedDirs = new Set(
+		creatable.flatMap(dirPrefixes).filter((dir) => !starterDirs.has(dir)),
+	);
+
+	const notAllowed = () => {
+		const listing = [...allowedDirs, ...allowedFiles].sort().join("\n");
+		report(
+			`This action is not allowed.\n\nOnly the following files and folders can be created in this exercise:\n\n${listing}`,
+		);
+	};
+
+	/** Every folder the tree shows: prefixes of file paths plus the empty extras. */
+	const allDirs = (): Set<string> => {
+		const dirs = new Set(extraDirs.get());
 		for (const file of files.get()) {
-			if (file.path === path) return `${path} already exists.`;
-			if (file.path.startsWith(`${path}/`)) return `${path} is a folder.`;
-			if (path.startsWith(`${file.path}/`)) return `${file.path} is a file, not a folder.`;
+			const segments = file.path.split("/");
+			for (let i = 1; i < segments.length; i++) {
+				dirs.add(segments.slice(0, i).join("/"));
+			}
 		}
-		return null;
+		return dirs;
 	};
 
 	const addFile = (raw: string) => {
 		const path = normalizeNewPath(raw);
 		if (path == null) return report("That's not a valid file path.");
-		if (!/\.[a-z0-9]+$/i.test(path)) return report("Give the file an extension — e.g. index.ts.");
-		const conflict = pathConflict(path);
-		if (conflict != null) return report(conflict);
+		if (!allowedFiles.has(path)) return notAllowed();
+		if (files.get().some((file) => file.path === path)) return report(`${path} already exists.`);
 		files.set([...files.get(), { path, content: signal("") }]);
 		active.set(path);
 	};
 
-	const renameFile = (from: string, raw: string) => {
-		const to = normalizeNewPath(raw);
-		if (to == null) return report("That's not a valid file path.");
-		if (to === from) return;
-		if (!/\.[a-z0-9]+$/i.test(to)) return report("Give the file an extension — e.g. index.ts.");
-		const conflict = pathConflict(to);
-		if (conflict != null) return report(conflict);
-		files.set(
-			files.get().map((file) => (file.path === from ? { path: to, content: file.content } : file)),
-		);
-		if (active.get() === from) active.set(to);
+	const addFolder = (raw: string) => {
+		const path = normalizeNewPath(raw);
+		if (path == null) return report("That's not a valid folder path.");
+		if (!allowedDirs.has(path)) return notAllowed();
+		if (allDirs().has(path)) return report(`${path} already exists.`);
+		extraDirs.set([...extraDirs.get(), path]);
 	};
 
+	const starterPaths = new Set(initial.map((file) => file.path));
+	const created = derived([paths], (list) => list.filter((path) => !starterPaths.has(path)));
+
 	const removeFile = (path: string) => {
+		// only files the user created carry a delete control
+		if (starterPaths.has(path)) return;
 		const remaining = files.get().filter((file) => file.path !== path);
 		files.set(remaining);
 		if (active.get() === path) active.set(remaining[0]?.path ?? "");
 	};
 
-	// Only kit lessons edit their file set — the project structure is the point.
-	const treeActions: FileTreeActions | null = kitLesson
-		? { add: addFile, rename: renameFile, remove: removeFile }
-		: null;
+	// Create icons only show above directories something is still missing in:
+	// a folder row (or the root, for single-segment paths) whose subtree has an
+	// expected file or folder that doesn't exist yet.
+	const canCreateFile = (dir: string): boolean =>
+		[...allowedFiles].some(
+			(path) =>
+				!files.get().some((file) => file.path === path) &&
+				(dir === "" ? !path.includes("/") : path.startsWith(`${dir}/`)),
+		);
+	const canCreateFolder = (dir: string): boolean => {
+		const existing = allDirs();
+		return [...allowedDirs].some(
+			(folder) =>
+				!existing.has(folder) &&
+				(dir === "" ? !folder.includes("/") : folder.startsWith(`${dir}/`)),
+		);
+	};
+
+	const treeActions: FileTreeActions | null =
+		kitLesson && creatable.length > 0
+			? { addFile, addFolder, canCreateFile, canCreateFolder, removeFile, created }
+			: null;
 
 	const hasErrors = derived([logs, consoleOpen], (entries, open) => {
 		return !open && entries.some((entry) => entry.level === "error");
@@ -181,7 +230,14 @@ export function Playground(
 	return Div(
 		{ class: "flex min-h-0 min-w-0 flex-1 flex-col" },
 		Implement.Lifecycle({
-			onMount: () => watchLessonFiles(files, () => snapshot.set(currentSnapshot())),
+			onMount: () =>
+				watchLessonFiles(files, () => {
+					snapshot.set(currentSnapshot());
+					// the open file can vanish under us (Reset, a folder delete)
+					if (contentFor(active.get()) == null) {
+						active.set(files.get()[0]?.path ?? "");
+					}
+				}),
 		}),
 		Div(
 			{ class: "flex min-h-0 flex-[5] flex-col border-b border-border" },
@@ -197,7 +253,7 @@ export function Playground(
 			),
 			Div(
 				{ class: "flex min-h-0 flex-1" },
-				showTree && FileTree(paths, active, treeActions),
+				showTree && FileTree(paths, extraDirs, active, treeActions),
 				Div(
 					{ class: "min-h-0 min-w-0 flex-1" },
 					Key(active, () => {
