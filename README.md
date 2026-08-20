@@ -4,4 +4,6 @@ Just some experimentation.
 
 ## TODOS
 
-- context
+- project scaffolding
+    - kit
+    - vite
