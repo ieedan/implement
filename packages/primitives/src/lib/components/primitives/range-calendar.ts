@@ -37,6 +37,7 @@ import {
 	type CalendarRenderProps,
 	type SharedCellFlags,
 } from "./calendar-base";
+import { createComponent } from "../../create-component";
 
 export {
 	CalendarGrid as RangeCalendarGrid,
@@ -405,7 +406,7 @@ export type RangeCalendarCellProps = ComponentProps<typeof Td> & {
 	month: MaybeReadable<CalendarDate | Month>;
 };
 
-export function RangeCalendarCell(
+export const RangeCalendarCell = createComponent(function RangeCalendarCell(
 	{ id = getId(), date, month, ...restProps }: RangeCalendarCellProps,
 	...children: Child[]
 ) {
@@ -456,7 +457,7 @@ export function RangeCalendarCell(
 			),
 		);
 	});
-}
+});
 
 function rangeCellAttrs(
 	present: (pick: (f: RangeCellFlags) => boolean) => Readable<string | undefined>,
@@ -474,7 +475,7 @@ function rangeCellAttrs(
 export type RangeCalendarDayProps = ComponentProps<typeof Div>;
 
 /** One selectable day. Without children it renders the day number. */
-export function RangeCalendarDay(
+export const RangeCalendarDay = createComponent(function RangeCalendarDay(
 	{ id = getId(), ...restProps }: RangeCalendarDayProps,
 	...children: Child[]
 ) {
@@ -510,4 +511,4 @@ export function RangeCalendarDay(
 			...(children.length ? children : [date.bind((d) => String(d.day))]),
 		);
 	});
-}
+});

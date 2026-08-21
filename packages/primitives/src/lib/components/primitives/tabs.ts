@@ -15,6 +15,7 @@ import {
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 /**
  * `"automatic"` selects a tab as soon as its trigger is focused, `"manual"`
@@ -72,7 +73,7 @@ class TabsState {
  * selected value; `TabsList` holds the `TabsTrigger`s and each `TabsContent`
  * is the panel for one value.
  */
-export function Tabs(
+export const Tabs = createComponent(function Tabs(
 	{
 		id = getId(),
 		value,
@@ -102,11 +103,11 @@ export function Tabs(
 			...children,
 		),
 	);
-}
+});
 
 export type TabsListProps = ComponentProps<typeof Div>;
 
-export function TabsList({ id = getId(), ...restProps }: TabsListProps, ...children: Child[]) {
+export const TabsList = createComponent(function TabsList({ id = getId(), ...restProps }: TabsListProps, ...children: Child[]) {
 	return TabsCtx.Use((root) => {
 		return Div(
 			mergeProps(
@@ -123,7 +124,7 @@ export function TabsList({ id = getId(), ...restProps }: TabsListProps, ...child
 			...children,
 		);
 	});
-}
+});
 
 export type TabsTriggerProps = Omit<ComponentProps<typeof Button>, "disabled" | "value" | "id"> & {
 	/** Identifies the tab. Must match the `TabsContent` it opens. */
@@ -133,7 +134,7 @@ export type TabsTriggerProps = Omit<ComponentProps<typeof Button>, "disabled" | 
 	disabled?: Signal<boolean> | boolean;
 };
 
-export function TabsTrigger(
+export const TabsTrigger = createComponent(function TabsTrigger(
 	{ id = getId(), value, disabled = false, ...restProps }: TabsTriggerProps,
 	...children: Child[]
 ) {
@@ -185,7 +186,7 @@ export function TabsTrigger(
 			...children,
 		);
 	});
-}
+});
 
 export type TabsContentProps = Omit<ComponentProps<typeof Div>, "id"> & {
 	/** Identifies the panel. Must match the `TabsTrigger` that opens it. */
@@ -194,7 +195,7 @@ export type TabsContentProps = Omit<ComponentProps<typeof Div>, "id"> & {
 	id?: string;
 };
 
-export function TabsContent(
+export const TabsContent = createComponent(function TabsContent(
 	{ id = getId(), value, ...restProps }: TabsContentProps,
 	...children: Child[]
 ) {
@@ -220,4 +221,4 @@ export function TabsContent(
 			...children,
 		);
 	});
-}
+});

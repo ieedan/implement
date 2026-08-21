@@ -17,6 +17,7 @@ import {
 } from "@implementjs/primitives";
 import { buttonVariants } from "./button";
 import { calendarRootClasses } from "./calendar";
+import { createComponent } from "@implementjs/primitives";
 
 export type RangeCalendarProps = RangeCalendarRootProps;
 
@@ -34,7 +35,7 @@ const rangeDayClasses = [
 ].join(" ");
 
 /** A fully assembled, styled range calendar. Forward any root prop from the primitive. */
-export function RangeCalendar({ class: className, ...props }: RangeCalendarProps = {}) {
+export const RangeCalendar = createComponent(function RangeCalendar({ class: className, ...props }: RangeCalendarProps = {}) {
 	return RangeCalendarPrimitive(
 		{ ...props, class: [calendarRootClasses, className] },
 		({ months, weekdays }) =>
@@ -101,4 +102,4 @@ export function RangeCalendar({ class: className, ...props }: RangeCalendarProps
 				),
 			),
 	);
-}
+});

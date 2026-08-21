@@ -1,10 +1,10 @@
 import {
 	Button as ButtonPrimitive,
-	isReadable,
 	type Child,
 	type ElementProps,
 	type Mountable,
 } from "@implementjs/core";
+import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
 
 export const buttonVariants = tv({
@@ -42,43 +42,25 @@ export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
 export type ButtonProps = ElementProps<"button"> & VariantProps<typeof buttonVariants>;
 
-function isPropsObject(value: unknown): value is ButtonProps {
-	return value != null && typeof value === "object" && !Array.isArray(value) && !isReadable(value);
-}
-
-export function Button(props: ButtonProps, ...children: Child[]): Mountable;
-export function Button(...children: Child[]): Mountable;
-export function Button(propsOrChild?: ButtonProps | Child, ...rest: Child[]): Mountable {
-	if (isPropsObject(propsOrChild)) {
-		const {
-			variant = "default",
-			size = "default",
-			class: className,
-			type = "button",
-			...props
-		} = propsOrChild;
-		return ButtonPrimitive(
-			{
-				type,
-				...props,
-				"data-slot": "button",
-				"data-variant": variant,
-				"data-size": size,
-				class: [buttonVariants({ variant, size }), className],
-			},
-			...rest,
-		);
-	}
-
-	const children = propsOrChild === undefined ? rest : [propsOrChild, ...rest];
+export const Button = createComponent(function Button(
+	{
+		variant = "default",
+		size = "default",
+		class: className,
+		type = "button",
+		...props
+	}: ButtonProps,
+	...children: Child[]
+): Mountable {
 	return ButtonPrimitive(
 		{
-			type: "button",
+			type,
+			...props,
 			"data-slot": "button",
-			"data-variant": "default",
-			"data-size": "default",
-			class: buttonVariants(),
+			"data-variant": variant,
+			"data-size": size,
+			class: [buttonVariants({ variant, size }), className],
 		},
 		...children,
 	);
-}
+});

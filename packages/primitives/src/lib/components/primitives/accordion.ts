@@ -11,6 +11,7 @@ import {
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type AccordionRootProps = ComponentProps<typeof Div> & {
 	type?: "single" | "multiple";
@@ -87,7 +88,7 @@ class AccordionState {
 	}
 }
 
-export function Accordion(
+export const Accordion = createComponent(function Accordion(
 	{ id = getId(), type = "single", loop = true, ...restProps }: AccordionRootProps,
 	...children: Child[]
 ) {
@@ -108,7 +109,7 @@ export function Accordion(
 			...children,
 		),
 	);
-}
+});
 
 export type AccordionItemProps = ComponentProps<typeof Div> & {
 	value: string;
@@ -149,7 +150,7 @@ class AccordionItemState {
 
 const AccordionItemCtx = context<AccordionItemState>();
 
-export function AccordionItem(
+export const AccordionItem = createComponent(function AccordionItem(
 	{ id = getId(), value, ...restProps }: AccordionItemProps,
 	...children: Child[]
 ) {
@@ -162,11 +163,11 @@ export function AccordionItem(
 			),
 		);
 	});
-}
+});
 
 export type AccordionTriggerProps = ComponentProps<typeof Button>;
 
-export function AccordionTrigger(
+export const AccordionTrigger = createComponent(function AccordionTrigger(
 	{ id = getId(), ...restProps }: AccordionTriggerProps,
 	...children: Child[]
 ) {
@@ -189,13 +190,13 @@ export function AccordionTrigger(
 			...children,
 		);
 	});
-}
+});
 
 export type AccordionContentProps = ComponentProps<typeof Div> & {
 	hiddenUntilFound?: boolean;
 };
 
-export function AccordionContent(
+export const AccordionContent = createComponent(function AccordionContent(
 	{ id = getId(), hiddenUntilFound = false, ...restProps }: AccordionContentProps,
 	...children: Child[]
 ) {
@@ -216,13 +217,13 @@ export function AccordionContent(
 			...children,
 		);
 	});
-}
+});
 
 export type AccordionHeaderProps = ComponentProps<typeof Div> & {
 	level?: 1 | 2 | 3 | 4 | 5 | 6;
 };
 
-export function AccordionHeader(
+export const AccordionHeader = createComponent(function AccordionHeader(
 	{ id = getId(), level = 3, ...restProps }: AccordionHeaderProps,
 	...children: Child[]
 ) {
@@ -242,4 +243,4 @@ export function AccordionHeader(
 			...children,
 		);
 	});
-}
+});

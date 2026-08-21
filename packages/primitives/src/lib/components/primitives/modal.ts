@@ -25,6 +25,7 @@ import {
 	type DismissBehavior,
 } from "../helpers/dismissable-layer";
 import { ScrollLock } from "../helpers/scroll-lock";
+import { createComponent } from "../../create-component";
 
 const NESTED_COUNT_VAR = `--${LIB_PREFIX}-nested-count`;
 const NESTED_LEVEL_VAR = `--${LIB_PREFIX}-nested-level`;
@@ -340,7 +341,7 @@ export class ModalTriggerState {
 	}
 }
 
-export function ModalTrigger(
+export const ModalTrigger = createComponent(function ModalTrigger(
 	{ id = getId(), default: isDefault = false, ...restProps }: ModalTriggerProps,
 	...children: Child[]
 ) {
@@ -365,7 +366,7 @@ export function ModalTrigger(
 			...children,
 		);
 	});
-}
+});
 
 type ModalContentOptions = {
 	onInteractOutside: (e: InteractOutsideEvent) => void;
@@ -385,7 +386,7 @@ export class ModalContentState {
 	}
 }
 
-export function ModalContent(
+export const ModalContent = createComponent(function ModalContent(
 	{
 		id = getId(),
 		onInteractOutside = noop,
@@ -428,11 +429,11 @@ export function ModalContent(
 			...children,
 		);
 	});
-}
+});
 
 export type ModalOverlayProps = ComponentProps<typeof Div>;
 
-export function ModalOverlay(
+export const ModalOverlay = createComponent(function ModalOverlay(
 	{ id = getId(), ...restProps }: ModalOverlayProps,
 	...children: Child[]
 ) {
@@ -450,11 +451,11 @@ export function ModalOverlay(
 			...children,
 		);
 	});
-}
+});
 
 export type ModalTitleProps = ComponentProps<typeof H2>;
 
-export function ModalTitle({ id = getId(), ...restProps }: ModalTitleProps, ...children: Child[]) {
+export const ModalTitle = createComponent(function ModalTitle({ id = getId(), ...restProps }: ModalTitleProps, ...children: Child[]) {
 	return ModalCtx.Use((rootState) => {
 		rootState.registerTitle(id);
 		return H2(
@@ -468,11 +469,11 @@ export function ModalTitle({ id = getId(), ...restProps }: ModalTitleProps, ...c
 			...children,
 		);
 	});
-}
+});
 
 export type ModalDescriptionProps = ComponentProps<typeof P>;
 
-export function ModalDescription(
+export const ModalDescription = createComponent(function ModalDescription(
 	{ id = getId(), ...restProps }: ModalDescriptionProps,
 	...children: Child[]
 ) {
@@ -489,7 +490,7 @@ export function ModalDescription(
 			...children,
 		);
 	});
-}
+});
 
 export type ModalCloseProps = ComponentProps<typeof Button>;
 

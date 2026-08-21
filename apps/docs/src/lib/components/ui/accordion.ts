@@ -7,6 +7,7 @@ import {
 	AccordionItem as AccordionItemPrimitive,
 	AccordionTrigger as AccordionTriggerPrimitive,
 } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type AccordionProps = ComponentProps<typeof AccordionPrimitive>;
 export type AccordionItemProps = ComponentProps<typeof AccordionItemPrimitive>;
@@ -14,11 +15,11 @@ export type AccordionHeaderProps = ComponentProps<typeof AccordionHeaderPrimitiv
 export type AccordionTriggerProps = ComponentProps<typeof AccordionTriggerPrimitive>;
 export type AccordionContentProps = ComponentProps<typeof AccordionContentPrimitive>;
 
-export function Accordion({ class: className, ...props }: AccordionProps, ...children: Child[]) {
+export const Accordion = createComponent(function Accordion({ class: className, ...props }: AccordionProps, ...children: Child[]) {
 	return AccordionPrimitive({ "data-slot": "accordion", class: className, ...props }, ...children);
-}
+});
 
-export function AccordionItem(
+export const AccordionItem = createComponent(function AccordionItem(
 	{ class: className, ...props }: AccordionItemProps,
 	...children: Child[]
 ) {
@@ -30,16 +31,16 @@ export function AccordionItem(
 		},
 		...children,
 	);
-}
+});
 
-export function AccordionHeader(
+export const AccordionHeader = createComponent(function AccordionHeader(
 	{ class: className, ...props }: AccordionHeaderProps,
 	...children: Child[]
 ) {
 	return AccordionHeaderPrimitive({ ...props, class: ["flex", className] }, ...children);
-}
+});
 
-export function AccordionTrigger(
+export const AccordionTrigger = createComponent(function AccordionTrigger(
 	{ class: className, ...props }: AccordionTriggerProps,
 	...children: Child[]
 ) {
@@ -62,9 +63,9 @@ export function AccordionTrigger(
 			}),
 		),
 	);
-}
+});
 
-export function AccordionContent(
+export const AccordionContent = createComponent(function AccordionContent(
 	{ class: className, ...props }: AccordionContentProps,
 	...children: Child[]
 ) {
@@ -77,4 +78,4 @@ export function AccordionContent(
 		},
 		Div({ class: ["min-h-0 overflow-hidden pt-0 pb-4", className] }, ...children),
 	);
-}
+});

@@ -11,6 +11,7 @@ import {
 import { HiddenInput } from "../../hidden-input";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type CheckboxProps = ComponentProps<typeof Button> & {
 	checked?: Signal<boolean> | boolean;
@@ -52,7 +53,7 @@ class CheckboxState {
 	}
 }
 
-export function Checkbox(
+export const Checkbox = createComponent(function Checkbox(
 	{
 		id = getId(),
 		checked,
@@ -96,4 +97,4 @@ export function Checkbox(
 					}),
 				]),
 	);
-}
+});

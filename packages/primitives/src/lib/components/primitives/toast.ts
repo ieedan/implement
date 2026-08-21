@@ -16,6 +16,7 @@ import {
 } from "@implementjs/core";
 import { getId } from "../../utils";
 import { mergeProps } from "../../merge-props";
+import { createComponent } from "../../create-component";
 
 function presence(on: boolean): "" | undefined {
 	return on ? "" : undefined;
@@ -326,7 +327,7 @@ const ToastProviderContext = context<ToastProviderState>();
  * the app (or at least around the `ToastViewport`). Timers pause while the
  * pointer is over the stack, while it holds focus, and while the tab is hidden.
  */
-export function ToastProvider(props: ToastProviderProps, ...children: Child[]) {
+export const ToastProvider = createComponent(function ToastProvider(props: ToastProviderProps, ...children: Child[]) {
 	const state = new ToastProviderState(props);
 	const ownsManager = props.manager === undefined;
 	return ToastProviderContext.Provide(state).To(
@@ -350,7 +351,7 @@ export function ToastProvider(props: ToastProviderProps, ...children: Child[]) {
 			...children,
 		),
 	);
-}
+});
 
 export type ToastViewportProps = ComponentProps<typeof Div>;
 
@@ -359,7 +360,7 @@ export type ToastViewportProps = ComponentProps<typeof Div>;
  * `ForEach(manager.toasts, (t) => t.id, (toast) => Toast({ toast }, ...))`.
  * Hover or focus expands the stack; the provider's hotkey focuses it.
  */
-export function ToastViewport(
+export const ToastViewport = createComponent(function ToastViewport(
 	{ id = getId(), ...restProps }: ToastViewportProps,
 	...children: Child[]
 ) {
@@ -414,7 +415,7 @@ export function ToastViewport(
 			),
 		);
 	});
-}
+});
 
 const DEFAULT_SWIPE_DIRECTIONS: SwipeDirection[] = ["down", "right"];
 /** How far a swipe must travel, in px, to dismiss instead of springing back. */
@@ -647,7 +648,7 @@ const ToastRootContext = context<ToastRootState>();
  * stacking math as CSS variables and handles swipe-to-dismiss, Escape, and the
  * exit transition (removal waits for the longest transition on the element).
  */
-export function Toast(
+export const Toast = createComponent(function Toast(
 	{ id, toast, swipeDirection = DEFAULT_SWIPE_DIRECTIONS, ...restProps }: ToastRootProps,
 	...children: Child[]
 ) {
@@ -707,11 +708,11 @@ export function Toast(
 			),
 		);
 	});
-}
+});
 
 export type ToastTitleProps = ComponentProps<typeof Div>;
 
-export function ToastTitle({ id = getId(), ...restProps }: ToastTitleProps, ...children: Child[]) {
+export const ToastTitle = createComponent(function ToastTitle({ id = getId(), ...restProps }: ToastTitleProps, ...children: Child[]) {
 	return ToastRootContext.Use((rootState) => {
 		rootState.titleId.set(id);
 		return Div(
@@ -726,11 +727,11 @@ export function ToastTitle({ id = getId(), ...restProps }: ToastTitleProps, ...c
 			...children,
 		);
 	});
-}
+});
 
 export type ToastDescriptionProps = ComponentProps<typeof Div>;
 
-export function ToastDescription(
+export const ToastDescription = createComponent(function ToastDescription(
 	{ id = getId(), ...restProps }: ToastDescriptionProps,
 	...children: Child[]
 ) {
@@ -748,12 +749,12 @@ export function ToastDescription(
 			...children,
 		);
 	});
-}
+});
 
 export type ToastActionProps = ComponentProps<typeof Button>;
 
 /** A button for the toast's action (undo, retry, …). Closes the toast after your `onClick`. */
-export function ToastAction(
+export const ToastAction = createComponent(function ToastAction(
 	{ id = getId(), ...restProps }: ToastActionProps,
 	...children: Child[]
 ) {
@@ -772,11 +773,11 @@ export function ToastAction(
 			...children,
 		);
 	});
-}
+});
 
 export type ToastCloseProps = ComponentProps<typeof Button>;
 
-export function ToastClose({ id = getId(), ...restProps }: ToastCloseProps, ...children: Child[]) {
+export const ToastClose = createComponent(function ToastClose({ id = getId(), ...restProps }: ToastCloseProps, ...children: Child[]) {
 	return ToastRootContext.Use((rootState) => {
 		return Button(
 			mergeProps(
@@ -793,7 +794,7 @@ export function ToastClose({ id = getId(), ...restProps }: ToastCloseProps, ...c
 			...children,
 		);
 	});
-}
+});
 
 export type ToastPortalProps = PortalProps;
 

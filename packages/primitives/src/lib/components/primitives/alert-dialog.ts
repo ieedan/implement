@@ -16,6 +16,7 @@ import {
 	type ModalTitleProps,
 	type ModalTriggerProps,
 } from "./modal";
+import { createComponent } from "../../create-component";
 
 export type AlertDialogRootProps = ModalRootOptions;
 
@@ -25,13 +26,13 @@ export type AlertDialogRootProps = ModalRootOptions;
  * clicking outside does not dismiss it, and focus starts on the cancel
  * button so the destructive action needs a deliberate move.
  */
-export function AlertDialog(props: AlertDialogRootProps, ...children: Child[]) {
+export const AlertDialog = createComponent(function AlertDialog(props: AlertDialogRootProps, ...children: Child[]) {
 	const state = new ModalState(
 		{ name: "alert-dialog", role: "alertdialog", interactOutsideBehavior: "ignore" },
 		props,
 	);
 	return ModalRoot(state, ...children);
-}
+});
 
 export type AlertDialogTriggerProps = ModalTriggerProps;
 export const AlertDialogTrigger = ModalTrigger;
@@ -57,17 +58,17 @@ export type AlertDialogCancelProps = ModalCloseProps;
  * Closes without confirming. Receives focus when the alert dialog opens, so
  * Enter or Space backs out instead of confirming.
  */
-export function AlertDialogCancel(props: AlertDialogCancelProps, ...children: Child[]) {
+export const AlertDialogCancel = createComponent(function AlertDialogCancel(props: AlertDialogCancelProps, ...children: Child[]) {
 	return ModalClose(
 		{ dataAttribute: "alert-dialog-cancel", initialFocus: true },
 		props,
 		...children,
 	);
-}
+});
 
 export type AlertDialogActionProps = ModalCloseProps;
 
 /** Confirms and closes. Attach the actual work to `onClick`. */
-export function AlertDialogAction(props: AlertDialogActionProps, ...children: Child[]) {
+export const AlertDialogAction = createComponent(function AlertDialogAction(props: AlertDialogActionProps, ...children: Child[]) {
 	return ModalClose({ dataAttribute: "alert-dialog-action" }, props, ...children);
-}
+});

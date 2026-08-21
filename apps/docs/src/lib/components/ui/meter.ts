@@ -1,9 +1,10 @@
 import { derived, Div, signal, type ComponentProps } from "@implementjs/core";
 import { Meter as MeterPrimitive } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type MeterProps = ComponentProps<typeof MeterPrimitive>;
 
-export function Meter({ class: className, value = 0, min = 0, max = 100, ...props }: MeterProps) {
+export const Meter = createComponent(function Meter({ class: className, value = 0, min = 0, max = 100, ...props }: MeterProps) {
 	const valueSignal = signal(value);
 	const minSignal = signal(min);
 	const maxSignal = signal(max);
@@ -28,4 +29,4 @@ export function Meter({ class: className, value = 0, min = 0, max = 100, ...prop
 			style: { transform: percent.bind((p) => `translateX(-${100 - p}%)`) },
 		}),
 	);
-}
+});

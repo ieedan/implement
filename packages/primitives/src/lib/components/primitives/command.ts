@@ -16,6 +16,7 @@ import {
 import { getId, getReadableValue, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
 import { computeCommandScore } from "../helpers/command-score";
+import { createComponent } from "../../create-component";
 
 const ITEM_SELECTOR = "[data-command-item]";
 const VISIBLE_ITEM_SELECTOR = `${ITEM_SELECTOR}:not([hidden])`;
@@ -736,7 +737,7 @@ class CommandState {
  * hides the misses, sorts the rest, and moves a highlight with the keyboard.
  * Composable inside a Dialog for a command palette.
  */
-export function Command(
+export const Command = createComponent(function Command(
 	{
 		id = getId(),
 		label,
@@ -789,7 +790,7 @@ export function Command(
 			),
 		),
 	);
-}
+});
 
 export type CommandInputProps = ComponentProps<typeof Input>;
 
@@ -797,7 +798,7 @@ export type CommandInputProps = ComponentProps<typeof Input>;
  * The search box. Typing filters and re-sorts the items. Focus can stay here:
  * arrows, enter, and the vim bindings all work from the input.
  */
-export function CommandInput({ id = getId(), ...restProps }: CommandInputProps) {
+export const CommandInput = createComponent(function CommandInput({ id = getId(), ...restProps }: CommandInputProps) {
 	return CommandCtx.Use((state) => {
 		const activeDescendant = derived([state.value], (value) => {
 			if (value === "") return undefined;
@@ -825,7 +826,7 @@ export function CommandInput({ id = getId(), ...restProps }: CommandInputProps) 
 			),
 		);
 	});
-}
+});
 
 export type CommandListProps = ComponentProps<typeof Div> & {
 	/** Accessible name for the listbox. Defaults to "Suggestions". */
@@ -836,7 +837,7 @@ export type CommandListProps = ComponentProps<typeof Div> & {
  * The scrollable results region. Put a {@link CommandViewport} directly
  * inside it to get `--ip-command-list-height` for height animations.
  */
-export function CommandList(
+export const CommandList = createComponent(function CommandList(
 	{ id = getId(), label = "Suggestions", ...restProps }: CommandListProps,
 	...children: Child[]
 ) {
@@ -855,7 +856,7 @@ export function CommandList(
 			...children,
 		),
 	);
-}
+});
 
 export type CommandViewportProps = ComponentProps<typeof Div>;
 
@@ -863,7 +864,7 @@ export type CommandViewportProps = ComponentProps<typeof Div>;
  * The list's sole child, wrapping all groups and items. Its measured height
  * is written to `--ip-command-list-height` on the list.
  */
-export function CommandViewport(
+export const CommandViewport = createComponent(function CommandViewport(
 	{ id = getId(), ...restProps }: CommandViewportProps,
 	...children: Child[]
 ) {
@@ -894,7 +895,7 @@ export function CommandViewport(
 			),
 		),
 	);
-}
+});
 
 export type CommandEmptyProps = ComponentProps<typeof Div> & {
 	/** Render even while items match. */
@@ -902,7 +903,7 @@ export type CommandEmptyProps = ComponentProps<typeof Div> & {
 };
 
 /** Shown only when the search leaves no items visible. */
-export function CommandEmpty(
+export const CommandEmpty = createComponent(function CommandEmpty(
 	{ id = getId(), forceMount = false, ...restProps }: CommandEmptyProps,
 	...children: Child[]
 ) {
@@ -930,7 +931,7 @@ export function CommandEmpty(
 			),
 		);
 	});
-}
+});
 
 export type CommandLoadingProps = ComponentProps<typeof Div> & {
 	/** Progress between 0 and 100. */
@@ -938,7 +939,7 @@ export type CommandLoadingProps = ComponentProps<typeof Div> & {
 };
 
 /** A progress region for async items. */
-export function CommandLoading(
+export const CommandLoading = createComponent(function CommandLoading(
 	{ id = getId(), progress = 0, ...restProps }: CommandLoadingProps,
 	...children: Child[]
 ) {
@@ -959,7 +960,7 @@ export function CommandLoading(
 			...children,
 		),
 	);
-}
+});
 
 export type CommandSeparatorProps = ComponentProps<typeof Div> & {
 	/** Keep the separator while searching. */
@@ -967,7 +968,7 @@ export type CommandSeparatorProps = ComponentProps<typeof Div> & {
 };
 
 /** A divider between groups. Hidden while a search is active. */
-export function CommandSeparator(
+export const CommandSeparator = createComponent(function CommandSeparator(
 	{ id = getId(), forceMount = false, ...restProps }: CommandSeparatorProps,
 	...children: Child[]
 ) {
@@ -987,7 +988,7 @@ export function CommandSeparator(
 			...children,
 		);
 	});
-}
+});
 
 class CommandGroupState {
 	headingId = signal<string | null>(null);
@@ -1008,7 +1009,7 @@ export type CommandGroupProps = ComponentProps<typeof Div> & {
  * Hidden once the search filters out every item inside it. In a grid, each
  * group starts a new row.
  */
-export function CommandGroup(
+export const CommandGroup = createComponent(function CommandGroup(
 	{ id = getId(), value, forceMount = false, ...restProps }: CommandGroupProps,
 	...children: Child[]
 ) {
@@ -1041,12 +1042,12 @@ export function CommandGroup(
 			),
 		);
 	});
-}
+});
 
 export type CommandGroupHeadingProps = ComponentProps<typeof Div>;
 
 /** The group's visible name; the group's items point `aria-labelledby` at it. */
-export function CommandGroupHeading(
+export const CommandGroupHeading = createComponent(function CommandGroupHeading(
 	{ id = getId(), ...restProps }: CommandGroupHeadingProps,
 	...children: Child[]
 ) {
@@ -1054,12 +1055,12 @@ export function CommandGroupHeading(
 		group.headingId.set(getReadableValue(id));
 		return Div(mergeProps({ id, "data-command-group-heading": "" }, restProps), ...children);
 	});
-}
+});
 
 export type CommandGroupItemsProps = ComponentProps<typeof Div>;
 
 /** The container for a group's items. Sets `role="group"`. */
-export function CommandGroupItems(
+export const CommandGroupItems = createComponent(function CommandGroupItems(
 	{ id = getId(), ...restProps }: CommandGroupItemsProps,
 	...children: Child[]
 ) {
@@ -1077,7 +1078,7 @@ export function CommandGroupItems(
 			...children,
 		),
 	);
-}
+});
 
 type CommandItemOptions = {
 	/**
@@ -1193,7 +1194,7 @@ function commandItem(
  * One choice. Filtered and ranked against its `value` (or text content) plus
  * `keywords`. The highlighted item sets `data-selected`; Enter clicks it.
  */
-export function CommandItem(
+export const CommandItem = createComponent(function CommandItem(
 	{ id = getId(), value, keywords, disabled, onSelect, forceMount, ...restProps }: CommandItemProps,
 	...children: Child[]
 ) {
@@ -1203,10 +1204,10 @@ export function CommandItem(
 		restProps,
 		children,
 	);
-}
+});
 
 /** A {@link CommandItem} that renders an anchor, for items that navigate. */
-export function CommandLinkItem(
+export const CommandLinkItem = createComponent(function CommandLinkItem(
 	{
 		id = getId(),
 		value,
@@ -1224,6 +1225,6 @@ export function CommandLinkItem(
 		restProps,
 		children,
 	);
-}
+});
 
 export { computeCommandScore };

@@ -14,6 +14,7 @@ import {
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type ToggleGroupRootProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
 	? { type: "multiple"; value?: Signal<string[]> }
@@ -120,7 +121,7 @@ class ToggleGroupMultipleState extends ToggleGroupState {
 	}
 }
 
-export function ToggleGroup(
+export const ToggleGroup = createComponent(function ToggleGroup(
 	{
 		id = getId(),
 		type = "single",
@@ -160,7 +161,7 @@ export function ToggleGroup(
 			...children,
 		),
 	);
-}
+});
 
 export type ToggleGroupItemProps = Omit<ComponentProps<typeof Button>, "disabled" | "value"> & {
 	/** Identifies the item. Must be unique within the group. */
@@ -168,7 +169,7 @@ export type ToggleGroupItemProps = Omit<ComponentProps<typeof Button>, "disabled
 	disabled?: Signal<boolean> | boolean;
 };
 
-export function ToggleGroupItem(
+export const ToggleGroupItem = createComponent(function ToggleGroupItem(
 	{ id = getId(), value, disabled = false, ...restProps }: ToggleGroupItemProps,
 	...children: Child[]
 ) {
@@ -203,4 +204,4 @@ export function ToggleGroupItem(
 			...children,
 		);
 	});
-}
+});

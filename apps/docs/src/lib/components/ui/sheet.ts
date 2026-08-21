@@ -11,6 +11,7 @@ import {
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { createComponent } from "@implementjs/primitives";
 
 /**
  * A sheet is the dialog primitive wearing a drawer costume: same focus trap,
@@ -41,11 +42,11 @@ export type SheetDescriptionProps = ComponentProps<typeof DialogDescriptionPrimi
 
 export const SheetPortal = DialogPortalPrimitive;
 
-export function Sheet(props: SheetProps, ...children: Child[]) {
+export const Sheet = createComponent(function Sheet(props: SheetProps, ...children: Child[]) {
 	return DialogPrimitive(props, ...children);
-}
+});
 
-export function SheetTrigger(
+export const SheetTrigger = createComponent(function SheetTrigger(
 	{
 		class: className,
 		variant = "ghost",
@@ -66,9 +67,9 @@ export function SheetTrigger(
 		},
 		...children,
 	);
-}
+});
 
-export function SheetOverlay(
+export const SheetOverlay = createComponent(function SheetOverlay(
 	{ class: className, ...props }: SheetOverlayProps,
 	...children: Child[]
 ) {
@@ -87,7 +88,7 @@ export function SheetOverlay(
 		},
 		...children,
 	);
-}
+});
 
 const sideClasses: Record<SheetSide, string> = {
 	left: [
@@ -112,7 +113,7 @@ const sideClasses: Record<SheetSide, string> = {
 	].join(" "),
 };
 
-export function SheetContent(
+export const SheetContent = createComponent(function SheetContent(
 	{ side = "left", class: className, showCloseButton = true, ...props }: SheetContentProps,
 	...children: Child[]
 ) {
@@ -141,9 +142,9 @@ export function SheetContent(
 				)
 			: null,
 	);
-}
+});
 
-export function SheetTitle({ class: className, ...props }: SheetTitleProps, ...children: Child[]) {
+export const SheetTitle = createComponent(function SheetTitle({ class: className, ...props }: SheetTitleProps, ...children: Child[]) {
 	return DialogTitlePrimitive(
 		{
 			...props,
@@ -152,9 +153,9 @@ export function SheetTitle({ class: className, ...props }: SheetTitleProps, ...c
 		},
 		...children,
 	);
-}
+});
 
-export function SheetDescription(
+export const SheetDescription = createComponent(function SheetDescription(
 	{ class: className, ...props }: SheetDescriptionProps,
 	...children: Child[]
 ) {
@@ -166,9 +167,9 @@ export function SheetDescription(
 		},
 		...children,
 	);
-}
+});
 
-export function SheetClose(
+export const SheetClose = createComponent(function SheetClose(
 	{ class: className, variant = "ghost", size = "sm", type = "button", ...props }: SheetCloseProps,
 	...children: Child[]
 ) {
@@ -183,4 +184,4 @@ export function SheetClose(
 		},
 		...children,
 	);
-}
+});

@@ -1,5 +1,6 @@
 import { context, If, Implement, type Child, type Readable, type Signal } from "@implementjs/core";
 import { getId, getReadableValue, type MaybeReadable } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type DismissBehavior = "close" | "ignore" | "defer-otherwise-close";
 
@@ -211,7 +212,7 @@ function isInteractionWithOutsideElement(
 
 const DismissableLayerCtx = context<DismissableLayerState>();
 
-export function DismissableLayer(props: DismissableLayerProps, ...children: Child[]) {
+export const DismissableLayer = createComponent(function DismissableLayer(props: DismissableLayerProps, ...children: Child[]) {
 	return DismissableLayerCtx.UseOr((parent) => {
 		const state = new DismissableLayerState(parent, { ...props, id: getId() });
 		return DismissableLayerCtx.Provide(state).To(
@@ -231,4 +232,4 @@ export function DismissableLayer(props: DismissableLayerProps, ...children: Chil
 			),
 		);
 	}, null);
-}
+});

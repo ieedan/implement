@@ -17,6 +17,7 @@ import {
 	type Month,
 } from "@implementjs/primitives";
 import { buttonVariants } from "./button";
+import { createComponent } from "@implementjs/primitives";
 
 export type CalendarProps = CalendarRootProps | CalendarRootProps<"multiple">;
 
@@ -91,7 +92,7 @@ export function CalendarMonthGrid(
 }
 
 /** A fully assembled, styled calendar. Forward any root prop from the primitive. */
-export function Calendar({ class: className, ...props }: CalendarProps = {}) {
+export const Calendar = createComponent(function Calendar({ class: className, ...props }: CalendarProps = {}) {
 	return CalendarPrimitive(
 		{ ...props, class: [calendarRootClasses, className] },
 		({ months, weekdays }) =>
@@ -107,4 +108,4 @@ export function Calendar({ class: className, ...props }: CalendarProps = {}) {
 				),
 			),
 	);
-}
+});

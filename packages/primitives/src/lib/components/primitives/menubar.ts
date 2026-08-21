@@ -41,6 +41,7 @@ import {
 	type MenuSubProps,
 	type MenuSubTriggerProps,
 } from "./menu";
+import { createComponent } from "../../create-component";
 
 export type MenubarRootProps = ComponentProps<typeof Div> & {
 	/** The value of the open menu, or null while all are closed. */
@@ -101,7 +102,7 @@ class MenubarState {
  * owns which one is open, hover-switches between them while one is open,
  * and arrows move both between triggers and between open menus.
  */
-export function Menubar(
+export const Menubar = createComponent(function Menubar(
 	{ id = getId(), value, loop = true, ...restProps }: MenubarRootProps,
 	...children: Child[]
 ) {
@@ -123,7 +124,7 @@ export function Menubar(
 			...children,
 		),
 	);
-}
+});
 
 export type MenubarMenuProps = {
 	/** Identifies the menu. Must be unique within the menubar. */
@@ -134,7 +135,7 @@ export type MenubarMenuProps = {
 
 const MenubarMenuCtx = context<{ value: string; menu: MenuState; menubar: MenubarState }>();
 
-export function MenubarMenu({ value, preventScroll }: MenubarMenuProps, ...children: Child[]) {
+export const MenubarMenu = createComponent(function MenubarMenu({ value, preventScroll }: MenubarMenuProps, ...children: Child[]) {
 	return MenubarCtx.Use((menubar) => {
 		const menu = new MenuState("menubar", { preventScroll });
 		menubar.registerMenu(value, menu);
@@ -163,13 +164,13 @@ export function MenubarMenu({ value, preventScroll }: MenubarMenuProps, ...child
 
 		return MenubarMenuCtx.Provide({ value, menu, menubar }).To(MenuRoot(menu, ...children));
 	});
-}
+});
 
 export type MenubarTriggerProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
-export function MenubarTrigger(
+export const MenubarTrigger = createComponent(function MenubarTrigger(
 	{ id = getId(), disabled = false, ...restProps }: MenubarTriggerProps,
 	...children: Child[]
 ) {
@@ -227,7 +228,7 @@ export function MenubarTrigger(
 			...children,
 		);
 	});
-}
+});
 
 export type MenubarContentProps = MenuContentProps;
 export const MenubarContent = MenuContent;

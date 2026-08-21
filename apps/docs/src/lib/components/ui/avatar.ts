@@ -4,12 +4,13 @@ import {
 	AvatarFallback as AvatarFallbackPrimitive,
 	AvatarImage as AvatarImagePrimitive,
 } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type AvatarProps = ComponentProps<typeof AvatarPrimitive>;
 export type AvatarImageProps = ComponentProps<typeof AvatarImagePrimitive>;
 export type AvatarFallbackProps = ComponentProps<typeof AvatarFallbackPrimitive>;
 
-export function Avatar({ class: className, ...props }: AvatarProps, ...children: Child[]) {
+export const Avatar = createComponent(function Avatar({ class: className, ...props }: AvatarProps, ...children: Child[]) {
 	return AvatarPrimitive(
 		{
 			...props,
@@ -18,17 +19,17 @@ export function Avatar({ class: className, ...props }: AvatarProps, ...children:
 		},
 		...children,
 	);
-}
+});
 
-export function AvatarImage({ class: className, ...props }: AvatarImageProps) {
+export const AvatarImage = createComponent(function AvatarImage({ class: className, ...props }: AvatarImageProps) {
 	return AvatarImagePrimitive({
 		...props,
 		"data-slot": "avatar-image",
 		class: ["aspect-square size-full", className],
 	});
-}
+});
 
-export function AvatarFallback(
+export const AvatarFallback = createComponent(function AvatarFallback(
 	{ class: className, ...props }: AvatarFallbackProps,
 	...children: Child[]
 ) {
@@ -40,4 +41,4 @@ export function AvatarFallback(
 		},
 		...children,
 	);
-}
+});

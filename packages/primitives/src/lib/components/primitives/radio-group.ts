@@ -14,6 +14,7 @@ import {
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type RadioGroupRootProps = ComponentProps<typeof Div> & {
 	value?: Signal<string | null> | string | null;
@@ -64,7 +65,7 @@ class RadioGroupState {
 	}
 }
 
-export function RadioGroup(
+export const RadioGroup = createComponent(function RadioGroup(
 	{
 		id = getId(),
 		value,
@@ -97,7 +98,7 @@ export function RadioGroup(
 			...children,
 		),
 	);
-}
+});
 
 export type RadioGroupItemProps = Omit<ComponentProps<typeof Button>, "disabled" | "value"> & {
 	/** Identifies the item. Must be unique within the group. */
@@ -105,7 +106,7 @@ export type RadioGroupItemProps = Omit<ComponentProps<typeof Button>, "disabled"
 	disabled?: Signal<boolean> | boolean;
 };
 
-export function RadioGroupItem(
+export const RadioGroupItem = createComponent(function RadioGroupItem(
 	{ id = getId(), value, disabled = false, ...restProps }: RadioGroupItemProps,
 	...children: Child[]
 ) {
@@ -142,4 +143,4 @@ export function RadioGroupItem(
 			...children,
 		);
 	});
-}
+});

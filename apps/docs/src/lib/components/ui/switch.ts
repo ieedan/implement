@@ -3,11 +3,12 @@ import {
 	Switch as SwitchPrimitive,
 	SwitchThumb as SwitchThumbPrimitive,
 } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type SwitchProps = ComponentProps<typeof SwitchPrimitive>;
 export type SwitchThumbProps = ComponentProps<typeof SwitchThumbPrimitive>;
 
-export function Switch({ class: className, ...props }: SwitchProps, ...children: Child[]) {
+export const Switch = createComponent(function Switch({ class: className, ...props }: SwitchProps, ...children: Child[]) {
 	return SwitchPrimitive(
 		{
 			...props,
@@ -23,9 +24,9 @@ export function Switch({ class: className, ...props }: SwitchProps, ...children:
 		},
 		...(children.length > 0 ? children : [SwitchThumb({})]),
 	);
-}
+});
 
-export function SwitchThumb(
+export const SwitchThumb = createComponent(function SwitchThumb(
 	{ class: className, ...props }: SwitchThumbProps,
 	...children: Child[]
 ) {
@@ -42,4 +43,4 @@ export function SwitchThumb(
 		},
 		...children,
 	);
-}
+});

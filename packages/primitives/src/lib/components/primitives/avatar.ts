@@ -12,6 +12,7 @@ import {
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type AvatarLoadingStatus = "loading" | "loaded" | "error";
 
@@ -86,7 +87,7 @@ class AvatarState {
 	}
 }
 
-export function Avatar(
+export const Avatar = createComponent(function Avatar(
 	{ id = getId(), delayMs = 0, onLoadingStatusChange, ...restProps }: AvatarRootProps,
 	...children: Child[]
 ) {
@@ -98,11 +99,11 @@ export function Avatar(
 			...children,
 		),
 	);
-}
+});
 
 export type AvatarImageProps = ComponentProps<typeof Img>;
 
-export function AvatarImage({
+export const AvatarImage = createComponent(function AvatarImage({
 	id = getId(),
 	src,
 	crossOrigin,
@@ -144,11 +145,11 @@ export function AvatarImage({
 			),
 		);
 	});
-}
+});
 
 export type AvatarFallbackProps = ComponentProps<typeof Span>;
 
-export function AvatarFallback(
+export const AvatarFallback = createComponent(function AvatarFallback(
 	{ id = getId(), ...restProps }: AvatarFallbackProps,
 	...children: Child[]
 ) {
@@ -166,4 +167,4 @@ export function AvatarFallback(
 			...children,
 		);
 	});
-}
+});

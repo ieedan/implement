@@ -4,11 +4,12 @@ import {
 	RatingGroup as RatingGroupPrimitive,
 	RatingGroupItem as RatingGroupItemPrimitive,
 } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type RatingGroupProps = ComponentProps<typeof RatingGroupPrimitive>;
 export type RatingGroupItemProps = ComponentProps<typeof RatingGroupItemPrimitive>;
 
-export function RatingGroup(
+export const RatingGroup = createComponent(function RatingGroup(
 	{ class: className, ...props }: RatingGroupProps,
 	...children: Child[]
 ) {
@@ -23,9 +24,9 @@ export function RatingGroup(
 		},
 		...children,
 	);
-}
+});
 
-export function RatingGroupItem(
+export const RatingGroupItem = createComponent(function RatingGroupItem(
 	{ class: className, ...props }: RatingGroupItemProps,
 	...children: Child[]
 ) {
@@ -50,4 +51,4 @@ export function RatingGroupItem(
 					}),
 				]),
 	);
-}
+});

@@ -10,6 +10,7 @@ import {
 	SelectValue as SelectValuePrimitive,
 } from "@implementjs/primitives";
 import { menuGroupHeadingClasses } from "./dropdown-menu";
+import { createComponent } from "@implementjs/primitives";
 
 export type SelectProps = ComponentProps<typeof SelectPrimitive>;
 export type SelectTriggerProps = ComponentProps<typeof SelectTriggerPrimitive>;
@@ -23,7 +24,7 @@ export type SelectValueProps = {
 	placeholder?: string;
 };
 
-export function SelectValue({ placeholder = "" }: SelectValueProps = {}) {
+export const SelectValue = createComponent(function SelectValue({ placeholder = "" }: SelectValueProps = {}) {
 	return SelectValuePrimitive({
 		render: (props) => {
 			if (props.type === "single") {
@@ -83,13 +84,13 @@ export function SelectValue({ placeholder = "" }: SelectValueProps = {}) {
 			);
 		},
 	});
-}
+});
 
-export function Select(props: SelectProps, ...children: Child[]) {
+export const Select = createComponent(function Select(props: SelectProps, ...children: Child[]) {
 	return SelectPrimitive(props, Div({ class: "relative" }, ...children));
-}
+});
 
-export function SelectTrigger(
+export const SelectTrigger = createComponent(function SelectTrigger(
 	{ class: className, type = "button", ...props }: SelectTriggerProps,
 	...children: Child[]
 ) {
@@ -112,9 +113,9 @@ export function SelectTrigger(
 			class: "size-4 shrink-0 opacity-50",
 		}),
 	);
-}
+});
 
-export function SelectContent(
+export const SelectContent = createComponent(function SelectContent(
 	{ offset = 4, side = "bottom", align = "start", class: className, ...props }: SelectContentProps,
 	...children: Child[]
 ) {
@@ -140,9 +141,9 @@ export function SelectContent(
 		},
 		...children,
 	);
-}
+});
 
-export function SelectItem({ class: className, ...props }: SelectItemProps, ...children: Child[]) {
+export const SelectItem = createComponent(function SelectItem({ class: className, ...props }: SelectItemProps, ...children: Child[]) {
 	return SelectItemPrimitive(
 		{
 			...props,
@@ -168,9 +169,9 @@ export function SelectItem({ class: className, ...props }: SelectItemProps, ...c
 			}),
 		),
 	);
-}
+});
 
-export function SelectGroupHeading(
+export const SelectGroupHeading = createComponent(function SelectGroupHeading(
 	{ class: className, ...props }: SelectGroupHeadingProps,
 	...children: Child[]
 ) {
@@ -182,4 +183,4 @@ export function SelectGroupHeading(
 		},
 		...children,
 	);
-}
+});

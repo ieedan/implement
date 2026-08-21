@@ -4,18 +4,19 @@ import {
 	RadioGroup as RadioGroupPrimitive,
 	RadioGroupItem as RadioGroupItemPrimitive,
 } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type RadioGroupProps = ComponentProps<typeof RadioGroupPrimitive>;
 export type RadioGroupItemProps = ComponentProps<typeof RadioGroupItemPrimitive>;
 
-export function RadioGroup({ class: className, ...props }: RadioGroupProps, ...children: Child[]) {
+export const RadioGroup = createComponent(function RadioGroup({ class: className, ...props }: RadioGroupProps, ...children: Child[]) {
 	return RadioGroupPrimitive(
 		{ ...props, "data-slot": "radio-group", class: ["grid gap-3", className] },
 		...children,
 	);
-}
+});
 
-export function RadioGroupItem(
+export const RadioGroupItem = createComponent(function RadioGroupItem(
 	{ class: className, ...props }: RadioGroupItemProps,
 	...children: Child[]
 ) {
@@ -50,4 +51,4 @@ export function RadioGroupItem(
 					),
 				]),
 	);
-}
+});

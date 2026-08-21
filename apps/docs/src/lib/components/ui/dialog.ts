@@ -11,6 +11,7 @@ import {
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { createComponent } from "@implementjs/primitives";
 
 export type DialogProps = ComponentProps<typeof DialogPrimitive>;
 export type DialogTriggerProps = ComponentProps<typeof DialogTriggerPrimitive> & {
@@ -30,11 +31,11 @@ export type DialogDescriptionProps = ComponentProps<typeof DialogDescriptionPrim
 
 export const DialogPortal = DialogPortalPrimitive;
 
-export function Dialog(props: DialogProps, ...children: Child[]) {
+export const Dialog = createComponent(function Dialog(props: DialogProps, ...children: Child[]) {
 	return DialogPrimitive(props, ...children);
-}
+});
 
-export function DialogTrigger(
+export const DialogTrigger = createComponent(function DialogTrigger(
 	{
 		class: className,
 		variant = "default",
@@ -55,9 +56,9 @@ export function DialogTrigger(
 		},
 		...children,
 	);
-}
+});
 
-export function DialogOverlay(
+export const DialogOverlay = createComponent(function DialogOverlay(
 	{ class: className, ...props }: DialogOverlayProps,
 	...children: Child[]
 ) {
@@ -77,9 +78,9 @@ export function DialogOverlay(
 		},
 		...children,
 	);
-}
+});
 
-export function DialogContent(
+export const DialogContent = createComponent(function DialogContent(
 	{ class: className, showCloseButton = true, ...props }: DialogContentProps,
 	...children: Child[]
 ) {
@@ -110,9 +111,9 @@ export function DialogContent(
 				)
 			: null,
 	);
-}
+});
 
-export function DialogTitle(
+export const DialogTitle = createComponent(function DialogTitle(
 	{ class: className, ...props }: DialogTitleProps,
 	...children: Child[]
 ) {
@@ -124,9 +125,9 @@ export function DialogTitle(
 		},
 		...children,
 	);
-}
+});
 
-export function DialogDescription(
+export const DialogDescription = createComponent(function DialogDescription(
 	{ class: className, ...props }: DialogDescriptionProps,
 	...children: Child[]
 ) {
@@ -138,9 +139,9 @@ export function DialogDescription(
 		},
 		...children,
 	);
-}
+});
 
-export function DialogClose(
+export const DialogClose = createComponent(function DialogClose(
 	{ class: className, variant = "ghost", size = "sm", type = "button", ...props }: DialogCloseProps,
 	...children: Child[]
 ) {
@@ -155,4 +156,4 @@ export function DialogClose(
 		},
 		...children,
 	);
-}
+});

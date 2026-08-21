@@ -26,6 +26,7 @@ import {
 import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
 import { ScrollLock } from "../helpers/scroll-lock";
+import { createComponent } from "../../create-component";
 
 /**
  * The shared machinery behind DropdownMenu, ContextMenu, and Menubar. The
@@ -360,7 +361,7 @@ export class MenuContentState {
 	}
 }
 
-export function MenuContent(
+export const MenuContent = createComponent(function MenuContent(
 	{
 		id = getId(),
 		side = "bottom",
@@ -406,7 +407,7 @@ export function MenuContent(
 			...children,
 		);
 	});
-}
+});
 
 type MenuItemOptions = {
 	/** Runs when the item is activated with a click, Enter, or Space. */
@@ -479,7 +480,7 @@ function menuItemProps(
 	};
 }
 
-export function MenuItem(
+export const MenuItem = createComponent(function MenuItem(
 	{
 		id = getId(),
 		onSelect = noop,
@@ -503,13 +504,13 @@ export function MenuItem(
 			...children,
 		);
 	});
-}
+});
 
 export type MenuCheckboxItemProps = MenuItemProps & {
 	checked?: Signal<boolean> | boolean;
 };
 
-export function MenuCheckboxItem(
+export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 	{
 		id = getId(),
 		checked = false,
@@ -544,7 +545,7 @@ export function MenuCheckboxItem(
 			...children,
 		);
 	});
-}
+});
 
 class MenuGroupState {
 	headingId = signal<string | null>(null);
@@ -554,7 +555,7 @@ const MenuGroupCtx = context<MenuGroupState>();
 
 export type MenuGroupProps = ComponentProps<typeof Div>;
 
-export function MenuGroup({ id = getId(), ...restProps }: MenuGroupProps, ...children: Child[]) {
+export const MenuGroup = createComponent(function MenuGroup({ id = getId(), ...restProps }: MenuGroupProps, ...children: Child[]) {
 	return MenuCtx.Use((state) => {
 		const group = new MenuGroupState();
 		return MenuGroupCtx.Provide(group).To(
@@ -572,11 +573,11 @@ export function MenuGroup({ id = getId(), ...restProps }: MenuGroupProps, ...chi
 			),
 		);
 	});
-}
+});
 
 export type MenuGroupHeadingProps = ComponentProps<typeof Div>;
 
-export function MenuGroupHeading(
+export const MenuGroupHeading = createComponent(function MenuGroupHeading(
 	{ id = getId(), ...restProps }: MenuGroupHeadingProps,
 	...children: Child[]
 ) {
@@ -589,7 +590,7 @@ export function MenuGroupHeading(
 			);
 		});
 	});
-}
+});
 
 export type MenuRadioGroupProps = ComponentProps<typeof Div> & {
 	value?: Signal<string | null> | string | null;
@@ -605,7 +606,7 @@ class MenuRadioGroupState extends MenuGroupState {
 
 const MenuRadioGroupCtx = context<MenuRadioGroupState>();
 
-export function MenuRadioGroup(
+export const MenuRadioGroup = createComponent(function MenuRadioGroup(
 	{ id = getId(), value, ...restProps }: MenuRadioGroupProps,
 	...children: Child[]
 ) {
@@ -628,7 +629,7 @@ export function MenuRadioGroup(
 			),
 		);
 	});
-}
+});
 
 export type MenuRadioItemProps = ComponentProps<typeof Div> & {
 	/** Identifies the item. Must be unique within the radio group. */
@@ -638,7 +639,7 @@ export type MenuRadioItemProps = ComponentProps<typeof Div> & {
 	closeOnSelect?: boolean;
 };
 
-export function MenuRadioItem(
+export const MenuRadioItem = createComponent(function MenuRadioItem(
 	{
 		id = getId(),
 		value,
@@ -676,11 +677,11 @@ export function MenuRadioItem(
 			);
 		});
 	});
-}
+});
 
 export type MenuSeparatorProps = ComponentProps<typeof Div>;
 
-export function MenuSeparator(
+export const MenuSeparator = createComponent(function MenuSeparator(
 	{ id = getId(), ...restProps }: MenuSeparatorProps,
 	...children: Child[]
 ) {
@@ -698,7 +699,7 @@ export function MenuSeparator(
 			...children,
 		);
 	});
-}
+});
 
 /**
  * A nested menu. Anchors to its trigger item inside the parent content and
@@ -770,7 +771,7 @@ const MenuSubCtx = context<MenuSubState>();
 
 export type MenuSubProps = MenuRootOptions;
 
-export function MenuSub(props: MenuSubProps, ...children: Child[]) {
+export const MenuSub = createComponent(function MenuSub(props: MenuSubProps, ...children: Child[]) {
 	return MenuCtx.Use((root) => {
 		const sub = new MenuSubState(root, props);
 		root.registerSub(sub);
@@ -793,7 +794,7 @@ export function MenuSub(props: MenuSubProps, ...children: Child[]) {
 			Implement.Lifecycle({ onUnmount: () => sub.dispose() }, ...children),
 		);
 	});
-}
+});
 
 export type MenuSubTriggerProps = ComponentProps<typeof Div> & {
 	disabled?: Signal<boolean> | boolean;
@@ -801,7 +802,7 @@ export type MenuSubTriggerProps = ComponentProps<typeof Div> & {
 	openDelay?: number;
 };
 
-export function MenuSubTrigger(
+export const MenuSubTrigger = createComponent(function MenuSubTrigger(
 	{ id = getId(), disabled = false, openDelay = 100, ...restProps }: MenuSubTriggerProps,
 	...children: Child[]
 ) {
@@ -867,11 +868,11 @@ export function MenuSubTrigger(
 			);
 		});
 	});
-}
+});
 
 export type MenuSubContentProps = MenuContentProps;
 
-export function MenuSubContent(
+export const MenuSubContent = createComponent(function MenuSubContent(
 	{
 		id = getId(),
 		side = "right",
@@ -939,7 +940,7 @@ export function MenuSubContent(
 			);
 		});
 	});
-}
+});
 
 /** The trigger attributes every flavor's button-like trigger shares. */
 export function menuTriggerProps(state: MenuState, opts: { disabled: Signal<boolean> }) {
