@@ -14,7 +14,7 @@ import { Toggle } from "@implementjs/primitives";
 Toggle({ "aria-label": "Toggle bold" }, BoldIcon({ "aria-hidden": true }));
 ```
 
-It takes a props object like the [element factories](/docs/elements), and extra props are forwarded onto the underlying `Button`.
+It accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Button`.
 
 A toggle is not a checkbox: `aria-pressed` announces as "toggle button, pressed" while a checkbox announces as "checked", and screen reader users expect a toggle to act immediately rather than mark a choice in a form. For a form choice, use [Checkbox](/primitives/docs/checkbox); for an on/off setting, consider a switch.
 

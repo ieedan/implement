@@ -110,7 +110,12 @@ function EditorFallback(code: string): Mountable {
 	);
 }
 
-export function CodeEditor(value: Writable<string>): Mountable {
+export type CodeEditorOptions = {
+	/** Show the code without letting the reader change it (docs source views). */
+	readOnly?: boolean;
+};
+
+export function CodeEditor(value: Writable<string>, options: CodeEditorOptions = {}): Mountable {
 	// browser-only pane: CodeMirror needs a real DOM — the server renders a
 	// static stand-in of the code that the client mount replaces
 	if (typeof document === "undefined") return EditorFallback(value.get());
@@ -139,6 +144,9 @@ export function CodeEditor(value: Writable<string>): Mountable {
 							syntaxHighlighting(highlight),
 							theme,
 							keymap.of([indentWithTab]),
+							EditorState.readOnly.of(options.readOnly === true),
+							// a blinking caret in a read-only pane reads as an invitation to type
+							EditorView.editable.of(options.readOnly !== true),
 							EditorView.updateListener.of((update) => {
 								if (!update.docChanged) return;
 								const next = update.state.doc.toString();

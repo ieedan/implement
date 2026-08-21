@@ -41,11 +41,8 @@ For unstyled UI building blocks on top of core, add [`@implementjs/primitives`](
 git clone https://github.com/ieedan/implement.git
 cd implement
 pnpm install
-pnpm dev       # runs the todo demo (Vite + its API server)
-pnpm dev:docs  # runs this docs site (Vite + Velite in watch mode)
+pnpm dev       # runs this docs site (Vite + Velite in watch mode)
 ```
-
-If you want to see complete apps, the `demos/` directory contains a todo app and a Linear-style issue tracker that exercise most of the framework.
 
 ## Your first component
 

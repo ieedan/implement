@@ -128,11 +128,6 @@ And if the form should reset for each record it edits, wrap it in [`Key`](/docs/
 
 ## Where to go from here
 
-That's the whole framework working together. For the full, running versions of everything on this page, read the demos in the repo:
-
-- **`demos/todo`** is a small app that covers the core loop.
-- **`demos/tracker`** is a Linear-style issue tracker with a real API, routing, and data fetching.
-
-And now that you've wired an app by hand, know that you don't have to every time — [Kit](/docs/kit) generates the entry and route tree from files in `src/routes`, and adds SSR and prerendering on top.
+That's the whole framework working together. Now that you've wired an app by hand, know that you don't have to every time — [Kit](/docs/kit) generates the entry and route tree from files in `src/routes`, and adds SSR and prerendering on top.
 
 For unstyled UI building blocks on top of the framework, see [Primitives](/primitives). And if you haven't yet, work through the interactive [tutorial](/tutorial). Building each piece yourself is the fastest way to make it stick.

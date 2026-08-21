@@ -6,6 +6,8 @@ import { EditableDemo } from "../demos/editable-demo";
 import { ApiReference } from "./api-reference";
 import { CheckIcon, CopyIcon, type IconComponent } from "@implementjs/lucide";
 import { buttonVariants } from "../ui/button";
+import { SourceBlock } from "./source-block";
+import { uiSourcePath, uiSources } from "@/lib/ui-sources";
 import { TabsBlock, type TabPanel } from "./tabs-block";
 
 const copyButtonClass = [
@@ -50,7 +52,7 @@ function addCopyButton(pre: HTMLPreElement) {
 // The literal form the placeholders keep through the markdown pipeline. Extra
 // attributes (data-demo-description feeds the `.md` twin) are tolerated.
 // `tabs-end` has to precede `tab` in the alternation, or it matches as one.
-const placeholderPattern = /<div data-(demo|api|tabs-end|tab)(?:="([^"]*)")?[^>]*><\/div>/g;
+const placeholderPattern = /<div data-(demo|api|source|tabs-end|tab)(?:="([^"]*)")?[^>]*><\/div>/g;
 
 // demos and api tables style themselves; data-not-typeset opts the subtree
 // out of typeset styles
@@ -64,6 +66,15 @@ function ApiPlaceholder(name: string): Mountable | null {
 	const parts = apiReference[name];
 	if (parts == null) return null;
 	return Div({ "data-api": name, "data-not-typeset": "" }, ApiReference(parts));
+}
+
+function SourcePlaceholder(name: string): Mountable | null {
+	const source = uiSources[name];
+	if (source == null) return null;
+	return Div(
+		{ "data-source": name, "data-not-typeset": "" },
+		SourceBlock(uiSourcePath(name), source),
+	);
 }
 
 // Splits the rendered markdown at its placeholders and interleaves the real
@@ -118,7 +129,12 @@ function contentChildren(content: string): Child[] {
 		// inside a group these belong to the panel, which recurses over them
 		if (panels !== null) continue;
 
-		const replacement = kind === "demo" ? DemoPlaceholder(name) : ApiPlaceholder(name);
+		const replacement =
+			kind === "demo"
+				? DemoPlaceholder(name)
+				: kind === "source"
+					? SourcePlaceholder(name)
+					: ApiPlaceholder(name);
 		// unregistered name: leave the placeholder in the surrounding html
 		if (replacement == null) continue;
 		pushHtml(last, start);
@@ -142,7 +158,9 @@ function contentChildren(content: string): Child[] {
  * block. A `<div data-demo="name"></div>` in the markdown renders an editable
  * live demo of the matching source from the {@link demos} registry at that
  * spot, and a `<div data-api="name"></div>` renders that primitive's
- * {@link apiReference} tables.
+ * {@link apiReference} tables. `<div data-source="name"></div>` renders a
+ * styled component's own file from {@link uiSources} — a manual install is
+ * copying that file, so the page shows the file itself.
  *
  * `<div data-tab="Label"></div>` opens a tab whose content is the markdown
  * that follows it, up to the next tab or a closing

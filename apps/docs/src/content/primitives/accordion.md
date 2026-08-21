@@ -17,21 +17,20 @@ import {
 } from "@implementjs/primitives";
 
 Accordion(
-	{},
 	AccordionItem(
 		{ value: "what" },
-		AccordionTrigger({}, "What is implement?"),
-		AccordionContent({}, "A signal-based UI framework with no compiler."),
+		AccordionTrigger("What is implement?"),
+		AccordionContent("A signal-based UI framework with no compiler."),
 	),
 	AccordionItem(
 		{ value: "why" },
-		AccordionTrigger({}, "Why no compiler?"),
-		AccordionContent({}, "Your app is plain TypeScript that builds real DOM nodes."),
+		AccordionTrigger("Why no compiler?"),
+		AccordionContent("Your app is plain TypeScript that builds real DOM nodes."),
 	),
 );
 ```
 
-Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Div` or `Button`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div` or `Button`.
 
 ## Single or multiple
 
@@ -40,8 +39,8 @@ Each part takes a props object first (even if it is empty) and then children, th
 ```ts
 Accordion(
 	{ type: "multiple" },
-	AccordionItem({ value: "a" }, AccordionTrigger({}, "A"), AccordionContent({}, "First")),
-	AccordionItem({ value: "b" }, AccordionTrigger({}, "B"), AccordionContent({}, "Second")),
+	AccordionItem({ value: "a" }, AccordionTrigger("A"), AccordionContent("First")),
+	AccordionItem({ value: "b" }, AccordionTrigger("B"), AccordionContent("Second")),
 );
 ```
 
@@ -58,8 +57,8 @@ const open = signal<string | null>("what");
 
 Accordion(
 	{ value: open },
-	AccordionItem({ value: "what" }, AccordionTrigger({}, "A"), AccordionContent({}, "First")),
-	AccordionItem({ value: "why" }, AccordionTrigger({}, "B"), AccordionContent({}, "Second")),
+	AccordionItem({ value: "what" }, AccordionTrigger("A"), AccordionContent("First")),
+	AccordionItem({ value: "why" }, AccordionTrigger("B"), AccordionContent("Second")),
 );
 
 open.set("why"); // opens "why", closing "what"
@@ -82,8 +81,8 @@ Wrap the trigger in `AccordionHeader` when the item title should be a heading. I
 ```ts
 AccordionItem(
 	{ value: "what" },
-	AccordionHeader({ level: 3 }, AccordionTrigger({}, "What is implement?")),
-	AccordionContent({}, "..."),
+	AccordionHeader({ level: 3 }, AccordionTrigger("What is implement?")),
+	AccordionContent("..."),
 );
 ```
 

@@ -17,7 +17,7 @@ RatingGroup(
 );
 ```
 
-Each part takes a props object first and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Div`s. Items take a zero-based `index`; the item represents the rating `index + 1`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div`s. Items take a zero-based `index`; the item represents the rating `index + 1`.
 
 ## Value and range
 

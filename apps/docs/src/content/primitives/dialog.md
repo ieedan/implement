@@ -21,21 +21,19 @@ import {
 } from "@implementjs/primitives";
 
 Dialog(
-	{},
-	DialogTrigger({}, "Edit profile"),
+	DialogTrigger("Edit profile"),
 	DialogPortal(
-		DialogOverlay({}),
+		DialogOverlay(),
 		DialogContent(
-			{},
-			DialogTitle({}, "Edit profile"),
-			DialogDescription({}, "Make changes to your profile here."),
-			DialogClose({}, "Save changes"),
+			DialogTitle("Edit profile"),
+			DialogDescription("Make changes to your profile here."),
+			DialogClose("Save changes"),
 		),
 	),
 );
 ```
 
-Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props on the trigger, overlay, content, title, description, and close are forwarded onto the underlying `Button`, `Div`, `H2`, or `P`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props on the trigger, overlay, content, title, description, and close are forwarded onto the underlying `Button`, `Div`, `H2`, or `P`.
 
 ## Open state
 
@@ -44,7 +42,7 @@ Each part takes a props object first (even if it is empty) and then children, th
 ```ts
 const open = signal(false);
 
-Dialog({ open }, DialogTrigger({}, "Edit profile"), DialogContent({}, "Hello"));
+Dialog({ open }, DialogTrigger("Edit profile"), DialogContent("Hello"));
 
 Button({ onClick: () => open.set(false) }, "Close");
 ```
@@ -64,11 +62,7 @@ Clicking the overlay dismisses the dialog, because the overlay sits outside the 
 `DialogTitle` is an `H2` and `DialogDescription` is a `P`. Put them inside the content. The content's `aria-labelledby` and `aria-describedby` point at them, so the accessible name comes from the heading instead of the trigger.
 
 ```ts
-DialogContent(
-	{},
-	DialogTitle({}, "Edit profile"),
-	DialogDescription({}, "Make changes to your profile here."),
-);
+DialogContent(DialogTitle("Edit profile"), DialogDescription("Make changes to your profile here."));
 ```
 
 If you skip the title, set `aria-label` on the content yourself.
@@ -80,9 +74,9 @@ If you skip the title, set `aria-label` on the content yourself.
 Wrap `DialogOverlay` and `DialogContent` in it. Chain `.To(target)` or pass `to` to pick a different parent, and `disabled` to mount in place instead.
 
 ```ts
-DialogPortal(DialogOverlay({}), DialogContent({}, "Hello"));
+DialogPortal(DialogOverlay(), DialogContent("Hello"));
 
-DialogPortal({ to: overlayRoot }, DialogOverlay({}), DialogContent({}, "Hello"));
+DialogPortal({ to: overlayRoot }, DialogOverlay(), DialogContent("Hello"));
 ```
 
 ## Close
@@ -90,7 +84,7 @@ DialogPortal({ to: overlayRoot }, DialogOverlay({}), DialogContent({}, "Hello"))
 `DialogClose` is a `Button` that sets the dialog closed. Put it inside the content for a Done or dismiss control. You can still close from outside by writing the `open` signal. Escape and clicking outside the content also close it.
 
 ```ts
-DialogContent({}, "Place content for the dialog here.", DialogClose({}, "Done"));
+DialogContent("Place content for the dialog here.", DialogClose("Done"));
 ```
 
 ## Multiple triggers
@@ -102,10 +96,10 @@ When the dialog starts open, it still has to pick a trigger to return focus to. 
 ```ts
 Dialog(
 	{ open: true },
-	DialogTrigger({}, "Left"),
+	DialogTrigger("Left"),
 	DialogTrigger({ default: true }, "Center"),
-	DialogTrigger({}, "Right"),
-	DialogContent({}, "Starts open. Closing returns focus to Center."),
+	DialogTrigger("Right"),
+	DialogContent("Starts open. Closing returns focus to Center."),
 );
 ```
 
@@ -119,24 +113,20 @@ Keep the inner portal enabled. If you disable it, the nested panel lives inside 
 
 ```ts
 Dialog(
-	{},
-	DialogTrigger({}, "Share"),
+	DialogTrigger("Share"),
 	DialogPortal(
-		DialogOverlay({}),
+		DialogOverlay(),
 		DialogContent(
-			{},
-			DialogTitle({}, "Share"),
-			DialogDescription({}, "Anyone with the link can view this project."),
+			DialogTitle("Share"),
+			DialogDescription("Anyone with the link can view this project."),
 			Dialog(
-				{},
-				DialogTrigger({}, "Invite"),
+				DialogTrigger("Invite"),
 				DialogPortal(
-					DialogOverlay({}),
+					DialogOverlay(),
 					DialogContent(
-						{},
-						DialogTitle({}, "Invite"),
-						DialogDescription({}, "They'll get an email to join this project."),
-						DialogClose({}, "Send invite"),
+						DialogTitle("Invite"),
+						DialogDescription("They'll get an email to join this project."),
+						DialogClose("Send invite"),
 					),
 				),
 			),

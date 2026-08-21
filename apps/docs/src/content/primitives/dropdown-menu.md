@@ -17,17 +17,15 @@ import {
 } from "@implementjs/primitives";
 
 DropdownMenu(
-	{},
-	DropdownMenuTrigger({}, "Open"),
+	DropdownMenuTrigger("Open"),
 	DropdownMenuContent(
-		{},
 		DropdownMenuItem({ onSelect: () => save() }, "Save"),
 		DropdownMenuItem({ onSelect: () => rename() }, "Rename…"),
 	),
 );
 ```
 
-Each part takes a props object first and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Div` or `Button`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div` or `Button`.
 
 ## Open state
 
@@ -60,10 +58,8 @@ DropdownMenuCheckboxItem({ checked: showStatusBar, closeOnSelect: false }, "Stat
 
 ```ts
 DropdownMenuSub(
-	{},
-	DropdownMenuSubTrigger({}, "Invite people"),
+	DropdownMenuSubTrigger("Invite people"),
 	DropdownMenuSubContent(
-		{},
 		DropdownMenuItem({ onSelect: () => byEmail() }, "Email"),
 		DropdownMenuItem({ onSelect: () => byLink() }, "Copy invite link"),
 	),

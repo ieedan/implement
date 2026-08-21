@@ -3,55 +3,22 @@
 	"tasks": {
 		"dev": {
 			"tasks": {
-				"lib": {
-					"color": "blue",
-					"command": "pnpm --filter @implementjs/core dev"
+				"generate": {
+					"color": "white",
+					"cwd": "./apps/docs",
+					"command": "pnpm generate"
 				},
-				"todo": {
-					"tasks": {
-						"generate": {
-							"color": "white",
-							"command": "pnpm --filter @demos/todo generate"
-						},
-						"js": {
-							"color": "cyan",
-							"command": "pnpm --filter @demos/todo dev:js",
-							"dependsOn": ["dev:todo:generate"]
-						},
-						"css": {
-							"color": "magenta",
-							"command": "pnpm --filter @demos/todo dev:css"
-						},
-						"www": {
-							"color": "green",
-							"command": "pnpm --filter @demos/todo dev:www"
-						},
-						"api": {
-							"color": "blue",
-							"command": "pnpm --filter @demos/todo dev:api"
-						}
-					}
+				"velite": {
+					"color": "yellow",
+					"cwd": "./apps/docs",
+					"command": "pnpm generate --watch",
+					"dependsOn": ["dev:generate"]
 				},
-				"tracker": {
-					"optional": true,
-					"tasks": {
-						"js": {
-							"color": "cyan",
-							"command": "pnpm --filter @demos/tracker dev:js"
-						},
-						"css": {
-							"color": "magenta",
-							"command": "pnpm --filter @demos/tracker dev:css"
-						},
-						"www": {
-							"color": "green",
-							"command": "pnpm --filter @demos/tracker dev:www"
-						},
-						"api": {
-							"color": "blue",
-							"command": "pnpm --filter @demos/tracker dev:api"
-						}
-					}
+				"web": {
+					"color": "cyan",
+					"cwd": "./apps/docs",
+					"command": "pnpm exec vite",
+					"dependsOn": ["dev:generate"]
 				}
 			}
 		},

@@ -14,7 +14,7 @@ import { Separator } from "@implementjs/primitives";
 Separator({ class: "h-px w-full bg-border" });
 ```
 
-It takes a props object like the [element factories](/docs/elements), and extra props are forwarded onto the underlying `Div`.
+It accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div`.
 
 ## Orientation
 

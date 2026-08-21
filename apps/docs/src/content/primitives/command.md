@@ -22,10 +22,8 @@ Command(
 	{ label: "Command menu" },
 	CommandInput({ placeholder: "Type a command..." }),
 	CommandList(
-		{},
 		CommandViewport(
-			{},
-			CommandEmpty({}, "No results found."),
+			CommandEmpty("No results found."),
 			CommandItem({ value: "calendar", onSelect: () => openCalendar() }, "Calendar"),
 			CommandItem({ value: "settings", onSelect: () => openSettings() }, "Settings"),
 		),
@@ -33,7 +31,7 @@ Command(
 );
 ```
 
-Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Div`, `Input`, or `A`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div`, `Input`, or `A`.
 
 Unlike the popup primitives, `Command` renders in place — there is no trigger and no open state. Put it inside a [Dialog](/primitives/docs/dialog) to build a ⌘K palette.
 
@@ -47,8 +45,8 @@ const value = signal("");
 
 Command(
 	{ search, value },
-	CommandInput({}),
-	CommandList({}, CommandViewport({}, CommandItem({ value: "calendar" }, "Calendar"))),
+	CommandInput(),
+	CommandList(CommandViewport(CommandItem({ value: "calendar" }, "Calendar"))),
 );
 
 search.set("cal"); // filters the list
@@ -82,9 +80,8 @@ Command({
 ```ts
 CommandGroup(
 	{ value: "settings" },
-	CommandGroupHeading({}, "Settings"),
+	CommandGroupHeading("Settings"),
 	CommandGroupItems(
-		{},
 		CommandItem({ value: "profile" }, "Profile"),
 		CommandItem({ value: "billing" }, "Billing"),
 	),
@@ -102,11 +99,9 @@ Pass `columns` to navigate the items as a grid: ArrowLeft/ArrowRight move within
 ```ts
 Command(
 	{ columns: 5 },
-	CommandInput({}),
+	CommandInput(),
 	CommandList(
-		{},
 		CommandViewport(
-			{},
 			CommandGroupItems(
 				{ class: "grid grid-cols-5" },
 				...emojis.map((emoji) => CommandItem({ value: emoji.name }, emoji.char)),

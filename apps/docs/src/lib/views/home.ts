@@ -1,4 +1,5 @@
 import { A, Div, H1, Implement, P, type Mountable } from "@implementjs/core";
+import { Logo } from "../components/logo";
 import { Link } from "../router";
 
 export function Home(): Mountable {
@@ -12,6 +13,8 @@ export function Home(): Mountable {
 			}),
 		),
 
+		// `self-start` so the column's stretch does not widen the box the glyph centers in
+		Logo({ class: "h-12 w-auto self-start", "aria-hidden": true }),
 		H1({ class: "text-3xl font-semibold tracking-tight" }, "implement"),
 		P({ class: "text-foreground/60" }, "A simple ergonomic ui framework without a compiler."),
 		Div(
