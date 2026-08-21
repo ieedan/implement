@@ -151,3 +151,12 @@ html {
 	height: auto;
 	max-height: 24rem;
 }
+
+/* A scroller that still scrolls but draws no bar — for short horizontal rows
+   (the search palette's package filters) where a bar would crowd the content. */
+@utility no-scrollbar {
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}

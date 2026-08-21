@@ -15,11 +15,11 @@ export default function SeparatorDemo() {
 		Separator({ class: "my-4" }),
 		Div(
 			{ class: "flex h-5 items-center space-x-4 text-sm" },
-			Div({}, "Docs"),
+			Div("Docs"),
 			Separator({ orientation: "vertical" }),
-			Div({}, "Tutorial"),
+			Div("Tutorial"),
 			Separator({ orientation: "vertical" }),
-			Div({}, "REPL"),
+			Div("REPL"),
 		),
 	);
 }

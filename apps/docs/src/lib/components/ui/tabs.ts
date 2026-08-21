@@ -5,6 +5,7 @@ import {
 	TabsList as TabsListPrimitive,
 	TabsTrigger as TabsTriggerPrimitive,
 } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
 
 /**
@@ -65,7 +66,10 @@ export type TabsTriggerProps = ComponentProps<typeof TabsTriggerPrimitive> & {
 };
 export type TabsContentProps = ComponentProps<typeof TabsContentPrimitive>;
 
-export function Tabs({ class: className, ...props }: TabsProps, ...children: Child[]) {
+export const Tabs = createComponent(function Tabs(
+	{ class: className, ...props }: TabsProps,
+	...children: Child[]
+) {
 	return TabsPrimitive(
 		{
 			...props,
@@ -74,9 +78,9 @@ export function Tabs({ class: className, ...props }: TabsProps, ...children: Chi
 		},
 		...children,
 	);
-}
+});
 
-export function TabsList(
+export const TabsList = createComponent(function TabsList(
 	{ class: className, variant, ...props }: TabsListProps,
 	...children: Child[]
 ) {
@@ -88,9 +92,9 @@ export function TabsList(
 		},
 		...children,
 	);
-}
+});
 
-export function TabsTrigger(
+export const TabsTrigger = createComponent(function TabsTrigger(
 	{ class: className, variant, ...props }: TabsTriggerProps,
 	...children: Child[]
 ) {
@@ -102,9 +106,9 @@ export function TabsTrigger(
 		},
 		...children,
 	);
-}
+});
 
-export function TabsContent(
+export const TabsContent = createComponent(function TabsContent(
 	{ class: className, ...props }: TabsContentProps,
 	...children: Child[]
 ) {
@@ -119,4 +123,4 @@ export function TabsContent(
 		},
 		...children,
 	);
-}
+});

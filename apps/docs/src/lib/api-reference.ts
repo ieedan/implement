@@ -571,6 +571,268 @@ const rangeCellDataAttributes: ApiDataAttribute[] = [
  * tables for every part of that primitive at that spot.
  */
 export const apiReference: Record<string, ApiPart[]> = {
+	command: [
+		{
+			name: "Command",
+			element: "Div",
+			description:
+				"The root. Owns the search and the highlighted value, scores every item against the search, and handles the keyboard.",
+			props: [
+				{
+					name: "label",
+					type: "string",
+					description: "An accessible label for the menu. Not visible; read to screen readers.",
+				},
+				{
+					name: "value",
+					type: "Signal<string> | string",
+					description:
+						"The value of the highlighted item. Pass a signal to control or observe it from outside.",
+				},
+				{
+					name: "search",
+					type: "Signal<string> | string",
+					description:
+						"The search query. Pass a signal to control or observe it from outside; CommandInput binds to it.",
+				},
+				{
+					name: "shouldFilter",
+					type: "boolean",
+					default: "true",
+					description:
+						"Set to false to turn off the automatic filtering and sorting, and conditionally render valid items yourself.",
+				},
+				{
+					name: "filter",
+					type: "(value: string, search: string, keywords?: string[]) => number",
+					default: "computeCommandScore",
+					description:
+						"Custom scoring. Return a number between 0 and 1; 0 hides the item entirely.",
+				},
+				{
+					name: "loop",
+					type: "boolean",
+					default: "false",
+					description: "Whether keyboard navigation wraps around at both ends.",
+				},
+				{
+					name: "disablePointerSelection",
+					type: "boolean",
+					default: "false",
+					description: "When true, moving the pointer over an item does not highlight it.",
+				},
+				{
+					name: "vimBindings",
+					type: "boolean",
+					default: "true",
+					description: "Ctrl+n/j/p/k (and ctrl+h/l in a grid) move the highlight.",
+				},
+				{
+					name: "columns",
+					type: "number | null | Readable<number | null>",
+					default: "null",
+					description:
+						"The number of columns the items are laid out in. Turns on grid navigation; match it to your CSS layout.",
+				},
+				{
+					name: "disableInitialScroll",
+					type: "boolean",
+					default: "false",
+					description: "When true, the initial highlight is not scrolled into view.",
+				},
+			],
+			dataAttributes: [{ name: "data-command-root", value: "Present" }],
+		},
+		{
+			name: "CommandInput",
+			element: "Input",
+			description:
+				'The search box. Sets role="combobox" with aria-activedescendant on the highlighted item; two-way binds the root\'s search.',
+			dataAttributes: [{ name: "data-command-input", value: "Present" }],
+		},
+		{
+			name: "CommandList",
+			element: "Div",
+			description:
+				'The scrollable results region. Sets role="listbox". Give it a max height and overflow to make it scroll.',
+			props: [
+				{
+					name: "label",
+					type: "string",
+					default: '"Suggestions"',
+					description: "Accessible name for the listbox.",
+				},
+			],
+			dataAttributes: [{ name: "data-command-list", value: "Present" }],
+			cssVariables: [
+				{
+					name: "--ip-command-list-height",
+					description:
+						"The measured height of the viewport, written on the list. Animate the list's height with it.",
+				},
+			],
+		},
+		{
+			name: "CommandViewport",
+			element: "Div",
+			description:
+				"The list's sole child, wrapping all groups and items. Its measured height feeds --ip-command-list-height.",
+			dataAttributes: [{ name: "data-command-viewport", value: "Present" }],
+		},
+		{
+			name: "CommandEmpty",
+			element: "Div",
+			description: "Shown only when the search leaves no items visible.",
+			props: [
+				{
+					name: "forceMount",
+					type: "boolean",
+					default: "false",
+					description: "Render even while items match.",
+				},
+			],
+			dataAttributes: [{ name: "data-command-empty", value: "Present" }],
+		},
+		{
+			name: "CommandLoading",
+			element: "Div",
+			description: 'A progress region for async items. Sets role="progressbar".',
+			props: [
+				{
+					name: "progress",
+					type: "number | Readable<number>",
+					default: "0",
+					description: "Progress between 0 and 100.",
+				},
+			],
+			dataAttributes: [{ name: "data-command-loading", value: "Present" }],
+		},
+		{
+			name: "CommandGroup",
+			element: "Div",
+			description:
+				"Wraps a heading and its items. Hidden once the search filters out every item inside it. In a grid, each group starts a new row.",
+			props: [
+				{
+					name: "value",
+					type: "string",
+					description:
+						"A unique value naming the group, used to sort groups by their best match. Defaults to the group's id.",
+				},
+				{
+					name: "forceMount",
+					type: "boolean",
+					default: "false",
+					description: "Keep the group while every item in it is filtered out.",
+				},
+			],
+			dataAttributes: [{ name: "data-command-group", value: "Present" }],
+		},
+		{
+			name: "CommandGroupHeading",
+			element: "Div",
+			description: "The group's visible name; the group's items point aria-labelledby at it.",
+			dataAttributes: [{ name: "data-command-group-heading", value: "Present" }],
+		},
+		{
+			name: "CommandGroupItems",
+			element: "Div",
+			description: 'The container for a group\'s items. Sets role="group".',
+			dataAttributes: [{ name: "data-command-group-items", value: "Present" }],
+		},
+		{
+			name: "CommandItem",
+			element: "Div",
+			description:
+				'One choice. Sets role="option". Filtered and ranked against its value (or text content) plus keywords; hidden when its score is 0.',
+			props: [
+				{
+					name: "value",
+					type: "string",
+					description:
+						"A unique value used to filter and rank the item. Defaults to the item's text content; dynamic children need an explicit stable value.",
+				},
+				{
+					name: "keywords",
+					type: "string[]",
+					description: "Extra terms the filter also scores.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Prevents choosing the item; the keyboard skips it.",
+				},
+				{
+					name: "onSelect",
+					type: "() => void",
+					description: "Runs when the item is chosen, by click or by Enter.",
+				},
+				{
+					name: "forceMount",
+					type: "boolean",
+					default: "false",
+					description: "Keep the item visible regardless of the search.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-command-item", value: "Present" },
+				{ name: "data-selected", value: "Present on the highlighted item" },
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-value", value: "The item's value" },
+				{ name: "data-group", value: "The value of the group the item belongs to" },
+			],
+		},
+		{
+			name: "CommandLinkItem",
+			element: "A",
+			description:
+				"A CommandItem that renders an anchor, for items that navigate. Enter clicks it, which follows the link.",
+			props: [
+				{
+					name: "value",
+					type: "string",
+					description:
+						"A unique value used to filter and rank the item. Defaults to the item's text content.",
+				},
+				{
+					name: "keywords",
+					type: "string[]",
+					description: "Extra terms the filter also scores.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Prevents choosing the item; the keyboard skips it.",
+				},
+				{
+					name: "onSelect",
+					type: "() => void",
+					description: "Runs when the item is chosen, by click or by Enter.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-command-item", value: "Present" },
+				{ name: "data-selected", value: "Present on the highlighted item" },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+		{
+			name: "CommandSeparator",
+			element: "Div",
+			description: "A divider between groups. Hidden while a search is active.",
+			props: [
+				{
+					name: "forceMount",
+					type: "boolean",
+					default: "false",
+					description: "Keep the separator while searching.",
+				},
+			],
+			dataAttributes: [{ name: "data-command-separator", value: "Present" }],
+		},
+	],
 	calendar: [
 		{
 			name: "Calendar",

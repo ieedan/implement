@@ -1,6 +1,7 @@
 import { Div, signal, type Child, type ComponentProps, type Signal } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type MeterProps = ComponentProps<typeof Div> & {
 	value?: Signal<number> | number;
@@ -14,7 +15,7 @@ export type MeterProps = ComponentProps<typeof Div> & {
  * an accessible name with `aria-label` or `aria-labelledby`. For task
  * completion, use a progress bar instead.
  */
-export function Meter(
+export const Meter = createComponent(function Meter(
 	{ id = getId(), value = 0, min = 0, max = 100, ...restProps }: MeterProps,
 	...children: Child[]
 ) {
@@ -39,4 +40,4 @@ export function Meter(
 		),
 		...children,
 	);
-}
+});

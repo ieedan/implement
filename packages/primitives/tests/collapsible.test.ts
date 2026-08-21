@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { App, signal } from "@implementjs/core";
+import { App, signal, type ComponentProps } from "@implementjs/core";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../src/index";
 
 /** Flush the microtask queue so deferred `Lifecycle.onMount` hooks run. */
@@ -31,7 +31,7 @@ function element(target: ParentNode, selector: string): HTMLElement {
 	return el;
 }
 
-function tree(open?: Parameters<typeof Collapsible>[0]["open"]) {
+function tree(open?: ComponentProps<typeof Collapsible>["open"]) {
 	return Collapsible(
 		{ open },
 		CollapsibleTrigger({}, "Toggle"),

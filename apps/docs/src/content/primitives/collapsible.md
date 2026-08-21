@@ -55,10 +55,7 @@ Every part sets a `data-collapsible-*` attribute so you can target it in CSS, an
 ```ts
 CollapsibleTrigger({ class: "inline-flex items-center gap-2 text-sm font-medium" }, "Show more");
 
-CollapsibleContent(
-	{ class: "text-sm text-foreground/70" },
-	"The rest of the details live here.",
-);
+CollapsibleContent({ class: "text-sm text-foreground/70" }, "The rest of the details live here.");
 ```
 
 The `hidden` attribute already hides closed content. `data-state` is there for transitions, chevrons, and anything else that should react to open versus closed without you threading a signal through.

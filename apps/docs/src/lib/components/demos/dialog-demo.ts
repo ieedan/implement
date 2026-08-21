@@ -45,16 +45,14 @@ export default function DialogDemo() {
 	const role = signal<string | null>("user");
 
 	return Dialog(
-		{},
 		DialogTrigger({ variant: "outline" }, "Edit profile"),
 		DialogPortal(
-			DialogOverlay({}),
+			DialogOverlay(),
 			DialogContent(
-				{},
 				Div(
 					{ class: "grid gap-1.5" },
-					DialogTitle({}, "Edit profile"),
-					DialogDescription({}, "Make changes to your profile here. Click save when you're done."),
+					DialogTitle("Edit profile"),
+					DialogDescription("Make changes to your profile here. Click save when you're done."),
 				),
 				Div(
 					{ class: "grid gap-3" },
@@ -81,7 +79,6 @@ export default function DialogDemo() {
 									),
 								),
 								SelectContent(
-									{},
 									...roles.map((item) =>
 										SelectItem(
 											{ value: item.value },

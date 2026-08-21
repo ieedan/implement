@@ -16,6 +16,7 @@ import {
 	type ModalTitleProps,
 	type ModalTriggerProps,
 } from "./modal";
+import { createComponent } from "../../create-component";
 
 export type DialogRootProps = ModalRootOptions;
 
@@ -23,13 +24,16 @@ export type DialogRootProps = ModalRootOptions;
  * A modal window that interrupts the page until dismissed. Built on the
  * shared modal base; see AlertDialog for the confirmation flavor.
  */
-export function Dialog(props: DialogRootProps, ...children: Child[]) {
+export const Dialog = createComponent(function Dialog(
+	props: DialogRootProps,
+	...children: Child[]
+) {
 	const state = new ModalState(
 		{ name: "dialog", role: "dialog", interactOutsideBehavior: "close" },
 		props,
 	);
 	return ModalRoot(state, ...children);
-}
+});
 
 export type DialogTriggerProps = ModalTriggerProps;
 export const DialogTrigger = ModalTrigger;
@@ -51,6 +55,9 @@ export const DialogPortal = Portal;
 
 export type DialogCloseProps = ModalCloseProps;
 
-export function DialogClose(props: DialogCloseProps, ...children: Child[]) {
+export const DialogClose = createComponent(function DialogClose(
+	props: DialogCloseProps,
+	...children: Child[]
+) {
 	return ModalClose({}, props, ...children);
-}
+});

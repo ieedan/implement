@@ -4,6 +4,7 @@ import {
 	ToggleGroupItem as ToggleGroupItemPrimitive,
 } from "@implementjs/primitives";
 import { toggleVariants, type ToggleSize, type ToggleVariant } from "./toggle";
+import { createComponent } from "@implementjs/primitives";
 
 export type ToggleGroupProps = ComponentProps<typeof ToggleGroupPrimitive>;
 export type ToggleGroupItemProps = ComponentProps<typeof ToggleGroupItemPrimitive> & {
@@ -11,7 +12,7 @@ export type ToggleGroupItemProps = ComponentProps<typeof ToggleGroupItemPrimitiv
 	size?: ToggleSize;
 };
 
-export function ToggleGroup(
+export const ToggleGroup = createComponent(function ToggleGroup(
 	{ class: className, ...props }: ToggleGroupProps,
 	...children: Child[]
 ) {
@@ -23,9 +24,9 @@ export function ToggleGroup(
 		},
 		...children,
 	);
-}
+});
 
-export function ToggleGroupItem(
+export const ToggleGroupItem = createComponent(function ToggleGroupItem(
 	{ class: className, variant = "default", size = "default", ...props }: ToggleGroupItemProps,
 	...children: Child[]
 ) {
@@ -44,4 +45,4 @@ export function ToggleGroupItem(
 		},
 		...children,
 	);
-}
+});

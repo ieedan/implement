@@ -16,6 +16,7 @@ import {
 	DropdownMenuTrigger as DropdownMenuTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { createComponent } from "@implementjs/primitives";
 
 // no overflow clipping: sub-content panels render nested inside and extend past this box
 export const menuPanelBaseClasses =
@@ -92,7 +93,7 @@ export type DropdownMenuTriggerProps = ComponentProps<typeof DropdownMenuTrigger
 	size?: ButtonSize;
 };
 
-export function DropdownMenuTrigger(
+export const DropdownMenuTrigger = createComponent(function DropdownMenuTrigger(
 	{ class: className, variant = "outline", size = "default", ...props }: DropdownMenuTriggerProps,
 	...children: Child[]
 ) {
@@ -106,11 +107,11 @@ export function DropdownMenuTrigger(
 		},
 		...children,
 	);
-}
+});
 
 export type DropdownMenuContentProps = ComponentProps<typeof DropdownMenuContentPrimitive>;
 
-export function DropdownMenuContent(
+export const DropdownMenuContent = createComponent(function DropdownMenuContent(
 	{ class: className, offset = 4, ...props }: DropdownMenuContentProps,
 	...children: Child[]
 ) {
@@ -127,11 +128,11 @@ export function DropdownMenuContent(
 		},
 		...children,
 	);
-}
+});
 
 export type DropdownMenuItemProps = ComponentProps<typeof DropdownMenuItemPrimitive>;
 
-export function DropdownMenuItem(
+export const DropdownMenuItem = createComponent(function DropdownMenuItem(
 	{ class: className, ...props }: DropdownMenuItemProps,
 	...children: Child[]
 ) {
@@ -139,13 +140,13 @@ export function DropdownMenuItem(
 		{ ...props, "data-slot": "dropdown-menu-item", class: [menuItemClasses, className] },
 		...children,
 	);
-}
+});
 
 export type DropdownMenuCheckboxItemProps = ComponentProps<
 	typeof DropdownMenuCheckboxItemPrimitive
 >;
 
-export function DropdownMenuCheckboxItem(
+export const DropdownMenuCheckboxItem = createComponent(function DropdownMenuCheckboxItem(
 	{ class: className, ...props }: DropdownMenuCheckboxItemProps,
 	...children: Child[]
 ) {
@@ -158,14 +159,14 @@ export function DropdownMenuCheckboxItem(
 		MenuCheckIndicator(),
 		...children,
 	);
-}
+});
 
 export type DropdownMenuRadioGroupProps = ComponentProps<typeof DropdownMenuRadioGroupPrimitive>;
 export const DropdownMenuRadioGroup = DropdownMenuRadioGroupPrimitive;
 
 export type DropdownMenuRadioItemProps = ComponentProps<typeof DropdownMenuRadioItemPrimitive>;
 
-export function DropdownMenuRadioItem(
+export const DropdownMenuRadioItem = createComponent(function DropdownMenuRadioItem(
 	{ class: className, ...props }: DropdownMenuRadioItemProps,
 	...children: Child[]
 ) {
@@ -178,7 +179,7 @@ export function DropdownMenuRadioItem(
 		MenuRadioIndicator(),
 		...children,
 	);
-}
+});
 
 export type DropdownMenuGroupProps = ComponentProps<typeof DropdownMenuGroupPrimitive>;
 export const DropdownMenuGroup = DropdownMenuGroupPrimitive;
@@ -187,7 +188,7 @@ export type DropdownMenuGroupHeadingProps = ComponentProps<
 	typeof DropdownMenuGroupHeadingPrimitive
 >;
 
-export function DropdownMenuGroupHeading(
+export const DropdownMenuGroupHeading = createComponent(function DropdownMenuGroupHeading(
 	{ class: className, ...props }: DropdownMenuGroupHeadingProps,
 	...children: Child[]
 ) {
@@ -199,24 +200,27 @@ export function DropdownMenuGroupHeading(
 		},
 		...children,
 	);
-}
+});
 
 export type DropdownMenuSeparatorProps = ComponentProps<typeof DropdownMenuSeparatorPrimitive>;
 
-export function DropdownMenuSeparator({ class: className, ...props }: DropdownMenuSeparatorProps) {
+export const DropdownMenuSeparator = createComponent(function DropdownMenuSeparator({
+	class: className,
+	...props
+}: DropdownMenuSeparatorProps) {
 	return DropdownMenuSeparatorPrimitive({
 		...props,
 		"data-slot": "dropdown-menu-separator",
 		class: [menuSeparatorClasses, className],
 	});
-}
+});
 
 export type DropdownMenuSubProps = ComponentProps<typeof DropdownMenuSubPrimitive>;
 export const DropdownMenuSub = DropdownMenuSubPrimitive;
 
 export type DropdownMenuSubTriggerProps = ComponentProps<typeof DropdownMenuSubTriggerPrimitive>;
 
-export function DropdownMenuSubTrigger(
+export const DropdownMenuSubTrigger = createComponent(function DropdownMenuSubTrigger(
 	{ class: className, ...props }: DropdownMenuSubTriggerProps,
 	...children: Child[]
 ) {
@@ -229,11 +233,11 @@ export function DropdownMenuSubTrigger(
 		...children,
 		MenuSubTriggerChevron(),
 	);
-}
+});
 
 export type DropdownMenuSubContentProps = ComponentProps<typeof DropdownMenuSubContentPrimitive>;
 
-export function DropdownMenuSubContent(
+export const DropdownMenuSubContent = createComponent(function DropdownMenuSubContent(
 	{ class: className, offset = 8, ...props }: DropdownMenuSubContentProps,
 	...children: Child[]
 ) {
@@ -246,4 +250,4 @@ export function DropdownMenuSubContent(
 		},
 		...children,
 	);
-}
+});

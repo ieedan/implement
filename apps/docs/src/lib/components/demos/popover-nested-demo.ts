@@ -8,7 +8,6 @@ import {
 
 export default function PopoverNestedDemo() {
 	return Popover(
-		{},
 		PopoverTrigger({ variant: "outline" }, "Open popover"),
 		PopoverPortal(
 			PopoverContent(
@@ -17,7 +16,6 @@ export default function PopoverNestedDemo() {
 					{ class: "grid gap-3" },
 					P({ class: "text-sm" }, "This is the outer popover."),
 					Popover(
-						{},
 						PopoverTrigger({ variant: "outline", class: "w-full" }, "Open nested"),
 						PopoverPortal(
 							{ disabled: true },

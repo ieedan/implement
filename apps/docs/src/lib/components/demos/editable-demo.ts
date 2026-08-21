@@ -139,7 +139,6 @@ export function EditableDemo(demo: Demo): Mountable {
 	};
 
 	return Div(
-		{},
 		Div(
 			{
 				class:

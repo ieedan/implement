@@ -13,20 +13,18 @@ export default function LinkPreviewDemo() {
 		{ class: "max-w-sm text-sm text-muted-foreground" },
 		"The primitives are unstyled building blocks maintained by ",
 		LinkPreview(
-			{},
 			LinkPreviewTrigger(
 				{ href: "https://github.com/ieedan", target: "_blank", rel: "noreferrer" },
 				"@ieedan",
 			),
 			LinkPreviewPortal(
 				LinkPreviewContent(
-					{},
 					Div(
 						{ class: "flex gap-4" },
 						Avatar(
 							{ class: "size-12" },
 							AvatarImage({ src: "https://github.com/ieedan.png", alt: "@ieedan" }),
-							AvatarFallback({}, "AB"),
+							AvatarFallback("AB"),
 						),
 						Div(
 							{ class: "space-y-1" },

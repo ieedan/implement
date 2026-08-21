@@ -1,6 +1,7 @@
 import { Button, signal, type Child, type ComponentProps, type Signal } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type ToggleProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
 	pressed?: Signal<boolean> | boolean;
@@ -13,7 +14,7 @@ export type ToggleProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
  * handles the state. For a binary form choice use `Checkbox` instead — the
  * two announce differently to assistive technology.
  */
-export function Toggle(
+export const Toggle = createComponent(function Toggle(
 	{ id = getId(), pressed = false, disabled = false, ...restProps }: ToggleProps,
 	...children: Child[]
 ) {
@@ -39,4 +40,4 @@ export function Toggle(
 		),
 		...children,
 	);
-}
+});

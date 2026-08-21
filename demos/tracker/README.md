@@ -7,13 +7,13 @@ Addons: tailwind, primitives, icons
 
 ## Scripts
 
-| Script    | What it does                                   |
-| --------- | ---------------------------------------------- |
-| `dev`     | Start the dev server (server rendered, HMR)    |
-| `build`   | Prerender the site into `dist/`                |
-| `preview` | Serve the build locally                        |
-| `sync`    | Regenerate `.implement/` without running vite  |
-| `check`   | Sync, then typecheck the app                   |
+| Script    | What it does                                  |
+| --------- | --------------------------------------------- |
+| `dev`     | Start the dev server (server rendered, HMR)   |
+| `build`   | Prerender the site into `dist/`               |
+| `preview` | Serve the build locally                       |
+| `sync`    | Regenerate `.implement/` without running vite |
+| `check`   | Sync, then typecheck the app                  |
 
 ## Structure
 

@@ -38,6 +38,7 @@ import {
 	type MenuSubProps,
 	type MenuSubTriggerProps,
 } from "./menu";
+import { createComponent } from "../../create-component";
 
 export type DropdownMenuRootProps = MenuRootOptions;
 
@@ -45,16 +46,19 @@ export type DropdownMenuRootProps = MenuRootOptions;
  * A menu of actions opened from a trigger button. Built on the shared menu
  * base; see ContextMenu and Menubar for the other flavors.
  */
-export function DropdownMenu(props: DropdownMenuRootProps, ...children: Child[]) {
+export const DropdownMenu = createComponent(function DropdownMenu(
+	props: DropdownMenuRootProps,
+	...children: Child[]
+) {
 	const state = new MenuState("dropdown-menu", props);
 	return MenuRoot(state, ...children);
-}
+});
 
 export type DropdownMenuTriggerProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
-export function DropdownMenuTrigger(
+export const DropdownMenuTrigger = createComponent(function DropdownMenuTrigger(
 	{ id = getId(), disabled = false, ...restProps }: DropdownMenuTriggerProps,
 	...children: Child[]
 ) {
@@ -86,7 +90,7 @@ export function DropdownMenuTrigger(
 			...children,
 		);
 	});
-}
+});
 
 export type DropdownMenuContentProps = MenuContentProps;
 export const DropdownMenuContent = MenuContent;

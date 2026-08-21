@@ -13,6 +13,7 @@ import {
 import { collapsePresence } from "../helpers/collapse-presence";
 import { mergeProps } from "../../merge-props";
 import { getId, LIB_PREFIX, resolveId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 const CONTENT_HEIGHT_VAR = `--${LIB_PREFIX}-collapsible-content-height`;
 const CONTENT_WIDTH_VAR = `--${LIB_PREFIX}-collapsible-content-width`;
@@ -40,7 +41,10 @@ class CollapsibleState {
 	}
 }
 
-export function Collapsible({ open, ...restProps }: CollapsibleRootProps, ...children: Child[]) {
+export const Collapsible = createComponent(function Collapsible(
+	{ open, ...restProps }: CollapsibleRootProps,
+	...children: Child[]
+) {
 	const state = new CollapsibleState({ open });
 	return CollapsibleCtx.Provide(state).To(
 		Div(
@@ -48,11 +52,11 @@ export function Collapsible({ open, ...restProps }: CollapsibleRootProps, ...chi
 			...children,
 		),
 	);
-}
+});
 
 export type CollapsibleTriggerProps = ComponentProps<typeof Button>;
 
-export function CollapsibleTrigger(
+export const CollapsibleTrigger = createComponent(function CollapsibleTrigger(
 	{ ...restProps }: CollapsibleTriggerProps,
 	...children: Child[]
 ) {
@@ -72,13 +76,13 @@ export function CollapsibleTrigger(
 			...children,
 		);
 	});
-}
+});
 
 export type CollapsibleContentProps = ComponentProps<typeof Div> & {
 	hiddenUntilFound?: boolean;
 };
 
-export function CollapsibleContent(
+export const CollapsibleContent = createComponent(function CollapsibleContent(
 	{ id = getId(), hiddenUntilFound = false, ...restProps }: CollapsibleContentProps,
 	...children: Child[]
 ) {
@@ -111,4 +115,4 @@ export function CollapsibleContent(
 			),
 		);
 	});
-}
+});

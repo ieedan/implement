@@ -42,20 +42,16 @@ export default function SelectGroupDemo() {
 				}),
 			),
 			SelectContent(
-				{},
 				SelectGroup(
-					{},
-					SelectGroupHeading({}, "Citrus"),
+					SelectGroupHeading("Citrus"),
 					...citrus.map((fruit) => SelectItem({ value: fruit.value }, fruit.label)),
 				),
 				SelectGroup(
-					{},
-					SelectGroupHeading({}, "Berries"),
+					SelectGroupHeading("Berries"),
 					...berries.map((fruit) => SelectItem({ value: fruit.value }, fruit.label)),
 				),
 				SelectGroup(
-					{},
-					SelectGroupHeading({}, "Tropical"),
+					SelectGroupHeading("Tropical"),
 					...tropical.map((fruit) => SelectItem({ value: fruit.value }, fruit.label)),
 				),
 			),

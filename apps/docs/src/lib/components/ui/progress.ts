@@ -1,9 +1,10 @@
 import { derived, Div, signal, type ComponentProps } from "@implementjs/core";
 import { Progress as ProgressPrimitive } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type ProgressProps = ComponentProps<typeof ProgressPrimitive>;
 
-export function Progress({
+export const Progress = createComponent(function Progress({
 	class: className,
 	value = 0,
 	min = 0,
@@ -39,4 +40,4 @@ export function Progress({
 			style: { transform: percent.bind((p) => `translateX(-${100 - p}%)`) },
 		}),
 	);
-}
+});

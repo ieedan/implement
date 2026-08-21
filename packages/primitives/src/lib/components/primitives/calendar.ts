@@ -30,6 +30,7 @@ import {
 	type CalendarRenderProps,
 	type SharedCellFlags,
 } from "./calendar-base";
+import { createComponent } from "../../create-component";
 
 export {
 	CalendarGrid,
@@ -385,7 +386,7 @@ export type CalendarCellProps = ComponentProps<typeof Td> & {
 	month: MaybeReadable<CalendarDate | Month>;
 };
 
-export function CalendarCell(
+export const CalendarCell = createComponent(function CalendarCell(
 	{ id = getId(), date, month, ...restProps }: CalendarCellProps,
 	...children: Child[]
 ) {
@@ -414,12 +415,12 @@ export function CalendarCell(
 			),
 		);
 	});
-}
+});
 
 export type CalendarDayProps = ComponentProps<typeof Div>;
 
 /** One selectable day. Without children it renders the day number. */
-export function CalendarDay(
+export const CalendarDay = createComponent(function CalendarDay(
 	{ id = getId(), ...restProps }: CalendarDayProps,
 	...children: Child[]
 ) {
@@ -445,4 +446,4 @@ export function CalendarDay(
 			...(children.length ? children : [date.bind((d) => String(d.day))]),
 		),
 	);
-}
+});

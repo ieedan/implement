@@ -25,6 +25,7 @@ import {
 } from "../helpers/dismissable-layer";
 import { positionFloatingElement, type Side, type Align } from "../helpers/floating-ui";
 import { ScrollLock } from "../helpers/scroll-lock";
+import { createComponent } from "../../create-component";
 
 export type { Side, Align };
 
@@ -160,7 +161,10 @@ class PopoverState {
 
 const PopoverContext = context<PopoverState>();
 
-export function Popover(props: PopoverRootProps, ...children: Child[]) {
+export const Popover = createComponent(function Popover(
+	props: PopoverRootProps,
+	...children: Child[]
+) {
 	const state = new PopoverState(props);
 	return DismissableLayer(
 		{
@@ -194,7 +198,7 @@ export function Popover(props: PopoverRootProps, ...children: Child[]) {
 			),
 		),
 	);
-}
+});
 
 export type PopoverTriggerProps = Omit<ComponentProps<typeof Button>, "id"> & {
 	id?: string;
@@ -226,7 +230,7 @@ class PopoverTriggerState {
 	}
 }
 
-export function PopoverTrigger(
+export const PopoverTrigger = createComponent(function PopoverTrigger(
 	{ id = getId(), default: isDefault = false, ...restProps }: PopoverTriggerProps,
 	...children: Child[]
 ) {
@@ -251,7 +255,7 @@ export function PopoverTrigger(
 			...children,
 		);
 	});
-}
+});
 
 type PopoverContentOptions = {
 	side: Side;
@@ -274,7 +278,7 @@ class PopoverContentState {
 	}
 }
 
-export function PopoverContent(
+export const PopoverContent = createComponent(function PopoverContent(
 	{
 		id = getId(),
 		side = "bottom",
@@ -317,7 +321,7 @@ export function PopoverContent(
 			...children,
 		);
 	});
-}
+});
 
 export type PopoverPortalProps = PortalProps;
 
@@ -325,7 +329,7 @@ export const PopoverPortal = Portal;
 
 export type PopoverCloseProps = ComponentProps<typeof Button>;
 
-export function PopoverClose(
+export const PopoverClose = createComponent(function PopoverClose(
 	{ id = getId(), ...restProps }: PopoverCloseProps,
 	...children: Child[]
 ) {
@@ -342,4 +346,4 @@ export function PopoverClose(
 			...children,
 		);
 	});
-}
+});

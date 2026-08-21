@@ -39,6 +39,7 @@ import {
 	type MenuSubProps,
 	type MenuSubTriggerProps,
 } from "./menu";
+import { createComponent } from "../../create-component";
 
 /** How long a touch must hold before the menu opens, in milliseconds. */
 const LONG_PRESS_DURATION = 700;
@@ -71,16 +72,19 @@ export type ContextMenuRootProps = MenuRootOptions;
  * the pointer. Built on the shared menu base; see DropdownMenu and Menubar
  * for the other flavors.
  */
-export function ContextMenu(props: ContextMenuRootProps, ...children: Child[]) {
+export const ContextMenu = createComponent(function ContextMenu(
+	props: ContextMenuRootProps,
+	...children: Child[]
+) {
 	const state = new ContextMenuState(props);
 	return MenuRoot(state, ...children);
-}
+});
 
 export type ContextMenuTriggerProps = ComponentProps<typeof Div> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
-export function ContextMenuTrigger(
+export const ContextMenuTrigger = createComponent(function ContextMenuTrigger(
 	{ id = getId(), disabled = false, ...restProps }: ContextMenuTriggerProps,
 	...children: Child[]
 ) {
@@ -143,7 +147,7 @@ export function ContextMenuTrigger(
 			),
 		);
 	});
-}
+});
 
 export type ContextMenuContentProps = MenuContentProps;
 export const ContextMenuContent = MenuContent;

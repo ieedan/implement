@@ -37,6 +37,7 @@ import {
 	today,
 	type Month,
 } from "../helpers/date";
+import { createComponent } from "../../create-component";
 
 export type CalendarVariant = "calendar" | "range-calendar";
 
@@ -444,7 +445,7 @@ export function CalendarAccessibleHeading(state: CalendarBaseState): Child {
 
 export type CalendarHeaderProps = ComponentProps<typeof Div>;
 
-export function CalendarHeader(
+export const CalendarHeader = createComponent(function CalendarHeader(
 	{ id = getId(), ...restProps }: CalendarHeaderProps,
 	...children: Child[]
 ) {
@@ -462,12 +463,12 @@ export function CalendarHeader(
 			...children,
 		),
 	);
-}
+});
 
 export type CalendarHeadingProps = ComponentProps<typeof Div>;
 
 /** Shows the visible month(s); hidden from assistive technology, which hears the root's label. */
-export function CalendarHeading(
+export const CalendarHeading = createComponent(function CalendarHeading(
 	{ id = getId(), ...restProps }: CalendarHeadingProps,
 	...children: Child[]
 ) {
@@ -486,11 +487,11 @@ export function CalendarHeading(
 			...(children.length ? children : [state.headingValue]),
 		),
 	);
-}
+});
 
 export type CalendarPrevButtonProps = ComponentProps<typeof Button>;
 
-export function CalendarPrevButton(
+export const CalendarPrevButton = createComponent(function CalendarPrevButton(
 	{ id = getId(), ...restProps }: CalendarPrevButtonProps,
 	...children: Child[]
 ) {
@@ -516,11 +517,11 @@ export function CalendarPrevButton(
 			...children,
 		),
 	);
-}
+});
 
 export type CalendarNextButtonProps = ComponentProps<typeof Button>;
 
-export function CalendarNextButton(
+export const CalendarNextButton = createComponent(function CalendarNextButton(
 	{ id = getId(), ...restProps }: CalendarNextButtonProps,
 	...children: Child[]
 ) {
@@ -546,11 +547,11 @@ export function CalendarNextButton(
 			...children,
 		),
 	);
-}
+});
 
 export type CalendarGridProps = ComponentProps<typeof Table>;
 
-export function CalendarGrid(
+export const CalendarGrid = createComponent(function CalendarGrid(
 	{ id = getId(), ...restProps }: CalendarGridProps,
 	...children: Child[]
 ) {
@@ -572,11 +573,11 @@ export function CalendarGrid(
 			...children,
 		),
 	);
-}
+});
 
 export type CalendarGridHeadProps = ComponentProps<typeof Thead>;
 
-export function CalendarGridHead(
+export const CalendarGridHead = createComponent(function CalendarGridHead(
 	{ id = getId(), ...restProps }: CalendarGridHeadProps,
 	...children: Child[]
 ) {
@@ -594,11 +595,11 @@ export function CalendarGridHead(
 			...children,
 		),
 	);
-}
+});
 
 export type CalendarGridBodyProps = ComponentProps<typeof Tbody>;
 
-export function CalendarGridBody(
+export const CalendarGridBody = createComponent(function CalendarGridBody(
 	{ id = getId(), ...restProps }: CalendarGridBodyProps,
 	...children: Child[]
 ) {
@@ -616,11 +617,11 @@ export function CalendarGridBody(
 			...children,
 		),
 	);
-}
+});
 
 export type CalendarGridRowProps = ComponentProps<typeof Tr>;
 
-export function CalendarGridRow(
+export const CalendarGridRow = createComponent(function CalendarGridRow(
 	{ id = getId(), ...restProps }: CalendarGridRowProps,
 	...children: Child[]
 ) {
@@ -638,11 +639,11 @@ export function CalendarGridRow(
 			...children,
 		),
 	);
-}
+});
 
 export type CalendarHeadCellProps = ComponentProps<typeof Th>;
 
-export function CalendarHeadCell(
+export const CalendarHeadCell = createComponent(function CalendarHeadCell(
 	{ id = getId(), ...restProps }: CalendarHeadCellProps,
 	...children: Child[]
 ) {
@@ -660,7 +661,7 @@ export function CalendarHeadCell(
 			...children,
 		),
 	);
-}
+});
 
 export type CalendarMonthSelectProps = Omit<ComponentProps<typeof SelectElement>, "value"> & {
 	/** The month numbers (1–12) to offer. */
@@ -672,7 +673,7 @@ export type CalendarMonthSelectProps = Omit<ComponentProps<typeof SelectElement>
 
 const ALL_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-export function CalendarMonthSelect({
+export const CalendarMonthSelect = createComponent(function CalendarMonthSelect({
 	id = getId(),
 	months = ALL_MONTHS,
 	monthFormat,
@@ -726,7 +727,7 @@ export function CalendarMonthSelect({
 			),
 		);
 	});
-}
+});
 
 /**
  * A native select whose value follows the placeholder. The value is applied
@@ -779,7 +780,7 @@ export type CalendarYearSelectProps = Omit<ComponentProps<typeof SelectElement>,
 	disabled?: Signal<boolean> | boolean;
 };
 
-export function CalendarYearSelect({
+export const CalendarYearSelect = createComponent(function CalendarYearSelect({
 	id = getId(),
 	years,
 	yearFormat,
@@ -837,7 +838,7 @@ export function CalendarYearSelect({
 			),
 		);
 	});
-}
+});
 
 /** The state every day cell shares between the calendar and range calendar. */
 export type SharedCellFlags = {

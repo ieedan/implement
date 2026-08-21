@@ -10,6 +10,12 @@ export default function Page() {
 			"src/routes/about/index.ts",
 			" — every directory under src/routes with an index.ts is a route.",
 		),
-		A({ class: "text-zinc-400 underline underline-offset-4 hover:text-zinc-200", href: "https://github.com/ieedan/implement" }, "Read the docs"),
+		A(
+			{
+				class: "text-zinc-400 underline underline-offset-4 hover:text-zinc-200",
+				href: "https://github.com/ieedan/implement",
+			},
+			"Read the docs",
+		),
 	);
 }

@@ -1,10 +1,6 @@
 import { A, Button, Code, Div, H1, Li, P, Span, Ul, signal } from "@implementjs/core";
 import { MinusIcon, PlusIcon } from "@implementjs/lucide";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@implementjs/primitives";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@implementjs/primitives";
 
 const styles = {
 	page: "flex min-h-dvh flex-col items-center justify-center gap-6 p-8",
@@ -12,7 +8,8 @@ const styles = {
 	subtitle: "text-sm text-zinc-400",
 	code: "rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-xs text-zinc-300",
 	counter: "flex items-center gap-4",
-	button: "flex size-9 cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 text-lg leading-none hover:bg-zinc-800",
+	button:
+		"flex size-9 cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 text-lg leading-none hover:bg-zinc-800",
 	count: "min-w-10 text-center font-mono text-2xl tabular-nums",
 	links: "flex flex-col items-center gap-1 text-sm",
 	link: "text-zinc-400 underline underline-offset-4 hover:text-zinc-200",
@@ -23,7 +20,10 @@ const styles = {
 const links = [
 	{ label: "Documentation", href: "https://github.com/ieedan/implement" },
 	{ label: "Routing", href: "https://github.com/ieedan/implement/tree/main/packages/kit" },
-	{ label: "Primitives", href: "https://github.com/ieedan/implement/tree/main/packages/primitives" },
+	{
+		label: "Primitives",
+		href: "https://github.com/ieedan/implement/tree/main/packages/primitives",
+	},
 ];
 
 export function Counter() {

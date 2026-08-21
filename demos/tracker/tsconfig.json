@@ -2,11 +2,7 @@
 	"extends": "./.implement/tsconfig.json",
 	"compilerOptions": {
 		"target": "ES2022",
-		"lib": [
-			"ES2022",
-			"DOM",
-			"DOM.Iterable"
-		],
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"strict": true,
@@ -17,10 +13,7 @@
 		"noUncheckedIndexedAccess": true,
 		"noUncheckedSideEffectImports": true,
 		"allowImportingTsExtensions": true,
-		"types": [
-			"node",
-			"vite/client"
-		]
+		"types": ["node", "vite/client"]
 	},
 	"include": [
 		"src/**/*.ts",

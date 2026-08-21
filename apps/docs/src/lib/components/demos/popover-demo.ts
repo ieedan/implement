@@ -22,7 +22,6 @@ function Field(id: string, label: string, value: string) {
 
 export default function PopoverDemo() {
 	return Popover(
-		{},
 		PopoverTrigger({ variant: "outline" }, "Open popover"),
 		PopoverPortal(
 			PopoverContent(

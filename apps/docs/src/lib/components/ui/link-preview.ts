@@ -5,6 +5,7 @@ import {
 	LinkPreviewPortal as LinkPreviewPortalPrimitive,
 	LinkPreviewTrigger as LinkPreviewTriggerPrimitive,
 } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type LinkPreviewProps = ComponentProps<typeof LinkPreviewPrimitive>;
 export type LinkPreviewTriggerProps = ComponentProps<typeof LinkPreviewTriggerPrimitive>;
@@ -12,11 +13,14 @@ export type LinkPreviewContentProps = ComponentProps<typeof LinkPreviewContentPr
 
 export const LinkPreviewPortal = LinkPreviewPortalPrimitive;
 
-export function LinkPreview(props: LinkPreviewProps, ...children: Child[]) {
+export const LinkPreview = createComponent(function LinkPreview(
+	props: LinkPreviewProps,
+	...children: Child[]
+) {
 	return LinkPreviewPrimitive(props, ...children);
-}
+});
 
-export function LinkPreviewTrigger(
+export const LinkPreviewTrigger = createComponent(function LinkPreviewTrigger(
 	{ class: className, ...props }: LinkPreviewTriggerProps,
 	...children: Child[]
 ) {
@@ -31,9 +35,9 @@ export function LinkPreviewTrigger(
 		},
 		...children,
 	);
-}
+});
 
-export function LinkPreviewContent(
+export const LinkPreviewContent = createComponent(function LinkPreviewContent(
 	{
 		offset = 8,
 		side = "top",
@@ -64,4 +68,4 @@ export function LinkPreviewContent(
 		},
 		...children,
 	);
-}
+});

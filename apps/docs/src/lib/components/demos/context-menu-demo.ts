@@ -11,7 +11,6 @@ import {
 
 export default function ContextMenuDemo() {
 	return ContextMenu(
-		{},
 		ContextMenuTrigger(
 			{
 				class:
@@ -24,10 +23,9 @@ export default function ContextMenuDemo() {
 			ContextMenuItem({ onSelect: () => console.log("back") }, "Back"),
 			ContextMenuItem({ disabled: true }, "Forward"),
 			ContextMenuItem({ onSelect: () => console.log("reload") }, "Reload"),
-			ContextMenuSeparator({}),
+			ContextMenuSeparator(),
 			ContextMenuSub(
-				{},
-				ContextMenuSubTrigger({}, "Share"),
+				ContextMenuSubTrigger("Share"),
 				ContextMenuSubContent(
 					{ class: "w-44" },
 					ContextMenuItem({ onSelect: () => console.log("share-email") }, "Email"),
@@ -35,10 +33,10 @@ export default function ContextMenuDemo() {
 					ContextMenuItem({ onSelect: () => console.log("share-link") }, "Copy link"),
 				),
 			),
-			ContextMenuSeparator({}),
+			ContextMenuSeparator(),
 			ContextMenuItem({ onSelect: () => console.log("save") }, "Save page as…"),
 			ContextMenuItem({ onSelect: () => console.log("print") }, "Print…"),
-			ContextMenuSeparator({}),
+			ContextMenuSeparator(),
 			ContextMenuItem({ onSelect: () => console.log("inspect") }, "Inspect"),
 		),
 	);

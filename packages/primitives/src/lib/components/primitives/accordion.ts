@@ -16,6 +16,7 @@ import { handleRovingKeydown } from "../helpers/roving-focus";
 import { collapsePresence } from "../helpers/collapse-presence";
 import { mergeProps } from "../../merge-props";
 import { getId, LIB_PREFIX, resolveId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 const CONTENT_HEIGHT_VAR = `--${LIB_PREFIX}-accordion-content-height`;
 const CONTENT_WIDTH_VAR = `--${LIB_PREFIX}-accordion-content-width`;
@@ -117,7 +118,7 @@ class AccordionMultipleState extends AccordionState {
 	}
 }
 
-export function Accordion(
+export const Accordion = createComponent(function Accordion(
 	{
 		id = getId(),
 		type = "single",
@@ -151,7 +152,7 @@ export function Accordion(
 			...children,
 		),
 	);
-}
+});
 
 export type AccordionItemProps = ComponentProps<typeof Div> & {
 	/** Identifies the item. Must be unique within the accordion. */
@@ -203,7 +204,7 @@ class AccordionItemState {
 
 const AccordionItemCtx = context<AccordionItemState>();
 
-export function AccordionItem(
+export const AccordionItem = createComponent(function AccordionItem(
 	{ id = getId(), value, disabled = false, ...restProps }: AccordionItemProps,
 	...children: Child[]
 ) {
@@ -225,13 +226,13 @@ export function AccordionItem(
 			),
 		);
 	});
-}
+});
 
 export type AccordionTriggerProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
-export function AccordionTrigger(
+export const AccordionTrigger = createComponent(function AccordionTrigger(
 	{ id = getId(), disabled = false, ...restProps }: AccordionTriggerProps,
 	...children: Child[]
 ) {
@@ -261,13 +262,13 @@ export function AccordionTrigger(
 			...children,
 		);
 	});
-}
+});
 
 export type AccordionContentProps = ComponentProps<typeof Div> & {
 	hiddenUntilFound?: boolean;
 };
 
-export function AccordionContent(
+export const AccordionContent = createComponent(function AccordionContent(
 	{ id = getId(), hiddenUntilFound = false, ...restProps }: AccordionContentProps,
 	...children: Child[]
 ) {
@@ -304,13 +305,13 @@ export function AccordionContent(
 			),
 		);
 	});
-}
+});
 
 export type AccordionHeaderProps = ComponentProps<typeof Div> & {
 	level?: 1 | 2 | 3 | 4 | 5 | 6;
 };
 
-export function AccordionHeader(
+export const AccordionHeader = createComponent(function AccordionHeader(
 	{ id = getId(), level = 3, ...restProps }: AccordionHeaderProps,
 	...children: Child[]
 ) {
@@ -332,4 +333,4 @@ export function AccordionHeader(
 			...children,
 		);
 	});
-}
+});

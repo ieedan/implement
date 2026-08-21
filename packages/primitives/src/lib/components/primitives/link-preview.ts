@@ -26,6 +26,7 @@ import {
 import { positionFloatingElement, type Side, type Align } from "../helpers/floating-ui";
 import { trackSafePolygon } from "../helpers/safe-polygon";
 import { ScrollLock } from "../helpers/scroll-lock";
+import { createComponent } from "../../create-component";
 
 export type LinkPreviewRootProps = {
 	open?: Signal<boolean> | boolean;
@@ -204,7 +205,10 @@ class LinkPreviewState {
 
 const LinkPreviewCtx = context<LinkPreviewState>();
 
-export function LinkPreview(props: LinkPreviewRootProps, ...children: Child[]) {
+export const LinkPreview = createComponent(function LinkPreview(
+	props: LinkPreviewRootProps,
+	...children: Child[]
+) {
 	const state = new LinkPreviewState(props);
 	return DismissableLayer(
 		{
@@ -239,13 +243,13 @@ export function LinkPreview(props: LinkPreviewRootProps, ...children: Child[]) {
 			),
 		),
 	);
-}
+});
 
 export type LinkPreviewTriggerProps = Omit<ComponentProps<typeof A>, "id"> & {
 	id?: string;
 };
 
-export function LinkPreviewTrigger(
+export const LinkPreviewTrigger = createComponent(function LinkPreviewTrigger(
 	{ id = getId(), ...restProps }: LinkPreviewTriggerProps,
 	...children: Child[]
 ) {
@@ -282,7 +286,7 @@ export function LinkPreviewTrigger(
 			...children,
 		);
 	});
-}
+});
 
 function isFocusVisible(target: EventTarget | null): boolean {
 	return target instanceof Element && target.matches(":focus-visible");
@@ -310,7 +314,7 @@ class LinkPreviewContentState {
 	}
 }
 
-export function LinkPreviewContent(
+export const LinkPreviewContent = createComponent(function LinkPreviewContent(
 	{
 		id = getId(),
 		side = "top",
@@ -357,7 +361,7 @@ export function LinkPreviewContent(
 			...children,
 		);
 	});
-}
+});
 
 export type LinkPreviewPortalProps = PortalProps;
 

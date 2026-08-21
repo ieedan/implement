@@ -20,34 +20,30 @@ export default function DropdownMenuDemo() {
 	const position = signal<string | null>("bottom");
 
 	return DropdownMenu(
-		{},
-		DropdownMenuTrigger({}, "Open menu"),
+		DropdownMenuTrigger("Open menu"),
 		DropdownMenuContent(
 			{ class: "w-56" },
 			DropdownMenuGroup(
-				{},
-				DropdownMenuGroupHeading({}, "My Account"),
+				DropdownMenuGroupHeading("My Account"),
 				DropdownMenuItem({ onSelect: () => console.log("profile") }, "Profile"),
 				DropdownMenuItem({ onSelect: () => console.log("billing") }, "Billing"),
 				DropdownMenuItem({ disabled: true }, "Settings"),
 			),
 			DropdownMenuSub(
-				{},
-				DropdownMenuSubTrigger({}, "Invite people"),
+				DropdownMenuSubTrigger("Invite people"),
 				DropdownMenuSubContent(
-					{},
 					DropdownMenuItem({ onSelect: () => console.log("email") }, "Email"),
 					DropdownMenuItem({ onSelect: () => console.log("message") }, "Message"),
-					DropdownMenuSeparator({}),
+					DropdownMenuSeparator(),
 					DropdownMenuItem({ onSelect: () => console.log("invite-link") }, "Copy invite link"),
 				),
 			),
-			DropdownMenuSeparator({}),
+			DropdownMenuSeparator(),
 			DropdownMenuCheckboxItem({ checked: showStatusBar, closeOnSelect: false }, "Status bar"),
-			DropdownMenuSeparator({}),
+			DropdownMenuSeparator(),
 			DropdownMenuRadioGroup(
 				{ value: position },
-				DropdownMenuGroupHeading({}, "Panel position"),
+				DropdownMenuGroupHeading("Panel position"),
 				DropdownMenuRadioItem({ value: "top" }, "Top"),
 				DropdownMenuRadioItem({ value: "bottom" }, "Bottom"),
 				DropdownMenuRadioItem({ value: "right" }, "Right"),
