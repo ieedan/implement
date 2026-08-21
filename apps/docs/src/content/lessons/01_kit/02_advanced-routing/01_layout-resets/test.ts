@@ -6,7 +6,7 @@ export default async function test() {
 	await navigate("/zen");
 	expect(
 		screen.query("nav"),
-		"index@.ts resets to the root layout, so /zen should have no nav.",
+		"page@.ts resets to the root layout, so /zen should have no nav.",
 	).toBeNull();
 	expect(
 		(screen.container.textContent ?? "").trim(),

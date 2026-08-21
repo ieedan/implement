@@ -72,10 +72,10 @@ And extend the generated tsconfig so route files can import their types:
 
 <div data-tabs-end></div>
 
-Either way, that's it. Make a `src/routes/index.ts` that default-exports a component and run `vite`:
+Either way, that's it. Make a `src/routes/page.ts` that default-exports a component and run `vite`:
 
 ```ts
-// src/routes/index.ts
+// src/routes/page.ts
 import { H1 } from "@implementjs/core";
 
 export default function Page() {

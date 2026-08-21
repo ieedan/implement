@@ -42,7 +42,7 @@ The schemas are [Standard Schema](https://standardschema.dev) — zod, valibot, 
 Then import them where you need them:
 
 ```ts
-// src/routes/blog/index.server.ts
+// src/routes/blog/page.server.ts
 import { env } from "@/lib/env.server";
 import { env as publicEnv } from "@/lib/env.public";
 
@@ -138,7 +138,7 @@ The browser copy of `env.server.ts` is the part worth internalising: it does not
 src/lib/env.server.ts is a server file and cannot be imported by client code.
 
   src/lib/env.server.ts
-  imported by src/routes/blog/index.ts as "@/lib/env.server"
+  imported by src/routes/blog/page.ts as "@/lib/env.server"
     ← $implement/router
     ← .implement/entry-client.ts
 ```
@@ -150,14 +150,14 @@ src/lib/env.server.ts is a server file and cannot be imported by client code.
 Importing a _type_ from a server file is legal and common — type imports are erased before the module graph ever sees them:
 
 ```ts
-import type { PackageInfo } from "../../routes/packages/index.server";
+import type { PackageInfo } from "../../routes/packages/page.server";
 ```
 
 Write `import type`, not an inline `type` specifier. Under `verbatimModuleSyntax` (which scaffolded apps enable) this form leaves a real import behind and trips the guard:
 
 ```ts
-import { type PackageInfo } from "./index.server"; // ✗ trips the guard
-import type { PackageInfo } from "./index.server"; // ✓
+import { type PackageInfo } from "./page.server"; // ✗ trips the guard
+import type { PackageInfo } from "./page.server"; // ✓
 ```
 
 Vite's resource queries are left alone too. `import source from "./x.server.ts?raw"` asks for the file's _text_, not its bindings — a deliberate act, and how this site renders the source of every lesson. It ships the file's source, so don't reach for it on a file whose source contains anything secret.

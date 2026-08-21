@@ -41,7 +41,7 @@ describe("runCreate", () => {
 		expect(value.name).toBe("my-app");
 		expect(value.installed).toBe(false);
 		expect(readFileSync(join(cwd, "my-app/package.json"), "utf8")).toContain('"name": "my-app"');
-		expect(readFileSync(join(cwd, "my-app/src/routes/index.ts"), "utf8")).toContain("Page");
+		expect(readFileSync(join(cwd, "my-app/src/routes/page.ts"), "utf8")).toContain("Page");
 	});
 
 	it("writes every file the template lists", async () => {

@@ -50,7 +50,7 @@ The file is server-only, like `*.server.ts` — it never reaches the browser bun
 `event.locals` is a plain object, fresh for every request. Whatever `handle` puts there, the route's loads and endpoint handlers read:
 
 ```ts
-// src/routes/account/index.server.ts
+// src/routes/account/page.server.ts
 import type { LoadEvent } from "./$types";
 
 export default function load({ locals }: LoadEvent) {

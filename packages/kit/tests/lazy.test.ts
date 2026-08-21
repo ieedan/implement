@@ -3,8 +3,8 @@ import { lazyModule, preloadRoute, registerRouteModules } from "../src/lazy.ts";
 
 describe("lazyModule", () => {
 	it("names the route file when a component renders before its chunk loaded", () => {
-		const handle = lazyModule("src/routes/docs/index.ts", () => Promise.resolve({ default: 1 }));
-		expect(() => handle.get()).toThrow(/src\/routes\/docs\/index\.ts/);
+		const handle = lazyModule("src/routes/docs/page.ts", () => Promise.resolve({ default: 1 }));
+		expect(() => handle.get()).toThrow(/src\/routes\/docs\/page\.ts/);
 		expect(() => handle.get()).toThrow(/preloadRoute/);
 	});
 
@@ -47,17 +47,17 @@ describe("preloadRoute", () => {
 				return Promise.resolve({ default: id });
 			});
 		const layout = track("routes/layout.ts");
-		const list = track("routes/users/index.ts");
-		const detail = track("routes/users/[id]/index.ts");
-		const create = track("routes/users/new/index.ts");
+		const list = track("routes/users/page.ts");
+		const detail = track("routes/users/[id]/page.ts");
+		const create = track("routes/users/new/page.ts");
 		registerRouteModules([
-			{ pattern: "/users", modules: ["routes/layout.ts", "routes/users/index.ts"] },
-			{ pattern: "/users/:id", modules: ["routes/layout.ts", "routes/users/[id]/index.ts"] },
-			{ pattern: "/users/new", modules: ["routes/layout.ts", "routes/users/new/index.ts"] },
+			{ pattern: "/users", modules: ["routes/layout.ts", "routes/users/page.ts"] },
+			{ pattern: "/users/:id", modules: ["routes/layout.ts", "routes/users/[id]/page.ts"] },
+			{ pattern: "/users/new", modules: ["routes/layout.ts", "routes/users/new/page.ts"] },
 		]);
 
 		await preloadRoute("/users/new");
-		expect(loaded).toEqual(["routes/layout.ts", "routes/users/new/index.ts"]);
+		expect(loaded).toEqual(["routes/layout.ts", "routes/users/new/page.ts"]);
 		expect(() => create.get()).not.toThrow();
 		// the static segment outranks `:id`, so the param route stayed unloaded
 		expect(() => detail.get()).toThrow();

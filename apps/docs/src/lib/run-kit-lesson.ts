@@ -132,7 +132,7 @@ export async function runKitApp(
 ): Promise<KitApp> {
 	const tree = scanVirtualRoutes(files.map((file) => file.path));
 	if (pageCount(tree) === 0) {
-		throw new Error(`No pages found — add a ${ROUTES_DIR}/index.ts file.`);
+		throw new Error(`No pages found — add a ${ROUTES_DIR}/page.ts file.`);
 	}
 
 	// Errors thrown by lesson code are the lesson's output — report them

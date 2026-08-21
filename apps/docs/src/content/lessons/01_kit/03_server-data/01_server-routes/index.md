@@ -19,7 +19,7 @@ There's a twist that makes endpoints pair beautifully with pages. A directory na
 ```
 src/routes
     about
-        index.ts        -> /about        (the page)
+        page.ts         -> /about        (the page)
         .md
             server.ts   -> /about.md     (its markdown twin)
 ```

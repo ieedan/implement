@@ -9,18 +9,18 @@ import type { Child, Mountable, Readable, RouterLocation } from "@implementjs/co
 
 export const ROUTES_DIR = "src/routes";
 
-const PAGE_FILE = "index.ts";
+const PAGE_FILE = "page.ts";
 const LAYOUT_FILE = "layout.ts";
 const ERROR_FILE = "error.ts";
 const ENDPOINT_FILE = "server.ts";
-const PAGE_SERVER_FILE = "index.server.ts";
+const PAGE_SERVER_FILE = "page.server.ts";
 const LAYOUT_SERVER_FILE = "layout.server.ts";
 
 /** `.md`, `.json` — a dot-directory naming the extension its `server.ts` serves. */
 const EXTENSION_DIR = /^(\.[a-z0-9]+)+$/i;
 
 /**
- * Pathless key segment marking a hoisted `index@` page, so it never collides
+ * Pathless key segment marking a hoisted `page@` page, so it never collides
  * with the key of a directory emitted at the same level. The core router drops
  * `(…)` segments when matching.
  */
@@ -42,7 +42,7 @@ type RouteNode = {
 	pageResetTo: string | null;
 	layout: string | null;
 	layoutResetTo: string | null;
-	/** Relative path of this directory's `index.server.ts` load, when present. */
+	/** Relative path of this directory's `page.server.ts` load, when present. */
 	pageServer: string | null;
 	/** Relative path of this directory's `layout.server.ts` load, when present. */
 	layoutServer: string | null;
@@ -86,9 +86,9 @@ type RouteFileInfo = { kind: "page" | "layout"; resetTo: string | null };
 function parseRouteFileName(name: string): RouteFileInfo | null {
 	if (name === PAGE_FILE) return { kind: "page", resetTo: null };
 	if (name === LAYOUT_FILE) return { kind: "layout", resetTo: null };
-	const match = /^(index|layout)@(.*)\.ts$/.exec(name);
+	const match = /^(page|layout)@(.*)\.ts$/.exec(name);
 	if (!match) return null;
-	return { kind: match[1] === "index" ? "page" : "layout", resetTo: match[2]! };
+	return { kind: match[1] === "page" ? "page" : "layout", resetTo: match[2]! };
 }
 
 /** Virtual directory built from the lesson's file paths. */
@@ -234,7 +234,7 @@ function scanDirectory(
 	}
 	if (node.pageServer !== null && node.page === null) {
 		throw new Error(
-			`"${node.pageServer}" has no "${dir === "" ? "" : `${dir}/`}index.ts" page to load for`,
+			`"${node.pageServer}" has no "${dir === "" ? "" : `${dir}/`}page.ts" page to load for`,
 		);
 	}
 

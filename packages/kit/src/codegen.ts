@@ -157,7 +157,7 @@ function pagePatterns(tree: RouteTree): Map<RouteNode, string> {
 }
 
 /**
- * Pathless key segment marking a hoisted `index@` page, so it never collides
+ * Pathless key segment marking a hoisted `page@` page, so it never collides
  * with the key of a directory emitted at the same level. The core router drops
  * `(…)` segments when matching.
  */

@@ -46,13 +46,13 @@ describe("scanRoutes", () => {
 	it("collects pages, layouts, and the root error file", () => {
 		const tree = scanRoutes(
 			makeRoutes([
-				"index.ts",
+				"page.ts",
 				"layout.ts",
 				"error.ts",
-				"docs/index.ts",
+				"docs/page.ts",
 				"docs/layout.ts",
-				"docs/[...slug]/index.ts",
-				"users/[id]/index.ts",
+				"docs/[...slug]/page.ts",
+				"users/[id]/page.ts",
 			]),
 		);
 		expect(tree.error).toBe("error.ts");
@@ -67,24 +67,24 @@ describe("scanRoutes", () => {
 
 	it("ignores colocated files and dot-directories", () => {
 		const tree = scanRoutes(
-			makeRoutes(["index.ts", "components.ts", "docs/helpers.ts", ".hidden/index.ts"]),
+			makeRoutes(["page.ts", "components.ts", "docs/helpers.ts", ".hidden/page.ts"]),
 		);
 		expect(pageRoutes(tree)).toEqual([{ pattern: "/", params: [] }]);
 	});
 
 	it("rejects nested routes inside a catch-all directory", () => {
 		expect(() =>
-			scanRoutes(makeRoutes(["docs/[...slug]/index.ts", "docs/[...slug]/deeper/index.ts"])),
+			scanRoutes(makeRoutes(["docs/[...slug]/page.ts", "docs/[...slug]/deeper/page.ts"])),
 		).toThrow(/cannot contain nested routes/);
 	});
 
 	it("allows a layout inside a catch-all directory", () => {
-		const tree = scanRoutes(makeRoutes(["docs/[...slug]/index.ts", "docs/[...slug]/layout.ts"]));
+		const tree = scanRoutes(makeRoutes(["docs/[...slug]/page.ts", "docs/[...slug]/layout.ts"]));
 		expect(pageRoutes(tree)).toEqual([{ pattern: "/docs/:...slug", params: ["slug"] }]);
 	});
 
 	it("rejects duplicate param names along a path", () => {
-		expect(() => scanRoutes(makeRoutes(["[id]/nested/[id]/index.ts"]))).toThrow(
+		expect(() => scanRoutes(makeRoutes(["[id]/nested/[id]/page.ts"]))).toThrow(
 			/Duplicate route param/,
 		);
 	});
@@ -95,18 +95,18 @@ describe("scanRoutes", () => {
 
 	it("collects load files next to their page and layout", () => {
 		const tree = scanRoutes(
-			makeRoutes(["index.ts", "index.server.ts", "layout.ts", "layout.server.ts"]),
+			makeRoutes(["page.ts", "page.server.ts", "layout.ts", "layout.server.ts"]),
 		);
-		expect(tree.root.pageServer).toBe("index.server.ts");
+		expect(tree.root.pageServer).toBe("page.server.ts");
 		expect(tree.root.layoutServer).toBe("layout.server.ts");
 	});
 
 	it("collects endpoints and extension endpoints", () => {
 		const tree = scanRoutes(
 			makeRoutes([
-				"index.ts",
+				"page.ts",
 				"api/server.ts",
-				"docs/[...slug]/index.ts",
+				"docs/[...slug]/page.ts",
 				"docs/[...slug]/.md/server.ts",
 			]),
 		);
@@ -117,30 +117,30 @@ describe("scanRoutes", () => {
 	});
 
 	it("keeps a directory holding only server files", () => {
-		const tree = scanRoutes(makeRoutes(["index.ts", "api/server.ts"]));
+		const tree = scanRoutes(makeRoutes(["page.ts", "api/server.ts"]));
 		expect(tree.root.children).toHaveLength(1);
 	});
 
 	it("still skips dot-directories without a server.ts", () => {
-		const tree = scanRoutes(makeRoutes(["index.ts", ".md/helpers.ts"]));
+		const tree = scanRoutes(makeRoutes(["page.ts", ".md/helpers.ts"]));
 		expect(tree.root.extensions).toEqual([]);
 		expect(tree.root.children).toHaveLength(0);
 	});
 
 	it("rejects an endpoint sharing a directory with a page", () => {
-		expect(() => scanRoutes(makeRoutes(["docs/index.ts", "docs/server.ts"]))).toThrow(
+		expect(() => scanRoutes(makeRoutes(["docs/page.ts", "docs/server.ts"]))).toThrow(
 			/a page or an endpoint/,
 		);
 	});
 
-	it("rejects an index.server.ts without an index.ts", () => {
-		expect(() => scanRoutes(makeRoutes(["index.ts", "docs/index.server.ts"]))).toThrow(
-			/no "docs\/index.ts" page/,
+	it("rejects a page.server.ts without a page.ts", () => {
+		expect(() => scanRoutes(makeRoutes(["page.ts", "docs/page.server.ts"]))).toThrow(
+			/no "docs\/page.ts" page/,
 		);
 	});
 
 	it("rejects endpoints that collide with pages through groups", () => {
-		expect(() => scanRoutes(makeRoutes(["(a)/about/index.ts", "about/server.ts"]))).toThrow(
+		expect(() => scanRoutes(makeRoutes(["(a)/about/page.ts", "about/server.ts"]))).toThrow(
 			/both resolve to "\/about"/,
 		);
 	});
@@ -148,11 +148,11 @@ describe("scanRoutes", () => {
 	it("excludes (group) directories from URL patterns", () => {
 		const tree = scanRoutes(
 			makeRoutes([
-				"(marketing)/index.ts",
-				"(marketing)/about/index.ts",
+				"(marketing)/page.ts",
+				"(marketing)/about/page.ts",
 				"(authed)/layout.ts",
-				"(authed)/dashboard/index.ts",
-				"(authed)/dashboard/[id]/index.ts",
+				"(authed)/dashboard/page.ts",
+				"(authed)/dashboard/[id]/page.ts",
 			]),
 		);
 		expect(pageRoutes(tree)).toEqual([
@@ -165,10 +165,10 @@ describe("scanRoutes", () => {
 	});
 
 	it("rejects pages that collide through groups", () => {
-		expect(() => scanRoutes(makeRoutes(["(a)/about/index.ts", "about/index.ts"]))).toThrow(
+		expect(() => scanRoutes(makeRoutes(["(a)/about/page.ts", "about/page.ts"]))).toThrow(
 			/both resolve to "\/about"/,
 		);
-		expect(() => scanRoutes(makeRoutes(["(a)/index.ts", "(b)/index.ts"]))).toThrow(
+		expect(() => scanRoutes(makeRoutes(["(a)/page.ts", "(b)/page.ts"]))).toThrow(
 			/both resolve to "\/"/,
 		);
 	});
@@ -178,15 +178,15 @@ describe("scanRoutes", () => {
 			makeRoutes([
 				"layout.ts",
 				"(authed)/layout.ts",
-				"(authed)/dashboard/index@.ts",
-				"(authed)/settings/index@(authed).ts",
+				"(authed)/dashboard/page@.ts",
+				"(authed)/settings/page@(authed).ts",
 				"(authed)/admin/layout@.ts",
-				"(authed)/admin/index.ts",
+				"(authed)/admin/page.ts",
 			]),
 		);
 		const authed = tree.root.children[0]!;
 		const [admin, dashboard, settings] = authed.children;
-		expect(dashboard!.page).toBe("(authed)/dashboard/index@.ts");
+		expect(dashboard!.page).toBe("(authed)/dashboard/page@.ts");
 		expect(dashboard!.pageResetTo).toBe("");
 		expect(settings!.pageResetTo).toBe("(authed)");
 		expect(admin!.layout).toBe("(authed)/admin/layout@.ts");
@@ -196,7 +196,7 @@ describe("scanRoutes", () => {
 	});
 
 	it("rejects a reset targeting a segment that is not an ancestor", () => {
-		expect(() => scanRoutes(makeRoutes(["docs/index@(missing).ts"]))).toThrow(
+		expect(() => scanRoutes(makeRoutes(["docs/page@(missing).ts"]))).toThrow(
 			/no ancestor segment "\(missing\)"/,
 		);
 		// a layout cannot target its own directory
@@ -208,7 +208,7 @@ describe("scanRoutes", () => {
 	});
 
 	it("rejects conflicting page or layout declarations in one directory", () => {
-		expect(() => scanRoutes(makeRoutes(["docs/index.ts", "docs/index@.ts"]))).toThrow(
+		expect(() => scanRoutes(makeRoutes(["docs/page.ts", "docs/page@.ts"]))).toThrow(
 			/declares one page/,
 		);
 		expect(() => scanRoutes(makeRoutes(["docs/layout.ts", "docs/layout@.ts"]))).toThrow(

@@ -36,7 +36,7 @@ src/routes
 		[...slug]
 			.md
 				server.ts     → /docs/anything/below.md
-			index.ts        → /docs/anything/below
+			page.ts         → /docs/anything/below
 ```
 
 ```ts

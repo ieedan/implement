@@ -28,19 +28,19 @@ function node(partial: Partial<RouteNode>): RouteNode {
 
 const tree: RouteTree = {
 	root: node({
-		page: "index.ts",
+		page: "page.ts",
 		layout: "layout.ts",
 		children: [
 			node({
 				dir: "docs",
 				segment: { kind: "static", value: "docs" },
-				page: "docs/index.ts",
+				page: "docs/page.ts",
 				children: [
 					node({
 						dir: "docs/[...slug]",
 						segment: { kind: "rest", name: "slug" },
 						params: ["slug"],
-						page: "docs/[...slug]/index.ts",
+						page: "docs/[...slug]/page.ts",
 					}),
 				],
 			}),
@@ -53,11 +53,9 @@ describe("generateRouterModule", () => {
 	const code = generateRouterModule(tree, "/src/routes");
 
 	it("declares route modules as lazy handles, never static imports", () => {
+		expect(code).toContain('lazyModule("src/routes/page.ts", () => import("/src/routes/page.ts"))');
 		expect(code).toContain(
-			'lazyModule("src/routes/index.ts", () => import("/src/routes/index.ts"))',
-		);
-		expect(code).toContain(
-			'lazyModule("src/routes/docs/[...slug]/index.ts", () => import("/src/routes/docs/[...slug]/index.ts"))',
+			'lazyModule("src/routes/docs/[...slug]/page.ts", () => import("/src/routes/docs/[...slug]/page.ts"))',
 		);
 		// nothing under the routes dir may be statically imported, or Rollup
 		// pulls the whole app back into one chunk — the error page aside
@@ -83,11 +81,11 @@ describe("generateRouterModule", () => {
 			modules: string[];
 		}[];
 		expect(registered).toEqual([
-			{ pattern: "/", modules: ["src/routes/layout.ts", "src/routes/index.ts"] },
-			{ pattern: "/docs", modules: ["src/routes/layout.ts", "src/routes/docs/index.ts"] },
+			{ pattern: "/", modules: ["src/routes/layout.ts", "src/routes/page.ts"] },
+			{ pattern: "/docs", modules: ["src/routes/layout.ts", "src/routes/docs/page.ts"] },
 			{
 				pattern: "/docs/:...slug",
-				modules: ["src/routes/layout.ts", "src/routes/docs/[...slug]/index.ts"],
+				modules: ["src/routes/layout.ts", "src/routes/docs/[...slug]/page.ts"],
 			},
 		]);
 	});
@@ -123,7 +121,7 @@ describe("generateRouterModule", () => {
 							node({
 								dir: "(app)/dashboard",
 								segment: { kind: "static", value: "dashboard" },
-								page: "(app)/dashboard/index.ts",
+								page: "(app)/dashboard/page.ts",
 							}),
 						],
 					}),
@@ -137,7 +135,7 @@ describe("generateRouterModule", () => {
 		expect(code).toContain('"/dashboard":');
 	});
 
-	it("hoists an index@ page to its reset target", () => {
+	it("hoists a page@ page to its reset target", () => {
 		const reset: RouteTree = {
 			root: node({
 				layout: "layout.ts",
@@ -150,7 +148,7 @@ describe("generateRouterModule", () => {
 							node({
 								dir: "dashboard/print",
 								segment: { kind: "static", value: "print" },
-								page: "dashboard/print/index@.ts",
+								page: "dashboard/print/page@.ts",
 								pageResetTo: "",
 							}),
 						],
@@ -162,10 +160,10 @@ describe("generateRouterModule", () => {
 		const code = generateRouterModule(reset, "/src/routes");
 		// the page lands at the root under its full path, escaping dashboard's layout
 		expect(code).toContain('"/dashboard/print/(@reset)":');
-		expect(code).toContain('import("/src/routes/dashboard/print/index@.ts")');
+		expect(code).toContain('import("/src/routes/dashboard/print/page@.ts")');
 		// and the reset drops dashboard's layout from what the route preloads
 		expect(code).toContain(
-			'"modules": [\n\t\t\t"src/routes/layout.ts",\n\t\t\t"src/routes/dashboard/print/index@.ts"\n\t\t]',
+			'"modules": [\n\t\t\t"src/routes/layout.ts",\n\t\t\t"src/routes/dashboard/print/page@.ts"\n\t\t]',
 		);
 	});
 
@@ -184,7 +182,7 @@ describe("generateRouterModule", () => {
 								segment: { kind: "static", value: "admin" },
 								layout: "(app)/admin/layout@.ts",
 								layoutResetTo: "",
-								page: "(app)/admin/index.ts",
+								page: "(app)/admin/page.ts",
 							}),
 						],
 					}),
@@ -198,29 +196,29 @@ describe("generateRouterModule", () => {
 		expect(code).toContain('import("/src/routes/(app)/admin/layout@.ts")');
 		// the reset skips (app)'s layout, so admin's page never preloads it
 		expect(code).toContain(
-			'"modules": [\n\t\t\t"src/routes/layout.ts",\n\t\t\t"src/routes/(app)/admin/layout@.ts",\n\t\t\t"src/routes/(app)/admin/index.ts"\n\t\t]',
+			'"modules": [\n\t\t\t"src/routes/layout.ts",\n\t\t\t"src/routes/(app)/admin/layout@.ts",\n\t\t\t"src/routes/(app)/admin/page.ts"\n\t\t]',
 		);
 	});
 });
 
 const loaded: RouteTree = {
 	root: node({
-		page: "index.ts",
+		page: "page.ts",
 		layout: "layout.ts",
 		layoutServer: "layout.server.ts",
 		children: [
 			node({
 				dir: "docs",
 				segment: { kind: "static", value: "docs" },
-				page: "docs/index.ts",
-				pageServer: "docs/index.server.ts",
+				page: "docs/page.ts",
+				pageServer: "docs/page.server.ts",
 				extensions: [{ extension: ".md", file: "docs/.md/server.ts" }],
 				children: [
 					node({
 						dir: "docs/[...slug]",
 						segment: { kind: "rest", name: "slug" },
 						params: ["slug"],
-						page: "docs/[...slug]/index.ts",
+						page: "docs/[...slug]/page.ts",
 						extensions: [{ extension: ".md", file: "docs/[...slug]/.md/server.ts" }],
 					}),
 				],
@@ -240,12 +238,12 @@ describe("dataChains", () => {
 		const chains = dataChains(loaded);
 		expect(chains.get(loaded.root)!.pageFiles).toEqual(["layout.server.ts"]);
 		const docs = loaded.root.children[0]!;
-		expect(chains.get(docs)!.pageFiles).toEqual(["layout.server.ts", "docs/index.server.ts"]);
+		expect(chains.get(docs)!.pageFiles).toEqual(["layout.server.ts", "docs/page.server.ts"]);
 		expect(chains.get(docs)!.layoutFiles).toEqual(["layout.server.ts"]);
 		expect(chains.get(docs.children[0]!)!.pageFiles).toEqual(["layout.server.ts"]);
 	});
 
-	it("resets the chain with an index@ page", () => {
+	it("resets the chain with a page@ page", () => {
 		const reset: RouteTree = {
 			root: node({
 				layout: "layout.ts",
@@ -260,9 +258,9 @@ describe("dataChains", () => {
 							node({
 								dir: "dashboard/print",
 								segment: { kind: "static", value: "print" },
-								page: "dashboard/print/index@.ts",
+								page: "dashboard/print/page@.ts",
 								pageResetTo: "",
-								pageServer: "dashboard/print/index.server.ts",
+								pageServer: "dashboard/print/page.server.ts",
 							}),
 						],
 					}),
@@ -275,7 +273,7 @@ describe("dataChains", () => {
 		// the reset skips dashboard's layout load, keeping only the root's
 		expect(chains.get(print)!.pageFiles).toEqual([
 			"layout.server.ts",
-			"dashboard/print/index.server.ts",
+			"dashboard/print/page.server.ts",
 		]);
 	});
 });
@@ -285,7 +283,7 @@ describe("generateRouterModule with loads", () => {
 
 	it("feeds each page and layout its chained data readable", () => {
 		expect(code).toContain('data: routeData(["layout.server.ts"])');
-		expect(code).toContain('data: routeData(["layout.server.ts","docs/index.server.ts"])');
+		expect(code).toContain('data: routeData(["layout.server.ts","docs/page.server.ts"])');
 	});
 
 	it("registers the load-bearing routes with the client runtime", () => {
@@ -323,12 +321,12 @@ describe("generatePagesModule", () => {
 
 	it("imports each load once and lists every page with its chain", () => {
 		expect(code).toContain('import load_0 from "/src/routes/layout.server.ts"');
-		expect(code).toContain('import load_1 from "/src/routes/docs/index.server.ts"');
+		expect(code).toContain('import load_1 from "/src/routes/docs/page.server.ts"');
 		expect(code).toContain(
 			'{ pattern: "/", id: "/", files: [{ id: "layout.server.ts", load: load_0 }] }',
 		);
 		expect(code).toContain(
-			'{ pattern: "/docs", id: "/docs", files: [{ id: "layout.server.ts", load: load_0 }, { id: "docs/index.server.ts", load: load_1 }] }',
+			'{ pattern: "/docs", id: "/docs", files: [{ id: "layout.server.ts", load: load_0 }, { id: "docs/page.server.ts", load: load_1 }] }',
 		);
 	});
 

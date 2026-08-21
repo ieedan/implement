@@ -1,6 +1,6 @@
 import { P, type Child } from "@implementjs/core";
 // type-only imports never reach the module graph, so the guard never sees them
-import type load from "../secrets/index.server";
+import type load from "../secrets/page.server";
 
 type Data = ReturnType<typeof load>;
 

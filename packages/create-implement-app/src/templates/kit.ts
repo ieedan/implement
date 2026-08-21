@@ -54,8 +54,8 @@ export const kit: Template = {
 		{ path: "src/app.d.ts", contents: appTypes() },
 		{ path: "scripts/sync.ts", contents: syncScript() },
 		{ path: "src/routes/layout.ts", contents: layout(ctx) },
-		{ path: "src/routes/index.ts", contents: page() },
-		{ path: "src/routes/about/index.ts", contents: aboutPage(ctx) },
+		{ path: "src/routes/page.ts", contents: page() },
+		{ path: "src/routes/about/page.ts", contents: aboutPage(ctx) },
 		{ path: "src/routes/error.ts", contents: errorPage(ctx) },
 		{ path: "src/lib/counter.ts", contents: counter(ctx) },
 		{ path: "src/lib/env.public.ts", contents: envPublic() },
@@ -208,8 +208,8 @@ function aboutPage(ctx: TemplateContext): string {
 		`\t\tP(`,
 		`\t\t\t{ class: "${c.subtitle}" },`,
 		`\t\t\t"This page is ",`,
-		`\t\t\t"src/routes/about/index.ts",`,
-		`\t\t\t" — every directory under src/routes with an index.ts is a route.",`,
+		`\t\t\t"src/routes/about/page.ts",`,
+		`\t\t\t" — every directory under src/routes with a page.ts is a route.",`,
 		`\t\t),`,
 		`\t\tA({ class: "${c.link}", href: "${DOCS_URL}" }, "Read the docs"),`,
 		`\t);`,
@@ -325,10 +325,10 @@ function readme(ctx: TemplateContext): string {
 		│  │  └ env.public.ts  typed environment variables, safe to ship
 		│  ├ routes/         the routing tree
 		│  │  ├ about/
-		│  │  │  └ index.ts  → /about
+		│  │  │  └ page.ts   → /about
 		│  │  ├ error.ts     the 404 / render error page
-		│  │  ├ index.ts     → /
-		│  │  └ layout.ts    wraps every page
+		│  │  ├ layout.ts    wraps every page
+		│  │  └ page.ts      → /
 		│  ├ app.css         global styles, imported from the root layout
 		│  └ index.html      the shell, pointed at the generated client entry
 		└ static/            served from the site root
@@ -338,7 +338,7 @@ function readme(ctx: TemplateContext): string {
 		\`.env.example\` is the committed list of keys. Keys there must start with \`PUBLIC_\` — add a
 		\`src/lib/env.server.ts\` for anything that must not reach the browser.
 
-		\`index.ts\` is a page, \`layout.ts\` wraps everything below it, and \`[param]\` / \`[...rest]\`
+		\`page.ts\` is a page, \`layout.ts\` wraps everything below it, and \`[param]\` / \`[...rest]\`
 		directories bind params. Kit generates \`.implement/\` (entries, the tsconfig this app extends, and
 		a \`./$types\` for every route) — it is gitignored and regenerates itself, so nothing in there
 		needs editing.

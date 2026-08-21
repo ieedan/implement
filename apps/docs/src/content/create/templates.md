@@ -20,10 +20,10 @@ my-app/
 │  │  └ counter.ts   @/lib — components, helpers, state
 │  ├ routes/
 │  │  ├ about/
-│  │  │  └ index.ts  → /about
+│  │  │  └ page.ts   → /about
 │  │  ├ error.ts     the 404 / render error page
-│  │  ├ index.ts     → /
-│  │  └ layout.ts    wraps every page
+│  │  ├ layout.ts    wraps every page
+│  │  └ page.ts      → /
 │  ├ app.css         global styles, imported from the root layout
 │  ├ app.d.ts        App.Locals — what src/hooks.server.ts hands your routes
 │  └ index.html      the shell, pointed at the generated client entry

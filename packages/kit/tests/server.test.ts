@@ -35,7 +35,7 @@ function server(hooks: ServerHooks = {}, overrides: Partial<KitServerOptions> = 
 		pages: [
 			page("/"),
 			page("/loaded", [
-				{ id: "loaded/index.server.ts", load: (event) => ({ user: localsOf(event).user ?? null }) },
+				{ id: "loaded/page.server.ts", load: (event) => ({ user: localsOf(event).user ?? null }) },
 			]),
 			page("/users/:id"),
 		],
@@ -86,7 +86,7 @@ describe("the request pipeline", () => {
 		const kit = server();
 		const data = await get(kit, "/loaded/__data.json");
 		expect(data.status).toBe(200);
-		expect(await data.json()).toEqual({ "loaded/index.server.ts": { user: null } });
+		expect(await data.json()).toEqual({ "loaded/page.server.ts": { user: null } });
 
 		expect((await get(kit, "/__data.json")).status).toBe(404);
 	});
@@ -119,7 +119,7 @@ describe("the handle hook", () => {
 		};
 		expect(await (await get(server(hooks), "/api")).json()).toEqual({ user: "ada" });
 		expect(await (await get(server(hooks), "/loaded/__data.json")).json()).toEqual({
-			"loaded/index.server.ts": { user: "ada" },
+			"loaded/page.server.ts": { user: "ada" },
 		});
 	});
 
@@ -289,7 +289,7 @@ describe("error, redirect, and handleError", () => {
 				pages: [
 					page("/loaded", [
 						{
-							id: "loaded/index.server.ts",
+							id: "loaded/page.server.ts",
 							load: () => error(404, "No such thing"),
 						},
 					]),
