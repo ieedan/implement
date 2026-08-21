@@ -4,7 +4,7 @@ export const TEMPLATES = ["kit", "csr"] as const;
 export type TemplateId = (typeof TEMPLATES)[number];
 
 /** The optional extras that can be layered onto either template. */
-export const ADDONS = ["tailwind", "primitives", "icons"] as const;
+export const ADDONS = ["tailwind", "primitives", "icons", "forms", "modeWatcher"] as const;
 
 export type Addon = (typeof ADDONS)[number];
 
@@ -20,6 +20,14 @@ export const ADDON_META = {
 	icons: {
 		label: "@implementjs/lucide",
 		hint: "Lucide icons as implement components",
+	},
+	forms: {
+		label: "@implementjs/formish",
+		hint: "Schema-first forms, validated with valibot",
+	},
+	modeWatcher: {
+		label: "@implementjs/mode-watcher",
+		hint: "Dark mode, applied before the first paint",
 	},
 } as const satisfies Record<Addon, { label: string; hint: string }>;
 

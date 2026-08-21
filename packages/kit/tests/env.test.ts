@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Reading the message off a caught error is how these assertions read the whole report. */
 import { afterAll, describe, expect, it } from "vitest";
 import {
 	assertSerializable,
@@ -273,7 +274,7 @@ describe("module emission", () => {
 			file,
 			`import { boom } from "./missing";\nexport const a = boom;\nexport default 1;\n`,
 		);
-		expect([...(await exportNames(file))].sort()).toEqual(["a", "default"]);
+		expect(new Set(await exportNames(file))).toEqual(new Set(["a", "default"]));
 	});
 });
 

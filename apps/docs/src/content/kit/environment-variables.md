@@ -2,7 +2,7 @@
 title: Environment Variables
 description: Typed environment variables that cannot leak — two files, one validated at build time.
 section: Guides
-order: 14
+order: 15
 ---
 
 Environment variables are where secrets get spilled. A build tool that inlines the wrong string into a JavaScript bundle publishes it permanently, and a prerendered site has no server to patch afterwards. Kit's answer is two files, distinguished by name and enforced by the compiler:
@@ -52,6 +52,19 @@ export default async function load() {
 		docs: publicEnv.PUBLIC_DOCS_URL,
 	};
 }
+```
+
+[`hooks.server.ts`](/kit/hooks) reads them the same way — one ordinary import, no special access:
+
+```ts
+// src/hooks.server.ts
+import { env } from "@/lib/env.server";
+import type { Handle } from "@implementjs/kit/server";
+
+export const handle: Handle = async ({ event, resolve }) => {
+	event.locals.user = await verify(event.request, env.SESSION_SECRET);
+	return await resolve(event);
+};
 ```
 
 `env.DATABASE_URL` is a `string` because that is what `z.string()` produces. Give a variable `z.coerce.number()` and it arrives as a number. The editor knows, with no annotations and no `./$types` involved.
@@ -197,4 +210,5 @@ A file that doesn't exist simply turns that half off — an app with neither beh
 ## Where to next
 
 - [Loading Data](/kit/loading-data) covers the server files that read these values.
+- [Server Hooks](/kit/hooks) covers `hooks.server.ts`, the other server file that reads them.
 - [SSR & Prerendering](/kit/ssr-and-prerendering) covers when the build actually runs them.

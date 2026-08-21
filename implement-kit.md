@@ -93,6 +93,8 @@ my-app/
         /routes
         index.html       the html shell, pointed at the generated client entry
         app.css          global css, imported from the root layout
+        app.d.ts         App.Locals — what hooks.server.ts hands the routes
+        hooks.server.ts  runs on every server request
     /static              served as-is from the site root, copied into dist on build
 ```
 
@@ -118,8 +120,9 @@ build's prerender — and never reach the browser bundle.
 ### `*.server.ts` load functions
 
 `index.server.ts` / `layout.server.ts` next to a page or layout default-export
-a load, SvelteKit-style. It receives `{ params, url }` (`params` as plain
-strings) and returns a JSON-serializable object:
+a load, SvelteKit-style. It receives the request event — `{ params, url,
+request, locals, … }`, `params` as plain strings — and returns a
+JSON-serializable object:
 
 ```ts
 // src/routes/blog/[slug]/index.server.ts
@@ -148,8 +151,8 @@ static file after prerender) before the navigation commits.
 ### `server.ts` endpoints
 
 A `server.ts` in a route directory is an endpoint exporting a handler per HTTP
-method (`GET`, `POST`, …), receiving `{ request, params, url }` and returning
-a web-standard `Response`. A directory serves a page or an endpoint, not both.
+method (`GET`, `POST`, …), receiving the same request event and returning a
+web-standard `Response`. A directory serves a page or an endpoint, not both.
 
 A `.<ext>` directory holding a `server.ts` is an extension route — it serves
 the parent path with the extension appended, which is how the docs site serves
@@ -167,7 +170,35 @@ On build, `GET` endpoints prerender into real files (extension endpoints over
 params derive their paths from the prerendered pages); other methods work in
 dev and will need a server adapter to ship.
 
-## Environment Variables (Phase 3)
+## Server Hooks (Phase 3)
+
+Implemented. `src/hooks.server.ts` wraps every server request — pages,
+endpoints, and the `__data.json` payload behind a client navigation — the same
+way SvelteKit's does:
+
+```ts
+// src/hooks.server.ts
+import type { Handle } from "@implementjs/kit/server";
+
+export const handle: Handle = async ({ event, resolve }) => {
+	event.locals.user = await getUser(event.request.headers.get("cookie"));
+	return await resolve(event);
+};
+```
+
+`resolve(event)` produces the response the route would have given; returning
+something else instead short-circuits the route. `event.locals` is per-request
+state the route's loads and endpoint handlers read, typed by the app through
+`App.Locals` in `src/app.d.ts`. Alongside `handle` the file may export
+`handleError` (what to do with an unexpected throw, and what the error page
+renders) and `init` (awaited once before the first request); `sequence`,
+`error`, and `redirect` come from `@implementjs/kit/server`.
+
+Hooks run in dev and during the build's prerender. A hook that answers a
+prerendered page with its own response fails the build — a static file cannot
+represent one.
+
+## Environment Variables (Phase 4)
 
 Implemented. Two user-authored files, both evaluated in Node at build time and
 re-emitted as literals, so no schema library ever enters a bundle:

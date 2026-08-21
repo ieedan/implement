@@ -25,6 +25,7 @@ my-app/
 │  │  ├ index.ts     → /
 │  │  └ layout.ts    wraps every page
 │  ├ app.css         global styles, imported from the root layout
+│  ├ app.d.ts        App.Locals — what src/hooks.server.ts hands your routes
 │  └ index.html      the shell, pointed at the generated client entry
 ├ static/            served from the site root
 ├ tsconfig.json
@@ -67,12 +68,16 @@ The whole app lives under `src/`, including `index.html`, so the generated Vite 
 
 ## Addons
 
-Three optional extras, available on either template. Each has a pair of flags — `--tailwind` / `--no-tailwind` — so a non-interactive run can turn one on or off explicitly. Anything a flag doesn't answer falls back to the default, which is Tailwind on and the other two off.
+Five optional extras, available on either template. Each has a pair of flags — `--tailwind` / `--no-tailwind` — so a non-interactive run can turn one on or off explicitly. Anything a flag doesn't answer falls back to the default, which is Tailwind on and the rest off.
 
-| Addon        | Flag           | What it adds                                                                               |
-| ------------ | -------------- | ------------------------------------------------------------------------------------------ |
-| `tailwind`   | `--tailwind`   | `@tailwindcss/vite` in the Vite config, utilities in place of hand-written CSS             |
-| `primitives` | `--primitives` | [`@implementjs/primitives`](/primitives) — the counter's links move into a `Collapsible`   |
-| `icons`      | `--icons`      | [`@implementjs/lucide`](/lucide) — the counter's buttons become `PlusIcon` and `MinusIcon` |
+| Addon         | Flag             | What it adds                                                                                              |
+| ------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
+| `tailwind`    | `--tailwind`     | `@tailwindcss/vite` in the Vite config, utilities in place of hand-written CSS                            |
+| `primitives`  | `--primitives`   | [`@implementjs/primitives`](/primitives) — the counter's links move into a `Collapsible`                  |
+| `icons`       | `--icons`        | [`@implementjs/lucide`](/lucide) — the counter's buttons become `PlusIcon` and `MinusIcon`                |
+| `forms`       | `--forms`        | [`@implementjs/formish`](/formish) and valibot — a validated sign up form under the counter               |
+| `modeWatcher` | `--mode-watcher` | [`@implementjs/mode-watcher`](/mode-watcher) — a light and a dark palette, and a toggle under the counter |
 
 Without Tailwind the generated `app.css` defines plain semantic classes (`.page`, `.counter`, `.button`) and the components reference them by the same names, so the two versions of the counter read identically.
+
+The mode-watcher addon is the one that changes the palette rather than adding to it: the app starts light, `src/lib/mode.ts` (or `src/mode.ts` on the CSR template) holds the manager and the toggle, and `ModeWatcher` is mounted once at the root — in the kit layout, or next to the app in the CSR entry. With Tailwind the generated `app.css` points the `dark:` variant at the class on `<html>`; without it, a `.dark` block redefines the same custom properties the light one does.

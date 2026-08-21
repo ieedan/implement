@@ -298,7 +298,7 @@ class CommandState {
 		if (!rootEl || !this.filterActive(this.search.get())) return;
 		const insertionEl = this.viewport.get() ?? this.list.get();
 
-		const sorted = this.getValidItems().sort((a, b) => {
+		const sorted = this.getValidItems().toSorted((a, b) => {
 			const scoreA = this.scores.get(a.getAttribute("data-value") ?? "") ?? 0;
 			const scoreB = this.scores.get(b.getAttribute("data-value") ?? "") ?? 0;
 			return scoreB - scoreA;
@@ -332,7 +332,7 @@ class CommandState {
 				}
 				return { el, max };
 			})
-			.sort((a, b) => b.max - a.max);
+			.toSorted((a, b) => b.max - a.max);
 		for (const group of groups) {
 			const parent = group.el.parentElement;
 			if (!parent) continue;
@@ -1202,6 +1202,7 @@ export const CommandItem = createComponent(function CommandItem(
 	...children: Child[]
 ) {
 	return commandItem(
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Command item delegates to Div with merged props.
 		(props, ...c) => Div(props as ComponentProps<typeof Div>, ...c),
 		{ id: getReadableValue(id), value, keywords, disabled, onSelect, forceMount },
 		restProps,
@@ -1223,6 +1224,7 @@ export const CommandLinkItem = createComponent(function CommandLinkItem(
 	...children: Child[]
 ) {
 	return commandItem(
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Command link item delegates to A with merged props.
 		(props, ...c) => A(props as ComponentProps<typeof A>, ...c),
 		{ id: getReadableValue(id), value, keywords, disabled, onSelect, forceMount },
 		restProps,

@@ -19,6 +19,7 @@ export function toFloatingUIPlacement(side: Side, align: Align): Placement {
 }
 
 export function fromFloatingUIPlacement(placement: Placement): [Side, Align] {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Placement strings follow side-align or side-only patterns.
 	const [side, alignPart] = placement.split("-") as [Side, Align?];
 	return [side, alignPart ?? "center"];
 }

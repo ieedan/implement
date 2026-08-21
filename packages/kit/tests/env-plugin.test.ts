@@ -2,6 +2,7 @@ import { rmSync } from "node:fs";
 import { join } from "node:path";
 import type { RenderToStringResult } from "@implementjs/core/server";
 import { build, createServer, type ViteDevServer } from "vite";
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Dynamic module loading and rollup output need intentional narrowing. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { kit } from "../src/index.ts";
 
@@ -85,6 +86,13 @@ describe("env files", () => {
 			render: (url: string) => Promise<RenderToStringResult>;
 		};
 		expect((await render("/secrets")).html).toContain(`postgres://user:${SECRET}@localhost/db`);
+	});
+
+	it("reaches server env values from hooks.server.ts", async () => {
+		const { render } = (await server.ssrLoadModule("/.implement/entry-server.ts")) as {
+			render: (url: string) => Promise<RenderToStringResult>;
+		};
+		expect((await render("/from-hook")).html).toContain(SECRET);
 	});
 
 	it("renders public env values into the page", async () => {

@@ -66,7 +66,7 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 
 			const isDisabled = () => {
 				if (disabled === undefined) return false;
-				return isReadable<boolean>(disabled) ? Boolean(disabled.get()) : Boolean(disabled);
+				return isReadable<boolean>(disabled) ? disabled.get() : Boolean(disabled);
 			};
 
 			const targetOf = () => {

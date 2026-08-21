@@ -132,10 +132,12 @@ export const Accordion = createComponent(function Accordion(
 ) {
 	const root = ref<HTMLDivElement>();
 	const opts = { loop, orientation };
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Discriminated `type` prop selects the matching accordion state class. */
 	const state =
 		type === "multiple"
 			? new AccordionMultipleState(opts, root, disabled, value as Signal<string[]> | undefined)
 			: new AccordionSingleState(opts, root, disabled, value as Signal<string | null> | undefined);
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 
 	return AccordionCtx.Provide(state).To(
 		Div(

@@ -704,6 +704,7 @@ export const CalendarMonthSelect = createComponent(function CalendarMonthSelect(
 					[state.attr("month-select")]: "",
 					onChange: (e: Event) => {
 						if (isDisabled.get()) return;
+						// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Month select is rendered as HTMLSelectElement.
 						const month = Number.parseInt((e.target as HTMLSelectElement).value, 10);
 						if (!Number.isNaN(month)) state.setMonth(month);
 					},
@@ -815,6 +816,7 @@ export const CalendarYearSelect = createComponent(function CalendarYearSelect({
 					[state.attr("year-select")]: "",
 					onChange: (e: Event) => {
 						if (isDisabled.get()) return;
+						// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Year select is rendered as HTMLSelectElement.
 						const year = Number.parseInt((e.target as HTMLSelectElement).value, 10);
 						if (!Number.isNaN(year)) state.setYear(year);
 					},

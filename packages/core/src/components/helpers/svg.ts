@@ -1,5 +1,4 @@
 import { dom } from "../../dom";
-import { claimComment } from "../../hydrate";
 import { subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import { applySvgProps, type Bindable, type SvgProps } from "../props";
@@ -20,28 +19,49 @@ export type { SvgProps } from "../props";
  */
 export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 	return () => {
-		let anchor: Comment | null = null;
+		/**
+		 * The one node this mountable stands on: the `<svg>` once there is one,
+		 * a placeholder comment while there is not. Standing on exactly one
+		 * node is what keeps the position and the content together — a parent's
+		 * `syncDomOrder` moves whatever `getFirstDomNode` reports, so a separate
+		 * anchor would be left behind by that move, sending the next swap
+		 * somewhere else and leaving the server's markup in an order hydration
+		 * could not replay.
+		 */
+		let current: ChildNode | null = null;
 		let element: SVGSVGElement | null = null;
 		let unsubscribeProps: Unsubscribe | null = null;
 		let unsubscribeSource: Unsubscribe | null = null;
 
-		const clear = () => {
+		/** Let go of the current element (its props binding and `this`). */
+		const release = () => {
 			if (element) props.this?.set(null);
 			unsubscribeProps?.();
 			unsubscribeProps = null;
-			element?.remove();
 			element = null;
 		};
 
+		/** Put `next` where this mountable stands, dropping what stood there. */
+		const stand = (next: ChildNode) => {
+			const previous = current;
+			if (previous === next) return;
+			previous?.after(next);
+			previous?.remove();
+			current = next;
+		};
+
 		const apply = (value: string) => {
-			if (!anchor?.parentNode) return;
-			// during hydration this claims the serialized <svg> already in place
+			if (!current?.parentNode) return;
+			// during hydration this claims the serialized <svg> standing here
 			const next = dom.createSvgRoot(value);
-			clear();
-			if (!next) return;
-			unsubscribeProps = applySvgProps(next, props as Record<string, unknown>);
-			anchor.after(next);
+			release();
+			if (!next) {
+				stand(dom.createComment("svg"));
+				return;
+			}
+			unsubscribeProps = applySvgProps(next, props);
 			element = next;
+			stand(next);
 			props.this?.set(next);
 		};
 
@@ -49,16 +69,10 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 			mount(parent: HTMLElement) {
 				unsubscribeSource?.();
 				unsubscribeSource = null;
-				clear();
-				if (anchor) {
-					anchor.remove();
-					parent.appendChild(anchor);
-				} else {
-					// the anchor's position carries the element (no sync pass here),
-					// so hydration must adopt the serialized anchor, not append one
-					anchor = claimComment("svg") ?? dom.createComment("svg");
-					dom.attach(parent, anchor);
-				}
+				release();
+				current?.remove();
+				current = dom.createComment("svg");
+				dom.attach(parent, current);
 				if (typeof source === "string") {
 					apply(source);
 				} else {
@@ -68,12 +82,14 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 			unmount() {
 				unsubscribeSource?.();
 				unsubscribeSource = null;
-				clear();
-				anchor?.remove();
+				release();
+				current?.remove();
+				current = null;
 			},
 			getFirstDomNode() {
-				if (element) return element;
-				return anchor?.isConnected ? anchor : null;
+				// parentNode, not isConnected: a tree mounted into a detached
+				// container is still in position, it just is not in the document
+				return current?.parentNode ? current : null;
 			},
 		};
 	};

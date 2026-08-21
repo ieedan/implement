@@ -22,6 +22,7 @@ let cwd: AbsolutePath;
 const wasTTY = process.stdout.isTTY;
 
 beforeEach(() => {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Branded path: temp dir from mkdtempSync is absolute.
 	cwd = mkdtempSync(join(tmpdir(), "create-implement-app-")) as AbsolutePath;
 	// the interactive path only runs when someone is there to answer
 	process.stdout.isTTY = true;

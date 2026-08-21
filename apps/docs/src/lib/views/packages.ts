@@ -73,13 +73,39 @@ const groups: PackageGroup[] = [
 		],
 	},
 	{
+		title: "Theming",
+		description: "What decides which of your two palettes the page is wearing.",
+		packages: [
+			{
+				name: "@implementjs/mode-watcher",
+				description:
+					"Dark mode: the visitor's choice, the system preference, and the class on <html> — applied before the first paint, so there is no flash of the wrong theme.",
+				docs: { label: "Read the docs", to: "/mode-watcher" },
+				sourceDir: "mode-watcher",
+			},
+		],
+	},
+	{
+		title: "Forms",
+		description: "State and validation for the parts of a page users type into.",
+		packages: [
+			{
+				name: "@implementjs/formish",
+				description:
+					"Schema-first forms. The schema types the fields, validates the input and produces the submit handler's output — valibot, zod and arktype all fit.",
+				docs: { label: "Read the docs", to: "/formish" },
+				sourceDir: "formish",
+			},
+		],
+	},
+	{
 		title: "Tooling",
 		description: "What you reach for before the first line of app code.",
 		packages: [
 			{
 				name: "create-implement-app",
 				description:
-					"Scaffolds a new implement app — kit or plain Vite, with Tailwind, primitives, and icons as optional addons.",
+					"Scaffolds a new implement app — kit or plain Vite, with Tailwind, primitives, icons, forms, and dark mode as optional addons.",
 				docs: { label: "Read the docs", to: "/create" },
 				sourceDir: "create-implement-app",
 			},

@@ -125,6 +125,34 @@ const lucide = defineCollection({
 		})),
 });
 
+const modeWatcher = defineCollection({
+	name: "ModeWatcherPage",
+	pattern: "mode-watcher/*.md",
+	schema: markdown
+		.extend({
+			section: s.string().max(99),
+			order: s.number().optional(),
+		})
+		.transform((data) => ({
+			...data,
+			...toPermalink(data.slug, "/mode-watcher", "mode-watcher"),
+		})),
+});
+
+const formish = defineCollection({
+	name: "FormishPage",
+	pattern: "formish/*.md",
+	schema: markdown
+		.extend({
+			section: s.string().max(99),
+			order: s.number().optional(),
+		})
+		.transform((data) => ({
+			...data,
+			...toPermalink(data.slug, "/formish", "formish"),
+		})),
+});
+
 const tutorials = defineCollection({
 	name: "Tutorial",
 	pattern: "lessons/**/*.md",
@@ -158,7 +186,7 @@ export default defineConfig({
 		base: "/velite/",
 		clean: true,
 	},
-	collections: { pages, tutorials, primitives, ui, lucide, kit, create },
+	collections: { pages, tutorials, primitives, ui, lucide, kit, create, formish, modeWatcher },
 	markdown: {
 		remarkPlugins: [
 			// Velite bundles its own unified types, which don't match remark/rehype plugins'.
@@ -171,7 +199,9 @@ export default defineConfig({
 				// @ts-expect-error
 				rehypeShiki,
 				{
-					theme: "github-dark",
+					// both themes at build time; app.css picks one per mode
+					themes: { light: "github-light", dark: "github-dark" },
+					defaultColor: false,
 					langs: [
 						"typescript",
 						"ts",
@@ -211,6 +241,8 @@ export default defineConfig({
 		data.lucide.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.kit.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.create.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.formish.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.modeWatcher.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.tutorials.sort((a, b) =>
 			a.lessonDir.localeCompare(b.lessonDir, undefined, { numeric: true }),
 		);

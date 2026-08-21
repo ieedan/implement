@@ -19,9 +19,12 @@ import {
 } from "@implementjs/core";
 import {
 	matchEndpoint,
-	resolveLoads,
+	matchPage,
+	routeId,
+	runLoads,
 	type EndpointRoute,
-	type LoadRoute,
+	type PageRoute,
+	type RequestEvent,
 	type RequestHandler,
 	type RouteData,
 	type ServerLoad,
@@ -92,6 +95,24 @@ function RawResponse(text: Readable<string | null>): Mountable {
 	);
 }
 
+/** Stand-in request event for kit lesson previews (no hooks.server.ts). */
+function previewEvent(url: URL, params: Record<string, string>, id: string | null): RequestEvent {
+	return {
+		request: new Request(url),
+		url,
+		params,
+		route: { id },
+		locals: {},
+		isDataRequest: false,
+		setHeaders: () => {},
+		getClientAddress: () => "127.0.0.1",
+	};
+}
+
+function previewUrl(target: RouterLocation): URL {
+	return new URL(target.path + target.search, "http://preview.local");
+}
+
 /**
  * Boots a kit lesson inside the preview frame: scans the virtual `src/routes`
  * tree, links the files into modules executing in the frame's realm, and
@@ -117,6 +138,7 @@ export async function runKitApp(
 	// Errors thrown by lesson code are the lesson's output — report them
 	// through the preview frame's console (which the console panel captures),
 	// not the page's devtools.
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Preview iframe console is captured for the lesson output panel.
 	const realmConsole = (realm as Window & typeof globalThis).console;
 
 	const location = signal<RouterLocation>(
@@ -126,6 +148,7 @@ export async function runKitApp(
 	// Lesson code calling navigateTo must move the virtual location, so the
 	// shimmed core module carries an override.
 	const coreOverride: ShimModule = {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Core module is re-exported into the preview realm with navigateTo overridden.
 		...(implement as unknown as ShimModule),
 		navigateTo: (href: string) => navigate(href),
 	};
@@ -143,6 +166,7 @@ export async function runKitApp(
 		if (typeof exported !== "function") {
 			throw new Error(`${ROUTES_DIR}/${file} must default-export a component function.`);
 		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Default export validated as a function before use as RouteComponent.
 		return exported as RouteComponent;
 	};
 
@@ -151,18 +175,35 @@ export async function runKitApp(
 		if (typeof exported !== "function") {
 			throw new Error(`${ROUTES_DIR}/${file} must default-export a load function.`);
 		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Default export validated as a function before use as ServerLoad.
 		return exported as ServerLoad;
 	};
 
-	const loads: LoadRoute[] = loadRouteFiles(tree).map((route) => ({
+	const pages: PageRoute[] = loadRouteFiles(tree).map((route) => ({
 		pattern: route.pattern,
+		id: routeId(route.pattern),
 		files: route.files.map((file) => ({ id: file, load: loadFor(file) })),
 	}));
 
 	const endpoints: EndpointRoute[] = endpointFiles(tree).map((route) => ({
 		...route,
+		id: routeId(route.pattern),
 		module: modules.get(`${ROUTES_DIR}/${route.file}`) ?? {},
 	}));
+
+	/**
+	 * The preview has no server, so loads and endpoints get a stand-in event:
+	 * a real URL and params, empty locals, and the no-op response controls a
+	 * `hooks.server.ts` would otherwise drive.
+	 */
+
+	/** Runs the loads of the route serving `target`, or `null` when it has none. */
+	const loadData = (target: RouterLocation): Promise<RouteData | null> => {
+		const match = matchPage(pages, target.path);
+		if (match === null) return Promise.resolve(null);
+		const url = previewUrl(target);
+		return runLoads(match.route, previewEvent(url, match.params, match.route.id));
+	};
 
 	// The preview's stand-in for kit's runtime data store, scoped per app.
 	const store = new Map<string, Signal<unknown>>();
@@ -178,6 +219,7 @@ export async function runKitApp(
 		for (const [id, value] of Object.entries(data)) fileData(id).set(value ?? {});
 	};
 	const dataFor = (dataFiles: string[]): Readable<RouteData> =>
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Per-file load signals merge into one route data object.
 		derived(dataFiles.map(fileData), (...values) => Object.assign({}, ...values) as RouteData);
 
 	/** Body of the endpoint response being viewed, `null` while a page shows. */
@@ -188,12 +230,13 @@ export async function runKitApp(
 		params: Record<string, string>,
 		target: RouterLocation,
 	): Promise<string> => {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint GET handler is optional on the dynamically imported module.
 		const handler = route.module.GET as RequestHandler | undefined;
-		const url = new URL(target.path + target.search, "http://preview.local");
+		const url = previewUrl(target);
 		if (handler === undefined) {
 			return `405 Method Not Allowed — ${ROUTES_DIR}/${route.file} exports no GET handler.`;
 		}
-		const response = await handler({ request: new Request(url), params, url });
+		const response = await handler(previewEvent(url, params, route.id));
 		const body = await response.text();
 		return response.ok ? body : `HTTP ${response.status}\n\n${body}`;
 	};
@@ -208,7 +251,7 @@ export async function runKitApp(
 				location.set(destination);
 			};
 		}
-		const data = await resolveLoads(loads, destination.path + destination.search);
+		const data = await loadData(destination);
 		return () => {
 			if (data !== null) seed(data);
 			responseView.set(null);
@@ -229,13 +272,14 @@ export async function runKitApp(
 	};
 
 	// the initial location's loads must resolve before the first render
-	const initialData = await resolveLoads(loads, location.get().path + location.get().search);
+	const initialData = await loadData(location.get());
 	if (initialData !== null) seed(initialData);
 
 	let app: ReturnType<Mountable>;
 	try {
 		const routes = buildRouterRoutes(tree, moduleFor, location, dataFor);
 		const errorPage = tree.error !== null ? moduleFor(tree.error) : null;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Virtual kit routes compile to the router's route table type.
 		const router = Router(routes as never, {
 			fallback: (error) =>
 				errorPage !== null ? errorPage({ error, url: location }) : DefaultErrorPage(error),
@@ -259,6 +303,7 @@ export async function runKitApp(
 	const onClick = (event: MouseEvent) => {
 		if (event.defaultPrevented || event.button !== 0) return;
 		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Click target is narrowed to an anchor for in-preview navigation.
 		const anchor = (event.target as Element | null)?.closest?.("a[href]");
 		if (anchor == null) return;
 		event.preventDefault();

@@ -65,6 +65,7 @@ export function renderToString(
 		for (const factory of reconcileChildren({}, ...list)) {
 			const instance = factory();
 			mounted.push(instance);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Server body is the SSR mount root.
 			mountChild(instance, doc.body as unknown as HTMLElement);
 		}
 		const html = serializeChildren(doc.body);

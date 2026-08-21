@@ -19,13 +19,15 @@ Both templates are TypeScript.
 
 ## Addons
 
-| Addon        | Package                                                                      |
-| ------------ | ---------------------------------------------------------------------------- |
-| `tailwind`   | `tailwindcss` through `@tailwindcss/vite`                                    |
-| `primitives` | [`@implementjs/primitives`](../primitives) — headless, accessible components |
-| `icons`      | [`@implementjs/lucide`](../lucide) — Lucide icons as implement components    |
+| Addon         | Package                                                                            |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `tailwind`    | `tailwindcss` through `@tailwindcss/vite`                                          |
+| `primitives`  | [`@implementjs/primitives`](../primitives) — headless, accessible components       |
+| `icons`       | [`@implementjs/lucide`](../lucide) — Lucide icons as implement components          |
+| `forms`       | [`@implementjs/formish`](../formish) — schema-first forms, with valibot            |
+| `modeWatcher` | [`@implementjs/mode-watcher`](../mode-watcher) — dark mode, before the first paint |
 
-Each addon changes the generated app: tailwind swaps the stylesheet and adds the Vite plugin, primitives wraps the starter page's links in a collapsible, and icons swap the counter's button labels for Lucide icons.
+Each addon changes the generated app: tailwind swaps the stylesheet and adds the Vite plugin, primitives wraps the starter page's links in a collapsible, icons swap the counter's button labels for Lucide icons, forms adds a validated sign up form under the counter, and mode-watcher gives the app a light and a dark palette with a toggle that switches between them.
 
 ## Non-interactive
 
@@ -35,24 +37,26 @@ Every prompt has a flag, and the CLI never prompts when `--yes` is passed or whe
 pnpm create implement-app my-app --template kit --tailwind --primitives --no-icons --yes
 ```
 
-Anything a flag didn't answer falls back to the defaults: the `kit` template, tailwind on, primitives and icons off, and the directory `implement-app`.
+Anything a flag didn't answer falls back to the defaults: the `kit` template, tailwind on, the other addons off, and the directory `implement-app`.
 
-| Flag                     | Default            | What it does                                                |
-| ------------------------ | ------------------ | ----------------------------------------------------------- |
-| `[directory]`            | `implement-app`    | Where the app is created, relative to `--cwd`               |
-| `--name <name>`          | the directory name | The name written into `package.json`                        |
-| `-t, --template <t>`     | `kit`              | `kit` or `csr`                                              |
-| `--tailwind`             | on                 | Set up tailwindcss (`--no-tailwind` to skip)                |
-| `--primitives`           | off                | Add `@implementjs/primitives` (`--no-primitives` to skip)   |
-| `--icons`                | off                | Add `@implementjs/lucide` (`--no-icons` to skip)            |
-| `--package-manager <pm>` | detected           | `npm`, `pnpm`, `yarn`, `bun`, or `deno`                     |
-| `--install`              | off                | Install dependencies after scaffolding                      |
-| `--git`                  | off                | Run `git init` in the new app                               |
-| `--workspace`            | off                | Depend on the implement packages with `workspace:*`         |
-| `--overwrite`            | off                | Scaffold into a directory that isn't empty                  |
-| `-y, --yes`              | off                | Skip every prompt                                           |
-| `--cwd <path>`           | `process.cwd()`    | The directory `[directory]` resolves against                |
-| `--verbose`              | off                | Log every file as it's written instead of showing a spinner |
+| Flag                     | Default            | What it does                                                  |
+| ------------------------ | ------------------ | ------------------------------------------------------------- |
+| `[directory]`            | `implement-app`    | Where the app is created, relative to `--cwd`                 |
+| `--name <name>`          | the directory name | The name written into `package.json`                          |
+| `-t, --template <t>`     | `kit`              | `kit` or `csr`                                                |
+| `--tailwind`             | on                 | Set up tailwindcss (`--no-tailwind` to skip)                  |
+| `--primitives`           | off                | Add `@implementjs/primitives` (`--no-primitives` to skip)     |
+| `--icons`                | off                | Add `@implementjs/lucide` (`--no-icons` to skip)              |
+| `--forms`                | off                | Add `@implementjs/formish` (`--no-forms` to skip)             |
+| `--mode-watcher`         | off                | Add `@implementjs/mode-watcher` (`--no-mode-watcher` to skip) |
+| `--package-manager <pm>` | detected           | `npm`, `pnpm`, `yarn`, `bun`, or `deno`                       |
+| `--install`              | off                | Install dependencies after scaffolding                        |
+| `--git`                  | off                | Run `git init` in the new app                                 |
+| `--workspace`            | off                | Depend on the implement packages with `workspace:*`           |
+| `--overwrite`            | off                | Scaffold into a directory that isn't empty                    |
+| `-y, --yes`              | off                | Skip every prompt                                             |
+| `--cwd <path>`           | `process.cwd()`    | The directory `[directory]` resolves against                  |
+| `--verbose`              | off                | Log every file as it's written instead of showing a spinner   |
 
 Errors exit non-zero with a message on stderr. Set `CREATE_IMPLEMENT_APP_TRACE=1` for a stack trace.
 

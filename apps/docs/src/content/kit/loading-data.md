@@ -14,7 +14,7 @@ These files run **only on the server** — during dev requests and the build's p
 
 ## Writing a load
 
-A load default-exports a function that receives `params` and `url` and returns an object (async is fine):
+A load default-exports a function that receives the request event — `params`, `url`, the `request` itself, and `locals` — and returns an object (async is fine):
 
 ```ts
 // src/routes/blog/[slug]/index.server.ts
@@ -27,6 +27,14 @@ export default async function load({ params }: LoadEvent) {
 ```
 
 `LoadEvent` comes from the generated `./$types`, like `PageProps` does. Note `params` here are **plain strings**, not signals — a load runs once per request for a concrete URL. The returned object must be JSON-serializable, because kit serializes it into the page.
+
+`locals` is whatever [`hooks.server.ts`](/kit/hooks) put on the event for this request, typed by your `src/app.d.ts` — the usual way a load learns who is asking:
+
+```ts
+export default async function load({ locals }: LoadEvent) {
+	return { orders: await getOrders(locals.user) };
+}
+```
 
 ## Reading the data
 

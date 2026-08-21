@@ -70,9 +70,11 @@ type ContextHolder = { [CONTEXT_KEY]?: EnvContext };
  * `env.server.ts` may — a fixed rule, enforced when kit evaluates the file.
  */
 export function defineEnv<T extends EnvSchemas>(schemas: T): Env<T> {
+	// oxlint-disable typescript/no-unsafe-type-assertion -- The evaluation context lives on globalThis, and each key's output type is the schema's, which only the mapped type expresses.
 	const context = (globalThis as ContextHolder)[CONTEXT_KEY];
 	if (context !== undefined) return context.defineEnv(schemas) as Env<T>;
 	return validateEnv(schemas, process.env, null) as Env<T>;
+	// oxlint-enable typescript/no-unsafe-type-assertion
 }
 
 /**
@@ -229,6 +231,7 @@ async function runEnvModule(
 	const file = join(dir, `${key}.mjs`);
 	if (!existsSync(file)) writeFileSync(file, code);
 
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The evaluation context is published on globalThis so the evaluated bundle's own defineEnv finds it.
 	const holder = globalThis as ContextHolder;
 	const previous = holder[CONTEXT_KEY];
 	holder[CONTEXT_KEY] = {
@@ -237,6 +240,7 @@ async function runEnvModule(
 		defineEnv: (schemas) => validateEnv(schemas, values, info),
 	};
 	try {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- A module namespace is exactly a record of its exports.
 		const namespace = (await import(pathToFileURL(file).href)) as Record<string, unknown>;
 		const exports: Record<string, unknown> = {};
 		for (const name of Object.keys(namespace)) exports[name] = namespace[name];

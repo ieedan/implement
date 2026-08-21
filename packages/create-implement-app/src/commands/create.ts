@@ -55,6 +55,8 @@ export const schema = defaultCommandOptionsSchema.extend({
 	tailwind: z.boolean().optional(),
 	primitives: z.boolean().optional(),
 	icons: z.boolean().optional(),
+	forms: z.boolean().optional(),
+	modeWatcher: z.boolean().optional(),
 	packageManager: z.enum(PACKAGE_MANAGERS).optional(),
 	link: z.string().optional(),
 	install: z.boolean(),
@@ -98,6 +100,10 @@ export function addCreateCommand(cmd: Command): Command {
 		.option("--no-primitives", "Don't add @implementjs/primitives.")
 		.option("--icons", "Add icons from @implementjs/lucide.")
 		.option("--no-icons", "Don't add @implementjs/lucide.")
+		.option("--forms", "Add schema-first forms from @implementjs/formish.")
+		.option("--no-forms", "Don't add @implementjs/formish.")
+		.option("--mode-watcher", "Add dark mode from @implementjs/mode-watcher.")
+		.option("--no-mode-watcher", "Don't add @implementjs/mode-watcher.")
 		.addOption(
 			new Option("--package-manager <pm>", "The package manager to install with.").choices(
 				PACKAGE_MANAGERS,

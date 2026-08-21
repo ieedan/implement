@@ -5,7 +5,9 @@ import {
 	DOCS_URL,
 	gitignore,
 	indexHtml,
+	modeModule,
 	packageJson,
+	signUpFormComponent,
 	styles,
 	tsconfig,
 	vitePlugins,
@@ -37,9 +39,10 @@ export const kit: Template = {
 		{ path: "vite.config.ts", contents: viteConfig(ctx) },
 		{
 			path: "src/index.html",
-			contents: indexHtml({ title: ctx.name, entry: "/.implement/entry-client.ts" }),
+			contents: indexHtml(ctx, { title: ctx.name, entry: "/.implement/entry-client.ts" }),
 		},
 		{ path: "src/app.css", contents: appCss(ctx) },
+		{ path: "src/app.d.ts", contents: appTypes() },
 		{ path: "scripts/sync.ts", contents: syncScript() },
 		{ path: "src/routes/layout.ts", contents: layout(ctx) },
 		{ path: "src/routes/index.ts", contents: page() },
@@ -49,6 +52,12 @@ export const kit: Template = {
 		{ path: "src/lib/env.public.ts", contents: envPublic() },
 		{ path: ".env", contents: envFile(ctx) },
 		{ path: ".env.example", contents: envFile(ctx) },
+		...(hasAddon(ctx, "modeWatcher")
+			? [{ path: "src/lib/mode.ts", contents: modeModule(ctx) }]
+			: []),
+		...(hasAddon(ctx, "forms")
+			? [{ path: "src/lib/sign-up-form.ts", contents: signUpFormComponent(ctx) }]
+			: []),
 		{ path: "static/favicon.svg", contents: favicon() },
 		{ path: ".gitignore", contents: gitignore() },
 		{ path: "README.md", contents: readme(ctx) },
@@ -59,6 +68,8 @@ function pkg(ctx: TemplateContext): string {
 	const deps: Dependency[] = ["@implementjs/core"];
 	if (hasAddon(ctx, "primitives")) deps.push("@implementjs/primitives");
 	if (hasAddon(ctx, "icons")) deps.push("@implementjs/lucide");
+	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
+	if (hasAddon(ctx, "modeWatcher")) deps.push("@implementjs/mode-watcher");
 
 	// zod is a devDependency on purpose: kit evaluates the env files at build time and inlines
 	// the results, so the schemas never reach a bundle
@@ -94,6 +105,25 @@ function viteConfig(ctx: TemplateContext): string {
 	].join("\n")}\n`;
 }
 
+/**
+ * The app's server types. `App.Locals` is what `src/hooks.server.ts` hands the
+ * app's loads and endpoints, so this is where it gets typed.
+ */
+function appTypes(): string {
+	return (
+		dedent`
+		declare global {
+			namespace App {
+				// what src/hooks.server.ts puts on event.locals, and routes read
+				interface Locals {}
+			}
+		}
+
+		export {};
+	` + "\n"
+	);
+}
+
 function syncScript(): string {
 	return (
 		dedent`
@@ -108,15 +138,25 @@ function syncScript(): string {
 
 function layout(ctx: TemplateContext): string {
 	const c = styles(ctx);
+	const modeWatcher = hasAddon(ctx, "modeWatcher");
 
 	return `${[
 		`import { router } from "$implement/router";`,
 		`import { Div, Main, Nav } from "@implementjs/core";`,
+		...(modeWatcher ? [`import { ModeWatcher } from "@implementjs/mode-watcher";`] : []),
+		...(modeWatcher ? [`import { mode } from "@/lib/mode";`] : []),
 		`import type { LayoutProps } from "./$types";`,
 		`import "../app.css";`,
 		``,
 		`export default function Layout({ children }: LayoutProps) {`,
 		`\treturn Div(`,
+		...(modeWatcher
+			? [
+					`\t\t// the root layout stays mounted for the life of the app, so the blocking script`,
+					`\t\t// this renders into the head runs before the first paint of every page`,
+					`\t\tModeWatcher({ manager: mode }),`,
+				]
+			: []),
 		`\t\tNav(`,
 		`\t\t\t{ class: "${c.nav}" },`,
 		`\t\t\trouter.Link({ class: "${c.navLink}", to: "/" }, "Home"),`,
@@ -189,8 +229,19 @@ function counter(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "primitives")) {
 		links.push({ label: "Primitives", href: `${DOCS_URL}/tree/main/packages/primitives` });
 	}
+	if (hasAddon(ctx, "forms")) {
+		links.push({ label: "Forms", href: `${DOCS_URL}/tree/main/packages/formish` });
+	}
+	if (hasAddon(ctx, "modeWatcher")) {
+		links.push({ label: "Dark mode", href: `${DOCS_URL}/tree/main/packages/mode-watcher` });
+	}
 
-	return counterComponent(ctx, { editPath: "src/lib/counter.ts", links });
+	return counterComponent(ctx, {
+		editPath: "src/lib/counter.ts",
+		links,
+		formImport: "@/lib/sign-up-form",
+		modeImport: "@/lib/mode",
+	});
 }
 
 function envPublic(): string {

@@ -22,6 +22,8 @@ The `--` is npm's; pnpm, yarn, and bun pass flags through without it.
 | `--tailwind`     | Set up Tailwind. `--no-tailwind` opts out.                                                                   |
 | `--primitives`   | Add [`@implementjs/primitives`](/primitives). `--no-primitives` opts out.                                    |
 | `--icons`        | Add [`@implementjs/lucide`](/lucide). `--no-icons` opts out.                                                 |
+| `--forms`        | Add [`@implementjs/formish`](/formish) and valibot. `--no-forms` opts out.                                   |
+| `--mode-watcher` | Add [`@implementjs/mode-watcher`](/mode-watcher). `--no-mode-watcher` opts out.                              |
 | `--overwrite`    | Scaffold into the directory even if it already has files in it.                                              |
 
 Without `--overwrite`, a non-empty directory stops the run — interactively it asks first.

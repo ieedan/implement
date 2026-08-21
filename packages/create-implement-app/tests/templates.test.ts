@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Template file map lookups return known scaffold paths. */
 import { getTemplate, templates } from "@/templates";
 import { ADDONS, type Addon, TEMPLATES, type TemplateContext } from "@/templates/types";
 
@@ -64,6 +65,7 @@ describe("templates", () => {
 				"src/routes/about/index.ts",
 				"src/routes/error.ts",
 				"src/lib/counter.ts",
+				"src/app.d.ts",
 				"scripts/sync.ts",
 			]),
 		);
@@ -73,6 +75,8 @@ describe("templates", () => {
 		// the root layout is the only place the global stylesheet is imported
 		expect(files.get("src/routes/layout.ts")).toContain('import "../app.css";');
 		expect(pkg(files).devDependencies["@implementjs/kit"]).toBeDefined();
+		// App.Locals is declared for the app to fill in, hooks.server.ts or not
+		expect(files.get("src/app.d.ts")).toContain("namespace App");
 	});
 
 	it("the kit template wires up public environment variables", () => {
@@ -142,6 +146,85 @@ describe("templates", () => {
 		expect(
 			pkg(fileMap(id, ctx({ addons: ["icons"] }))).dependencies["@implementjs/lucide"],
 		).toBeDefined();
+	});
+
+	it.each(TEMPLATES)("%s only pulls in formish when the addon is selected", (id) => {
+		const formPath = id === "kit" ? "src/lib/sign-up-form.ts" : "src/sign-up-form.ts";
+		const counterPath = id === "kit" ? "src/lib/counter.ts" : "src/counter.ts";
+
+		const without = fileMap(id, ctx());
+		expect(without.has(formPath)).toBe(false);
+		expect(without.get(counterPath)).not.toContain("SignUpForm");
+		expect(pkg(without).dependencies["@implementjs/formish"]).toBeUndefined();
+
+		const withForms = fileMap(id, ctx({ addons: ["forms"] }));
+		expect(withForms.get(formPath)).toContain('from "@implementjs/formish"');
+		expect(withForms.get(formPath)).toContain("createForm({ schema: SignUpSchema })");
+		// the counter page renders it, so a new app opens on a working form
+		expect(withForms.get(counterPath)).toContain("SignUpForm()");
+		expect(pkg(withForms).dependencies["@implementjs/formish"]).toBeDefined();
+		expect(pkg(withForms).dependencies.valibot).toBeDefined();
+	});
+
+	it.each(TEMPLATES)("%s only pulls in mode-watcher when the addon is selected", (id) => {
+		const modePath = id === "kit" ? "src/lib/mode.ts" : "src/mode.ts";
+		const counterPath = id === "kit" ? "src/lib/counter.ts" : "src/counter.ts";
+
+		const without = fileMap(id, ctx());
+		expect(without.has(modePath)).toBe(false);
+		expect(without.get(counterPath)).not.toContain("ModeToggle");
+		expect(pkg(without).dependencies["@implementjs/mode-watcher"]).toBeUndefined();
+
+		const withMode = fileMap(id, ctx({ addons: ["modeWatcher"] }));
+		expect(withMode.get(modePath)).toContain("createModeManager()");
+		expect(withMode.get(modePath)).toContain("mode.toggleMode()");
+		// the counter page renders the toggle, so a new app opens on a working switch
+		expect(withMode.get(counterPath)).toContain("ModeToggle()");
+		expect(pkg(withMode).dependencies["@implementjs/mode-watcher"]).toBeDefined();
+	});
+
+	it.each(TEMPLATES)("%s mounts ModeWatcher once, at the root", (id) => {
+		const files = fileMap(id, ctx({ addons: ["modeWatcher"] }));
+		// kit's root layout outlives every navigation; the csr entry is the only mount there is
+		const root = files.get(id === "kit" ? "src/routes/layout.ts" : "src/index.ts") ?? "";
+
+		expect(root).toContain('import { ModeWatcher } from "@implementjs/mode-watcher"');
+		expect(root.match(/ModeWatcher\(\{ manager: mode \}\)/g)).toHaveLength(1);
+	});
+
+	it.each(TEMPLATES)("%s styles both modes once mode-watcher is selected", (id) => {
+		// tailwind resolves `dark:` from the media query unless it is pointed at the class
+		const tailwind = fileMap(id, ctx({ addons: ["tailwind", "modeWatcher"] }));
+		expect(tailwind.get("src/app.css")).toContain("@custom-variant dark (&:where(.dark, .dark *))");
+		expect(tailwind.get("src/app.css")).toContain("dark:bg-zinc-950");
+		expect(tailwind.get("src/index.html")).toContain('content="light dark"');
+
+		// without tailwind the same swap is a `.dark` block redefining the custom properties
+		const plain = fileMap(id, ctx({ addons: ["modeWatcher"] }));
+		expect(plain.get("src/app.css")).toContain(".dark {");
+		expect(plain.get("src/app.css")).not.toContain("color-scheme: dark;");
+	});
+
+	it("stays dark only when mode-watcher is not selected", () => {
+		const tailwind = fileMap("csr", ctx({ addons: ["tailwind"] }));
+		expect(tailwind.get("src/app.css")).toContain("color-scheme: dark;");
+		expect(tailwind.get("src/app.css")).not.toContain("dark:");
+		expect(tailwind.get("src/index.html")).toContain('content="dark"');
+
+		expect(fileMap("csr", ctx()).get("src/app.css")).toContain("color-scheme: dark;");
+	});
+
+	it("the form's class names follow the tailwind addon", () => {
+		const plain = fileMap("csr", ctx({ addons: ["forms"] })).get("src/sign-up-form.ts") ?? "";
+		expect(plain).toContain('input: "input"');
+		expect(fileMap("csr", ctx({ addons: ["tailwind"] })).get("src/app.css")).not.toContain(
+			".input {",
+		);
+		expect(fileMap("csr", ctx({ addons: ["forms"] })).get("src/app.css")).toContain(".input {");
+
+		const tailwind =
+			fileMap("csr", ctx({ addons: ["tailwind", "forms"] })).get("src/sign-up-form.ts") ?? "";
+		expect(tailwind).toContain("border-zinc-800");
 	});
 
 	it("every template and addon combination writes the same files twice", () => {

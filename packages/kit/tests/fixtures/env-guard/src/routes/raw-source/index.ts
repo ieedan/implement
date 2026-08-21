@@ -5,5 +5,5 @@ import { Pre, type Child } from "@implementjs/core";
 import source from "../../lib/secrets.server.ts?raw";
 
 export default function Page(): Child {
-	return Pre(source as string);
+	return Pre(source);
 }

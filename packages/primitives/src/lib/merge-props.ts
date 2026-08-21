@@ -44,9 +44,11 @@ function isCallable(value: unknown): boolean {
 }
 
 function resolveCallback(handler: unknown): ((...args: unknown[]) => unknown) | undefined {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Event handlers are composed after a function or readable-function check.
 	if (typeof handler === "function") return handler as (...args: unknown[]) => unknown;
 	if (isReadable(handler)) {
 		const current = handler.get();
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Readable event handlers resolve to a function at read time.
 		if (typeof current === "function") return current as (...args: unknown[]) => unknown;
 	}
 	return undefined;
@@ -170,5 +172,6 @@ export function mergeProps<T extends PropsArg[]>(...args: T): UnionToIntersectio
 		}
 	}
 
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Merged prop tuples intersect into one props object.
 	return result as UnionToIntersection<TupleTypes<T>>;
 }

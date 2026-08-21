@@ -47,9 +47,15 @@ importers:
       '@implementjs/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@implementjs/formish':
+        specifier: workspace:*
+        version: link:../../packages/formish
       '@implementjs/lucide':
         specifier: workspace:*
         version: link:../../packages/lucide
+      '@implementjs/mode-watcher':
+        specifier: workspace:*
+        version: link:../../packages/mode-watcher
       '@implementjs/primitives':
         specifier: workspace:*
         version: link:../../packages/primitives
@@ -65,6 +71,9 @@ importers:
       tailwind-variants:
         specifier: ^3.3.1
         version: 3.3.1(tailwindcss@4.3.3)
+      valibot:
+        specifier: ^1.4.1
+        version: 1.4.2(typescript@7.0.2)
     devDependencies:
       '@implementjs/kit':
         specifier: workspace:*
@@ -167,6 +176,34 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  packages/formish:
+    dependencies:
+      '@implementjs/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      happy-dom:
+        specifier: ^20.0.11
+        version: 20.11.2
+      tsdown:
+        specifier: ^0.22.14
+        version: 0.22.14(tsx@4.23.12)(typescript@7.0.2)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      valibot:
+        specifier: ^1.4.1
+        version: 1.4.2(typescript@7.0.2)
+      vite:
+        specifier: ^7.3.0
+        version: 7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.0.18
+        version: 4.1.11(@types/node@26.2.0)(happy-dom@20.11.2)(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+
   packages/kit:
     dependencies:
       '@implementjs/core':
@@ -222,6 +259,31 @@ importers:
       vite:
         specifier: ^7.3.0
         version: 7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+
+  packages/mode-watcher:
+    dependencies:
+      '@implementjs/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      happy-dom:
+        specifier: ^20.0.11
+        version: 20.11.2
+      tsdown:
+        specifier: ^0.22.14
+        version: 0.22.14(tsx@4.23.12)(typescript@7.0.2)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^7.3.0
+        version: 7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.0.18
+        version: 4.1.11(@types/node@26.2.0)(happy-dom@20.11.2)(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/primitives:
     dependencies:
@@ -2677,6 +2739,14 @@ packages:
   unist-util-visit@5.1.0:
     resolution: {integrity: sha512-m+vIdyeCOpdr/QeQCu2EzxX/ohgS8KbnPDgFni4dQsfSCtpz8UqDyY5GjRru8PDKuYn7Fq19j1CQ+nJSsGKOzg==}
 
+  valibot@1.4.2:
+    resolution: {integrity: sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   velite@0.4.0:
     resolution: {integrity: sha512-F7eatRsbm9RQ2d43YYufiS729USvE4BAkw9yNB4iuFUSfrY9bFGe6/lrY6OpgiyOL8BT9hVd1JoRfyotjPOGpQ==}
     engines: {node: ^18.20.0 || >=20.3.0}
@@ -5052,6 +5122,10 @@ snapshots:
       '@types/unist': 3.0.3
       unist-util-is: 6.0.1
       unist-util-visit-parents: 6.0.2
+
+  valibot@1.4.2(typescript@7.0.2):
+    optionalDependencies:
+      typescript: 7.0.2
 
   velite@0.4.0:
     dependencies:

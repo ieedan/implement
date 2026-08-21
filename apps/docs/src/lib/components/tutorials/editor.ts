@@ -1,62 +1,77 @@
 import { indentWithTab } from "@codemirror/commands";
 import { javascript } from "@codemirror/lang-javascript";
 import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import { Div, Pre, type IMountable, type Mountable, type Writable } from "@implementjs/core";
 import { basicSetup } from "codemirror";
+import { mode } from "@/lib/mode";
 
 const editorFontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
 
+// Every color here is a token from app.css, so the panes follow the site's
+// mode without CodeMirror being reconfigured — only the `dark` flag below,
+// which extensions read for their own defaults, has to be swapped.
 const highlight = HighlightStyle.define([
-	{ tag: t.keyword, color: "#c4b5fd" },
-	{ tag: t.string, color: "#86efac" },
-	{ tag: t.number, color: "#fcd34d" },
-	{ tag: t.bool, color: "#fcd34d" },
-	{ tag: t.null, color: "#fcd34d" },
-	{ tag: t.comment, color: "#737373", fontStyle: "italic" },
-	{ tag: t.function(t.variableName), color: "#93c5fd" },
-	{ tag: t.definition(t.variableName), color: "#e5e5e5" },
-	{ tag: t.typeName, color: "#7dd3fc" },
-	{ tag: t.className, color: "#7dd3fc" },
-	{ tag: t.propertyName, color: "#e5e5e5" },
-	{ tag: t.operator, color: "#a3a3a3" },
-	{ tag: t.punctuation, color: "#a3a3a3" },
+	{ tag: t.keyword, color: "var(--syntax-keyword)" },
+	{ tag: t.string, color: "var(--syntax-string)" },
+	{ tag: t.number, color: "var(--syntax-literal)" },
+	{ tag: t.bool, color: "var(--syntax-literal)" },
+	{ tag: t.null, color: "var(--syntax-literal)" },
+	{ tag: t.comment, color: "var(--syntax-comment)", fontStyle: "italic" },
+	{ tag: t.function(t.variableName), color: "var(--syntax-function)" },
+	{ tag: t.definition(t.variableName), color: "var(--syntax-name)" },
+	{ tag: t.typeName, color: "var(--syntax-type)" },
+	{ tag: t.className, color: "var(--syntax-type)" },
+	{ tag: t.propertyName, color: "var(--syntax-name)" },
+	{ tag: t.operator, color: "var(--syntax-punctuation)" },
+	{ tag: t.punctuation, color: "var(--syntax-punctuation)" },
 ]);
 
-const theme = EditorView.theme(
-	{
-		"&": {
-			backgroundColor: "transparent",
-			color: "#fff",
-			height: "100%",
-		},
-		".cm-content": {
-			caretColor: "#fff",
-			fontFamily: editorFontFamily,
-			fontSize: "13px",
-			lineHeight: "1.65",
-			padding: "8px 0",
-		},
-		".cm-gutters": {
-			backgroundColor: "transparent",
-			color: "#555",
-			border: "none",
-		},
-		".cm-activeLine": { backgroundColor: "#ffffff08" },
-		".cm-activeLineGutter": { backgroundColor: "transparent", color: "#888" },
-		"&.cm-focused": { outline: "none" },
-		".cm-selectionBackground": {
-			backgroundColor: "#ffffff24",
-		},
-		"&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
-			backgroundColor: "#ffffff24",
-		},
-		".cm-cursor": { borderLeftColor: "#fff" },
+const theme = EditorView.theme({
+	"&": {
+		backgroundColor: "transparent",
+		color: "var(--editor-foreground)",
+		height: "100%",
 	},
-	{ dark: true },
-);
+	".cm-content": {
+		caretColor: "var(--editor-foreground)",
+		fontFamily: editorFontFamily,
+		fontSize: "13px",
+		lineHeight: "1.65",
+		padding: "8px 0",
+	},
+	".cm-gutters": {
+		backgroundColor: "transparent",
+		color: "var(--editor-gutter)",
+		border: "none",
+	},
+	".cm-activeLine": { backgroundColor: "var(--editor-active-line)" },
+	".cm-activeLineGutter": {
+		backgroundColor: "transparent",
+		color: "var(--editor-gutter-active)",
+	},
+	"&.cm-focused": { outline: "none" },
+	".cm-selectionBackground": {
+		backgroundColor: "var(--editor-selection)",
+	},
+	"&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+		backgroundColor: "var(--editor-selection)",
+	},
+	".cm-cursor": { borderLeftColor: "var(--editor-foreground)" },
+});
+
+/**
+ * The `dark` flag is what extensions with their own built-in styling (the
+ * autocomplete and search panels) read, and it is a facet rather than CSS —
+ * so unlike the colors above it has to be reconfigured when the mode changes.
+ */
+const darkFlag = new Compartment();
+
+function darkFlagFor(current: string | undefined) {
+	return EditorView.darkTheme.of(current !== "light");
+}
 
 // Static server-side stand-in for the CodeMirror pane: the code in a plain
 // <pre> behind a line-number gutter, on the same metrics as the theme above
@@ -71,7 +86,7 @@ function EditorFallback(code: string): Mountable {
 			style: {
 				display: "flex",
 				alignItems: "flex-start",
-				color: "#fff",
+				color: "var(--editor-foreground)",
 				fontFamily: editorFontFamily,
 				fontSize: "13px",
 				lineHeight: "1.65",
@@ -83,7 +98,7 @@ function EditorFallback(code: string): Mountable {
 			{
 				"aria-hidden": "true",
 				style: {
-					color: "#555",
+					color: "var(--editor-gutter)",
 					flexShrink: "0",
 					minWidth: "20px",
 					padding: "0 3px 0 5px",
@@ -124,6 +139,7 @@ export function CodeEditor(value: Writable<string>, options: CodeEditorOptions =
 		let parent: HTMLElement | null = null;
 		let view: EditorView | null = null;
 		let unsubscribe: (() => void) | null = null;
+		let unsubscribeMode: (() => void) | null = null;
 
 		return {
 			mount(host: HTMLElement) {
@@ -143,6 +159,7 @@ export function CodeEditor(value: Writable<string>, options: CodeEditorOptions =
 							EditorState.tabSize.of(4),
 							syntaxHighlighting(highlight),
 							theme,
+							darkFlag.of(darkFlagFor(mode.mode.get())),
 							keymap.of([indentWithTab]),
 							EditorState.readOnly.of(options.readOnly === true),
 							// a blinking caret in a read-only pane reads as an invitation to type
@@ -156,6 +173,10 @@ export function CodeEditor(value: Writable<string>, options: CodeEditorOptions =
 					}),
 				});
 
+				unsubscribeMode = mode.mode.onChange((current) => {
+					view?.dispatch({ effects: darkFlag.reconfigure(darkFlagFor(current)) });
+				});
+
 				unsubscribe = value.subscribe((next) => {
 					if (view == null) return;
 					if (view.state.doc.toString() === next) return;
@@ -167,6 +188,8 @@ export function CodeEditor(value: Writable<string>, options: CodeEditorOptions =
 			unmount() {
 				unsubscribe?.();
 				unsubscribe = null;
+				unsubscribeMode?.();
+				unsubscribeMode = null;
 				view?.destroy();
 				view = null;
 				parent?.remove();

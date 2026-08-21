@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and DOM stubs require intentional narrowing. */
 import { describe, expect, it } from "vitest";
 import { App, If, signal } from "@implementjs/core";
 import {

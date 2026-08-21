@@ -5,7 +5,9 @@ import {
 	DOCS_URL,
 	gitignore,
 	indexHtml,
+	modeModule,
 	packageJson,
+	signUpFormComponent,
 	tsconfig,
 	vitePlugins,
 } from "@/templates/shared";
@@ -24,10 +26,14 @@ export const csr: Template = {
 			contents: tsconfig({ include: ["src/**/*.ts", "*.config.ts"], types: ["vite/client"] }),
 		},
 		{ path: "vite.config.ts", contents: viteConfig(ctx) },
-		{ path: "src/index.html", contents: indexHtml({ title: ctx.name, entry: "/index.ts" }) },
+		{ path: "src/index.html", contents: indexHtml(ctx, { title: ctx.name, entry: "/index.ts" }) },
 		{ path: "src/app.css", contents: appCss(ctx) },
-		{ path: "src/index.ts", contents: entry() },
+		{ path: "src/index.ts", contents: entry(ctx) },
 		{ path: "src/counter.ts", contents: counter(ctx) },
+		...(hasAddon(ctx, "modeWatcher") ? [{ path: "src/mode.ts", contents: modeModule(ctx) }] : []),
+		...(hasAddon(ctx, "forms")
+			? [{ path: "src/sign-up-form.ts", contents: signUpFormComponent(ctx) }]
+			: []),
 		{ path: ".gitignore", contents: gitignore() },
 		{ path: "README.md", contents: readme(ctx) },
 	],
@@ -37,6 +43,8 @@ function pkg(ctx: TemplateContext): string {
 	const deps: Dependency[] = ["@implementjs/core"];
 	if (hasAddon(ctx, "primitives")) deps.push("@implementjs/primitives");
 	if (hasAddon(ctx, "icons")) deps.push("@implementjs/lucide");
+	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
+	if (hasAddon(ctx, "modeWatcher")) deps.push("@implementjs/mode-watcher");
 
 	const devDeps: Dependency[] = ["typescript", "vite"];
 	if (hasAddon(ctx, "tailwind")) devDeps.push("@tailwindcss/vite", "tailwindcss");
@@ -70,7 +78,9 @@ function viteConfig(ctx: TemplateContext): string {
 	].join("\n")}\n`;
 }
 
-function entry(): string {
+function entry(ctx: TemplateContext): string {
+	if (hasAddon(ctx, "modeWatcher")) return modeEntry();
+
 	return (
 		dedent`
 		import { App } from "@implementjs/core";
@@ -91,6 +101,33 @@ function entry(): string {
 	);
 }
 
+/**
+ * The entry the `modeWatcher` addon writes: `ModeWatcher` renders alongside the app so its blocking
+ * script lands in the head, and the manager it is handed starts applying the mode on mount.
+ */
+function modeEntry(): string {
+	return (
+		dedent`
+		import { App } from "@implementjs/core";
+		import { ModeWatcher } from "@implementjs/mode-watcher";
+		import { Counter } from "./counter";
+		import { mode } from "./mode";
+		import "./app.css";
+
+		const app = App({ target: document.getElementById("root")! });
+
+		// HMR: vite needs the accept call to be statically present in the entry, and the app tears down
+		// every root it rendered before the entry re-runs, so edits patch the page instead of reloading it.
+		if (import.meta.hot) {
+			import.meta.hot.accept();
+			import.meta.hot.dispose(app.unmount);
+		}
+
+		app.render(ModeWatcher({ manager: mode }), Counter());
+	` + "\n"
+	);
+}
+
 function counter(ctx: TemplateContext): string {
 	const links = [
 		{ label: "Documentation", href: DOCS_URL },
@@ -102,8 +139,22 @@ function counter(ctx: TemplateContext): string {
 			href: `${DOCS_URL}/tree/main/packages/primitives`,
 		});
 	}
+	if (hasAddon(ctx, "forms")) {
+		links.splice(1, 0, { label: "Forms", href: `${DOCS_URL}/tree/main/packages/formish` });
+	}
+	if (hasAddon(ctx, "modeWatcher")) {
+		links.splice(1, 0, {
+			label: "Dark mode",
+			href: `${DOCS_URL}/tree/main/packages/mode-watcher`,
+		});
+	}
 
-	return counterComponent(ctx, { editPath: "src/counter.ts", links });
+	return counterComponent(ctx, {
+		editPath: "src/counter.ts",
+		links,
+		formImport: "./sign-up-form",
+		modeImport: "./mode",
+	});
 }
 
 function readme(ctx: TemplateContext): string {

@@ -95,6 +95,8 @@ my-app/
 │  │  └ utils.ts
 │  ├ routes/
 │  ├ app.css
+│  ├ app.d.ts
+│  ├ hooks.server.ts
 │  └ index.html
 └ static/
 ```
@@ -104,6 +106,8 @@ project root, so kit serves the one under `src/` itself and moves it back to the
 build — a root `index.html` still works if you prefer it there.
 
 `src/routes` is the routing tree — every file in it is a page, layout, or error boundary, covered in [Routing](/kit/routing).
+
+`src/hooks.server.ts` runs on every server request, and `src/app.d.ts` is where you type what it hands your routes — both covered in [Server Hooks](/kit/hooks). Neither is required.
 
 `src/lib` is for everything that isn't a route: components, utilities, shared state. Kit aliases `@/lib` to it automatically — in Vite and, through the generated tsconfig, in TypeScript — so imports stay flat no matter how deep the importing file sits:
 
@@ -135,10 +139,12 @@ sync(new URL("..", import.meta.url).pathname);
 
 ## Options
 
-`kit()` takes four options:
+`kit()` takes five options:
 
 - `routes` — the routes directory relative to your Vite root. Defaults to `"src/routes"`.
+- `hooks` — the [server hooks](/kit/hooks) file relative to your Vite root. Defaults to `"src/hooks.server.ts"`.
 - `prerender` — `false` to skip prerendering on build, or `{ entries }` to add dynamic routes to it. Covered in [SSR & Prerendering](/kit/ssr-and-prerendering).
+- `env` — where the two environment-variable files live, relative to your Vite root. Defaults to `src/lib/env.public.ts` and `src/lib/env.server.ts`, and a file that isn't there turns that half off. Covered in [Environment Variables](/kit/environment-variables).
 - `alias` — extra import aliases on top of the automatic `@/lib`, mapped to paths relative to your Vite root. Like `@/lib`, each one is wired into both Vite and the generated tsconfig, so the bundler and the typechecker always agree:
 
 ```ts
@@ -152,8 +158,6 @@ kit({
 ```
 
 If you run [`sync`](#the-implement-directory) in a check script, pass it the same map so the regenerated tsconfig matches: `sync(root, { alias: { ... } })`.
-
-- `env` — where the two environment-variable files live, relative to your Vite root. Defaults to `src/lib/env.public.ts` and `src/lib/env.server.ts`, and a file that isn't there turns that half off. Covered in [Environment Variables](/kit/environment-variables).
 
 ## Where to next
 

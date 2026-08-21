@@ -1,14 +1,18 @@
 import {
 	create as createPages,
+	formish as formishPages,
 	kit as kitPages,
 	lucide as lucidePages,
+	modeWatcher as modeWatcherPages,
 	pages,
 	primitives as primitivePages,
 	tutorials as generated,
 	ui as uiPages,
 	type CreatePage,
+	type FormishPage,
 	type KitPage,
 	type LucidePage,
+	type ModeWatcherPage,
 	type Page,
 	type PrimitivePage,
 	type Tutorial as GeneratedTutorial,
@@ -19,14 +23,18 @@ import { stripLessonSource } from "./lesson-source";
 
 export {
 	createPages,
+	formishPages,
 	kitPages,
 	lucidePages,
+	modeWatcherPages,
 	pages,
 	primitivePages,
 	uiPages,
 	type CreatePage,
+	type FormishPage,
 	type KitPage,
 	type LucidePage,
+	type ModeWatcherPage,
 	type Page,
 	type PrimitivePage,
 	type UiPage,
@@ -129,5 +137,5 @@ function dirFiles(
 			path: key.slice(prefix.length),
 			content: stripLessonSource(content),
 		}))
-		.sort((a, b) => a.path.localeCompare(b.path));
+		.toSorted((a, b) => a.path.localeCompare(b.path));
 }
