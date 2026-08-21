@@ -101,6 +101,13 @@ export type RequestEvent<Params extends Record<string, string> = Record<string, 
 	locals: App.Locals;
 	/** Whether this is a client navigation's `__data.json` request rather than a document request. */
 	isDataRequest: boolean;
+	/**
+	 * Whatever the adapter hosting the app hands its requests — Cloudflare's
+	 * `env` and `context`, say. `undefined` in dev, while prerendering, and
+	 * under any adapter with nothing to offer. Typed by the app through
+	 * `App.Platform`.
+	 */
+	platform: Readonly<App.Platform> | undefined;
 	/** Adds headers to the response `resolve` produces. Each header may only be set once. */
 	setHeaders: (headers: Record<string, string>) => void;
 	getClientAddress: () => string;

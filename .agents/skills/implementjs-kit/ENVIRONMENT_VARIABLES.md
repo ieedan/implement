@@ -179,11 +179,11 @@ Two things keep this from being annoying:
 
 What is left is a `vite build` for an app whose loads read `DATABASE_URL`. That build genuinely cannot produce correct output without it, so failing is the honest result.
 
-## Scope: server variables are build time secrets
+## Scope: server variables are build time values
 
-Kit has no production server yet. The build prerenders, so a server env var is read **once, during `vite build`**, not per request. `DATABASE_URL` is the credential your build uses to fetch content, not one a running server holds.
+Both files are evaluated **once, during `vite build`**, and re-emitted as literals. A server variable is baked into whatever the build produces: the prerendered pages with no adapter, the server bundle with one.
 
-That is a real simplification: everything can be static, and there is no dynamic counterpart to reason about. It also means the story changes when a server adapter lands and non-GET endpoints can ship. Runtime environment values are additive work for that phase.
+That is a real simplification: there is no dynamic counterpart to reason about, and a variable's value is visible in the artifact you are about to ship. It is also the thing to know before deploying a server with an [adapter](./ADAPTERS.md) — `DATABASE_URL` is compiled into the server bundle, so rotating it means rebuilding, and the artifact holds the secret. Read `process.env` in the route itself for a value the running server should pick up. A validated, typed, per-request counterpart is additive work on top of what is here.
 
 ## Running outside kit
 

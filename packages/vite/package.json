@@ -7,6 +7,10 @@
 		".": {
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
+		},
+		"./inject": {
+			"types": "./src/inject.ts",
+			"default": "./src/inject.ts"
 		}
 	},
 	"scripts": {

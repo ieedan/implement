@@ -166,9 +166,10 @@ src/routes/docs
 		.md/server.ts           → /docs/<slug>.md
 ```
 
-On build, `GET` endpoints prerender into real files (extension endpoints over
-params derive their paths from the prerendered pages); other methods work in
-dev and will need a server adapter to ship.
+On build with no adapter, `GET` endpoints prerender into real files (extension
+endpoints over params derive their paths from the prerendered pages) and other
+methods work in dev only. With an adapter every method ships — see
+[Adapters](#adapters-phase-5).
 
 ## Server Hooks (Phase 3)
 
@@ -248,11 +249,72 @@ file — and a prefix is visible at every call site.
 
 ### Scope
 
-Kit has no production server, so a server env var is a **build-time secret**:
-`DATABASE_URL` is read during `vite build`, not per request. There is no
-`$env/dynamic` counterpart to design yet — that is additive work for the adapter
-phase, when non-GET endpoints can ship.
+Both files are evaluated once, during `vite build`, so a server env var is a
+**build-time value**: `DATABASE_URL` is read during the build and baked into
+what it produces — the prerendered pages with no adapter, the server bundle
+with one. Rotating it means rebuilding, and the artifact holds the secret.
+
+A `$env/dynamic` counterpart — validated, typed, read per request — is the
+obvious next piece, and is additive on top of this.
 
 A missing or malformed variable fails the build with no opt-out, reporting every
 failing key at once. This is lazy at module granularity: an app that never
 imports `env.server.ts` never validates it.
+
+## Adapters (Phase 5)
+
+Implemented. `kit({ adapter })` decides what the build produces. Without one,
+`vite build` writes a static site into `build.outDir` and anything that has to
+run when a request arrives has nowhere to go. With one, the build is staged
+under `.implement/output` — `client/`, holding the browser bundle with
+everything prerendered into it, and `server/`, a second Vite build of the app's
+request pipeline — and the adapter turns that pair into the shape its host
+deploys.
+
+```ts
+// vite.config.ts
+import { kit } from "@implementjs/kit";
+import adapter from "@implementjs/adapter-node";
+
+export default defineConfig({ plugins: [kit({ adapter: adapter() })] });
+```
+
+Four adapters ship: `@implementjs/adapter-static` (plain files, with an SPA
+fallback and a check that no route was left without one),
+`@implementjs/adapter-node` (a directory `node dist` serves),
+`@implementjs/adapter-vercel` (Build Output API v3), and
+`@implementjs/adapter-cloudflare` (a module worker bundled for `workerd`, with
+the worker's bindings on `event.platform`).
+
+The server build runs on the same config as the client one, so the app's
+plugins, aliases, and env replacement apply to both. What differs is the entry,
+the output, and what may stay external: a host that uploads a single artifact
+bundles everything, a Node server next to its own `node_modules` does not.
+
+### The handler
+
+`@implementjs/kit/handler` is what a built app ships: web-standard `Request` in,
+`Response` out, with no `node:*` anywhere in its graph, so the same module runs
+behind a Node server, a serverless function, and a worker. Everything
+platform-specific stays outside it — an adapter serves the static assets and
+the prerendered pages however its host does, and hands whatever misses to the
+handler. `@implementjs/kit/node` carries the `node:http` bridge (the dev
+middleware uses the same one) and the static, prerendered, and app middlewares
+a Node host composes.
+
+An adapter that needs its own shape of entry point — a worker's
+`export default { fetch }`, a platform's request signature — supplies
+`build.entry`, which imports the app through the `$implement/handler` virtual
+module. `event.platform` is what the host hands the app through it: Cloudflare's
+`env` and `ctx`, typed by the app through `App.Platform`.
+
+### Prerendering becomes per route
+
+A server changes what is worth prerendering, because a page whose load reads
+the session must not be frozen at build time. Routes declare `export const
+prerender` from their server files — the nearest one to the page wins, so a
+layout can turn a section on and one page under it can opt back out — and the
+default follows the adapter: everything without one, and with a server, only
+what has no server load behind it. The crawl that discovers routes filters as
+it walks, so a page that will be rendered per request never has its loads run
+during the build.

@@ -49,6 +49,12 @@ declare global {
 		interface Error {
 			message: string;
 		}
+		/**
+		 * What the adapter puts on `event.platform` — empty until an adapter
+		 * fills it in. `@implementjs/adapter-cloudflare` declares the worker's
+		 * `env`, `context`, and `caches` here.
+		 */
+		interface Platform {}
 	}
 }
 
@@ -279,6 +285,8 @@ export type PageDocument = (page: {
 export type RespondOptions = {
 	document?: PageDocument;
 	getClientAddress?: () => string;
+	/** What the host hands the request — surfaced to the app as `event.platform`. */
+	platform?: App.Platform;
 	/**
 	 * Called with every unexpected error the pipeline catches, before the app's
 	 * `handleError` sees it — so a server error reaches the terminal even when
@@ -355,6 +363,7 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			route: { id: endpoint?.route.id ?? page?.route.id ?? null },
 			locals: {},
 			isDataRequest,
+			platform: respondOptions.platform,
 			setHeaders: (values) => {
 				for (const [name, value] of Object.entries(values)) {
 					const header = name.toLowerCase();
@@ -368,7 +377,9 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			getClientAddress:
 				respondOptions.getClientAddress ??
 				(() => {
-					throw new Error("getClientAddress is not available while prerendering");
+					throw new Error(
+						"getClientAddress is not available — nothing is serving this request a client to name (the prerender, or a host that did not supply one)",
+					);
 				}),
 		};
 

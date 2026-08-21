@@ -1,11 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
-import { Readable } from "node:stream";
 import { collectDevStyles, injectSsr } from "@implementjs/vite";
 import type { Connect, ViteDevServer } from "vite";
 import type { ServerRoute } from "./codegen.ts";
 import { dataPath, matchRoutePattern, type EndpointRoute, type RequestHandler } from "./match.ts";
+import { sendResponse, toRequest } from "./node.ts";
 import { extensionPattern } from "./scan.ts";
 import {
 	formatServerError,
@@ -39,41 +39,6 @@ const boldRed = (text: string) => (COLOR ? `\u001B[1m\u001B[31m${text}\u001B[39m
  */
 function tagged(message: string): string {
 	return `${dim(new Date().toLocaleTimeString())} ${boldRed("[implement]")} ${message}`;
-}
-
-function toRequest(req: IncomingMessage, url: URL): Request {
-	const method = req.method ?? "GET";
-	const headers = new Headers();
-	for (const [name, value] of Object.entries(req.headers)) {
-		if (value === undefined) continue;
-		if (Array.isArray(value)) {
-			for (const entry of value) headers.append(name, entry);
-		} else {
-			headers.set(name, value);
-		}
-	}
-	const body =
-		method === "GET" || method === "HEAD"
-			? undefined
-			: // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Node Readable streams convert to Fetch BodyInit for endpoint handlers.
-				(Readable.toWeb(req) as unknown as BodyInit);
-	const init: RequestInit = { method, headers, body };
-	// streaming request bodies require half duplex
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- RequestInit duplex is required for streaming request bodies.
-	if (body !== undefined) (init as { duplex?: string }).duplex = "half";
-	return new Request(url, init);
-}
-
-async function sendResponse(res: ServerResponse, response: Response, head: boolean): Promise<void> {
-	res.statusCode = response.status;
-	response.headers.forEach((value, name) => {
-		res.setHeader(name, value);
-	});
-	if (head || response.body === null) {
-		res.end();
-		return;
-	}
-	res.end(Buffer.from(await response.arrayBuffer()));
 }
 
 /**
@@ -146,6 +111,12 @@ export async function prerenderServerFiles(options: {
 	entry: string;
 	hasLoads: boolean;
 	serverRoutes: ServerRoute[];
+	/**
+	 * Whether an endpoint should become a file. Defaults to every GET endpoint,
+	 * which is what a static build needs; a server adapter passes the app's
+	 * prerender policy instead.
+	 */
+	shouldPrerender?: (route: { file: string }) => boolean | Promise<boolean>;
 	logger: {
 		info(message: string): void;
 		warn(message: string): void;
@@ -153,12 +124,16 @@ export async function prerenderServerFiles(options: {
 	};
 	/** Vite root and routes directory, for naming the file an error came from. */
 	source: { root: string; routes: string };
-}): Promise<void> {
+	/** Every file written, as site-root-relative paths. */
+}): Promise<string[]> {
 	const { routes, outDir, load, entry, hasLoads, serverRoutes, logger, source } = options;
+	const shouldPrerender = options.shouldPrerender ?? (() => true);
+	const files: string[] = [];
 	const write = (path: string, contents: string | Buffer) => {
 		const out = join(outDir, path.slice(1));
 		mkdirSync(dirname(out), { recursive: true });
 		writeFileSync(out, contents);
+		files.push(path);
 	};
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated server entry exports the app request pipeline.
 	const { respond } = (await load(entry)) as unknown as KitServer;
@@ -182,7 +157,7 @@ export async function prerenderServerFiles(options: {
 		logger.info(`wrote ${written} route data payloads`);
 	}
 
-	if (serverRoutes.length === 0) return;
+	if (serverRoutes.length === 0) return files;
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated endpoints module exports the compiled endpoint route table.
 	const { endpoints } = (await load(ENDPOINTS_ID)) as unknown as { endpoints: EndpointRoute[] };
 	const failed: string[] = [];
@@ -190,6 +165,7 @@ export async function prerenderServerFiles(options: {
 	for (const endpoint of endpoints) {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint module handlers are keyed by HTTP method name.
 		const handler = endpoint.module.GET as RequestHandler | undefined;
+		if (!(await shouldPrerender(endpoint))) continue;
 		if (handler === undefined) {
 			logger.warn(`skipping ${endpoint.file} — only GET endpoints prerender`);
 			continue;
@@ -229,4 +205,5 @@ export async function prerenderServerFiles(options: {
 	if (failed.length > 0) {
 		throw new Error(`endpoint prerender failed:\n  ${failed.join("\n  ")}`);
 	}
+	return files;
 }

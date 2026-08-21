@@ -148,7 +148,7 @@ The prerender renders every `GET` endpoint into a real file in `dist/`, so the b
 
 A `GET` that throws or answers non-`2xx` during the prerender **fails the build**, listing the paths that failed. A skipped payload otherwise looks like a route that simply had nothing to write.
 
-That table generalizes to one rule: the built site is static. `GET` endpoints survive as files; `POST` and friends only exist while a server is running (dev today, a server adapter eventually). Design the endpoints you intend to ship as prerenderable `GET`s.
+That table describes a build with no adapter, where the built site is static: `GET` endpoints survive as files, and `POST` and friends only exist while the dev server is running. With an [adapter](./ADAPTERS.md) every method ships and the endpoint runs per request — and `GET` endpoints stop prerendering by default, since the server answers them with fresher data than the build could. `export const prerender = true` from the `server.ts` puts one back in the build as a file.
 
 ## In dev
 

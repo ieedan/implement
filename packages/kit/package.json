@@ -11,6 +11,18 @@
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
 		},
+		"./adapter": {
+			"types": "./src/adapter.ts",
+			"default": "./src/adapter.ts"
+		},
+		"./handler": {
+			"types": "./src/handler.ts",
+			"default": "./src/handler.ts"
+		},
+		"./node": {
+			"types": "./src/node.ts",
+			"default": "./src/node.ts"
+		},
 		"./server": {
 			"types": "./src/server.ts",
 			"default": "./src/server.ts"
