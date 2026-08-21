@@ -1,7 +1,10 @@
 packages:
   - "packages/*"
   - "apps/*"
+  - "apps/comparison/*"
 allowBuilds:
   "@parcel/watcher": true
   esbuild: true
   sharp: true
+minimumReleaseAgeExclude:
+  - svelte@5.56.10

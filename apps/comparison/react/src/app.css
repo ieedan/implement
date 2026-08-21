@@ -1,0 +1,278 @@
+/*
+ * Shared stylesheet. Byte-for-byte identical in all three apps so the size
+ * comparison isolates the JavaScript each framework ships.
+ */
+
+:root {
+	--bg: #fbfbfd;
+	--panel: #ffffff;
+	--border: #e3e3e8;
+	--text: #16161a;
+	--muted: #6b6b76;
+	--accent: #3b5bdb;
+	--accent-soft: #edf0fd;
+	--danger: #c92a2a;
+	--high: #c92a2a;
+	--medium: #b8860b;
+	--low: #2b8a3e;
+	--radius: 8px;
+	color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #111114;
+		--panel: #18181c;
+		--border: #2a2a31;
+		--text: #ececf1;
+		--muted: #9a9aa6;
+		--accent: #748ffc;
+		--accent-soft: #1e2340;
+		--danger: #ff6b6b;
+		--high: #ff8787;
+		--medium: #ffd43b;
+		--low: #69db7c;
+	}
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font:
+		14px/1.5 ui-sans-serif,
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+
+.app {
+	max-width: 1040px;
+	margin: 0 auto;
+	padding: 24px 20px 64px;
+}
+
+.masthead {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	flex-wrap: wrap;
+	margin-bottom: 20px;
+}
+
+.masthead h1 {
+	font-size: 20px;
+	font-weight: 650;
+	letter-spacing: -0.01em;
+	margin: 0;
+}
+
+.masthead .framework {
+	color: var(--muted);
+	font-weight: 400;
+}
+
+.stats {
+	display: flex;
+	gap: 16px;
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.stats b {
+	color: var(--text);
+	font-weight: 600;
+}
+
+.panel {
+	background: var(--panel);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+
+.toolbar {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: center;
+	padding: 12px;
+	margin-bottom: 16px;
+}
+
+.toolbar .grow {
+	flex: 1 1 200px;
+}
+
+input,
+select,
+button {
+	font: inherit;
+	color: inherit;
+	border: 1px solid var(--border);
+	background: var(--panel);
+	border-radius: 6px;
+	padding: 6px 10px;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+button {
+	cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+	border-color: var(--accent);
+}
+
+button:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+button.primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
+}
+
+button.on {
+	background: var(--accent-soft);
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+.segmented {
+	display: flex;
+}
+
+.segmented button {
+	border-radius: 0;
+	margin-left: -1px;
+}
+
+.segmented button:first-child {
+	border-radius: 6px 0 0 6px;
+	margin-left: 0;
+}
+
+.segmented button:last-child {
+	border-radius: 0 6px 6px 0;
+}
+
+.rows {
+	overflow: hidden;
+}
+
+.row {
+	display: grid;
+	grid-template-columns: 28px 1fr 84px 120px 32px;
+	gap: 10px;
+	align-items: center;
+	padding: 7px 12px;
+	border-top: 1px solid var(--border);
+	cursor: pointer;
+}
+
+.row:first-child {
+	border-top: 0;
+}
+
+.row.selected {
+	background: var(--accent-soft);
+}
+
+.row.done .title {
+	color: var(--muted);
+	text-decoration: line-through;
+}
+
+.row .title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.row .assignee {
+	color: var(--muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.badge {
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.badge.high {
+	color: var(--high);
+}
+
+.badge.medium {
+	color: var(--medium);
+}
+
+.badge.low {
+	color: var(--low);
+}
+
+.remove {
+	border: 0;
+	background: none;
+	color: var(--muted);
+	padding: 2px 6px;
+	line-height: 1;
+}
+
+.remove:hover {
+	color: var(--danger);
+}
+
+.empty {
+	padding: 32px 12px;
+	text-align: center;
+	color: var(--muted);
+}
+
+.bench {
+	margin-top: 20px;
+	padding: 12px;
+}
+
+.bench h2 {
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--muted);
+	margin: 0 0 10px;
+}
+
+.bench-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.bench-result {
+	margin-top: 10px;
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.bench-result b {
+	color: var(--text);
+}

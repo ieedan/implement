@@ -32,6 +32,14 @@ export default defineConfig({
 			},
 		},
 		{
+			// The benchmark driver and the three comparison apps talk to each other
+			// through globals a page harness conventionally underscores.
+			files: ["apps/comparison/**/*.ts"],
+			rules: {
+				"no-underscore-dangle": ["warn", { allow: ["__bench", "__domCounts", "__resetDomCounts"] }],
+			},
+		},
+		{
 			// Compile-time type assertions use leading underscores as a convention.
 			files: ["**/type-test.ts"],
 			rules: {

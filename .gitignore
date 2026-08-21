@@ -25,6 +25,7 @@ apps/docs/static/velite/
 
 # Build output
 dist/
+dist-baseline/
 build/
 out/
 .next/
