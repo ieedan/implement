@@ -673,6 +673,9 @@ class CommandState {
 	}
 
 	onKeydown(e: KeyboardEvent) {
+		// something inside the list already claimed this key (a menu moving its
+		// own highlight, say); moving ours too would fire both at once
+		if (e.defaultPrevented) return;
 		const isVim = this.opts.vimBindings !== false && e.ctrlKey;
 		switch (e.key) {
 			case "n":

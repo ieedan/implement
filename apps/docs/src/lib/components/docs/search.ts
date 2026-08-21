@@ -11,16 +11,17 @@ import {
 	type Mountable,
 	type Signal,
 } from "@implementjs/core";
-import { ArrowRightIcon, FileTextIcon, SearchIcon } from "@implementjs/lucide";
+import { ArrowRightIcon, SearchIcon } from "@implementjs/lucide";
 import {
 	Dialog as DialogPrimitive,
 	DialogContent as DialogContentPrimitive,
 	DialogDescription as DialogDescriptionPrimitive,
 	DialogOverlay as DialogOverlayPrimitive,
+	DialogPortal as DialogPortalPrimitive,
 	DialogTitle as DialogTitlePrimitive,
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
-import { kitPages, lucidePages, pages, primitivePages } from "@/lib/content";
+import { kitPages, lucidePages, pages, primitivePages, tutorials } from "@/lib/content";
 import { copyText } from "@/lib/copy-text";
 import {
 	Command,
@@ -39,29 +40,46 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { MarkdownIcon } from "./brand-icons";
 
-/** The shape all four content collections share. */
+/** The shape every content collection shares. */
 type DocPage = { title: string; description: string; permalink: string };
 
-type AreaKey = "lib" | "kit" | "primitives" | "lucide";
+type AreaKey = "lib" | "kit" | "primitives" | "lucide" | "tutorial";
 
-type Area = { key: AreaKey; label: string; pages: DocPage[] };
+type Area = {
+	key: AreaKey;
+	label: string;
+	pages: DocPage[];
+	/** Whether kit serves a `.md` twin next to these pages (lessons have none). */
+	markdown: boolean;
+};
 
 const areas: Area[] = [
-	{ key: "lib", label: "Lib", pages },
-	{ key: "kit", label: "Kit", pages: kitPages },
-	{ key: "primitives", label: "Primitives", pages: primitivePages },
-	{ key: "lucide", label: "Lucide", pages: lucidePages },
+	{ key: "lib", label: "@implementjs/core", pages, markdown: true },
+	{ key: "kit", label: "@implementjs/kit", pages: kitPages, markdown: true },
+	{
+		key: "primitives",
+		label: "@implementjs/primitives",
+		pages: primitivePages,
+		markdown: true,
+	},
+	{ key: "lucide", label: "@implementjs/lucide", pages: lucidePages, markdown: true },
+	{ key: "tutorial", label: "Tutorial", pages: tutorials, markdown: false },
 ];
 
 /** Titles repeat across areas ("Introduction"), so items key on area + title. */
 function entryValue(area: Area, page: DocPage): string {
-	return `${area.label} ${page.title}`;
+	return `${area.key} ${page.title}`;
 }
 
-const entryByValue = new Map<string, DocPage>();
+type Entry = { page: DocPage; markdown: boolean };
+
+const entryByValue = new Map<string, Entry>();
 for (const area of areas) {
-	for (const page of area.pages) entryByValue.set(entryValue(area, page), page);
+	for (const page of area.pages) {
+		entryByValue.set(entryValue(area, page), { page, markdown: area.markdown });
+	}
 }
 
 const kbdClass =
@@ -84,7 +102,9 @@ function AreaChip(area: Signal<"all" | AreaKey>, key: "all" | AreaKey, label: st
 		{
 			type: "button",
 			class: derived([area], (current) => [
-				"rounded-md border px-3 py-1 text-xs font-medium transition-colors",
+				"shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors",
+				// package names read as code; "All" and "Tutorial" are prose
+				label.startsWith("@") ? "font-mono" : "",
 				current === key
 					? "border-foreground/25 bg-accent text-foreground"
 					: "border-border text-muted-foreground hover:text-foreground",
@@ -194,122 +214,136 @@ export function DocsSearch(): Mountable {
 			Span({ class: "flex-1 text-left max-sm:hidden" }, "Search docs..."),
 			Kbd({ class: [kbdClass, "max-sm:hidden"] }, "⌘K"),
 		),
-		DialogOverlayPrimitive({
-			class: [
-				"fixed inset-0 z-50 bg-black/50",
-				"transition-[opacity,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
-				"data-[state=open]:block data-[state=open]:opacity-100",
-				"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:opacity-0",
-				"starting:data-[state=open]:opacity-0",
-			],
-		}),
-		DialogContentPrimitive(
-			{
+		// portaled to the body: the site header is a `z-10` stacking context, so
+		// an overlay left inside it paints under the page's own dialogs
+		DialogPortalPrimitive(
+			DialogOverlayPrimitive({
 				class: [
-					"fixed top-[12%] left-1/2 z-50 w-full max-w-2xl -translate-x-1/2 overflow-hidden rounded-xl border bg-background text-foreground shadow-lg outline-none",
-					"transition-[opacity,scale,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
-					"data-[state=open]:block data-[state=open]:scale-100 data-[state=open]:opacity-100",
-					"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:scale-95 data-[state=closed]:opacity-0",
-					"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
+					"fixed inset-0 z-60 bg-black/50",
+					"transition-[opacity,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
+					"data-[state=open]:block data-[state=open]:opacity-100",
+					"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:opacity-0",
+					"starting:data-[state=open]:opacity-0",
 				],
-			},
-			DialogTitlePrimitive({ class: "sr-only" }, "Search docs"),
-			DialogDescriptionPrimitive(
-				{ class: "sr-only" },
-				"Search every docs page by title and description.",
-			),
-			Command(
+			}),
+			DialogContentPrimitive(
 				{
-					label: "Search docs",
-					value,
-					search,
-					// ctrl+k opens the actions menu instead of moving the highlight
-					vimBindings: false,
-					class: "bg-transparent",
+					class: [
+						"fixed top-[12%] left-1/2 z-60 w-full max-w-2xl -translate-x-1/2 overflow-hidden rounded-xl border bg-background text-foreground shadow-lg outline-none",
+						"transition-[opacity,scale,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
+						"data-[state=open]:block data-[state=open]:scale-100 data-[state=open]:opacity-100",
+						"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:scale-95 data-[state=closed]:opacity-0",
+						"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
+					],
 				},
-				Div(
-					{ class: "flex items-center gap-2 px-3 pt-3 pb-1" },
-					AreaChip(area, "all", "All"),
-					...areas.map((entry) => AreaChip(area, entry.key, entry.label)),
-					Kbd({ class: [kbdClass, "ml-auto"] }, "esc"),
+				DialogTitlePrimitive({ class: "sr-only" }, "Search docs"),
+				DialogDescriptionPrimitive(
+					{ class: "sr-only" },
+					"Search every docs page by title and description.",
 				),
-				CommandInput({ id: SEARCH_INPUT_ID, placeholder: "Search docs..." }),
-				CommandList(
-					{ class: "h-80 max-h-[50dvh]" },
-					CommandViewport(
-						{},
-						CommandEmpty({}, "No results found."),
-						...areas.map((entry) =>
-							If(derived([area], (current) => current === "all" || current === entry.key)).Then(
-								CommandGroup(
-									{ value: entry.label },
-									CommandGroupHeading({}, entry.label),
-									CommandGroupItems(
-										{ class: "p-0 py-1" },
-										...entry.pages.map((page) => ResultItem(page, entryValue(entry, page), goTo)),
-									),
-								),
-							),
-						),
-					),
-				),
-				Div(
+				Command(
 					{
-						class:
-							"flex items-center justify-end gap-3 border-t px-3 py-2 text-xs text-muted-foreground",
+						label: "Search docs",
+						value,
+						search,
+						// ctrl+k opens the actions menu instead of moving the highlight
+						vimBindings: false,
+						class: "bg-transparent",
 					},
 					Div(
-						{ class: "flex min-w-0 items-center gap-2" },
-						Span(
-							{ class: "truncate" },
-							selected.bind((entry) => (entry === null ? "Go to page" : `Go to ${entry.title}`)),
+						{ class: "flex items-center gap-2 px-3 pt-3 pb-1" },
+						// the filters scroll sideways rather than wrap; esc stays put beside them
+						Div(
+							{ class: "no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" },
+							AreaChip(area, "all", "All"),
+							...areas.map((entry) => AreaChip(area, entry.key, entry.label)),
 						),
-						Kbd({ class: kbdClass }, "⏎"),
+						Kbd({ class: [kbdClass, "shrink-0"] }, "esc"),
 					),
-					Div({ class: "h-4 w-px bg-border", "aria-hidden": true }),
-					DropdownMenu(
-						{ open: actionsOpen, preventScroll: false },
-						DropdownMenuTrigger(
-							{
-								variant: "ghost",
-								size: "xs",
-								class: "gap-2 text-xs text-muted-foreground hover:text-foreground",
-							},
-							"Actions",
-							Kbd({ class: kbdClass }, "⌘K"),
-						),
-						DropdownMenuContent(
-							{ side: "top", align: "end", class: "w-64" },
-							DropdownMenuItem(
-								{
-									onSelect: () => {
-										const page = selected.get();
-										if (page) goTo(page);
-									},
-								},
-								Span(
-									{ class: "truncate" },
-									selected.bind((entry) =>
-										entry === null ? "Go to page" : `Go to ${entry.title}`,
+					CommandInput({ id: SEARCH_INPUT_ID, placeholder: "Search docs..." }),
+					CommandList(
+						{ class: "h-80 max-h-[50dvh]" },
+						CommandViewport(
+							{},
+							CommandEmpty({}, "No results found."),
+							...areas.map((entry) =>
+								If(derived([area], (current) => current === "all" || current === entry.key)).Then(
+									CommandGroup(
+										{ value: entry.label },
+										// package names are cased as published, not upper-cased like the base heading
+										CommandGroupHeading({ class: "font-mono [text-transform:none]!" }, entry.label),
+										CommandGroupItems(
+											{ class: "p-0 py-1" },
+											...entry.pages.map((page) => ResultItem(page, entryValue(entry, page), goTo)),
+										),
 									),
 								),
-								ArrowRightIcon({
-									class: "ml-auto size-4 text-muted-foreground",
-									"aria-hidden": true,
-								}),
 							),
-							DropdownMenuItem(
+						),
+					),
+					Div(
+						{
+							class:
+								"flex items-center justify-end gap-3 border-t px-3 py-2 text-xs text-muted-foreground",
+						},
+						Div(
+							{ class: "flex min-w-0 items-center gap-2" },
+							Span(
+								{ class: "truncate" },
+								selected.bind((entry) =>
+									entry === null ? "Go to page" : `Go to ${entry.page.title}`,
+								),
+							),
+							Kbd({ class: kbdClass }, "⏎"),
+						),
+						Div({ class: "h-4 w-px bg-border", "aria-hidden": true }),
+						DropdownMenu(
+							{ open: actionsOpen, preventScroll: false },
+							DropdownMenuTrigger(
 								{
-									onSelect: () => {
-										const page = selected.get();
-										if (page) void copyMarkdown(page);
-									},
+									variant: "ghost",
+									size: "xs",
+									class: "gap-2 text-xs text-muted-foreground hover:text-foreground",
 								},
-								"Copy Markdown",
-								FileTextIcon({
-									class: "ml-auto size-4 text-muted-foreground",
-									"aria-hidden": true,
-								}),
+								"Actions",
+								Kbd({ class: kbdClass }, "⌘K"),
+							),
+							DropdownMenuContent(
+								{ side: "top", align: "end", class: "w-64" },
+								DropdownMenuItem(
+									{
+										onSelect: () => {
+											const entry = selected.get();
+											if (entry) goTo(entry.page);
+										},
+									},
+									Span(
+										{ class: "truncate" },
+										selected.bind((entry) =>
+											entry === null ? "Go to page" : `Go to ${entry.page.title}`,
+										),
+									),
+									ArrowRightIcon({
+										class: "ml-auto size-4 text-muted-foreground",
+										"aria-hidden": true,
+									}),
+								),
+								// lessons have no markdown twin, so the action drops out for them
+								If(derived([selected], (entry) => entry?.markdown === true)).Then(
+									DropdownMenuItem(
+										{
+											onSelect: () => {
+												const entry = selected.get();
+												if (entry) void copyMarkdown(entry.page);
+											},
+										},
+										"Copy Markdown",
+										MarkdownIcon({
+											class: "ml-auto size-4 text-muted-foreground",
+											"aria-hidden": true,
+										}),
+									),
+								),
 							),
 						),
 					),

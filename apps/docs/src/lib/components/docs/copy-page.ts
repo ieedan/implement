@@ -1,6 +1,6 @@
 import { Div, If, signal, type Mountable } from "@implementjs/core";
-import { CheckIcon, ChevronDownIcon, CopyIcon, FileTextIcon } from "@implementjs/lucide";
-import { ClaudeIcon, OpenAIIcon } from "./brand-icons";
+import { CheckIcon, ChevronDownIcon, CopyIcon, ExternalLinkIcon } from "@implementjs/lucide";
+import { ClaudeIcon, MarkdownIcon, OpenAIIcon } from "./brand-icons";
 import { copyText } from "@/lib/copy-text";
 import { Button } from "../ui/button";
 import {
@@ -64,18 +64,20 @@ export function CopyPage(permalink: string): Mountable {
 				{ class: "w-56", align: "end" },
 				DropdownMenuItem(
 					{ onSelect: () => window.open(mdPath, "_blank", "noopener") },
-					FileTextIcon({ class: "size-4 text-foreground/60", "aria-hidden": true }),
+					MarkdownIcon({ class: "size-4 text-foreground/60", "aria-hidden": true }),
 					"View as Markdown",
 				),
 				DropdownMenuItem(
 					{ onSelect: () => openPrompt("https://chatgpt.com/?hints=search&q=") },
 					OpenAIIcon({ class: "size-4", "aria-hidden": true }),
 					"Open in ChatGPT",
+					ExternalLinkIcon({ class: "size-4 ml-auto text-muted-foreground", "aria-hidden": true })
 				),
 				DropdownMenuItem(
 					{ onSelect: () => openPrompt("https://claude.ai/new?q=") },
 					ClaudeIcon({ class: "size-4", "aria-hidden": true }),
 					"Open in Claude",
+					ExternalLinkIcon({ class: "size-4 ml-auto text-muted-foreground", "aria-hidden": true })
 				),
 			),
 		),

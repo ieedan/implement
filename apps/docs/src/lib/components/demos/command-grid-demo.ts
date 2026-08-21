@@ -74,7 +74,8 @@ export default function CommandGridDemo() {
 										{
 											value: name,
 											onSelect: () => picked.set(`${emoji} ${name}`),
-											class: "justify-center py-2 text-xl",
+											// square cells, so the highlight reads as a grid rather than rows
+										class: "aspect-square justify-center text-xl",
 										},
 										Span({ "aria-hidden": true }, emoji),
 										Span({ class: "sr-only" }, name),
