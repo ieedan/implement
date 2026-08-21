@@ -170,30 +170,35 @@ Splitting each operation into framework JavaScript and browser work says where
 optimizing pays — clearing 10k rows is almost entirely JavaScript, while creating
 10k rows is roughly half layout and paint that every framework pays alike.
 
-Six changes follow. All six are implemented and measured on the
+Nine changes follow. All nine are implemented and measured on the
 `perf-prototype` branch, in back-to-back runs of the baseline and the optimized
 builds on the same machine. (The tables above are a separate, earlier
 run on a different host and the two are not directly comparable — the container
 was replaced mid-session, and the untouched React and Svelte apps measured 1.48×
 slower afterwards, which is what caught it.)
 
-| operation                | baseline | + fixes 1–4 | + fixes 5, 6 | Svelte | React |
-| ------------------------ | -------: | ----------: | -----------: | -----: | ----: |
-| swap two rows of 1k      |      108 |          23 |       **22** |     22 |   108 |
-| clear 10k rows           |      382 |         270 |      **223** |    133 |   166 |
-| swap two rows of 10k     |      206 |         138 |      **138** |    114 |   229 |
-| filter 1k by text        |       46 |          35 |       **32** |     22 |    28 |
-| clear 2k rows            |       74 |          65 |       **53** |     34 |    43 |
-| append 1k to 1k          |      207 |         174 |      **166** |    147 |   141 |
-| clear the filter         |      159 |         154 |      **139** |    110 |   115 |
-| create 1k rows           |      209 |         201 |      **186** |    140 |   150 |
-| create 10k rows          |     1757 |        1813 |     **1600** |   1213 |  1532 |
-| JS heap at 10k rows (MB) |     89.5 |        75.3 |     **71.1** |   23.6 |  23.1 |
+| operation                | baseline | + 1–6 |    + 7–9 | change | Svelte | React |
+| ------------------------ | -------: | ----: | -------: | -----: | -----: | ----: |
+| swap two rows of 1k      |      108 |    22 |   **21** |   −80% |     21 |   108 |
+| clear 10k rows           |      382 |   223 |  **187** |   −51% |    142 |   166 |
+| swap two rows of 10k     |      206 |   138 |  **124** |   −40% |    122 |   229 |
+| clear 2k rows            |       74 |    53 |   **46** |   −38% |     34 |    43 |
+| filter 1k by text        |       46 |    32 |   **31** |   −32% |     23 |    28 |
+| append 1k to 1k          |      207 |   166 |  **146** |   −29% |    152 |   141 |
+| create 1k rows           |      209 |   186 |  **168** |   −20% |    147 |   150 |
+| create 10k rows          |     1757 |  1600 | **1511** |   −14% |   1260 |  1532 |
+| update every 10th of 1k  |       24 |    23 |   **21** |   −11% |     23 |    24 |
+| clear the filter         |      159 |   139 |  **146** |    −8% |    116 |   115 |
+| sort 1k by title         |      124 |   122 |  **115** |    −7% |    130 |   125 |
+| JS heap at 10k rows (MB) |     89.5 |  71.1 | **63.7** |   −29% |   23.6 |  23.1 |
 
-One result is still unexplained: sorting 1k rows back by id measured 107 ms at
-baseline, 140 ms after fixes 1–4 and 122 ms after 5 and 6, while the other sort
-in the same runs stayed flat at 122 ms. The reordering pass is the obvious
-suspect, and it needs chasing before this lands.
+implement now matches Svelte on a two-row swap, beats it on appending 1k rows,
+sorting by title, editing every tenth of 10k and selecting one row of 10k, and
+trails it on everything that creates or destroys rows in bulk.
+
+The one result that had been going the wrong way — sorting 1k rows back by id,
+107 ms at baseline against 140 ms after fixes 1–4 — has come back to 105 ms and
+now looks like it was run-to-run noise rather than the reordering pass.
 
 ### 1. Take a subtree out in one call
 
@@ -247,18 +252,21 @@ ten mountable objects per row, each with its own closure and subscription.
 ### Where creating a row actually goes
 
 Building the same 10,000 rows three ways, on the same page, splits the cost into
-three parts that want different fixes:
+parts that want different fixes. Measured before fixes 5–9, and again after:
 
-|                                      | create 10k | JS heap |
-| ------------------------------------ | ---------: | ------: |
-| the app's row (8 bindings)           |    1388 ms | 77.3 MB |
-| the same row with no bindings at all |    1074 ms | 29.8 MB |
-| hand-written DOM, no framework       |     724 ms |       — |
+|                                              |  create 10k |     JS heap |
+| -------------------------------------------- | ----------: | ----------: |
+| the app's row, before                        |     1388 ms |     77.3 MB |
+| the app's row, after                         | **1217 ms** | **63.8 MB** |
+| the same row with no bindings at all, before |     1074 ms |     29.8 MB |
+| the same row with no bindings at all, after  |     1134 ms | **21.5 MB** |
+| hand-written DOM, no framework               |      724 ms |           — |
 
-So of that 1,388 ms: 724 ms is the browser's, 350 ms is the element and mountable
-machinery, and 314 ms is the reactive graph. Memory divides the other way — the
-graph is **47 of the 77 MB**, and the DOM and mountables together are 30. That is
-why fixes 5 and 6 go after allocation rather than DOM calls.
+Reading the first pair against the third: the reactive graph cost 314 ms and
+47.5 MB before, and 83 ms and 42.3 MB after. Reading the second pair on its own:
+the fixed cost of a mounted element dropped from 29.8 MB to 21.5 MB, which is
+below React's 23.1 MB for its _reactive_ row. The create times of the static row
+differ by less than this measurement's run-to-run spread.
 
 ### 5. A cheaper parent link
 
@@ -279,22 +287,44 @@ one-source path keeps none of the three.
 Together, fixes 5 and 6 took the same page from 1,388 ms to 1,296 ms and 77.3 MB
 to 71.1 MB.
 
-### What is left
+### 7. One object per selector bind
 
-Named, with the evidence, but not written:
+`bind(selector)` built `new Flattened(new Derived(...))`, where the wrapper
+exists only to unwrap a selector that returns a readable — which most never do.
+`FlatDerived` is the `Derived` itself with the unwrap overridden onto `read` and
+`watch`, so a bind allocates one object instead of two. The gate the inner
+`Derived` used to provide moves into `watch`, so an unchanged getter result still
+does not tear down and rebuild the nested chain; there is a test for that,
+because it is the part the merge could plausibly have broken.
 
-- **`bind(selector)` allocates two objects**, `new Flattened(new Derived(...))`,
-  where the wrapper exists only for selectors that return a readable. Folding the
-  unwrap into `Derived` would halve the readable count for every selector bind —
-  five of the eight in this row. This is the largest remaining item for memory.
-- **Text mountables are object literals holding three closures each.** Four per
-  row is forty thousand objects at 10k rows; a class with a shared prototype
-  would cost one.
-- **`Component` allocates a children array even for childless elements** like
-  `Input`.
-- The remaining 350 ms of element machinery above the DOM floor has no single
-  owner yet — it needs the same decomposition treatment the reactive graph just
-  got.
+### 8. Text nodes as classes
+
+Static and reactive text children were object literals holding three closures
+each. Four text children a row and ten thousand rows is forty thousand of them,
+and an instance of a class costs one allocation where the literal cost four.
+
+### 9. No children array for childless elements
+
+`Component` allocated its mounted-children array up front. It is now allocated
+on the first child, so a void element like `Input` never carries one.
+
+Fixes 7–9 together took the heap from 71.1 MB to 63.8 MB.
+
+### The element machinery, decomposed
+
+The fourth item on the earlier list was the ~350 ms of element machinery above
+the DOM floor, which had no named owner. Profiling it after these fixes says it
+no longer has one to find: `mountChild` fell from 6.0% of creation to 0.5%,
+garbage collection from 14% to 8.8%, and what remains is the browser
+(`(program)`, 64.7%) plus the native DOM calls themselves —
+`appendChild`, `createElement`, `addEventListener`, `setAttribute`,
+`insertBefore` and `createTextNode` together about 11%. No framework function is
+above 1.2%.
+
+The one structural option left there is event delegation: 4 listeners a row is
+40,000 `addEventListener` calls, 2.5% of creation. Every one of them is a real
+listener because that is what the element API promises, so replacing them with a
+delegated root handler is an API change, not an optimization.
 
 ### What no amount of work removes
 
@@ -318,9 +348,9 @@ per row. implement can make each object smaller and rarer; it cannot make the
 count zero. That sets a floor on memory and creation somewhere above Svelte —
 though at 3.2× the heap today, it is nowhere near that floor yet.
 
-All six fixes are about 260 lines across sixteen files, keep the 72 core tests
-green, and add roughly 650 bytes gzipped (10.0 kB to 10.9 kB), still the smallest
-bundle of the three by a wide margin.
+All nine fixes are about 330 lines across seventeen files, keep the core tests
+green (73 now — the merge in fix 7 brought one with it), and add roughly 700
+bytes gzipped, still the smallest bundle of the three by a wide margin.
 
 ## Reading this fairly
 
