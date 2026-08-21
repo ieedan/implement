@@ -411,7 +411,10 @@ export const RangeCalendarCell = createComponent(function RangeCalendarCell(
 	...children: Child[]
 ) {
 	return CalendarBaseCtx.Use((base) => {
-		const root = base as RangeCalendarState;
+		if (!(base instanceof RangeCalendarState)) {
+			throw new Error("RangeCalendarCell must be used within a RangeCalendar.");
+		}
+		const root = base;
 		const dateR = toReadable(date);
 		const monthR = toReadable(month).bind((m) => (m instanceof CalendarDate ? m : m.value));
 		const flags = derived(

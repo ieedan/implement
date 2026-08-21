@@ -22,7 +22,6 @@ import {
 	resolveLoads,
 	type EndpointRoute,
 	type LoadRoute,
-	type RequestHandler,
 	type RouteData,
 	type ServerLoad,
 } from "@implementjs/kit/runtime";
@@ -97,12 +96,12 @@ async function endpointResponseBody(
 	params: Record<string, string>,
 	target: RouterLocation,
 ): Promise<string> {
-	const handler = route.module.GET as RequestHandler | undefined;
-	const url = new URL(target.path + target.search, "http://preview.local");
-	if (handler === undefined) {
+	const rawHandler = route.module.GET;
+	if (typeof rawHandler !== "function") {
 		return `405 Method Not Allowed — ${ROUTES_DIR}/${route.file} exports no GET handler.`;
 	}
-	const response = await handler({ request: new Request(url), params, url });
+	const url = new URL(target.path + target.search, "http://preview.local");
+	const response = await rawHandler({ request: new Request(url), params, url });
 	const body = await response.text();
 	return response.ok ? body : `HTTP ${response.status}\n\n${body}`;
 }

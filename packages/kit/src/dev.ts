@@ -11,7 +11,6 @@ import {
 	resolveLoads,
 	type EndpointRoute,
 	type LoadRoute,
-	type RequestHandler,
 } from "./match.ts";
 import { extensionPattern } from "./scan.ts";
 
@@ -101,14 +100,14 @@ export async function handleServerRequest(options: {
 
 	const method = req.method ?? "GET";
 	const handlerName = method === "HEAD" && !("HEAD" in match.route.module) ? "GET" : method;
-	const handler = match.route.module[handlerName] as RequestHandler | undefined;
-	if (handler === undefined) {
+	const rawHandler = match.route.module[handlerName];
+	if (typeof rawHandler !== "function") {
 		res.statusCode = 405;
 		res.setHeader("allow", METHODS.filter((name) => name in match.route.module).join(", "));
 		res.end();
 		return true;
 	}
-	const response = await handler({ request: toRequest(req, url), params: match.params, url });
+	const response = await rawHandler({ request: toRequest(req, url), params: match.params, url });
 	await sendResponse(res, response, method === "HEAD");
 	return true;
 }
@@ -152,8 +151,8 @@ export async function prerenderServerFiles(options: {
 	const failed: string[] = [];
 	let written = 0;
 	for (const endpoint of endpoints) {
-		const handler = endpoint.module.GET as RequestHandler | undefined;
-		if (handler === undefined) {
+		const rawHandler = endpoint.module.GET;
+		if (typeof rawHandler !== "function") {
 			logger.warn(`skipping ${endpoint.file} — only GET endpoints prerender`);
 			continue;
 		}
@@ -182,7 +181,7 @@ export async function prerenderServerFiles(options: {
 			const params = matchRoutePattern(endpoint.pattern, base) ?? {};
 			const url = new URL(target, "http://implement.internal");
 			try {
-				const response = await handler({ request: new Request(url), params, url });
+				const response = await rawHandler({ request: new Request(url), params, url });
 				if (!response.ok) {
 					failed.push(`${target}: ${response.status}`);
 					continue;

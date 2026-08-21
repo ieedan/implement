@@ -10,6 +10,7 @@ import {
 	type IMountable,
 	type Mountable,
 	type Readable,
+	type ReadableChild,
 	type Signal,
 } from "@implementjs/core";
 import { copyText } from "@/lib/copy-text";
@@ -23,6 +24,28 @@ import type { Demo } from "./index";
 function toErrorMessage(error: unknown): string {
 	if (error instanceof Error) return error.message;
 	return String(error);
+}
+
+function assertDemoChild(value: unknown): Child {
+	if (
+		value == null ||
+		typeof value === "string" ||
+		typeof value === "number" ||
+		typeof value === "boolean"
+	) {
+		return value;
+	}
+	if (typeof value === "function") return value as Mountable;
+	if (
+		typeof value === "object" &&
+		"get" in value &&
+		"subscribe" in value &&
+		typeof (value as ReadableChild).get === "function" &&
+		typeof (value as ReadableChild).subscribe === "function"
+	) {
+		return value as ReadableChild;
+	}
+	throw new Error("Default export must return a component, text, or readable.");
 }
 
 // Compiles the code with the lesson pipeline and renders the default export in
@@ -53,7 +76,7 @@ function DemoRunner(code: Readable<string>, error: Signal<string | null>): Mount
 						if (typeof exported !== "function") {
 							throw new Error("Export a default function that returns your UI.");
 						}
-						const unmountApp = App({ target: host }).render(exported() as Child);
+						const unmountApp = App({ target: host }).render(assertDemoChild(exported()));
 						unmountRun = () => {
 							unmountApp();
 							revoke();

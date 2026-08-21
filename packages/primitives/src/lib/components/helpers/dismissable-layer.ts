@@ -125,8 +125,9 @@ class DismissableLayerState {
 			return;
 		}
 
+		const target = e.originalEvent.target;
 		const interactedOutside = isInteractionWithOutsideElement(
-			e.originalEvent.target as HTMLElement | null,
+			target instanceof Node ? target : null,
 			this.opts.anchors.get(),
 			this.opts.content.get(),
 		);

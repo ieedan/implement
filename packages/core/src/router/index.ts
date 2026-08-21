@@ -187,26 +187,55 @@ function parseKey(key: string): Segment[] {
 	);
 }
 
+function routePath(segments: Segment[]): string {
+	if (segments.length === 0) return "/";
+	return `/${segments.map((segment) => (segment.param ? `:${segment.name}` : segment.value)).join("/")}`;
+}
+
+function assertRouteRender(value: unknown, at: string): LeafRoute["render"] {
+	if (typeof value !== "function") {
+		throw new Error(`Route render at ${at} must be a function, got ${typeof value}`);
+	}
+	return value as LeafRoute["render"];
+}
+
+function assertLayoutHandler(value: unknown): LayoutEntry["handler"] {
+	if (typeof value !== "function") {
+		throw new Error(`Route layout must be a function, got ${typeof value}`);
+	}
+	return value as LayoutEntry["handler"];
+}
+
 function compileNode(
 	node: Record<string, unknown>,
 	prefix: Segment[],
 	layouts: LayoutEntry[],
 	out: LeafRoute[],
 ): void {
-	const layout = node.layout as LayoutEntry["handler"] | undefined;
-	const scope = layout ? [...layouts, { handler: layout }] : layouts;
+	const scope =
+		node.layout === undefined
+			? layouts
+			: [...layouts, { handler: assertLayoutHandler(node.layout) }];
 	for (const [key, value] of Object.entries(node)) {
 		if (key === "layout") continue;
 		if (key === "/") {
 			assertRestIsLast(prefix);
-			out.push({ segments: prefix, layouts: scope, render: value as LeafRoute["render"] });
+			out.push({
+				segments: prefix,
+				layouts: scope,
+				render: assertRouteRender(value, routePath(prefix)),
+			});
 			continue;
 		}
 		// A bare handler at a path key is shorthand for `{ "/": handler }`.
 		if (typeof value === "function") {
 			const segments = [...prefix, ...parseKey(key)];
 			assertRestIsLast(segments);
-			out.push({ segments, layouts: scope, render: value as LeafRoute["render"] });
+			out.push({
+				segments,
+				layouts: scope,
+				render: assertRouteRender(value, routePath(segments)),
+			});
 			continue;
 		}
 		compileNode(value as Record<string, unknown>, [...prefix, ...parseKey(key)], scope, out);
