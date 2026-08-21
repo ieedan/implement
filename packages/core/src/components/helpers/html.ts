@@ -1,6 +1,7 @@
 import { dom } from "../../dom";
 import { claimHtmlBlock } from "../../hydrate";
 import { subscribe } from "../../signal";
+import { isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import type { Bindable } from "../props";
 import type { Mountable } from "../types";
@@ -62,9 +63,11 @@ export function Html(html: Bindable<string>): Mountable {
 			unmount() {
 				unsubscribe?.();
 				unsubscribe = null;
-				clear();
-				start.remove();
-				end.remove();
+				if (!isDetaching()) {
+					clear();
+					start.remove();
+					end.remove();
+				}
 			},
 			getFirstDomNode() {
 				const first = start.nextSibling;

@@ -1,6 +1,6 @@
 import { dom } from "../../dom";
 import { isReadable, subscribe, type Readable } from "../../signal";
-import { asParent, guarded, mountChild } from "../../tree";
+import { asParent, guarded, mountChild, isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder } from "../../utils";
 import { reconcileChildren } from "..";
@@ -69,7 +69,7 @@ export function Key(
 				unsubscribe?.();
 				unsubscribe = null;
 				clear();
-				endMarker.remove();
+				if (!isDetaching()) endMarker.remove();
 				parent = null;
 			},
 			getFirstDomNode() {

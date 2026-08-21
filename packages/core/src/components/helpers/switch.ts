@@ -1,7 +1,7 @@
 import { dom } from "../../dom";
 import equal from "fast-deep-equal";
 import { isReadable, subscribe, type Getter, type Readable } from "../../signal";
-import { asParent, guarded, mountChild } from "../../tree";
+import { asParent, guarded, mountChild, isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder } from "../../utils";
 import { reconcileChildren } from "..";
@@ -122,7 +122,7 @@ export function Switch<T>(
 					unsubscribe = null;
 					clear();
 					showing = null;
-					endMarker.remove();
+					if (!isDetaching()) endMarker.remove();
 					parent = null;
 				},
 				getFirstDomNode() {

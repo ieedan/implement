@@ -1,10 +1,19 @@
 import type { IMountable } from "./components/types";
-import { withMountParent } from "./hydrate";
+import { isHydrating, withMountParent } from "./hydrate";
 import { toError } from "./utils";
 
 let current: IMountable | null = null;
 
-const parents = new WeakMap<IMountable, IMountable | null>();
+/**
+ * Where a node's tree parent is kept. A property rather than a `WeakMap`
+ * because this is written once per node — a hundred thousand times to build ten
+ * thousand rows — and a weak-map write measures around forty times the cost of
+ * a symbol assignment. The symbol keeps it off every ordinary view of the
+ * object, and nothing outlives the node it is written on.
+ */
+const PARENT = Symbol("implementjs.treeParent");
+
+type Linked = IMountable & { [PARENT]?: IMountable | null };
 
 /** Run `fn` with `node` as the current tree parent. Needed when creating children after `mount` returns (If, ForEach). */
 export function asParent<T>(node: IMountable, fn: () => T): T {
@@ -17,18 +26,88 @@ export function asParent<T>(node: IMountable, fn: () => T): T {
 	}
 }
 
-/** Mount `instance` as a child of the current tree node. */
+/**
+ * Mount `instance` as a child of the current tree node. Written out rather than
+ * composed from `asParent` and `withMountParent` because it runs once per node
+ * in the tree — a hundred thousand times to build ten thousand rows — and the
+ * two callbacks that composition needs are two allocations each time.
+ */
 export function mountChild(instance: IMountable, htmlParent: HTMLElement): void {
-	parents.set(instance, current);
-	asParent(instance, () => {
-		withMountParent(htmlParent, () => {
-			instance.mount(htmlParent);
-		});
-	});
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The parent link is a symbol-keyed field core owns on the nodes it mounts.
+	(instance as Linked)[PARENT] = current;
+	const previous = current;
+	current = instance;
+	try {
+		if (isHydrating()) withMountParent(htmlParent, () => instance.mount(htmlParent));
+		else instance.mount(htmlParent);
+	} finally {
+		current = previous;
+	}
+}
+
+/**
+ * Depth of the subtree currently being taken out of the document. An element
+ * that removes itself takes every descendant with it, so anything unmounting
+ * below one does not need its own removal — it only needs to release its
+ * subscriptions.
+ */
+let detaching = 0;
+
+/** True while an ancestor is removing the node this tree hangs from. */
+export function isDetaching(): boolean {
+	return detaching > 0;
+}
+
+/**
+ * Bracket the unmount of children the caller is about to remove wholesale.
+ * A pair of counter calls rather than a callback, because this runs once per
+ * element in a discarded subtree and a closure per element is exactly the
+ * allocation this optimization exists to avoid.
+ */
+export function beginDetach(): void {
+	detaching++;
+}
+
+export function endDetach(): void {
+	detaching--;
+}
+
+/**
+ * Depth of the unmount currently discarding the nodes it visits. Core never
+ * re-mounts an element it has unmounted, so a listener on one of them dies with
+ * the node and does not need removing first.
+ */
+let discarding = 0;
+
+export function isDiscarding(): boolean {
+	return discarding > 0;
+}
+
+export function beginDiscard(): void {
+	discarding++;
+}
+
+export function endDiscard(): void {
+	discarding--;
+}
+
+/**
+ * Run `fn` outside any ancestor's detach. For a subtree mounted into a parent
+ * of its own (`Portal`), the ancestor's removal takes nothing of it away.
+ */
+export function reattached(fn: () => void): void {
+	const previous = detaching;
+	detaching = 0;
+	try {
+		fn();
+	} finally {
+		detaching = previous;
+	}
 }
 
 export function parentOf(node: IMountable): IMountable | null {
-	return parents.get(node) ?? null;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Reads back the link written by `mountChild`.
+	return (node as Linked)[PARENT] ?? null;
 }
 
 const boundaries = new WeakMap<IMountable, (error: Error) => void>();

@@ -1,6 +1,6 @@
 import { dom } from "../../dom";
 import { isReadable, Signal, subscribe, type Readable } from "../../signal";
-import { asParent, guarded, mountChild } from "../../tree";
+import { asParent, guarded, mountChild, isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder, toError } from "../../utils";
 import { reconcileChildren } from "..";
@@ -177,7 +177,7 @@ export function Await<T>(
 					unsubscribe = null;
 					clear();
 					showing = null;
-					endMarker.remove();
+					if (!isDetaching()) endMarker.remove();
 					parent = null;
 				},
 				getFirstDomNode() {

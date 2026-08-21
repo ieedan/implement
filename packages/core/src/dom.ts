@@ -1,4 +1,11 @@
-import { attachAtCursor, claimElement, claimSvgRoot, claimText, wasClaimed } from "./hydrate";
+import {
+	attachAtCursor,
+	claimElement,
+	claimSvgRoot,
+	claimText,
+	isHydrating,
+	wasClaimed,
+} from "./hydrate";
 
 /**
  * The DOM factory surface core mounts through. The browser environment
@@ -65,6 +72,24 @@ const browser: DomEnvironment = {
 
 let active: DomEnvironment = browser;
 
+/**
+ * Where `attach` puts a node when its parent is this node's parent. `ForEach`
+ * sets it to its end marker while mounting rows, so a row lands in its final
+ * place instead of being appended past the marker and moved back afterwards —
+ * ten thousand DOM moves the browser would otherwise have to do and undo.
+ */
+let anchor: Node | null = null;
+
+export function withInsertionAnchor(node: Node | null, fn: () => void): void {
+	const previous = anchor;
+	anchor = node;
+	try {
+		fn();
+	} finally {
+		anchor = previous;
+	}
+}
+
 /** Swap the active environment (server render). Returns a restore function. */
 export function installDomEnvironment(environment: DomEnvironment): () => void {
 	const previous = active;
@@ -84,10 +109,21 @@ export const dom: DomEnvironment & {
 	/** Append `node`, unless hydration already adopted it in place. */
 	attach(parent: HTMLElement, node: Node): void;
 } = {
-	createElement: (tag) => claimElement(tag) ?? active.createElement(tag),
-	createTextNode: (data) => claimText(data) ?? active.createTextNode(data),
+	// Outside a hydration pass there is nothing to claim and no cursor to place
+	// against, so these skip straight to the environment. Every node in the tree
+	// goes through them — a hundred thousand times to build ten thousand rows —
+	// and a pass that is not running should not cost three calls per node.
+	createElement: (tag) =>
+		isHydrating() ? (claimElement(tag) ?? active.createElement(tag)) : active.createElement(tag),
+	createTextNode: (data) =>
+		isHydrating() ? (claimText(data) ?? active.createTextNode(data)) : active.createTextNode(data),
 	createComment: (data) => active.createComment(data),
 	attach: (parent, node) => {
+		if (!isHydrating()) {
+			if (anchor !== null && anchor.parentNode === parent) parent.insertBefore(node, anchor);
+			else parent.appendChild(node);
+			return;
+		}
 		if (wasClaimed(node)) return;
 		if (!attachAtCursor(parent, node)) parent.appendChild(node);
 	},
@@ -97,5 +133,6 @@ export const dom: DomEnvironment & {
 	windowTarget: () => active.windowTarget(),
 	documentTarget: () => active.documentTarget(),
 	insertHtml: (html, parent, before) => active.insertHtml(html, parent, before),
-	createSvgRoot: (source) => claimSvgRoot() ?? active.createSvgRoot(source),
+	createSvgRoot: (source) =>
+		isHydrating() ? (claimSvgRoot() ?? active.createSvgRoot(source)) : active.createSvgRoot(source),
 };

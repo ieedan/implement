@@ -13,14 +13,85 @@ export function toError(error: unknown): Error {
 }
 
 /**
+ * Longest run of `nodes` that is already in relative document order. Those
+ * never need to move; placing everything else around them is the minimum
+ * number of insertions that produces the requested order.
+ *
+ * Standard patience-sorting LIS: `tails[l]` is the index into `nodes` of the
+ * smallest position ending a run of length `l + 1`, and `previous` threads
+ * each entry back to its predecessor so the run can be walked out at the end.
+ */
+function stationary(nodes: Node[], positionOf: (node: Node) => number): Set<Node> {
+	const previous = new Int32Array(nodes.length).fill(-1);
+	const tails: number[] = [];
+	for (let i = 0; i < nodes.length; i++) {
+		const position = positionOf(nodes[i]!);
+		if (position < 0) continue;
+		let low = 0;
+		let high = tails.length;
+		while (low < high) {
+			const middle = (low + high) >> 1;
+			if (positionOf(nodes[tails[middle]!]!) < position) low = middle + 1;
+			else high = middle;
+		}
+		if (low > 0) previous[i] = tails[low - 1]!;
+		tails[low] = i;
+	}
+
+	const keep = new Set<Node>();
+	let index = tails.length === 0 ? -1 : tails[tails.length - 1]!;
+	while (index >= 0) {
+		keep.add(nodes[index]!);
+		index = previous[index]!;
+	}
+	return keep;
+}
+
+/**
  * Inserts `nodes` as siblings immediately before `before`. Nodes already in
- * the right place are left alone.
+ * the right place are left alone — "in the right place" meaning in the right
+ * order relative to each other, not merely adjacent to their new neighbour,
+ * so swapping two rows of a thousand moves two nodes instead of cascading
+ * through every node between them.
  */
 export function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | null): void {
+	if (nodes.length === 0) return;
+
+	// Most updates move nothing — a row's text changed, a class flipped — so
+	// check the arrangement before paying for the machinery to repair it.
 	let cursor: Node | null = before;
+	let arranged = true;
+	for (let i = nodes.length - 1; i >= 0; i--) {
+		if (nodes[i]!.nextSibling !== cursor) {
+			arranged = false;
+			break;
+		}
+		cursor = nodes[i]!;
+	}
+	if (arranged) return;
+
+	// One walk of the parent instead of a `nextSibling` probe per node, and the
+	// only way to compare two nodes' order cheaply. Indexed rather than walked
+	// through `firstChild` so the server's structural stand-in works too.
+	const positions = new Map<Node, number>();
+	const children = parent.childNodes;
+	const index = children.length;
+	for (let i = 0; i < index; i++) positions.set(children[i]!, i);
+
+	// A node standing after the insertion point has to move whatever its order,
+	// so it is not a candidate for staying put.
+	const limit = before === null ? index : (positions.get(before) ?? index);
+	const positionOf = (node: Node): number => {
+		const position = positions.get(node);
+		return position === undefined || position > limit ? -1 : position;
+	};
+
+	const keep = nodes.length > 1 ? stationary(nodes, positionOf) : null;
+
+	cursor = before;
 	for (let i = nodes.length - 1; i >= 0; i--) {
 		const node = nodes[i]!;
-		if (node.nextSibling !== cursor) {
+		if (keep?.has(node) !== true && node.nextSibling !== cursor) {
 			parent.insertBefore(node, cursor);
 		}
 		cursor = node;
