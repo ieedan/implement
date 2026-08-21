@@ -24,8 +24,8 @@ export const csr: Template = {
 			contents: tsconfig({ include: ["src/**/*.ts", "*.config.ts"], types: ["vite/client"] }),
 		},
 		{ path: "vite.config.ts", contents: viteConfig(ctx) },
-		{ path: "index.html", contents: indexHtml({ title: ctx.name, entry: "/src/index.ts" }) },
-		{ path: "app.css", contents: appCss(ctx) },
+		{ path: "src/index.html", contents: indexHtml({ title: ctx.name, entry: "/index.ts" }) },
+		{ path: "src/app.css", contents: appCss(ctx) },
 		{ path: "src/index.ts", contents: entry() },
 		{ path: "src/counter.ts", contents: counter(ctx) },
 		{ path: ".gitignore", contents: gitignore() },
@@ -62,6 +62,9 @@ function viteConfig(ctx: TemplateContext): string {
 		`import { defineConfig } from "vite";`,
 		``,
 		`export default defineConfig({`,
+		`\t// the app — index.html included — lives in src/, the build still lands in dist/`,
+		`\troot: "src",`,
+		`\tbuild: { outDir: "../dist", emptyOutDir: true },`,
 		`\tplugins: [${plugins.join(", ")}],`,
 		`});`,
 	].join("\n")}\n`;
@@ -72,7 +75,7 @@ function entry(): string {
 		dedent`
 		import { App } from "@implementjs/core";
 		import { Counter } from "./counter";
-		import "../app.css";
+		import "./app.css";
 
 		const app = App({ target: document.getElementById("root")! });
 
@@ -127,11 +130,11 @@ function readme(ctx: TemplateContext): string {
 
 		\`\`\`
 		${ctx.name}/
-		├ src/
-		│  ├ counter.ts    the component the page renders
-		│  └ index.ts      mounts the app into #root
-		├ app.css          global styles
-		└ index.html       the page vite serves
+		└ src/             the vite root
+		   ├ app.css       global styles
+		   ├ counter.ts    the component the page renders
+		   ├ index.html    the page vite serves
+		   └ index.ts      mounts the app into #root
 		\`\`\`
 
 		\`App({ target })\` creates the root and \`app.render(...)\` mounts children into it. Components are

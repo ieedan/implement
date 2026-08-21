@@ -1,7 +1,14 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const PACKAGE_DIRS = ["core", "kit", "primitives", "lucide", "vite"] as const;
+const PACKAGE_DIRS = [
+	"core",
+	"kit",
+	"primitives",
+	"lucide",
+	"vite",
+	"create-implement-app",
+] as const;
 
 export type PackageInfo = { name: string; version: string };
 

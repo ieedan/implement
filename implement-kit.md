@@ -91,10 +91,14 @@ my-app/
             /components
             utils.ts
         /routes
+        index.html       the html shell, pointed at the generated client entry
+        app.css          global css, imported from the root layout
     /static              served as-is from the site root, copied into dist on build
-    index.html
-    app.css              global css, imported from the root layout
 ```
+
+Vite only serves an `index.html` at the project root, so kit serves `src/index.html`
+itself in dev and moves it back to the root of `dist/` on build. A root `index.html`
+still works for apps that want it there.
 
 `static/` is Vite's `publicDir` — kit defaults it to `static` but a `publicDir`
 set in the app's Vite config wins.

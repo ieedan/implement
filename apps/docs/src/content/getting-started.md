@@ -5,7 +5,35 @@ section: Start here
 order: 1
 ---
 
-implement is not published to a package registry yet. For now it lives in the [`ieedan/implement`](https://github.com/ieedan/implement) monorepo as the workspace package `@implementjs/core`, so apps consume it as a workspace dependency.
+implement ships as `@implementjs/core`: signals, element helpers, and a router, in plain TypeScript with no compiler and no build step of its own.
+
+## Setup
+
+<div data-tab="Automatic"></div>
+
+[`create-implement-app`](/create) writes a working app for you — a [kit](/kit) app or a plain Vite one, with Tailwind, [primitives](/primitives), and [icons](/lucide) as optional addons:
+
+```sh
+npm create implement-app@latest
+```
+
+Answer three questions and you have an app you can `dev` immediately. [Templates](/create/templates) covers what each starting point writes.
+
+<div data-tab="Manual"></div>
+
+Adding implement to a project you already have takes one dependency:
+
+```sh
+npm install @implementjs/core
+```
+
+That's the only one the framework needs. The package exports point at its TypeScript source, so any bundler that can resolve a package will work — there is no framework build step involved.
+
+[Vite](https://vite.dev) is what the templates use and what these docs assume: `vite` serves `index.html` in dev (Tailwind runs through `@tailwindcss/vite`) and `vite build` produces a static `dist/`. Hot module replacement is a [four line block in the entry](/docs/vite).
+
+For unstyled UI building blocks on top of core, add [`@implementjs/primitives`](/primitives) alongside it.
+
+<div data-tabs-end></div>
 
 ## Run the repo
 
@@ -18,23 +46,6 @@ pnpm dev:docs  # runs this docs site (Vite + Velite in watch mode)
 ```
 
 If you want to see complete apps, the `demos/` directory contains a todo app and a Linear-style issue tracker that exercise most of the framework.
-
-## Add an app to the workspace
-
-Create a package under `apps/` or `demos/` and depend on the framework with the workspace protocol:
-
-```jsonc
-// package.json
-{
-	"dependencies": {
-		"@implementjs/core": "workspace:*",
-	},
-}
-```
-
-The demos are [Vite](https://vite.dev) apps. `vite` serves `index.html` in dev (Tailwind runs through `@tailwindcss/vite`) and `vite build` produces a static `dist/`. Hot module replacement is a [four line block in the entry](/docs/vite). The package exports point at its TypeScript source, so any bundler that resolves workspace packages will work. There is no framework build step involved.
-
-For unstyled UI building blocks on top of core, add [`@implementjs/primitives`](/primitives) the same way.
 
 ## Your first component
 
@@ -67,6 +78,8 @@ With an `index.html` like:
 	<body id="root"></body>
 </html>
 ```
+
+That's the whole setup — which is exactly what the [`csr` template](/create/templates) writes for you.
 
 ## What just happened
 

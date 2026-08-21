@@ -15,18 +15,23 @@ This docs site is built with kit, so everything you read here is running on it r
 
 ## Setup
 
-Like the rest of implement, kit isn't published to a registry yet, so add it as a workspace dependency. It's a build tool, so it goes in `devDependencies`:
+<div data-tab="Automatic"></div>
 
-```jsonc
-// package.json
-{
-	"dependencies": {
-		"@implementjs/core": "workspace:*",
-	},
-	"devDependencies": {
-		"@implementjs/kit": "workspace:*",
-	},
-}
+[`create-implement-app`](/create) writes all of this for you — the kit template is its default:
+
+```sh
+npm create implement-app@latest
+```
+
+That leaves you with a routed app, a layout, an error page, and `.implement/` already generated, so it typechecks and runs straight away.
+
+<div data-tab="Manual"></div>
+
+kit is a build tool, so it goes in `devDependencies`:
+
+```sh
+npm install @implementjs/core
+npm install -D @implementjs/kit
 ```
 
 Then add the plugin to your Vite config:
@@ -41,10 +46,10 @@ export default defineConfig({
 });
 ```
 
-Point your `index.html` at the generated client entry (kit writes it for you, more on that below):
+Point your `src/index.html` at the generated client entry (kit writes it for you, more on that below):
 
 ```html
-<!-- index.html -->
+<!-- src/index.html -->
 <!doctype html>
 <html lang="en">
 	<head>
@@ -65,7 +70,9 @@ And extend the generated tsconfig so route files can import their types:
 }
 ```
 
-That's it. Make a `src/routes/index.ts` that default-exports a component and run `vite`:
+<div data-tabs-end></div>
+
+Either way, that's it. Make a `src/routes/index.ts` that default-exports a component and run `vite`:
 
 ```ts
 // src/routes/index.ts
@@ -78,7 +85,7 @@ export default function Page() {
 
 ## Project structure
 
-A kit app looks like this:
+A kit app looks like this — and is what the [`kit` template](/create/templates) generates:
 
 ```
 my-app/
@@ -86,11 +93,15 @@ my-app/
 │  ├ lib/
 │  │  ├ components/
 │  │  └ utils.ts
-│  └ routes/
-├ static/
-├ app.css
-└ index.html
+│  ├ routes/
+│  ├ app.css
+│  └ index.html
+└ static/
 ```
+
+The html shell lives at `src/index.html`. Vite normally only serves an `index.html` sitting at the
+project root, so kit serves the one under `src/` itself and moves it back to the root of `dist/` on
+build — a root `index.html` still works if you prefer it there.
 
 `src/routes` is the routing tree — every file in it is a page, layout, or error boundary, covered in [Routing](/kit/routing).
 

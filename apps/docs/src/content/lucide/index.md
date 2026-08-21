@@ -14,16 +14,10 @@ import { HouseIcon } from "@implementjs/lucide";
 Button({ onClick: goHome }, HouseIcon({ class: "size-4" }), "Home");
 ```
 
-Add it next to core as a workspace dependency:
+Add it next to core:
 
-```jsonc
-// package.json
-{
-	"dependencies": {
-		"@implementjs/core": "workspace:*",
-		"@implementjs/lucide": "workspace:*",
-	},
-}
+```sh
+npm install @implementjs/core @implementjs/lucide
 ```
 
 Browse the full set on [lucide.dev/icons](https://lucide.dev/icons); every icon there ships here under its PascalCase name.

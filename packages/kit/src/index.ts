@@ -15,6 +15,7 @@ import {
 	staticRoutePaths,
 } from "./codegen.ts";
 import { ENDPOINTS_ID, handleServerRequest, LOADS_ID, prerenderServerFiles } from "./dev.ts";
+import { isRootShell, resolveShell, serveShell, shellOutputPlugin } from "./html.ts";
 import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
 import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
@@ -90,11 +91,16 @@ const treeHasLoads = (node: RouteNode): boolean =>
  * export default defineConfig({ plugins: [kit()] });
  * ```
  *
- * The app's `index.html` loads the generated client entry:
+ * The app's html shell lives at `src/index.html` and loads the generated
+ * client entry:
  *
  * ```html
  * <script type="module" src="/.implement/entry-client.ts"></script>
  * ```
+ *
+ * Vite only serves an `index.html` at its root, so kit serves the one under
+ * `src/` itself in dev and moves it back to the root of the build output. A
+ * root `index.html` still works for apps that want it there.
  */
 export function kit(options: KitOptions = {}): Plugin[] {
 	const routes = options.routes ?? "src/routes";
@@ -104,6 +110,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	let root = process.cwd();
 	let routesDir = join(root, routes);
 	let tree: RouteTree | null = null;
+	let shell: { path: string; relative: string } | null = null;
 
 	const scan = (): RouteTree => {
 		tree = scanRoutes(routesDir);
@@ -144,14 +151,24 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			const alias = Object.fromEntries(
 				Object.entries(aliases).map(([name, target]) => [name, resolve(appRoot, target)]),
 			);
+			// a shell outside the root is not something Vite would pick up on its own, so point the
+			// build at it here — `configResolved` is too late for rollup's input. A root `index.html`
+			// is already Vite's default entry and is left well alone.
+			const shellPath = resolveShell(appRoot);
+			const overrideInput =
+				shellPath !== null &&
+				!isRootShell(shellPath.relative) &&
+				userConfig.build?.rollupOptions?.input === undefined;
 			return {
 				publicDir: userConfig.publicDir ?? "static",
 				resolve: { alias },
+				...(overrideInput ? { build: { rollupOptions: { input: shellPath.path } } } : {}),
 			};
 		},
 		configResolved(config) {
 			root = config.root;
 			routesDir = join(root, routes);
+			shell = resolveShell(root);
 			const scanned = scan();
 			writeGenerated(root, scanned, genOptions);
 			if (scanned.error !== null) prerenderConfig.notFound = NOT_FOUND_ROUTE;
@@ -217,11 +234,19 @@ export function kit(options: KitOptions = {}): Plugin[] {
 					if (!handled) next();
 				}, next);
 			});
+
+			// returned hooks run after Vite's own middlewares are installed, which is where a shell
+			// outside the root has to be served from — see `serveShell`
+			return () => {
+				if (shell === null || isRootShell(shell.relative)) return;
+				server.middlewares.use(serveShell(server, shell.path));
+			};
 		},
 	};
 
 	return [
 		kitPlugin,
+		shellOutputPlugin(),
 		implement({
 			entry: `/${IMPLEMENT_DIR}/entry-server.ts`,
 			prerender: options.prerender === false ? false : prerenderConfig,

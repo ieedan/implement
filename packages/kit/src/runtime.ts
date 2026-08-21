@@ -76,7 +76,10 @@ export function registerRoutes(routes: ClientRoute[]): void {
  */
 export function initClientData(): void {
 	const embedded = document.querySelector("script[data-implement-data]");
-	if (embedded?.textContent) {
+	// An HMR update re-runs the entry against a store that already holds the
+	// data for wherever the app navigated to; re-seeding there would put the
+	// landing page's payload back and re-render every route with it.
+	if (embedded?.textContent && store.size === 0) {
 		seedData(JSON.parse(embedded.textContent) as RouteData);
 	}
 	setNavigationResolver(async (to) => {

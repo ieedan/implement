@@ -317,3 +317,82 @@ describe("hydration", () => {
 		expect(target.querySelector(":scope > p")!.textContent).toBe("second");
 	});
 });
+
+/**
+ * Vite disposes an entry module before it imports the replacement, so an app
+ * that tore its tree down in `dispose` left the document blank for the whole
+ * import — and blank for good when the replacement threw. Given the hot data
+ * Vite passes dispose handlers, `unmount` hands the tree over instead.
+ */
+describe("hmr handoff", () => {
+	/** Stands in for the `data` object Vite passes its dispose handlers. */
+	const hotData = {};
+
+	it("keeps the tree mounted until the replacement renders", () => {
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const first = App({ target });
+		first.render(Div(Span("first")));
+
+		first.unmount(hotData);
+		expect(target.textContent).toBe("first");
+
+		App({ target }).render(Div(Span("second")));
+		expect(target.textContent).toBe("second");
+		expect(target.querySelectorAll("div")).toHaveLength(1);
+	});
+
+	it("unmounts immediately when called with no argument", () => {
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const app = App({ target });
+		app.render(Div(Span("only")));
+
+		app.unmount();
+		expect(target.innerHTML).toBe("");
+	});
+
+	it("leaves the handed-over tree up when the replacement fails to mount", () => {
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const first = App({ target });
+		first.render(Div(Span("first")));
+		first.unmount(hotData);
+
+		const boom = () => {
+			throw new Error("boom");
+		};
+		expect(() => App({ target }).render(Div(Span("half")), boom)).toThrow("boom");
+
+		// the half-built replacement is rolled back, not left alongside
+		expect(target.textContent).toBe("first");
+		expect(target.querySelectorAll("div")).toHaveLength(1);
+	});
+
+	it("chains handoffs so a failed replacement cannot strand the tree", () => {
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const first = App({ target });
+		first.render(Div(Span("first")));
+		first.unmount(hotData);
+
+		// a replacement that never mounted is disposed too
+		const failed = App({ target });
+		failed.unmount(hotData);
+		expect(target.textContent).toBe("first");
+
+		App({ target }).render(Div(Span("third")));
+		expect(target.textContent).toBe("third");
+		expect(target.querySelectorAll("div")).toHaveLength(1);
+	});
+
+	it("takes the server-rendered wrapper down with the tree it adopted", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const { target, unmount } = hydrate(() => Div(Span("ssr")));
+		expect(warn).not.toHaveBeenCalled();
+
+		unmount();
+		expect(target.innerHTML).toBe("");
+		warn.mockRestore();
+	});
+});

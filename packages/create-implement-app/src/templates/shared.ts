@@ -111,8 +111,7 @@ export function appCss(ctx: TemplateContext): string {
 			dedent`
 			@import "tailwindcss";
 
-			@source "./src";
-			@source "./index.html";
+			@source ".";
 
 			html {
 				color-scheme: dark;

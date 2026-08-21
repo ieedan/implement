@@ -36,10 +36,10 @@ export const kit: Template = {
 		},
 		{ path: "vite.config.ts", contents: viteConfig(ctx) },
 		{
-			path: "index.html",
+			path: "src/index.html",
 			contents: indexHtml({ title: ctx.name, entry: "/.implement/entry-client.ts" }),
 		},
-		{ path: "app.css", contents: appCss(ctx) },
+		{ path: "src/app.css", contents: appCss(ctx) },
 		{ path: "scripts/sync.ts", contents: syncScript() },
 		{ path: "src/routes/layout.ts", contents: layout(ctx) },
 		{ path: "src/routes/index.ts", contents: page() },
@@ -108,7 +108,7 @@ function layout(ctx: TemplateContext): string {
 		`import { router } from "$implement/router";`,
 		`import { Div, Main, Nav } from "@implementjs/core";`,
 		`import type { LayoutProps } from "./$types";`,
-		`import "../../app.css";`,
+		`import "../app.css";`,
 		``,
 		`export default function Layout({ children }: LayoutProps) {`,
 		`\treturn Div(`,
@@ -227,15 +227,15 @@ function readme(ctx: TemplateContext): string {
 		${ctx.name}/
 		├ src/
 		│  ├ lib/            @/lib — components, helpers, state
-		│  └ routes/         the routing tree
-		│     ├ about/
-		│     │  └ index.ts  → /about
-		│     ├ error.ts     the 404 / render error page
-		│     ├ index.ts     → /
-		│     └ layout.ts    wraps every page
-		├ static/            served from the site root
-		├ app.css            global styles, imported from the root layout
-		└ index.html         the shell, pointed at the generated client entry
+		│  ├ routes/         the routing tree
+		│  │  ├ about/
+		│  │  │  └ index.ts  → /about
+		│  │  ├ error.ts     the 404 / render error page
+		│  │  ├ index.ts     → /
+		│  │  └ layout.ts    wraps every page
+		│  ├ app.css         global styles, imported from the root layout
+		│  └ index.html      the shell, pointed at the generated client entry
+		└ static/            served from the site root
 		\`\`\`
 
 		\`index.ts\` is a page, \`layout.ts\` wraps everything below it, and \`[param]\` / \`[...rest]\`

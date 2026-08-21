@@ -30,8 +30,8 @@ describe("templates", () => {
 			"package.json",
 			"tsconfig.json",
 			"vite.config.ts",
-			"index.html",
-			"app.css",
+			"src/index.html",
+			"src/app.css",
 			".gitignore",
 			"README.md",
 		]) {
@@ -44,7 +44,7 @@ describe("templates", () => {
 
 		expect(pkg(files)).toMatchObject({ dependencies: { "@implementjs/core": expect.any(String) } });
 		expect(JSON.parse(files.get("package.json") as string).name).toBe("cool-app");
-		expect(files.get("index.html")).toContain("<title>cool-app</title>");
+		expect(files.get("src/index.html")).toContain("<title>cool-app</title>");
 	});
 
 	it.each(TEMPLATES)("%s asks for a version by default and workspace:* with --workspace", (id) => {
@@ -67,18 +67,20 @@ describe("templates", () => {
 				"scripts/sync.ts",
 			]),
 		);
-		expect(files.get("index.html")).toContain("/.implement/entry-client.ts");
+		expect(files.get("src/index.html")).toContain("/.implement/entry-client.ts");
 		expect(files.get("vite.config.ts")).toContain("kit()");
 		expect(files.get("tsconfig.json")).toContain("./.implement/tsconfig.json");
 		// the root layout is the only place the global stylesheet is imported
-		expect(files.get("src/routes/layout.ts")).toContain('import "../../app.css";');
+		expect(files.get("src/routes/layout.ts")).toContain('import "../app.css";');
 		expect(pkg(files).devDependencies["@implementjs/kit"]).toBeDefined();
 	});
 
 	it("the csr template mounts an app into the page", () => {
 		const files = fileMap("csr", ctx());
 
-		expect(files.get("index.html")).toContain("/src/index.ts");
+		// vite's root is src/, so the shell points at its sibling entry
+		expect(files.get("vite.config.ts")).toContain('root: "src"');
+		expect(files.get("src/index.html")).toContain("/index.ts");
 		expect(files.get("src/index.ts")).toContain(
 			'App({ target: document.getElementById("root")! })',
 		);
@@ -90,7 +92,7 @@ describe("templates", () => {
 	it.each(TEMPLATES)("%s only pulls in tailwind when the addon is selected", (id) => {
 		const without = fileMap(id, ctx());
 		expect(without.get("vite.config.ts")).not.toContain("@tailwindcss/vite");
-		expect(without.get("app.css")).not.toContain('@import "tailwindcss"');
+		expect(without.get("src/app.css")).not.toContain('@import "tailwindcss"');
 		expect(pkg(without).devDependencies.tailwindcss).toBeUndefined();
 
 		const withTailwind = fileMap(id, ctx({ addons: ["tailwind"] }));
@@ -98,7 +100,7 @@ describe("templates", () => {
 			'import tailwindcss from "@tailwindcss/vite"',
 		);
 		expect(withTailwind.get("vite.config.ts")).toContain("tailwindcss()");
-		expect(withTailwind.get("app.css")).toContain('@import "tailwindcss"');
+		expect(withTailwind.get("src/app.css")).toContain('@import "tailwindcss"');
 		expect(pkg(withTailwind).devDependencies["@tailwindcss/vite"]).toBeDefined();
 	});
 

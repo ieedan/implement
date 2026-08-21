@@ -32,6 +32,7 @@ import {
 	installCommand,
 	type PackageManager,
 	PACKAGE_MANAGERS,
+	runCommand,
 	runCommandString,
 	toPackageName,
 	validatePackageName,
@@ -74,6 +75,8 @@ export type CreateCommandResult = {
 	files: string[];
 	packageManager: PackageManager;
 	installed: boolean;
+	/** Whether kit's `.implement/` was generated as part of the run. */
+	synced: boolean;
 	/** The implement packages that were linked to a local repo, keyed by name. */
 	linked: Record<string, string> | undefined;
 };
@@ -252,6 +255,22 @@ export async function runCreate(
 		});
 	}
 
+	// kit only typechecks once `.implement/` exists (generated entries, the tsconfig the app extends,
+	// and a `./$types` per route) and nothing has run vite yet — sync now so the editor and `check`
+	// work the moment the app is opened. It needs the deps, so it waits on the install.
+	const synced = template === "kit" && options.install;
+	if (synced) {
+		await runCommands({
+			title: "Syncing .implement/",
+			commands: [runCommand(packageManager, "sync")],
+			cwd: directory,
+			messages: {
+				success: () => "Synced .implement/",
+				error: (e) => `Failed to sync .implement/: ${String(e)}`,
+			},
+		});
+	}
+
 	logNextSteps({
 		cwd: options.cwd,
 		directory,
@@ -267,6 +286,7 @@ export async function runCreate(
 		files: files.map((file) => file.path),
 		packageManager,
 		installed: options.install,
+		synced,
 		linked: link?.specifiers,
 	});
 }

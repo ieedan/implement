@@ -738,13 +738,36 @@ export const apiReference: Record<string, ApiPart[]> = {
 					description: "Whether opening an item closes the others, or several can stay open.",
 				},
 				{
+					name: "value",
+					type: "Signal<string | null> (single) | Signal<string[]> (multiple)",
+					description:
+						"The open item(s). Pass a signal to control the accordion from outside; omit it for uncontrolled state.",
+				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Disables every item in the accordion.",
+				},
+				{
 					name: "loop",
 					type: "boolean",
 					default: "true",
 					description: "Whether arrow keys wrap from the last trigger back to the first.",
 				},
+				{
+					name: "orientation",
+					type: '"horizontal" | "vertical"',
+					default: '"vertical"',
+					description:
+						"Which arrow keys move focus between triggers: vertical is Up/Down, horizontal is Left/Right.",
+				},
 			],
-			dataAttributes: [{ name: "data-accordion-root", value: "Present" }],
+			dataAttributes: [
+				{ name: "data-accordion-root", value: "Present" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
 		},
 		{
 			name: "AccordionItem",
@@ -757,26 +780,45 @@ export const apiReference: Record<string, ApiPart[]> = {
 					required: true,
 					description: "Identifies the item. Must be unique within the accordion.",
 				},
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Disables this item.",
+				},
 			],
 			dataAttributes: [
 				{ name: "data-accordion-item", value: "Present" },
 				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
 			],
 		},
 		{
 			name: "AccordionTrigger",
 			element: "Button",
 			description: "Toggles its item open and closed.",
+			props: [
+				{
+					name: "disabled",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description: "Disables this trigger.",
+				},
+			],
 			dataAttributes: [
 				{ name: "data-accordion-trigger", value: "Present" },
 				{ name: "data-state", value: '"open" | "closed"' },
 				{ name: "data-value", value: "The item's value" },
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
 			],
 		},
 		{
 			name: "AccordionContent",
 			element: "Div",
-			description: "The body of an item. Hidden with the `hidden` attribute while closed.",
+			description:
+				"The body of an item. Hidden with the `hidden` attribute while closed; a close animation on it finishes before the attribute is set.",
 			props: [
 				{
 					name: "hiddenUntilFound",
@@ -788,6 +830,18 @@ export const apiReference: Record<string, ApiPart[]> = {
 			dataAttributes: [
 				{ name: "data-accordion-content", value: "Present" },
 				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
+			],
+			cssVariables: [
+				{
+					name: "--ip-accordion-content-height",
+					description: "The natural height of the content, for open/close animations.",
+				},
+				{
+					name: "--ip-accordion-content-width",
+					description: "The natural width of the content, for open/close animations.",
+				},
 			],
 		},
 		{
@@ -805,6 +859,8 @@ export const apiReference: Record<string, ApiPart[]> = {
 			dataAttributes: [
 				{ name: "data-accordion-header", value: "Present" },
 				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-orientation", value: '"horizontal" | "vertical"' },
 				{ name: "data-heading-level", value: '"1" – "6"' },
 			],
 		},
@@ -841,7 +897,8 @@ export const apiReference: Record<string, ApiPart[]> = {
 		{
 			name: "CollapsibleContent",
 			element: "Div",
-			description: "The body. Hidden with the `hidden` attribute while closed.",
+			description:
+				"The body. Hidden with the `hidden` attribute while closed; a close animation on it finishes before the attribute is set.",
 			props: [
 				{
 					name: "hiddenUntilFound",
@@ -853,6 +910,16 @@ export const apiReference: Record<string, ApiPart[]> = {
 			dataAttributes: [
 				{ name: "data-collapsible-content", value: "Present" },
 				{ name: "data-state", value: '"open" | "closed"' },
+			],
+			cssVariables: [
+				{
+					name: "--ip-collapsible-content-height",
+					description: "The natural height of the content, for open/close animations.",
+				},
+				{
+					name: "--ip-collapsible-content-width",
+					description: "The natural width of the content, for open/close animations.",
+				},
 			],
 		},
 	],

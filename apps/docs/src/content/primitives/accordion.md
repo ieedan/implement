@@ -45,7 +45,25 @@ Accordion(
 );
 ```
 
-Every item needs a stable `value`. That string is what the root tracks in its open set, so it also has to be unique within the accordion.
+Every item needs a stable `value`. That string is what the root tracks as its open state, so it also has to be unique within the accordion.
+
+## Controlling the open items
+
+Pass a signal as `value` to own the open state from outside. A `"single"` accordion takes a `Signal<string | null>`, a `"multiple"` accordion a `Signal<string[]>`:
+
+```ts
+import { signal } from "@implementjs/core";
+
+const open = signal<string | null>("what");
+
+Accordion(
+	{ value: open },
+	AccordionItem({ value: "what" }, AccordionTrigger({}, "A"), AccordionContent({}, "First")),
+	AccordionItem({ value: "why" }, AccordionTrigger({}, "B"), AccordionContent({}, "Second")),
+);
+
+open.set("why"); // opens "why", closing "what"
+```
 
 ## The trigger and the content
 
@@ -80,12 +98,50 @@ AccordionTrigger(
 );
 
 AccordionContent(
-	{ class: "pb-4 text-sm text-foreground/70 data-[state=closed]:animate-collapse" },
+	{ class: "pb-4 text-sm text-foreground/70" },
 	"A signal-based UI framework with no compiler.",
 );
 ```
 
 The `hidden` attribute already hides closed content. `data-state` is there for transitions, chevrons, and anything else that should react to open versus closed without you threading a signal through.
+
+## Animating open and close
+
+`AccordionContent` measures itself whenever it opens or closes and exposes the result as `--ip-accordion-content-height` and `--ip-accordion-content-width` on the element, so keyframes can animate between zero and the natural size. When an item closes, the content keeps rendering until any animation running on it finishes — only then does the `hidden` attribute go on.
+
+```css
+[data-accordion-content] {
+	overflow: hidden;
+}
+
+[data-accordion-content][data-state="open"] {
+	animation: accordion-down 0.2s ease-out;
+}
+
+[data-accordion-content][data-state="closed"] {
+	animation: accordion-up 0.2s ease-out;
+}
+
+@keyframes accordion-down {
+	from {
+		height: 0;
+	}
+	to {
+		height: var(--ip-accordion-content-height);
+	}
+}
+
+@keyframes accordion-up {
+	from {
+		height: var(--ip-accordion-content-height);
+	}
+	to {
+		height: 0;
+	}
+}
+```
+
+Content that is open on first render does not replay its open animation on page load.
 
 ## API Reference
 
