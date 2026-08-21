@@ -20,7 +20,7 @@ App({ target: document.body }).render(
 );
 ```
 
-That is the whole setup. `<html>` gets `class="dark"` and `style="color-scheme: dark"` when the mode is dark, the choice is remembered in `localStorage`, and the page comes back in the same mode next visit — without the flash of the wrong theme that usually comes with it.
+This site runs on it — the switcher in the header sets the mode, and everything below `<html>` follows. That is the whole setup. `<html>` gets `class="dark"` and `style="color-scheme: dark"` when the mode is dark, the choice is remembered in `localStorage`, and the page comes back in the same mode next visit — without the flash of the wrong theme that usually comes with it.
 
 In a [kit](/kit) app, `ModeWatcher` goes in the root layout so it stays mounted across navigations:
 

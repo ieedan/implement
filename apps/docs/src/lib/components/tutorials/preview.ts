@@ -17,6 +17,7 @@ import {
 	parseStack,
 	type ConsoleEntry,
 } from "@/lib/console-format";
+import { mode } from "@/lib/mode";
 import { runLesson } from "@/lib/run-lesson";
 import frameCss from "./preview-frame.css?inline";
 
@@ -62,6 +63,12 @@ function createPreviewFrame(
 		`<!doctype html><html><head><meta charset="utf-8"><style>${frameCss}</style></head><body class="tutorial-preview"></body></html>`,
 	);
 	doc.close();
+
+	// The frame is its own document, so the host's `dark` class doesn't reach
+	// it — mirror the mode in, and keep mirroring it as it changes.
+	const unwatchMode = watch([mode.mode], (current) => {
+		doc.documentElement.classList.toggle("dark", current !== "light");
+	});
 
 	// Reparenting an iframe (hydration reordering, layout swaps) reloads it,
 	// silently replacing the written document and orphaning everything mounted
@@ -111,7 +118,10 @@ function createPreviewFrame(
 		window: frameWindow,
 		body: doc.body,
 		element: iframe,
-		destroy: () => iframe.remove(),
+		destroy: () => {
+			unwatchMode();
+			iframe.remove();
+		},
 	};
 }
 
