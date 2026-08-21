@@ -61,6 +61,8 @@ export function SignUp() {
 
 **`Field`** looks a field up by path and renders it. `field.props` carries the name and the event handlers; the value binding stays yours, because only you know whether this element wants `value` or `checked`.
 
+The markup above is plain elements, so it works in any app. The demos on these pages use the [`Field`](/ui/field) components from [`@implementjs/ui`](/ui) instead — same state, styled — which [Fields](/formish/fields#with-implementjsui) shows how to wire up.
+
 ## Why paths
 
 A field is addressed by a path — `["email"]`, `["todos", 0, "label"]` — rather than a string name. The path is checked against the schema, so a typo is a type error and autocompletion knows what comes next:

@@ -69,10 +69,40 @@ The callback runs once, like every implement component — nothing re-renders, t
 `field.error` is `null` until validation has something to say, and `Span(field.error)` renders nothing for `null`. To show a container only when there is an error, use [`If`](/docs/if):
 
 ```ts
-If(field.error).Then(() => P({ class: "error" }, field.error));
+If(field.error).Then(P({ class: "error" }, field.error));
 ```
 
 Fields are quiet by default: nothing is reported until the first submit. See [Validation](/formish/validation) for the other modes.
+
+## With @implementjs/ui
+
+The [`Field`](/ui/field) components are the styled version of the same markup — the label, the control, the hint, and the message that goes underneath. Formish supplies the state; two attributes connect them:
+
+```ts
+import { Field, FieldError, FieldLabel } from "@/lib/components/ui/field";
+import { Input } from "@/lib/components/ui/input";
+
+const email = useField(form, { path: ["email"] });
+
+// set only while the field has an error: `data-invalid` styles the field,
+// `aria-invalid` announces it
+const invalid = email.errors.bind((errors) => (errors ? "true" : undefined));
+
+Field(
+	{ "data-invalid": invalid },
+	FieldLabel({ for: "email" }, "Email"),
+	Input({
+		...email.props,
+		id: "email",
+		type: "email",
+		value: email.input,
+		"aria-invalid": invalid,
+	}),
+	If(email.error).Then(FieldError(email.error)),
+);
+```
+
+`data-invalid` on the field turns the label and the message destructive in one go; `aria-invalid` on the control is what a screen reader announces. Both are bound to the same readable, so they arrive and leave together. Every demo on these pages is built this way — open one and edit it.
 
 ## Nested fields
 

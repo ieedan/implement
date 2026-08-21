@@ -1,5 +1,6 @@
 import { apiReference, type ApiPart } from "./api-reference";
 import { demoSources } from "./components/demos/sources";
+import { uiSourcePath, uiSources } from "./ui-sources";
 
 /**
  * Plain-markdown rendering for the `.md` server routes: the same source
@@ -8,7 +9,7 @@ import { demoSources } from "./components/demos/sources";
  * output stands alone in a plain-text reader or an LLM context window.
  */
 
-const placeholderPattern = /<div data-(demo|api)="([^"]+)"([^>]*)><\/div>/g;
+const placeholderPattern = /<div data-(demo|api|source)="([^"]+)"([^>]*)><\/div>/g;
 
 /** Tab markers, which delimit content rather than standing in for it. */
 const tabPattern = /<div data-tab="([^"]*)"[^>]*><\/div>\n*/g;
@@ -71,9 +72,10 @@ function resolveTabs(markdown: string): string {
 }
 
 /**
- * Swaps `<div data-demo>` for the demo's source and `<div data-api>` for its
- * tables. A `data-demo-description` attribute becomes a blockquote above the
- * code, describing what the demo renders — the markdown reader can't see it.
+ * Swaps `<div data-demo>` for the demo's source, `<div data-source>` for the
+ * styled component's own file, and `<div data-api>` for its tables. A
+ * `data-demo-description` attribute becomes a blockquote above the code,
+ * describing what the demo renders — the markdown reader can't see it.
  */
 function resolvePlaceholders(markdown: string): string {
 	return resolveTabs(markdown).replace(
@@ -85,6 +87,11 @@ function resolvePlaceholders(markdown: string): string {
 				const description = /data-demo-description="([^"]*)"/.exec(rest)?.[1];
 				const code = `\`\`\`ts\n${source.trimEnd()}\n\`\`\``;
 				return description ? `> **Demo:** ${description}\n\n${code}` : code;
+			}
+			if (kind === "source") {
+				const file = uiSources[name];
+				if (file == null) return placeholder;
+				return `\`${uiSourcePath(name)}\`\n\n\`\`\`ts\n${file.trimEnd()}\n\`\`\``;
 			}
 			const parts = apiReference[name];
 			return parts == null ? placeholder : parts.map(apiPartMarkdown).join("\n\n");

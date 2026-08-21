@@ -11,14 +11,10 @@ An avatar renders an image with a fallback for when the image is loading or unav
 ```ts
 import { Avatar, AvatarFallback, AvatarImage } from "@implementjs/primitives";
 
-Avatar(
-	{},
-	AvatarImage({ src: "https://github.com/ieedan.png", alt: "@ieedan" }),
-	AvatarFallback({}, "AB"),
-);
+Avatar(AvatarImage({ src: "https://github.com/ieedan.png", alt: "@ieedan" }), AvatarFallback("AB"));
 ```
 
-Each part takes a props object first and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Div`, `Img`, or `Span`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div`, `Img`, or `Span`.
 
 ## Loading status
 
@@ -32,7 +28,7 @@ Pass `onLoadingStatusChange` to observe it:
 Avatar(
 	{ onLoadingStatusChange: (status) => console.log(status) },
 	AvatarImage({ src }),
-	AvatarFallback({}, "AB"),
+	AvatarFallback("AB"),
 );
 ```
 
@@ -43,7 +39,7 @@ A reactive `src` re-runs the load: pass a signal and swapping the value puts the
 On a fast connection the fallback can flash for a frame before the image appears. `delayMs` waits that many milliseconds after the image loads before showing it:
 
 ```ts
-Avatar({ delayMs: 600 }, AvatarImage({ src }), AvatarFallback({}, "AB"));
+Avatar({ delayMs: 600 }, AvatarImage({ src }), AvatarFallback("AB"));
 ```
 
 ## Styling

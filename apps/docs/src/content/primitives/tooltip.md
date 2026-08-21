@@ -17,13 +17,10 @@ import {
 	TooltipTrigger,
 } from "@implementjs/primitives";
 
-TooltipProvider(
-	{},
-	Tooltip({}, TooltipTrigger({}, "Hover"), TooltipPortal(TooltipContent({}, "Add to library"))),
-);
+TooltipProvider(Tooltip(TooltipTrigger("Hover"), TooltipPortal(TooltipContent("Add to library"))));
 ```
 
-Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props on the trigger and the content are forwarded onto the underlying `Button` or `Div`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props on the trigger and the content are forwarded onto the underlying `Button` or `Div`.
 
 A tooltip is a label, not a place to put content. It never opens on touch, nothing inside it is reachable with the keyboard, and it closes the moment the trigger is clicked, blurred, or scrolled away — so put nothing in it the user can't live without.
 
@@ -34,8 +31,8 @@ Tooltips share timing through `TooltipProvider`: `delayDuration` (default `700`)
 ```ts
 TooltipProvider(
 	{ delayDuration: 300, skipDelayDuration: 150 },
-	Tooltip({}, TooltipTrigger({}, "Bold"), TooltipContent({}, "Bold")),
-	Tooltip({}, TooltipTrigger({}, "Italic"), TooltipContent({}, "Italic")),
+	Tooltip(TooltipTrigger("Bold"), TooltipContent("Bold")),
+	Tooltip(TooltipTrigger("Italic"), TooltipContent("Italic")),
 );
 ```
 
@@ -58,7 +55,7 @@ By default the bubble is hoverable: the pointer can travel from the trigger onto
 ```ts
 const open = signal(false);
 
-Tooltip({ open }, TooltipTrigger({}, "Hover"), TooltipContent({}, "Hello"));
+Tooltip({ open }, TooltipTrigger("Hover"), TooltipContent("Hello"));
 
 Button({ onClick: () => open.set(false) }, "Close");
 ```
@@ -66,7 +63,7 @@ Button({ onClick: () => open.set(false) }, "Close");
 `disabled` turns a tooltip off — on the provider for all of them, or per tooltip or per trigger:
 
 ```ts
-Tooltip({ disabled: true }, TooltipTrigger({}, "Hover"), TooltipContent({}, "Never opens."));
+Tooltip({ disabled: true }, TooltipTrigger("Hover"), TooltipContent("Never opens."));
 ```
 
 ## Portal
@@ -74,9 +71,9 @@ Tooltip({ disabled: true }, TooltipTrigger({}, "Hover"), TooltipContent({}, "Nev
 `TooltipPortal` is the [Portal](/docs/portal) helper under a tooltip name. It renders its children into `document.body` by default so the bubble is not clipped by `overflow` or trapped in a parent stacking context. Context still resolves from where you declared it.
 
 ```ts
-TooltipPortal(TooltipContent({}, "Hello"));
+TooltipPortal(TooltipContent("Hello"));
 
-TooltipPortal({ to: overlayRoot }, TooltipContent({}, "Hello"));
+TooltipPortal({ to: overlayRoot }, TooltipContent("Hello"));
 ```
 
 ## Styling

@@ -65,7 +65,7 @@ export interface FieldProps<
  * Field({ of: form, path: ["email"] }, (field) =>
  * 	Div(
  * 		Input({ ...field.props, type: "email", value: field.input }),
- * 		If(field.error).Then(() => Span(field.error)),
+ * 		If(field.error).Then(Span(field.error)),
  * 	),
  * );
  * ```

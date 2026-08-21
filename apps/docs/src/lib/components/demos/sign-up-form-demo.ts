@@ -1,7 +1,15 @@
-import { Div, Input, Label, P, Span, signal } from "@implementjs/core";
-import { createForm, Field, Form } from "@implementjs/formish";
+import { If, signal } from "@implementjs/core";
+import { createForm, Form, useField } from "@implementjs/formish";
 import * as v from "valibot";
 import { Button } from "@/lib/components/ui/button";
+import {
+	Field,
+	FieldDescription,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+} from "@/lib/components/ui/field";
+import { Input } from "@/lib/components/ui/input";
 
 const SignUpSchema = v.object({
 	email: v.pipe(
@@ -12,8 +20,7 @@ const SignUpSchema = v.object({
 	password: v.pipe(v.string(), v.minLength(8, "At least 8 characters")),
 });
 
-const inputClass =
-	"h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+type SignUpForm = ReturnType<typeof createForm<typeof SignUpSchema>>;
 
 export default function SignUpFormDemo() {
 	const form = createForm({ schema: SignUpSchema, validate: "blur" });
@@ -23,30 +30,52 @@ export default function SignUpFormDemo() {
 		{
 			of: form,
 			onSubmit: (output) => signedUpAs.set(output.email),
-			class: "flex w-full max-w-xs flex-col gap-4",
+			class: "w-full max-w-sm",
 		},
-		TextField(form, "email", "Email", "email"),
-		TextField(form, "password", "Password", "password"),
-		Button({ type: "submit", disabled: form.isSubmitting }, "Sign up"),
-		P(
-			{ class: "min-h-5 text-sm text-muted-foreground" },
-			signedUpAs.bind((email) => (email ? `Signed up as ${email}` : "")),
+		FieldGroup(
+			TextField(form, {
+				path: "email",
+				label: "Email",
+				type: "email",
+				description: "We only use it to sign you in.",
+			}),
+			TextField(form, { path: "password", label: "Password", type: "password" }),
+			Button({ type: "submit", disabled: form.isSubmitting }, "Sign up"),
+			If(signedUpAs).Then(FieldDescription(signedUpAs.bind((email) => `Signed up as ${email}`))),
 		),
 	);
 }
 
+/**
+ * One field of the form. The state comes from formish, the look from the ui
+ * `Field` components: `data-invalid` on the field turns the label and the
+ * message destructive, `aria-invalid` on the control is what gets announced.
+ */
 function TextField(
-	form: ReturnType<typeof createForm<typeof SignUpSchema>>,
-	path: "email" | "password",
-	label: string,
-	type: "email" | "password",
+	form: SignUpForm,
+	{
+		path,
+		label,
+		type,
+		description,
+	}: {
+		path: "email" | "password";
+		label: string;
+		type: "email" | "password";
+		description?: string;
+	},
 ) {
-	return Field({ of: form, path: [path] }, (field) =>
-		Div(
-			{ class: "flex flex-col gap-1.5" },
-			Label({ for: `signup-${path}`, class: "text-sm font-medium" }, label),
-			Input({ ...field.props, id: `signup-${path}`, type, class: inputClass, value: field.input }),
-			Span({ class: "min-h-4 text-xs text-destructive" }, field.error),
-		),
+	const field = useField(form, { path: [path] });
+	const id = `signup-${path}`;
+	// set only while the field has an error: `data-invalid` styles the field,
+	// `aria-invalid` announces it
+	const invalid = field.errors.bind((errors) => (errors ? "true" : undefined));
+
+	return Field(
+		{ "data-invalid": invalid },
+		FieldLabel({ for: id }, label),
+		Input({ ...field.props, id, type, value: field.input, "aria-invalid": invalid }),
+		...(description ? [FieldDescription(description)] : []),
+		If(field.error).Then(FieldError(field.error)),
 	);
 }

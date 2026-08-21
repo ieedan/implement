@@ -35,6 +35,16 @@ createForm({ schema, validate: "blur", revalidate: "input" });
 
 `revalidate` takes the same values except `initial`.
 
+Validation runs over the whole form, so one field's blur reports every field's errors — including ones the user has not reached yet. That is usually what you want after a submit, and often too eager before one. To hold a message back until the field has been visited, gate it on `isTouched`:
+
+```ts
+const message = derived([field.errors, field.isTouched], (errors, touched) =>
+	touched ? (errors?.[0] ?? null) : null,
+);
+
+If(message).Then(FieldError(message));
+```
+
 ## Empty fields
 
 A field nobody has typed into holds nothing, which would make a required string fail as "expected string, received undefined" rather than with your own message. So before validating, formish fills in what the user can already see: a text input that is empty validates as `""`, an unchecked checkbox as `false`, and a group with nothing selected as `[]`.

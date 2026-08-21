@@ -6,6 +6,7 @@ import {
 	pages,
 	primitives as primitivePages,
 	tutorials as generated,
+	ui as uiPages,
 	type CreatePage,
 	type FormishPage,
 	type KitPage,
@@ -13,6 +14,7 @@ import {
 	type Page,
 	type PrimitivePage,
 	type Tutorial as GeneratedTutorial,
+	type UiPage,
 } from "../../.velite";
 import { contentError } from "./content-error";
 import { stripLessonSource } from "./lesson-source";
@@ -24,12 +26,14 @@ export {
 	lucidePages,
 	pages,
 	primitivePages,
+	uiPages,
 	type CreatePage,
 	type FormishPage,
 	type KitPage,
 	type LucidePage,
 	type Page,
 	type PrimitivePage,
+	type UiPage,
 };
 
 const codeFiles = import.meta.glob<string>("../content/lessons/**/code.ts", {

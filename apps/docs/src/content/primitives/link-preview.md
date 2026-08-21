@@ -17,13 +17,12 @@ import {
 } from "@implementjs/primitives";
 
 LinkPreview(
-	{},
 	LinkPreviewTrigger({ href: "https://github.com/ieedan" }, "@ieedan"),
-	LinkPreviewPortal(LinkPreviewContent({}, "A preview of where the link goes.")),
+	LinkPreviewPortal(LinkPreviewContent("A preview of where the link goes.")),
 );
 ```
 
-Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props on the trigger and the content are forwarded onto the underlying `A` or `Div`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props on the trigger and the content are forwarded onto the underlying `A` or `Div`.
 
 This is a hover affordance, not a way to reach content. It never opens on touch, and everything inside the panel is taken out of the tab order, so put nothing in it that isn't also reachable somewhere else. While open, the page behind cannot scroll; pass `preventScroll: false` to leave it scrollable.
 
@@ -48,7 +47,7 @@ Resting the pointer on it opens the preview after `openDelay`; moving away close
 LinkPreview(
 	{ openDelay: 300, closeDelay: 150 },
 	LinkPreviewTrigger({ href: "/docs" }, "the docs"),
-	LinkPreviewContent({}, "Opens sooner, leaves sooner."),
+	LinkPreviewContent("Opens sooner, leaves sooner."),
 );
 ```
 
@@ -64,7 +63,7 @@ const open = signal(false);
 LinkPreview(
 	{ open },
 	LinkPreviewTrigger({ href: "/docs" }, "the docs"),
-	LinkPreviewContent({}, "Hello"),
+	LinkPreviewContent("Hello"),
 );
 
 Button({ onClick: () => open.set(false) }, "Close");
@@ -85,9 +84,9 @@ Text inside the panel is selectable. While a selection is being dragged — and 
 `LinkPreviewPortal` is the [Portal](/docs/portal) helper under a link preview name. It renders its children into `document.body` by default so the panel is not clipped by `overflow` or trapped in a parent stacking context — worth having when the link lives inside a scrolling column of prose. Context still resolves from where you declared it.
 
 ```ts
-LinkPreviewPortal(LinkPreviewContent({}, "Hello"));
+LinkPreviewPortal(LinkPreviewContent("Hello"));
 
-LinkPreviewPortal({ to: overlayRoot }, LinkPreviewContent({}, "Hello"));
+LinkPreviewPortal({ to: overlayRoot }, LinkPreviewContent("Hello"));
 ```
 
 ## Styling
