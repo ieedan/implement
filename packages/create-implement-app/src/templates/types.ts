@@ -33,6 +33,12 @@ export type TemplateContext = {
 	 * app inside the implement monorepo itself.
 	 */
 	workspace: boolean;
+	/**
+	 * Specifiers for the implement packages, keyed by package name — how `--link` points an app at a
+	 * local clone of the implement repo (`link:../implement/packages/core`). Anything not in here
+	 * falls back to a version.
+	 */
+	link?: Record<string, string>;
 };
 
 export type TemplateFile = {

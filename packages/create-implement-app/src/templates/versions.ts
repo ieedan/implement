@@ -1,3 +1,4 @@
+import { MissingLinkedPackageError } from "@/utils/errors";
 import type { TemplateContext } from "@/templates/types";
 
 /**
@@ -21,9 +22,22 @@ export const VERSIONS = {
 
 export type Dependency = keyof typeof VERSIONS;
 
-/** The version range a template should ask for, honoring `--workspace` for the implement packages. */
+const IMPLEMENT_SCOPE = "@implementjs/";
+
+/**
+ * The specifier a template should ask for. The implement packages answer to `--link` first (a path
+ * into a local clone) and then to `--workspace`, everything else is a pinned version.
+ *
+ * @throws {MissingLinkedPackageError} when `--link` points at a repo missing a package the app needs.
+ */
 export function version(ctx: TemplateContext, dependency: Dependency): string {
-	if (ctx.workspace && dependency.startsWith("@implementjs/")) return "workspace:*";
+	if (!dependency.startsWith(IMPLEMENT_SCOPE)) return VERSIONS[dependency];
+	if (ctx.link) {
+		const linked = ctx.link[dependency];
+		if (linked === undefined) throw new MissingLinkedPackageError(dependency);
+		return linked;
+	}
+	if (ctx.workspace) return "workspace:*";
 	return VERSIONS[dependency];
 }
 

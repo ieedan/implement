@@ -10,9 +10,22 @@ import {
 	tryCommand,
 } from "@/commands/utils";
 import { getTemplate } from "@/templates";
-import { ADDON_META, ADDONS, type Addon, TEMPLATES, type TemplateId } from "@/templates/types";
+import {
+	ADDON_META,
+	ADDONS,
+	type Addon,
+	TEMPLATES,
+	type TemplateContext,
+	type TemplateFile,
+	type TemplateId,
+} from "@/templates/types";
 import type { CLIError } from "@/utils/errors";
-import { DirectoryNotEmptyError } from "@/utils/errors";
+import {
+	ConflictingLinkOptionsError,
+	CreateImplementAppError,
+	DirectoryNotEmptyError,
+} from "@/utils/errors";
+import { findLinkablePackages, linkSpecifiers } from "@/utils/link";
 import { meaningfulEntries, writeFileSync } from "@/utils/fs";
 import {
 	detectPackageManager,
@@ -23,7 +36,7 @@ import {
 	toPackageName,
 	validatePackageName,
 } from "@/utils/package";
-import { basename, joinAbsolute, relativeToCwd, resolveAbsolute } from "@/utils/path";
+import { basename, joinAbsolute, relativeToCwd, resolveAbsolute, shortestPath } from "@/utils/path";
 import { initLogging, intro, isTTY, outro, runCommands, unwrapPrompt } from "@/utils/prompts";
 import type { AbsolutePath } from "@/utils/types";
 
@@ -42,6 +55,7 @@ export const schema = defaultCommandOptionsSchema.extend({
 	primitives: z.boolean().optional(),
 	icons: z.boolean().optional(),
 	packageManager: z.enum(PACKAGE_MANAGERS).optional(),
+	link: z.string().optional(),
 	install: z.boolean(),
 	git: z.boolean(),
 	workspace: z.boolean(),
@@ -60,6 +74,8 @@ export type CreateCommandResult = {
 	files: string[];
 	packageManager: PackageManager;
 	installed: boolean;
+	/** The implement packages that were linked to a local repo, keyed by name. */
+	linked: Record<string, string> | undefined;
 };
 
 /**
@@ -83,6 +99,10 @@ export function addCreateCommand(cmd: Command): Command {
 			new Option("--package-manager <pm>", "The package manager to install with.").choices(
 				PACKAGE_MANAGERS,
 			),
+		)
+		.option(
+			"--link <path>",
+			"Link every implement package the app needs to a local clone of the implement repo.",
 		)
 		.option("--install", "Install dependencies after scaffolding.", false)
 		.option("--git", "Initialize a git repository.", false)
@@ -167,9 +187,27 @@ export async function runCreate(
 		if (!proceed) return err(new DirectoryNotEmptyError(relative));
 	}
 
+	// the package manager decides how a linked path is spelled, so it has to be settled before the
+	// package.json is written
+	const packageManager = options.packageManager ?? (await detectPackageManager(options.cwd));
+
+	const linkResult = resolveLink(options, { directory, packageManager, verbose });
+	if (linkResult.isErr()) return err(linkResult.error);
+	const link = linkResult.value;
+
 	spinner.start(`Creating ${pc.cyan(name)}`);
 
-	const files = getTemplate(template).files({ name, addons, workspace: options.workspace });
+	const filesResult = templateFiles(template, {
+		name,
+		addons,
+		workspace: options.workspace,
+		link: link?.specifiers,
+	});
+	if (filesResult.isErr()) {
+		spinner.stop(pc.red(`Failed to create ${pc.cyan(name)}`));
+		return err(filesResult.error);
+	}
+	const files = filesResult.value;
 
 	for (const file of files) {
 		verbose(`Writing ${file.path}`);
@@ -182,7 +220,13 @@ export async function runCreate(
 
 	spinner.stop(`Created ${pc.cyan(name)} with ${files.length} files`);
 
-	const packageManager = options.packageManager ?? (await detectPackageManager(options.cwd));
+	if (link) {
+		log.success(
+			`Linked ${Object.keys(link.specifiers).length} implement packages to ${pc.cyan(
+				shortestPath(options.cwd, link.root),
+			)}`,
+		);
+	}
 
 	if (options.git) {
 		await runCommands({
@@ -223,7 +267,55 @@ export async function runCreate(
 		files: files.map((file) => file.path),
 		packageManager,
 		installed: options.install,
+		linked: link?.specifiers,
 	});
+}
+
+/**
+ * Resolves `--link` into the specifiers the generated `package.json` should carry, or `undefined`
+ * when the app is not linked to a local repo.
+ */
+function resolveLink(
+	options: CreateOptions,
+	{
+		directory,
+		packageManager,
+		verbose,
+	}: { directory: AbsolutePath; packageManager: PackageManager; verbose: (msg: string) => void },
+): Result<{ root: AbsolutePath; specifiers: Record<string, string> } | undefined, CLIError> {
+	if (options.link === undefined) return ok(undefined);
+	if (options.workspace) return err(new ConflictingLinkOptionsError());
+
+	const root = resolveAbsolute(options.cwd, options.link);
+	const packages = findLinkablePackages(root);
+	if (packages.isErr()) return err(packages.error);
+
+	verbose(`Linking ${[...packages.value.keys()].join(", ")} from ${root}`);
+
+	return ok({
+		root,
+		specifiers: linkSpecifiers({
+			packages: packages.value,
+			appDirectory: directory,
+			packageManager,
+		}),
+	});
+}
+
+/**
+ * A template throws when it needs an implement package the linked repo doesn't have — the only way
+ * generating files can fail — so it comes back as an error like everything else.
+ */
+function templateFiles(
+	template: TemplateId,
+	context: TemplateContext,
+): Result<TemplateFile[], CLIError> {
+	try {
+		return ok(getTemplate(template).files(context));
+	} catch (e) {
+		if (e instanceof CreateImplementAppError) return err(e);
+		throw e;
+	}
 }
 
 /**

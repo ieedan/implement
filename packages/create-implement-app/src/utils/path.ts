@@ -37,6 +37,21 @@ export function basename(p: AbsolutePath): string {
 	return _basename(p);
 }
 
+export function relativePath(from: AbsolutePath, to: AbsolutePath): string {
+	return relative(from, to);
+}
+
+/**
+ * The shorter of the two spellings of a path. A relative path reads best right up until it climbs
+ * out of a deep directory, where `../../../../../..` helps nobody.
+ */
+export function shortestPath(from: AbsolutePath, to: AbsolutePath): string {
+	const rel = relativePath(from, to);
+	if (rel === "") return ".";
+	const dotted = rel.startsWith(".") ? rel : `./${rel}`;
+	return dotted.length <= to.length ? dotted : to;
+}
+
 export function relativeToCwd(cwd: AbsolutePath, p: AbsolutePath): string {
-	return relative(cwd, p);
+	return relativePath(cwd, p);
 }

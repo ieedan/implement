@@ -13,7 +13,7 @@ import pkg from "../../package.json" with { type: "json" };
 
 /** Read at call time so a run without a terminal — an agent, CI — is always detected correctly. */
 export function isTTY(): boolean {
-	return Boolean(process.stdout.isTTY);
+	return process.stdout.isTTY;
 }
 
 export function intro() {

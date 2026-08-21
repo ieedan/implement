@@ -56,6 +56,30 @@ Anything a flag didn't answer falls back to the defaults: the `kit` template, ta
 
 Errors exit non-zero with a message on stderr. Set `CREATE_IMPLEMENT_APP_TRACE=1` for a stack trace.
 
+## Linking a local implement repo
+
+Working on the framework itself? `--link` points every implement package the app needs at a local clone, so edits to `packages/core` show up in the app without a publish or a copy:
+
+```sh
+pnpm create implement-app my-app --link ../implement --yes
+```
+
+```jsonc
+// my-app/package.json
+{
+	"dependencies": {
+		"@implementjs/core": "link:../implement/packages/core",
+	},
+	"devDependencies": {
+		"@implementjs/kit": "link:../implement/packages/kit",
+	},
+}
+```
+
+It scans `packages/*` in the clone (and the path itself, so pointing straight at one package works too) and links only what the chosen template and addons actually depend on — everything else stays on a pinned version. npm and bun get `file:` instead of `link:`, since that's the spelling they symlink for. The path is written relative to the app when that reads better than the absolute one, so a repo sitting next to the app survives the pair being moved together.
+
+The clone needs its own dependencies installed — the linked packages resolve theirs through it. Pointing at a clone that doesn't have a package the app needs (`--primitives` against a clone without `packages/primitives`) is an error, not a silent fallback to the registry. `--link` and `--workspace` both decide how the implement packages resolve, so pass one or the other.
+
 ## Inside the monorepo
 
 implement isn't published to a registry yet, so a generated `package.json` asks for `latest` and will only install once the packages land. To scaffold an app inside this repo, pass `--workspace` — the implement dependencies come out as `workspace:*` and resolve against the workspace:

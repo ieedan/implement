@@ -7,7 +7,10 @@ export type CLIError =
 	| InvalidOptionsError
 	| InvalidPackageNameError
 	| InvalidTemplateError
-	| InvalidAddonError;
+	| InvalidAddonError
+	| NoLinkedPackagesError
+	| MissingLinkedPackageError
+	| ConflictingLinkOptionsError;
 
 export class CreateImplementAppError extends Error {
 	private readonly suggestion: string;
@@ -70,6 +73,30 @@ export class InvalidAddonError extends CreateImplementAppError {
 	constructor(addon: string, addons: string[]) {
 		super(`${pc.bold(addon)} is not a valid addon.`, {
 			suggestion: `Expected one of: ${addons.map((a) => pc.cyan(a)).join(", ")}.`,
+		});
+	}
+}
+
+export class NoLinkedPackagesError extends CreateImplementAppError {
+	constructor(path: string) {
+		super(`No implement packages found in ${pc.bold(path)}.`, {
+			suggestion: "Point --link at a clone of the implement repo, the one holding packages/core.",
+		});
+	}
+}
+
+export class MissingLinkedPackageError extends CreateImplementAppError {
+	constructor(dependency: string) {
+		super(`The linked repository has no ${pc.bold(dependency)}.`, {
+			suggestion: "Update the clone --link points at, or drop the addon that needs it.",
+		});
+	}
+}
+
+export class ConflictingLinkOptionsError extends CreateImplementAppError {
+	constructor() {
+		super("--link and --workspace both decide how the implement packages resolve.", {
+			suggestion: "Pass one or the other.",
 		});
 	}
 }
