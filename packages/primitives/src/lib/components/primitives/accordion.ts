@@ -31,7 +31,7 @@ export type AccordionRootProps<T extends "single" | "multiple" = "single"> = (T 
 		orientation?: "horizontal" | "vertical";
 	};
 
-const AccordionCtx = context<AccordionState>();
+const AccordionCtx = context<AccordionState>("AccordionCtx");
 
 abstract class AccordionState {
 	disabled: Signal<boolean>;
@@ -204,7 +204,7 @@ class AccordionItemState {
 	}
 }
 
-const AccordionItemCtx = context<AccordionItemState>();
+const AccordionItemCtx = context<AccordionItemState>("AccordionItemCtx");
 
 export const AccordionItem = createComponent(function AccordionItem(
 	{ id = getId(), value, disabled = false, ...restProps }: AccordionItemProps,

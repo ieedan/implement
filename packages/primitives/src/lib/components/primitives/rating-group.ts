@@ -37,7 +37,7 @@ type RatingGroupOpts = Required<
 	>
 >;
 
-const RatingGroupCtx = context<RatingGroupState>();
+const RatingGroupCtx = context<RatingGroupState>("RatingGroupCtx");
 
 export type RatingGroupItemStateValue = "active" | "partial" | "inactive";
 

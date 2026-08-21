@@ -33,7 +33,7 @@ export type TabsRootProps = ComponentProps<typeof Div> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
-const TabsCtx = context<TabsState>();
+const TabsCtx = context<TabsState>("TabsCtx");
 
 class TabsState {
 	value: Signal<string>;

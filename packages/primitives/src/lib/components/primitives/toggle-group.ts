@@ -26,7 +26,7 @@ export type ToggleGroupRootProps<T extends "single" | "multiple" = "single"> = (
 		orientation?: "horizontal" | "vertical";
 	};
 
-const ToggleGroupCtx = context<ToggleGroupState>();
+const ToggleGroupCtx = context<ToggleGroupState>("ToggleGroupCtx");
 
 abstract class ToggleGroupState {
 	disabled: Signal<boolean>;

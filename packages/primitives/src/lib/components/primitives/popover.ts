@@ -159,7 +159,7 @@ class PopoverState {
 	}
 }
 
-const PopoverContext = context<PopoverState>();
+const PopoverContext = context<PopoverState>("PopoverContext");
 
 export const Popover = createComponent(function Popover(
 	props: PopoverRootProps,

@@ -25,7 +25,7 @@ export type RadioGroupRootProps = ComponentProps<typeof Div> & {
 	orientation?: "horizontal" | "vertical";
 };
 
-const RadioGroupCtx = context<RadioGroupState>();
+const RadioGroupCtx = context<RadioGroupState>("RadioGroupCtx");
 
 class RadioGroupState {
 	value: Signal<string | null>;

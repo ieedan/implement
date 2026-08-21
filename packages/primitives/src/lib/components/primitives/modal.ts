@@ -264,7 +264,7 @@ export class ModalState {
 	}
 }
 
-export const ModalCtx = context<ModalState>();
+export const ModalCtx = context<ModalState>("ModalCtx");
 
 export function ModalRoot(state: ModalState, ...children: Child[]) {
 	return ModalCtx.UseOr((parent) => {

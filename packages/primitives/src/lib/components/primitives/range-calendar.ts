@@ -393,7 +393,7 @@ type RangeCalendarCellState = {
 	root: RangeCalendarState;
 };
 
-const RangeCalendarCellCtx = context<RangeCalendarCellState>();
+const RangeCalendarCellCtx = context<RangeCalendarCellState>("RangeCalendarCellCtx");
 
 function toReadable<T>(value: MaybeReadable<T>): Readable<T> {
 	return isReadable(value) ? value : signal(value);

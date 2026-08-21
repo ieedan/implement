@@ -22,7 +22,7 @@ export type CollapsibleRootProps = ComponentProps<typeof Div> & {
 	open?: Signal<boolean> | boolean;
 };
 
-const CollapsibleCtx = context<CollapsibleState>();
+const CollapsibleCtx = context<CollapsibleState>("CollapsibleCtx");
 
 class CollapsibleState {
 	open: Signal<boolean>;
