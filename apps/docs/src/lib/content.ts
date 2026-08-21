@@ -1,11 +1,13 @@
 import {
 	create as createPages,
+	formish as formishPages,
 	kit as kitPages,
 	lucide as lucidePages,
 	pages,
 	primitives as primitivePages,
 	tutorials as generated,
 	type CreatePage,
+	type FormishPage,
 	type KitPage,
 	type LucidePage,
 	type Page,
@@ -17,11 +19,13 @@ import { stripLessonSource } from "./lesson-source";
 
 export {
 	createPages,
+	formishPages,
 	kitPages,
 	lucidePages,
 	pages,
 	primitivePages,
 	type CreatePage,
+	type FormishPage,
 	type KitPage,
 	type LucidePage,
 	type Page,

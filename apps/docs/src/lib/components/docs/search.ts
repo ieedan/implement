@@ -21,7 +21,14 @@ import {
 	DialogTitle as DialogTitlePrimitive,
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
-import { kitPages, lucidePages, pages, primitivePages, tutorials } from "@/lib/content";
+import {
+	formishPages,
+	kitPages,
+	lucidePages,
+	pages,
+	primitivePages,
+	tutorials,
+} from "@/lib/content";
 import { copyText } from "@/lib/copy-text";
 import {
 	Command,
@@ -45,7 +52,7 @@ import { MarkdownIcon } from "./brand-icons";
 /** The shape every content collection shares. */
 type DocPage = { title: string; description: string; permalink: string };
 
-type AreaKey = "lib" | "kit" | "primitives" | "lucide" | "tutorial";
+type AreaKey = "lib" | "kit" | "primitives" | "formish" | "lucide" | "tutorial";
 
 type Area = {
 	key: AreaKey;
@@ -64,6 +71,7 @@ const areas: Area[] = [
 		pages: primitivePages,
 		markdown: true,
 	},
+	{ key: "formish", label: "@implementjs/formish", pages: formishPages, markdown: true },
 	{ key: "lucide", label: "@implementjs/lucide", pages: lucidePages, markdown: true },
 	{ key: "tutorial", label: "Tutorial", pages: tutorials, markdown: false },
 ];

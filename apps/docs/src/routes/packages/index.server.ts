@@ -5,6 +5,7 @@ const PACKAGE_DIRS = [
 	"core",
 	"kit",
 	"primitives",
+	"formish",
 	"lucide",
 	"vite",
 	"create-implement-app",
