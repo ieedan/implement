@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Test fixtures and generated output require intentional narrowing. */
 import { afterEach, describe, expect, it } from "vitest";
 import { scanRoutes } from "../src/scan.ts";
 import {

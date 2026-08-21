@@ -70,6 +70,7 @@ function createPreviewFrame(
 		if (iframe.contentDocument !== doc) onReset();
 	});
 
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Preview iframe console is captured for the lesson output panel.
 	const frameConsole = (frameWindow as Window & typeof globalThis).console;
 	for (const level of CONSOLE_LEVELS) {
 		const original = frameConsole[level].bind(frameConsole);

@@ -47,6 +47,7 @@ function bindListener(
 
 	const attach = (handler: unknown): Unsubscribe => {
 		if (typeof handler !== "function") return noop;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Global event props accept any listener after a function check.
 		const listener = handler as EventListener;
 		target.addEventListener(event, listener, options);
 		return () => target.removeEventListener(event, listener, options);

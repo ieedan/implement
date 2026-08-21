@@ -80,6 +80,7 @@ abstract class ServerNode {
 	get nextSibling(): ServerChildNode | null {
 		if (!this.parentNode) return null;
 		const siblings = this.parentNode.childNodes;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Server node subclasses share one sibling list typed as ServerChildNode.
 		const index = siblings.indexOf(this as unknown as ServerChildNode);
 		return siblings[index + 1] ?? null;
 	}
@@ -97,6 +98,7 @@ abstract class ServerNode {
 	remove(): void {
 		if (!this.parentNode) return;
 		const siblings = this.parentNode.childNodes;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Server node subclasses share one sibling list typed as ServerChildNode.
 		const index = siblings.indexOf(this as unknown as ServerChildNode);
 		if (index !== -1) siblings.splice(index, 1);
 		this.parentNode = null;
@@ -357,6 +359,7 @@ export function parseSvgRoot(source: string): ServerElement | null {
 
 export function createServerEnvironment(doc: ServerDocument): DomEnvironment {
 	// the single place server nodes cross the environment boundary as DOM types
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Server DOM shim implements the browser DomEnvironment interface. */
 	return {
 		createElement: (tag) => new ServerElement(tag) as unknown as HTMLElement,
 		createTextNode: (data) => new ServerText(data) as unknown as Text,
@@ -376,4 +379,5 @@ export function createServerEnvironment(doc: ServerDocument): DomEnvironment {
 		},
 		createSvgRoot: (source) => parseSvgRoot(source) as unknown as SVGSVGElement | null,
 	};
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 }

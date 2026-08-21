@@ -17,6 +17,7 @@ function readPackageManifest(path: string, dir: string): PackageInfo {
 	if (raw == null || typeof raw !== "object") {
 		throw new Error(`Invalid package.json for ${dir}: expected an object`);
 	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON object validated before reading name and version fields.
 	const { name, version } = raw as Record<string, unknown>;
 	if (typeof name !== "string" || typeof version !== "string") {
 		throw new Error(`Invalid package.json for ${dir}: "name" and "version" must be strings`);

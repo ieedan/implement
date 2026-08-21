@@ -376,6 +376,7 @@ export const SelectValue = createComponent(function SelectValue({
 }: SelectValueProps) {
 	return SelectCtx.Use((state) => {
 		if (state.opts.type === "multiple") {
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Select state value shape follows the discriminated `type` prop.
 			const value = state.value() as Signal<string[]>;
 			const selected = derived([value, state.items, state.itemLabels], (values, items, labels) =>
 				values.map((current) => ({
@@ -390,6 +391,7 @@ export const SelectValue = createComponent(function SelectValue({
 			);
 		}
 
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Select state value shape follows the discriminated `type` prop.
 		const value = state.value() as Signal<string | null>;
 		const selected = derived([value, state.items, state.itemLabels], (current, items, labels) =>
 			current == null ? null : { value: current, label: labelForValue(current, items, labels) },

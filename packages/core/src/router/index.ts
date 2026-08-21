@@ -196,6 +196,7 @@ function assertRouteRender(value: unknown, at: string): LeafRoute["render"] {
 	if (typeof value !== "function") {
 		throw new Error(`Route render at ${at} must be a function, got ${typeof value}`);
 	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Validated render function matches the compiled route shape.
 	return value as LeafRoute["render"];
 }
 
@@ -203,6 +204,7 @@ function assertLayoutHandler(value: unknown): LayoutEntry["handler"] {
 	if (typeof value !== "function") {
 		throw new Error(`Route layout must be a function, got ${typeof value}`);
 	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Validated layout handler matches the compiled route shape.
 	return value as LayoutEntry["handler"];
 }
 
@@ -238,6 +240,7 @@ function compileNode(
 			});
 			continue;
 		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Non-function route values are nested route objects.
 		compileNode(value as Record<string, unknown>, [...prefix, ...parseKey(key)], scope, out);
 	}
 }
@@ -559,8 +562,10 @@ export function Router<T extends Routes<T>>(
 
 	const navigate = (path: string, ...rest: unknown[]) => {
 		const takesParams = path.includes(":");
+		/* oxlint-disable typescript/no-unsafe-type-assertion -- Overloaded navigate rest args depend on whether the path has params. */
 		const params = takesParams ? (rest[0] as Record<string, string | number>) : undefined;
 		const navOptions = (takesParams ? rest[1] : rest[0]) as NavigateOptions | undefined;
+		/* oxlint-enable typescript/no-unsafe-type-assertion */
 		navigateTo(buildHref(path, params), navOptions);
 	};
 
@@ -609,6 +614,7 @@ export function Router<T extends Routes<T>>(
 		);
 	};
 
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Router helper methods are merged onto the mountable return value.
 	return Object.assign(mountable, {
 		location: lazyLocation,
 		href,

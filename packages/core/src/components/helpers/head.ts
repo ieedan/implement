@@ -17,6 +17,7 @@ declare const HEAD_CHILD: unique symbol;
 export type HeadChild = { readonly [HEAD_CHILD]: true };
 
 function brand(mountable: Mountable): HeadChild {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Opaque brand keeps head-only mountables out of body children.
 	return mountable as unknown as HeadChild;
 }
 
@@ -102,6 +103,7 @@ function Title(text: Bindable<string>): HeadChild {
  */
 export const Head: HeadHelper = Object.assign(
 	(...children: HeadChild[]): Mountable => {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- HeadChild brand is stripped at runtime to mountable factories.
 		const mountables = children as unknown as Mountable[];
 		return () => {
 			let mounted: IMountable[] = [];

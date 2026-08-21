@@ -1202,6 +1202,7 @@ export const CommandItem = createComponent(function CommandItem(
 	...children: Child[]
 ) {
 	return commandItem(
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Command item delegates to Div with merged props.
 		(props, ...c) => Div(props as ComponentProps<typeof Div>, ...c),
 		{ id: getReadableValue(id), value, keywords, disabled, onSelect, forceMount },
 		restProps,
@@ -1223,6 +1224,7 @@ export const CommandLinkItem = createComponent(function CommandLinkItem(
 	...children: Child[]
 ) {
 	return commandItem(
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Command link item delegates to A with merged props.
 		(props, ...c) => A(props as ComponentProps<typeof A>, ...c),
 		{ id: getReadableValue(id), value, keywords, disabled, onSelect, forceMount },
 		restProps,

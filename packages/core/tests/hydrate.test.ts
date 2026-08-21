@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and DOM stubs require intentional narrowing. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	App,

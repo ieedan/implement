@@ -40,6 +40,7 @@ async function runTest(
 	lesson: Parameters<typeof tutorialTest.__setActiveLesson>[0],
 ): Promise<void> {
 	const test = await importLessonModule(testSource, {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tutorial test helpers are injected as a shim module.
 		[TEST_MODULE]: tutorialTest as unknown as ShimModule,
 	});
 	try {
@@ -47,6 +48,7 @@ async function runTest(
 			throw new Error("Lesson test must default-export a function.");
 		}
 		tutorialTest.__setActiveLesson(lesson);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Default export validated as a function before invocation.
 		await (test.mod.default as () => void | Promise<void>)();
 	} finally {
 		tutorialTest.__setActiveLesson(null);

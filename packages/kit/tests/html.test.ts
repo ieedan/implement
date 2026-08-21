@@ -3,6 +3,7 @@ import { createServer as createHttpServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { createServer, type ResolvedConfig, type ViteDevServer } from "vite";
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and dynamic module loading require intentional narrowing. */
 import { afterEach, describe, expect, it } from "vitest";
 import { resolveShell, shellOutputPlugin } from "../src/html.ts";
 import { kit } from "../src/index.ts";

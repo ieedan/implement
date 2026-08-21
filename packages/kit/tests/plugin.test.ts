@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import type { RenderToStringResult } from "@implementjs/core/server";
 import { createServer, type ViteDevServer } from "vite";
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and dynamic module loading require intentional narrowing. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { kit } from "../src/index.ts";
 

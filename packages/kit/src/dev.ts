@@ -35,9 +35,11 @@ function toRequest(req: IncomingMessage, url: URL): Request {
 	const body =
 		method === "GET" || method === "HEAD"
 			? undefined
-			: (Readable.toWeb(req) as unknown as BodyInit);
+			: // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Node Readable streams convert to Fetch BodyInit for endpoint handlers.
+				(Readable.toWeb(req) as unknown as BodyInit);
 	const init: RequestInit = { method, headers, body };
 	// streaming request bodies require half duplex
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- RequestInit duplex is required for streaming request bodies.
 	if (body !== undefined) (init as { duplex?: string }).duplex = "half";
 	return new Request(url, init);
 }
@@ -79,6 +81,7 @@ export async function handleServerRequest(options: {
 			return true;
 		}
 		const base = path === DATA_SUFFIX ? "/" : path.slice(0, -DATA_SUFFIX.length);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated loads module exports the compiled load route table.
 		const { loads } = (await server.ssrLoadModule(LOADS_ID)) as { loads: LoadRoute[] };
 		const data = await resolveLoads(loads, new URL(base + url.search, url.origin));
 		res.setHeader("content-type", "application/json");
@@ -92,6 +95,7 @@ export async function handleServerRequest(options: {
 	}
 
 	if (!hasEndpoints) return false;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated endpoints module exports the compiled endpoint route table.
 	const { endpoints } = (await server.ssrLoadModule(ENDPOINTS_ID)) as {
 		endpoints: EndpointRoute[];
 	};
@@ -135,6 +139,7 @@ export async function prerenderServerFiles(options: {
 	};
 
 	if (hasLoads) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated loads module exports the compiled load route table.
 		const { loads } = (await load(LOADS_ID)) as unknown as { loads: LoadRoute[] };
 		let written = 0;
 		for (const route of routes) {
@@ -147,6 +152,7 @@ export async function prerenderServerFiles(options: {
 	}
 
 	if (serverRoutes.length === 0) return;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated endpoints module exports the compiled endpoint route table.
 	const { endpoints } = (await load(ENDPOINTS_ID)) as unknown as { endpoints: EndpointRoute[] };
 	const failed: string[] = [];
 	let written = 0;

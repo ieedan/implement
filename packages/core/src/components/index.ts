@@ -252,6 +252,7 @@ export function App(options: { target: HTMLElement }) {
 					beginHydration(ssr);
 					let hydrated: IMountable[];
 					try {
+						// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SSR wrapper is verified via querySelector before hydration.
 						hydrated = mountAll(children, ssr as HTMLElement);
 					} catch (error) {
 						endHydration();

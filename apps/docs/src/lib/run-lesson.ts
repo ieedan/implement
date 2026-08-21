@@ -98,11 +98,13 @@ function moduleShimUrl(specifier: string, moduleObject: ShimModule): string {
 // globals (console, window, setTimeout, alert) resolve to that realm.
 function importInRealm(realm: Window, url: string): Promise<Record<string, unknown>> {
 	if (realm === window) return import(/* @vite-ignore */ url);
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Preview iframe realms need dynamic import via their Function constructor. */
 	const RealmFunction = (realm as Window & { Function: FunctionConstructor }).Function;
 	const dynamicImport = new RealmFunction("url", "return import(url)") as (
 		url: string,
 	) => Promise<Record<string, unknown>>;
 	return dynamicImport(url);
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 }
 
 function transpile(code: string): string {
@@ -175,6 +177,7 @@ export async function importLessonModule(
 	// The shim blobs read their module off globalThis at import time, so the
 	// module objects must be parked on the realm that executes the import.
 	for (const [specifier, moduleObject] of Object.entries(modules)) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Shim modules are parked on the preview realm's globalThis.
 		(realm as Window & ShimModule)[shimKey(specifier)] = moduleObject;
 	}
 
@@ -232,6 +235,7 @@ export async function importLessonProject(
 		...extraModules,
 	};
 	for (const [specifier, moduleObject] of Object.entries(shimModules)) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Shim modules are parked on the preview realm's globalThis.
 		(realm as Window & ShimModule)[shimKey(specifier)] = moduleObject;
 	}
 

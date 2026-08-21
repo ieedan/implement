@@ -44,6 +44,7 @@ export function trapFocus(e: KeyboardEvent, el: HTMLElement | undefined | null) 
 	if (activeElement === null) {
 		focus(0);
 	} else {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- activeElement is compared against tabbable HTMLElements in this container.
 		const activeIndex = tabbableElements.indexOf(activeElement as HTMLElement);
 		if (activeIndex === -1) {
 			focus(0);

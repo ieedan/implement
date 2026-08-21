@@ -106,6 +106,7 @@ function roleOf(el: HTMLElement): string | null {
 		case "a":
 			return el.hasAttribute("href") ? "link" : null;
 		case "input": {
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Input role mapping reads the element's type property.
 			const type = (el as HTMLInputElement).type;
 			if (type === "checkbox") return "checkbox";
 			if (type === "radio") return "radio";
@@ -286,6 +287,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
 	const bKeys = Object.keys(b);
 	if (aKeys.length !== bKeys.length) return false;
 	return aKeys.every((key) =>
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- deepEqual recurses into plain object fields after object checks.
 		deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
 	);
 }

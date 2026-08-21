@@ -163,6 +163,7 @@ export function ForEach<T>(
 
 	const signals: readonly Readable<T[]>[] = isReadable<T[]>(items) ? [items] : [];
 	const getItems = (): readonly T[] =>
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Static item lists are passed through when not wrapped in a signal.
 		isReadable<T[]>(items) ? items.get() : (items as readonly T[]);
 
 	return () => {

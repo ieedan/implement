@@ -27,6 +27,7 @@ function toErrorMessage(error: unknown): string {
 }
 
 function assertDemoChild(value: unknown): Child {
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Demo default exports are validated before narrowing to Child unions. */
 	if (
 		value == null ||
 		typeof value === "string" ||
@@ -45,6 +46,7 @@ function assertDemoChild(value: unknown): Child {
 	) {
 		return value as ReadableChild;
 	}
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 	throw new Error("Default export must return a component, text, or readable.");
 }
 

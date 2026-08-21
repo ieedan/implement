@@ -135,6 +135,7 @@ export const ToggleGroup = createComponent(function ToggleGroup(
 ) {
 	const root = ref<HTMLDivElement>();
 	const opts = { loop, orientation };
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Discriminated `type` prop selects the matching toggle-group state class. */
 	const state =
 		type === "multiple"
 			? new ToggleGroupMultipleState(opts, root, disabled, value as Signal<string[]> | undefined)
@@ -144,6 +145,7 @@ export const ToggleGroup = createComponent(function ToggleGroup(
 					disabled,
 					value as Signal<string | null> | undefined,
 				);
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 
 	return ToggleGroupCtx.Provide(state).To(
 		Div(

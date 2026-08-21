@@ -81,6 +81,7 @@ export function implement(options: ImplementOptions = {}): Plugin {
 			async handler(html, ctx) {
 				if (!server) return html;
 				try {
+					// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SSR entry module exports the app render function.
 					const { render } = (await server.ssrLoadModule(entry)) as { render: RenderFn };
 					const result = await render(ctx.originalUrl ?? "/");
 					// inline the graph's CSS so SSR markup paints styled — dev CSS
@@ -110,6 +111,7 @@ export function implement(options: ImplementOptions = {}): Plugin {
 				logLevel: "error",
 			});
 			try {
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SSR entry module exports the app render function.
 				const { render } = (await dev.ssrLoadModule(entry)) as { render: RenderFn };
 				const routesOption = typeof prerender === "object" ? prerender.routes : undefined;
 				const routes =

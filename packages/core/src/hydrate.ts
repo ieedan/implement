@@ -58,6 +58,7 @@ export function endHydration(): boolean {
 	if (current.failed) return false;
 	for (const { preexisting } of current.parents.values()) {
 		for (const node of preexisting) {
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Unclaimed SSR nodes are removed from the live DOM tree.
 			if (!current.claimed.has(node)) (node as ChildNode).remove();
 		}
 	}
@@ -141,6 +142,7 @@ export function claimElement(tag: string): HTMLElement | null {
 	if (!(node instanceof Element) || node.localName !== tag) return fail();
 	entry.cursor = node.nextSibling;
 	state!.claimed.add(node);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Element tag and localName were verified above.
 	return node as HTMLElement;
 }
 
@@ -152,6 +154,7 @@ export function claimSvgRoot(): SVGSVGElement | null {
 	if (!(node instanceof Element) || node.localName !== "svg") return fail();
 	entry.cursor = node.nextSibling;
 	state!.claimed.add(node);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SVG root localName was verified above.
 	return node as SVGSVGElement;
 }
 
@@ -170,6 +173,7 @@ export function claimComment(data: string): Comment | null {
 	if (!node || node.nodeType !== 8) return fail();
 	entry.cursor = node.nextSibling;
 	state!.claimed.add(node);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Comment nodeType was verified above.
 	return node as Comment;
 }
 

@@ -101,9 +101,13 @@ function formatValue(value: unknown, depth: number, seen: Set<object>): string {
 	if (node != null) return node;
 
 	const tag = Object.prototype.toString.call(obj);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Built-in tags are narrowed after Object.prototype.toString checks.
 	if (tag === "[object Date]") return (obj as Date).toString();
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Built-in tags are narrowed after Object.prototype.toString checks.
 	if (tag === "[object RegExp]") return (obj as RegExp).toString();
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Built-in tags are narrowed after Object.prototype.toString checks.
 	if (tag === "[object Map]") return `Map(${(obj as Map<unknown, unknown>).size})`;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Built-in tags are narrowed after Object.prototype.toString checks.
 	if (tag === "[object Set]") return `Set(${(obj as Set<unknown>).size})`;
 	if (tag === "[object Promise]") return "Promise";
 
@@ -152,6 +156,7 @@ function asDomNode(value: object): string | null {
 		return null;
 	}
 	if (candidate.nodeType === 1) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Element nodeType was verified above.
 		const el = value as Element;
 		const id = el.id ? `#${el.id}` : "";
 		const classes =
@@ -160,7 +165,10 @@ function asDomNode(value: object): string | null {
 				: "";
 		return `<${el.tagName.toLowerCase()}${id}${classes}>`;
 	}
-	if (candidate.nodeType === 3) return JSON.stringify((value as Text).nodeValue ?? "");
+	if (candidate.nodeType === 3) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Text nodeType was verified above.
+		return JSON.stringify((value as Text).nodeValue ?? "");
+	}
 	if (candidate.nodeType === 9) return "#document";
 	return candidate.nodeName.toLowerCase();
 }
