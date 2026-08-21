@@ -52,6 +52,8 @@ export function GET({ params }: RequestEvent): Response {
 
 This is how a page can have a machine-readable twin at the same address. This site dogfoods it: every docs page serves its plain markdown at its own URL plus `.md` — the **Copy Page** button above is fetching [this page's markdown](/kit/server-routes.md).
 
+It also negotiates: a [server hook](/kit/hooks) redirects any request for a docs page that asks for markdown — `Accept: text/markdown` — to that page's twin, so a reader that wants the source doesn't have to know the convention. Browsers never send that header, so nothing about the page changes for them.
+
 ## On build
 
 The prerender renders every `GET` endpoint into a real file in `dist/`, so the built site serves them statically:
