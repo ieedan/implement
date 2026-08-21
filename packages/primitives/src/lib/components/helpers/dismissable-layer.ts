@@ -211,7 +211,7 @@ function isInteractionWithOutsideElement(
 	return true;
 }
 
-const DismissableLayerCtx = context<DismissableLayerState>();
+const DismissableLayerCtx = context<DismissableLayerState>("DismissableLayerCtx");
 
 export const DismissableLayer = createComponent(function DismissableLayer(
 	props: DismissableLayerProps,

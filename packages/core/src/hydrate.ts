@@ -18,6 +18,8 @@
  * tier-1 behavior.
  */
 
+import { captureStack } from "./utils";
+
 type ParentState = {
 	/** Next serialized node this parent may hand out. */
 	cursor: Node | null;
@@ -107,7 +109,9 @@ function fail(expected: string, found: Node | null): null {
 			path: domPath(state.currentParent, state.root),
 			parent: state.currentParent,
 			node: found,
-			stack: captureStack(),
+			// the component functions that built this node, which is the thing worth
+			// knowing and the thing the fallback path's own stack cannot show
+			stack: captureStack(["hydrate", "dom"]),
 		};
 	}
 	return null;
@@ -315,20 +319,6 @@ function domPath(node: Node | null, root: Element): string {
 		current = current.parentNode;
 	}
 	return steps.join(" > ");
-}
-
-/**
- * The frames that led to the failing claim — the component functions that
- * built this part of the tree, which is the thing worth knowing and the thing
- * the fallback path's own stack cannot show. Core's own claim/create frames
- * are trimmed off the top so the first line is the caller's code.
- */
-function captureStack(): string | undefined {
-	const stack = new Error().stack;
-	if (!stack) return undefined;
-	const frames = stack.split("\n").slice(1);
-	while (frames.length > 0 && /\/(hydrate|dom)\.[cm]?[jt]s/.test(frames[0]!)) frames.shift();
-	return frames.join("\n");
 }
 
 /**

@@ -112,7 +112,7 @@ export type CommandRootProps = ComponentProps<typeof Div> & {
 
 type GridCell = { index: number; firstRowOfGroup: boolean; ref: HTMLElement };
 
-const CommandCtx = context<CommandState>();
+const CommandCtx = context<CommandState>("CommandCtx");
 
 class CommandState {
 	search: Signal<string>;
@@ -998,7 +998,7 @@ class CommandGroupState {
 	constructor(readonly value: string) {}
 }
 
-const CommandGroupCtx = context<CommandGroupState>();
+const CommandGroupCtx = context<CommandGroupState>("CommandGroupCtx");
 
 export type CommandGroupProps = ComponentProps<typeof Div> & {
 	/** A unique value naming the group. Defaults to the group's id. */

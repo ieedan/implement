@@ -203,7 +203,7 @@ class LinkPreviewState {
 	}
 }
 
-const LinkPreviewCtx = context<LinkPreviewState>();
+const LinkPreviewCtx = context<LinkPreviewState>("LinkPreviewCtx");
 
 export const LinkPreview = createComponent(function LinkPreview(
 	props: LinkPreviewRootProps,

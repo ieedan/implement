@@ -375,7 +375,7 @@ type CalendarCellState = {
 	root: CalendarBaseState;
 };
 
-const CalendarCellCtx = context<CalendarCellState>();
+const CalendarCellCtx = context<CalendarCellState>("CalendarCellCtx");
 
 function toReadable<T>(value: MaybeReadable<T>): Readable<T> {
 	return isReadable(value) ? value : signal(value);

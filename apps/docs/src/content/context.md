@@ -12,8 +12,10 @@ import { context } from "@implementjs/core";
 
 type Session = { user: Readable<User>; logout: () => void };
 
-export const SessionContext = context<Session>();
+export const SessionContext = context<Session>("SessionContext");
 ```
+
+The name is optional and only ever shows up in errors. Pass it and a missing provider reports `SessionContext.Use() found no matching Provide() above it`; leave it off and the error falls back to the file and line `context()` was called on.
 
 Context is then used in two stages.
 
@@ -37,7 +39,20 @@ function UserBadge() {
 }
 ```
 
-`Use` throws if no provider is above it. When a default makes sense, `UseOr` supplies one instead of throwing:
+`Use` throws if no provider is above it. The lookup runs when the subtree mounts, so the throw itself sits deep in core's mount plumbing — the error leads with what you actually need instead: which context, where it was created, the `Use()` call site, and the element it was mounting into. Its stack starts at your `Use()` call, and core's mount frames are kept below a `--- mounted from ---` line.
+
+```
+Error: [implement] SessionContext.Use() found no matching Provide() above it.
+  context:  SessionContext, created at /src/session.ts:12:31
+  used at:  /src/components/user-badge.ts:8:24
+  inside:   div#app
+Wrap an ancestor in SessionContext.Provide(value).To(...), or read it with
+SessionContext.UseOr(render, fallback) to render without a provider.
+    at UserBadge (/src/components/user-badge.ts:8:24)
+    ...
+```
+
+When a default makes sense, `UseOr` supplies one instead of throwing:
 
 ```ts
 const ThemeContext = context<"light" | "dark">();

@@ -18,7 +18,7 @@ export type SwitchProps = ComponentProps<typeof Button> & {
 	required?: Bindable<boolean>;
 };
 
-const SwitchCtx = context<SwitchState>();
+const SwitchCtx = context<SwitchState>("SwitchCtx");
 
 class SwitchState {
 	checked: Signal<boolean>;
