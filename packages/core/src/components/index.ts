@@ -100,11 +100,13 @@ function toMountable(child: Child): Mountable {
 	if (child !== null && typeof child === "object" && isReadable<PrimitiveChild>(child)) {
 		return readableText(child);
 	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Child unions include mountables; text nodes are the remaining primitive case.
 	return text(child as PrimitiveChild);
 }
 
 export function component<T extends keyof HTMLElementTagNameMap>(
 	tag: T,
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Empty props default for the props-then-children call shape.
 	props: ElementProps<T> = {} as ElementProps<T>,
 	...children: ElementChildArgs<T>
 ): ComponentFactory<T> {
@@ -115,17 +117,27 @@ function isPropsObject(value: unknown): value is Record<string, unknown> {
 	return value != null && typeof value === "object" && !Array.isArray(value) && !isReadable(value);
 }
 
+function createElementComponent<T extends keyof HTMLElementTagNameMap>(
+	tag: T,
+	propsOrChild?: ElementProps<T> | Child,
+	...rest: Child[]
+): ComponentFactory<T> {
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Element overload resolution requires narrowing props vs. children. */
+	if (isPropsObject(propsOrChild)) {
+		return component(tag, propsOrChild as ElementProps<T>, ...(rest as ElementChildArgs<T>));
+	}
+	const children = (
+		propsOrChild === undefined ? rest : [propsOrChild, ...rest]
+	) as ElementChildArgs<T>;
+	return component(tag, {} as ElementProps<T>, ...children);
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
+}
+
 export function element<T extends keyof HTMLElementTagNameMap>(tag: T) {
 	function factory(...children: ElementChildArgs<T>): ComponentFactory<T>;
 	function factory(props: ElementProps<T>, ...children: ElementChildArgs<T>): ComponentFactory<T>;
 	function factory(propsOrChild?: ElementProps<T> | Child, ...rest: Child[]): ComponentFactory<T> {
-		if (isPropsObject(propsOrChild)) {
-			return component(tag, propsOrChild as ElementProps<T>, ...(rest as ElementChildArgs<T>));
-		}
-		const children = (
-			propsOrChild === undefined ? rest : [propsOrChild, ...rest]
-		) as ElementChildArgs<T>;
-		return component(tag, {} as ElementProps<T>, ...children);
+		return createElementComponent(tag, propsOrChild, ...rest);
 	}
 	return factory;
 }
@@ -157,12 +169,9 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	}
 
 	mount(parent: HTMLElement): void {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- createElement returns HTMLElement; the tag generic selects the concrete member.
 		this.#element = dom.createElement(this.#tag) as HTMLElementTagNameMap[T];
-		this.#unsubscribeProps = applyElementProps(
-			this.#element,
-			this.#tag,
-			this.#props,
-		);
+		this.#unsubscribeProps = applyElementProps(this.#element, this.#tag, this.#props);
 		this.#children.forEach((child) => {
 			const createdChild = child();
 			this.#mountedChildren.push(createdChild);

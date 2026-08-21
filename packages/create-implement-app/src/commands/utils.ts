@@ -10,7 +10,10 @@ import { safeValidate } from "@/utils/zod";
 export const TRACE_ENV_VAR = "CREATE_IMPLEMENT_APP_TRACE";
 
 export const defaultCommandOptionsSchema = z.object({
-	cwd: z.string().transform((v) => v as AbsolutePath),
+	cwd: z.string().transform(
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Branded path: CLI cwd is normalized to absolute before use.
+		(v) => v as AbsolutePath,
+	),
 });
 
 export const commonOptions = {

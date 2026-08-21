@@ -144,10 +144,7 @@ describe("the dev server with a shell under src/", () => {
 	);
 });
 
-function shellOutputEmit(
-	appRoot: string,
-	fileName: string,
-): Record<string, { fileName: string }> {
+function shellOutputEmit(appRoot: string, fileName: string): Record<string, { fileName: string }> {
 	const plugin = shellOutputPlugin();
 	const configResolved = plugin.configResolved as (config: ResolvedConfig) => void;
 	const generateBundle = plugin.generateBundle as (
@@ -168,6 +165,8 @@ describe("shellOutputPlugin", () => {
 	});
 
 	it("leaves a root index.html output alone", () => {
-		expect(Object.keys(shellOutputEmit(makeApp("index.html"), "index.html"))).toEqual(["index.html"]);
+		expect(Object.keys(shellOutputEmit(makeApp("index.html"), "index.html"))).toEqual([
+			"index.html",
+		]);
 	});
 });

@@ -437,7 +437,7 @@ export const SelectContent = createComponent(function SelectContent(
 ) {
 	return SelectCtx.Use((state) => {
 		const contentRef = ref<HTMLDivElement>();
-		const contentState = new SelectContentState(state, {
+		const _contentState = new SelectContentState(state, {
 			id,
 			ref: contentRef,
 			side,

@@ -47,9 +47,7 @@ export function lockBodyScroll(): () => void {
 		const htmlStyle = getComputedStyle(document.documentElement);
 		const bodyStyle = getComputedStyle(document.body);
 		const hasStableGutter =
-			
 			htmlStyle.scrollbarGutter?.includes("stable") ||
-			
 			bodyStyle.scrollbarGutter?.includes("stable");
 		const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 		const rtl = htmlStyle.direction === "rtl" || bodyStyle.direction === "rtl";

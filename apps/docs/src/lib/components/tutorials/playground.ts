@@ -75,7 +75,7 @@ function UrlBar(urlPath: Signal<string>): Mountable {
 		"aria-label": "Preview URL",
 		onKeydown(event) {
 			if (event.key !== "Enter") return;
-			const raw = (event.currentTarget).value.trim();
+			const raw = event.currentTarget.value.trim();
 			urlPath.set(raw === "" ? "/" : raw.startsWith("/") ? raw : `/${raw}`);
 		},
 	});
@@ -169,7 +169,8 @@ export function Playground(
 		const path = normalizeNewPath(raw);
 		if (path == null) return reportPlaygroundMessage("That's not a valid file path.");
 		if (!allowedFiles.has(path)) return notAllowed();
-		if (files.get().some((file) => file.path === path)) return reportPlaygroundMessage(`${path} already exists.`);
+		if (files.get().some((file) => file.path === path))
+			return reportPlaygroundMessage(`${path} already exists.`);
 		files.set([...files.get(), { path, content: signal("") }]);
 		active.set(path);
 	};

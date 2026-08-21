@@ -745,7 +745,7 @@ function setAtKeys(obj: unknown, keys: readonly string[], value: unknown, path: 
 		return next;
 	}
 	return {
-		...(obj),
+		...obj,
 		[head]:
 			rest.length === 0
 				? value

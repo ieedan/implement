@@ -400,7 +400,7 @@ export const ModalContent = createComponent(function ModalContent(
 ) {
 	return ModalCtx.Use((rootState) => {
 		const contentRef = ref<HTMLDivElement>();
-		const contentState = new ModalContentState(rootState, {
+		const _contentState = new ModalContentState(rootState, {
 			id,
 			ref: contentRef,
 			onInteractOutside,

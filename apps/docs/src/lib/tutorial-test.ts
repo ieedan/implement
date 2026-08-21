@@ -348,7 +348,7 @@ function buildMatchers(actual: unknown, negated: boolean, message: string | unde
 		toHaveLength: (expected) => {
 			const length =
 				actual != null && typeof actual === "object" && "length" in actual
-					? (actual).length
+					? actual.length
 					: typeof actual === "string"
 						? actual.length
 						: undefined;

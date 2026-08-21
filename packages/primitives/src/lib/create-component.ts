@@ -29,12 +29,14 @@ export function createComponent<P, R = Child>(init: ComponentInit<P, R>): Compon
 	function component(props: P, ...children: Child[]): R;
 	function component(...children: Child[]): R;
 	function component(propsOrChild?: P | Child, ...rest: Child[]): R {
+		/* oxlint-disable typescript/no-unsafe-type-assertion -- Component overload resolution requires narrowing props vs. children. */
 		if (isPropsObject(propsOrChild)) {
 			return init(propsOrChild as P, ...rest);
 		}
 
 		const children = (propsOrChild === undefined ? rest : [propsOrChild, ...rest]) as Child[];
 		return init({} as P, ...children);
+		/* oxlint-enable typescript/no-unsafe-type-assertion */
 	}
 
 	return component;
