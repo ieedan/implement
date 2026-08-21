@@ -138,9 +138,9 @@ describe("validateEnv", () => {
 		}
 		expect(message).toContain("src/lib/env.server.ts");
 		expect(message).toContain("2 variables failed validation");
-		expect(message).toContain("A — not set");
-		expect(message).toContain("B — not set");
-		expect(message).not.toContain("C —");
+		expect(message).toContain("A - not set");
+		expect(message).toContain("B - not set");
+		expect(message).not.toContain("C -");
 	});
 
 	it("distinguishes a missing value from a malformed one", () => {
@@ -150,7 +150,7 @@ describe("validateEnv", () => {
 		} catch (error) {
 			message = (error as Error).message;
 		}
-		expect(message).toContain("PORT — expected an integer");
+		expect(message).toContain("PORT - expected an integer");
 	});
 
 	it("rejects an unprefixed key in the public file and points at the server file", () => {
@@ -348,7 +348,7 @@ describe("evaluateEnvFile", () => {
 		);
 		await expect(
 			evaluateEnvFile({ path: file, info: SERVER, values: {}, root: dir }),
-		).rejects.toThrow(/DATABASE_URL — not set/);
+		).rejects.toThrow(/DATABASE_URL - not set/);
 		expect(await evaluateEnvFile({ path: file, info: SERVER, values, root: dir })).toEqual({
 			env: { DATABASE_URL: "postgres://secret" },
 		});

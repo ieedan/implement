@@ -41,13 +41,14 @@ import {
 } from "./guard.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
+import type { KitPluginApi } from "./sync.ts";
 import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
 import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
 export type { DataChain, PageRoute, ServerRoute } from "./codegen.ts";
 export { defineEnv, PUBLIC_PREFIX, type Env, type EnvKind, type EnvSchemas } from "./env.ts";
 export type { ExtensionEndpoint, RouteTree } from "./scan.ts";
-export { sync } from "./sync.ts";
+export { sync, type KitPluginApi } from "./sync.ts";
 
 const ROUTER_ID = "$implement/router";
 const RESOLVED_ROUTER_ID = "\0$implement/router";
@@ -267,8 +268,12 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		},
 	};
 
+	// what `implement-kit sync` reads, so the CLI generates against these same options
+	const api: KitPluginApi = { options: genOptions };
+
 	const kitPlugin: Plugin = {
 		name: "implement-kit",
+		api,
 		config(userConfig) {
 			const appRoot = resolve(userConfig.root ?? ".");
 			const alias = Object.fromEntries(
@@ -466,7 +471,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		 */
 		moduleParsed(info) {
 			if (!isClientGraph(this.environment)) return;
-			for (const imported of info.importedIds) {
+			// dynamic imports count: routes are code-split, so `$implement/router`
+			// reaches every page through `import()` and a chain that skipped those
+			// would stop at the page instead of reporting the entry it hangs off
+			for (const imported of [...info.importedIds, ...info.dynamicallyImportedIds]) {
 				if (!clientParents.has(imported)) clientParents.set(imported, info.id);
 			}
 		},

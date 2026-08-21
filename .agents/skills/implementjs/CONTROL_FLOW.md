@@ -80,23 +80,23 @@ Render a reactive list of items.
 import { ForEach, signal } from "@implementjs/core";
 
 export default function Page() {
-    const todos = signal([
-        { id: 1, title: "Ship docs", done: false },
-        { id: 2, title: "Write tests", done: true },
-    ]);
+	const todos = signal([
+		{ id: 1, title: "Ship docs", done: false },
+		{ id: 2, title: "Write tests", done: true },
+	]);
 
-    return Ul(
-        ForEach(
-            todos,
-            (todo) => todo.id, // a unique key is required for each item
-            // todo is two way bindable here, so todo is a signal back to todos[index]
-            (todo, index) => Li(todo.bind("title")),
-        ),
-    );
+	return Ul(
+		ForEach(
+			todos,
+			(todo) => todo.id, // a unique key is required for each item
+			// todo is two way bindable here, so todo is a signal back to todos[index]
+			(todo, index) => Li(todo.bind("title")),
+		),
+	);
 }
 ```
 
-### Key 
+### Key
 
 For when you need to force re-render a component based on a signal.
 
@@ -104,9 +104,9 @@ For when you need to force re-render a component based on a signal.
 import { Key } from "@implementjs/core";
 
 export default function Page() {
-    const counter = signal(0);
+	const counter = signal(0);
 
-    return Key(counter, Div("Hello, World!"));
+	return Key(counter, Div("Hello, World!"));
 }
 ```
 
@@ -116,14 +116,14 @@ or based on multiple signals:
 import { Key } from "@implementjs/core";
 
 export default function Page() {
-    const counter = signal(0);
-    const counter2 = signal(0);
+	const counter = signal(0);
+	const counter2 = signal(0);
 
-    return Key([counter, counter2], Div("Hello, World!"));
+	return Key([counter, counter2], Div("Hello, World!"));
 }
 ```
 
-### Portal 
+### Portal
 
 Render a component somewhere else in the DOM.
 
@@ -131,7 +131,7 @@ Render a component somewhere else in the DOM.
 import { Portal } from "@implementjs/core";
 
 export default function Page() {
-    return Portal(Div("Hello, World!"), "body");
+	return Portal(Div("Hello, World!"), "body");
 }
 ```
 
@@ -158,10 +158,10 @@ Render different markup based on the state of a promise.
 import { Await } from "@implementjs/core";
 
 export default function Page() {
-    return Await(fetchUser(id))
-        .WhileLoading(Spinner())
-        .Then((user) => Profile(user))
-        .Catch((error) => P({ class: "error" }, error.message));
+	return Await(fetchUser(id))
+		.WhileLoading(Spinner())
+		.Then((user) => Profile(user))
+		.Catch((error) => P({ class: "error" }, error.message));
 }
 ```
 

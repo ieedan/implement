@@ -13,8 +13,6 @@ Pick a template with `--template` (`-t`), or let the CLI prompt you. Both templa
 
 ```
 my-app/
-├ scripts/
-│  └ sync.ts         regenerates .implement/ without running vite
 ├ src/
 │  ├ lib/
 │  │  └ counter.ts   @/lib — components, helpers, state
@@ -38,9 +36,10 @@ my-app/
 | `build`   | Prerender the site into `dist/`               |
 | `preview` | Serve the build locally                       |
 | `sync`    | Regenerate `.implement/` without running vite |
+| `prepare` | The same sync, run for you on install         |
 | `check`   | Sync, then typecheck the app                  |
 
-Kit generates `.implement/` — the client and server entries, the tsconfig the app extends, and a `./$types` for every route. It's gitignored and regenerates itself, so nothing in there needs editing. Because a fresh clone has never run Vite, `check` runs `sync` first; `--install` runs it for you once the dependencies are in place.
+Kit generates `.implement/` — the client and server entries, the tsconfig the app extends, and a `./$types` for every route. It's gitignored and regenerates itself, so nothing in there needs editing. Because a fresh clone has never run Vite, [`implement-kit sync`](/kit#the-implement-directory) writes them instead: the app's `prepare` script runs it on every install, and `check` runs it again before `tsc`.
 
 ## CSR with vite
 

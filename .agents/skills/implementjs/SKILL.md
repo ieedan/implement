@@ -1,6 +1,6 @@
 ---
 name: implementjs
-description: How to use implementjs to build apps
+description: Use `@implementjs/core` to build apps with implementjs. Write markup, and use signals to create reactive UI.
 ---
 
 Implement is a UI library that allows you to write your code in pure TypeScript. There is no runtime, no templating, no compiler. This allows you to have far more control over implement than any other framework.
@@ -8,6 +8,7 @@ Implement is a UI library that allows you to write your code in pure TypeScript.
 If you haven't yet started an app or need a better idea of the structure of an app you can read the [Getting Started](./GETTING_STARTED.md) guide.
 
 Here are all the resources you need to be able to build with implement:
+
 - [Markup](./MARKUP.md) - How to write markup in implement
 - [Signals](./SIGNALS.md) - How to use signals to create reactive values and mutate the DOM
 - [Control Flow](./CONTROL_FLOW.md) - How to use control flow to create reactive UI
@@ -15,6 +16,6 @@ Here are all the resources you need to be able to build with implement:
 - [Context](./CONTEXT.md) - How to use context to pass data down the component tree
 
 ## Official implement packages:
+
 - `@implementjs/*`
 - `create-implement-app`
-

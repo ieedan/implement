@@ -63,7 +63,7 @@ These interfaces are what subscribers use as their interfaces to react to. Howev
 You can create a signal with the `signal` function:
 
 ```ts
-import { signal } from '@implementjs/core';
+import { signal } from "@implementjs/core";
 
 const count = signal(0);
 
@@ -77,10 +77,10 @@ signal.get(); // 2
 For the most part Signals should just be POJOs but you will probably find yourself needing Sets and Maps so for that implementjs implements: `Implement.Set` and `Implement.Map`:
 
 ```ts
-import { Implement } from "@implementjs/core"
+import { Implement } from "@implementjs/core";
 
-Implement.Set // reactive set
-Implement.Map // reactive map
+Implement.Set; // reactive set
+Implement.Map; // reactive map
 ```
 
 ## Binding and Deriving values
@@ -88,7 +88,7 @@ Implement.Map // reactive map
 If you need to derived one or more signals into one readable value then you can use `derived`:
 
 ```ts
-import { derived, signal } from '@implementjs/core';
+import { derived, signal } from "@implementjs/core";
 
 const count = signal(0);
 const multiplier = signal(2);
@@ -104,7 +104,7 @@ computed.get(); // 3
 If you just need to derive a single value from a signal then you probably want to use `.bind()` instead:
 
 ```ts
-import { signal } from '@implementjs/core';
+import { signal } from "@implementjs/core";
 
 const count = signal(0);
 const doubled = count.bind((value) => value * 2);
@@ -117,7 +117,7 @@ doubled.get(); // 2
 Bind can also be used to expose properties of a reactive object:
 
 ```ts
-import { signal } from '@implementjs/core';
+import { signal } from "@implementjs/core";
 
 const person = signal({ name: "John", age: 30 });
 const name = person.bind((value) => value.name);
@@ -130,7 +130,7 @@ name.get(); // "Jane"
 There is also a shortcut for binding to a single property of an object:
 
 ```ts
-import { signal } from '@implementjs/core';
+import { signal } from "@implementjs/core";
 
 const person = signal({ name: "John", age: 30 });
 const name = person.bind("name");
@@ -145,7 +145,7 @@ name.get(); // "Jane"
 Bindings aren't just one way. You can also use `bind` to create a two way binding to a signal:
 
 ```ts
-import { signal } from '@implementjs/core';
+import { signal } from "@implementjs/core";
 
 const person = signal({ name: "John", age: 30 });
 const name = person.bind("name"); // or person.bind((person) => person.name, (prev, next) => { ...prev, name: next })
@@ -162,14 +162,14 @@ person.get(); // { name: "Jim", age: 25 }
 If you need to react to changes in a signal then you can use either the `.subscribe` or `.onChange` method. This will require you to manually unsubscribe from the signal when you're done.
 
 ```ts
-import { signal } from '@implementjs/core';
+import { signal } from "@implementjs/core";
 
 const count = signal(0);
 const unsubscribe = count.subscribe((value) => {
-    console.log(value);
+	console.log(value);
 });
 const unsubscribe2 = count.onChange((value, previousValue) => {
-    console.log(value, previousValue);
+	console.log(value, previousValue);
 });
 
 // make sure to unsubscribe from the signal when you're done
@@ -177,16 +177,15 @@ unsubscribe();
 unsubscribe2();
 ```
 
-Alternatively you can mount the `Implement.Watch` component to watch for changes to one of more signals and automatically unsubscribe when the component is unmounted. 
+Alternatively you can mount the `Implement.Watch` component to watch for changes to one of more signals and automatically unsubscribe when the component is unmounted.
 
 ```ts
 import { Implement } from "@implementjs/core";
 
 export default function Page() {
-    return Implement.Watch(
-        [count, multiplier],
-        (count, multiplier) => console.log(count * multiplier)
-    );
+	return Implement.Watch([count, multiplier], (count, multiplier) =>
+		console.log(count * multiplier),
+	);
 }
 ```
 

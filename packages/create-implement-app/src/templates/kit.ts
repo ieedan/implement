@@ -34,13 +34,7 @@ export const kit: Template = {
 			path: "tsconfig.json",
 			contents: tsconfig({
 				extend: "./.implement/tsconfig.json",
-				include: [
-					"src/**/*.ts",
-					"scripts/**/*.ts",
-					"*.config.ts",
-					".implement/**/*.ts",
-					".implement/types/**/*.d.ts",
-				],
+				include: ["src/**/*.ts", "*.config.ts", ".implement/**/*.ts", ".implement/types/**/*.d.ts"],
 				types: ["node", "vite/client"],
 			}),
 		},
@@ -52,7 +46,6 @@ export const kit: Template = {
 		},
 		{ path: "src/app.css", contents: appCss(ctx) },
 		{ path: "src/app.d.ts", contents: appTypes() },
-		{ path: "scripts/sync.ts", contents: syncScript() },
 		{ path: "src/routes/layout.ts", contents: layout(ctx) },
 		{ path: "src/routes/page.ts", contents: page() },
 		{ path: "src/routes/about/page.ts", contents: aboutPage(ctx) },
@@ -95,9 +88,12 @@ function pkg(ctx: TemplateContext): string {
 			dev: "vite",
 			build: "vite build",
 			preview: "vite preview",
-			sync: "node --experimental-strip-types scripts/sync.ts",
-			// tsc needs the generated `.implement/` files, and a fresh clone has never run vite
-			check: "node --experimental-strip-types scripts/sync.ts && tsc --noEmit",
+			sync: "implement-kit sync",
+			// `.implement/` is generated, so a fresh clone has none until something writes it.
+			// prepare runs on install for exactly that, and never fails the install if it cannot
+			prepare: "implement-kit sync || echo ''",
+			// tsc needs those same generated files, and vite may not have run yet
+			check: "implement-kit sync && tsc --noEmit",
 			...(hasAddon(ctx, "ui") ? { [UI_SCRIPT]: "jsrepo add" } : {}),
 		},
 		dependencies: dependencies(ctx, deps),
@@ -134,18 +130,6 @@ function appTypes(): string {
 		}
 
 		export {};
-	` + "\n"
-	);
-}
-
-function syncScript(): string {
-	return (
-		dedent`
-		import { sync } from "@implementjs/kit/sync";
-
-		// Writes .implement/ (entries, tsconfig, ./$types) without running vite, so \`check\` works on a
-		// fresh clone. Keep any kit() options that affect codegen in step with vite.config.ts.
-		sync(new URL("..", import.meta.url).pathname);
 	` + "\n"
 	);
 }

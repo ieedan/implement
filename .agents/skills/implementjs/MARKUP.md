@@ -6,10 +6,7 @@ All HTML elements are exported from `@implementjs/core` (or `@implementjs/core/e
 import { Div, Span } from "@implementjs/core";
 
 export default function Page() {
-    return Div(
-        { "data-test": "hello", class: "" },
-        Span("Hello, World!")
-    )
+	return Div({ "data-test": "hello", class: "" }, Span("Hello, World!"));
 }
 ```
 
@@ -50,7 +47,6 @@ Input({
 
 Children can be any one of the following: numbers and strings (`string | number`), other components (`() => IMountable`), readables (`Readable<T>`). Plain numbers and strings create static text nodes, readables will update the content of their text node when their signal changes.
 
-
 ## Fragment
 
 Fragments are a way to render multiple elements at the same level without grouping them within another element.
@@ -59,10 +55,7 @@ Fragments are a way to render multiple elements at the same level without groupi
 import { Fragment, Div } from "@implementjs/core";
 
 export default function Page() {
-    return Fragment(
-        Div("Hello, World!"),
-        Div("Hello, World!")
-    )
+	return Fragment(Div("Hello, World!"), Div("Hello, World!"));
 }
 ```
 
@@ -74,7 +67,7 @@ You can render raw html using the `Html` component.
 import { Html } from "@implementjs/core";
 
 export default function Page() {
-    return Html("<div>Hello, World!</div>");
+	return Html("<div>Hello, World!</div>");
 }
 ```
 
@@ -86,7 +79,7 @@ export default function Page() {
 import { Svg } from "@implementjs/core";
 
 export default function Page() {
-    return Svg("<svg>Hello, World!</svg>");
+	return Svg("<svg>Hello, World!</svg>");
 }
 ```
 

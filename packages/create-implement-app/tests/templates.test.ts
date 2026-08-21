@@ -66,9 +66,12 @@ describe("templates", () => {
 				"src/routes/error.ts",
 				"src/lib/counter.ts",
 				"src/app.d.ts",
-				"scripts/sync.ts",
 			]),
 		);
+		// the generated files are written by the `implement-kit` bin, not a script in the app
+		expect([...files.keys()]).not.toContain("scripts/sync.ts");
+		expect(files.get("package.json")).toContain('"sync": "implement-kit sync"');
+		expect(files.get("package.json")).toContain('"prepare": "implement-kit sync');
 		expect(files.get("src/index.html")).toContain("/.implement/entry-client.ts");
 		expect(files.get("vite.config.ts")).toContain("kit()");
 		expect(files.get("tsconfig.json")).toContain("./.implement/tsconfig.json");

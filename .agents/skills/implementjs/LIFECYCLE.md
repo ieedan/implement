@@ -6,17 +6,17 @@ You will inevitabily need to know when a component is mounted, and unmounted. Im
 import { Implement } from "@implementjs/core";
 
 export default function Page() {
-    return Implement.Lifecycle(
-        {
-            onMount: () => {
-                console.log("Component mounted");
-            },
-            onUnmount: () => {
-                console.log("Component unmounted");
-            }
-        },
-        Div("Hello, World!") // mount your children here
-    );
+	return Implement.Lifecycle(
+		{
+			onMount: () => {
+				console.log("Component mounted");
+			},
+			onUnmount: () => {
+				console.log("Component unmounted");
+			},
+		},
+		Div("Hello, World!"), // mount your children here
+	);
 }
 ```
 
@@ -26,18 +26,18 @@ Use onUnmount to clean up any resources you may have allocated like signal subsc
 import { Implement } from "@implementjs/core";
 
 export default function Page() {
-    return Implement.Lifecycle(
-        {
-            onMount: () => {
-                console.log("Component mounted");
+	return Implement.Lifecycle(
+		{
+			onMount: () => {
+				console.log("Component mounted");
 
-                return () => {
-                    console.log("Component unmounted");
-                }
-            },
-        },
-        Div("Hello, World!") // mount your children here
-    );
+				return () => {
+					console.log("Component unmounted");
+				};
+			},
+		},
+		Div("Hello, World!"), // mount your children here
+	);
 }
 ```
 
@@ -47,17 +47,18 @@ You can cleanup event listeners here but you probably don't want to clean them u
 import { Fragment, Implement } from "@implementjs/core";
 
 export default function Page() {
-    return Fragment(
-        // the listeners will be cleaned up automatically when the component is unmounted
-        Implement.Document({
+	return Fragment(
+		// the listeners will be cleaned up automatically when the component is unmounted
+		Implement.Document({
 			onKeydown: (event) => {
 				if (event.key === "Escape") {
-                    console.log("Escape key pressed");
-                }
+					console.log("Escape key pressed");
+				}
 			},
 		}),
-        Implement.Window({ 
-            onScroll: () => console.log("Scrolled"), 
-        })
-    );
+		Implement.Window({
+			onScroll: () => console.log("Scrolled"),
+		}),
+	);
 }
+```

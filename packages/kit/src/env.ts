@@ -101,14 +101,14 @@ export function validateEnv(
 		const validated = schemas[key]!["~standard"].validate(value);
 		if (validated instanceof Promise) {
 			throw new Error(
-				`${where}: the schema for "${key}" validates asynchronously, which kit cannot do — env is resolved while the module is transformed. Use a synchronous schema.`,
+				`${where}: the schema for "${key}" validates asynchronously, which kit cannot do. Use a synchronous schema.`,
 			);
 		}
 		if (validated.issues === undefined) {
 			result[key] = validated.value;
 			continue;
 		}
-		failures.push(`${key} — ${value === undefined ? "not set" : formatIssues(validated.issues)}`);
+		failures.push(`${key} - ${value === undefined ? "not set" : formatIssues(validated.issues)}`);
 	}
 
 	if (failures.length > 0) {
@@ -333,7 +333,7 @@ export function assertSerializable(exports: Record<string, unknown>, file: strin
 		const problem = findUnserializable(exports[name], name, new Set());
 		if (problem === null) continue;
 		throw new Error(
-			`${file} is evaluated at build time and its exports are inlined; "${problem.path}" is ${problem.describe} and cannot be inlined — move it to another module.`,
+			`${file} is evaluated at build time and its exports are inlined; "${problem.path}" is ${problem.describe} and cannot be inlined. Please move it to another module.`,
 		);
 	}
 }
@@ -390,7 +390,7 @@ function findUnserializable(
 /** The evaluated exports of an env file, re-emitted as a module of literals. */
 export function serializeEnvModule(exports: Record<string, unknown>, file: string): string {
 	const names = Object.keys(exports);
-	const lines = [`// ${file} — evaluated by @implementjs/kit and inlined`];
+	const lines = [`// ${file} - evaluated by @implementjs/kit and inlined`];
 	const bindings: string[] = [];
 	for (const [index, name] of names.entries()) {
 		lines.push(`const __env_${index} = ${JSON.stringify(exports[name])};`);
@@ -413,7 +413,7 @@ export function serverStubModule(names: string[], file: string): string {
 		`Import server-only modules from another *.server.ts, or use \`import type\` if you only need its types.`;
 	const bindings = names.map((name, index) => `__server_${index} as ${exportAlias(name)}`);
 	const lines = [
-		`// ${file} — server-only; the client copy holds no values`,
+		`// ${file} - server-only; the client copy holds no values`,
 		`throw new Error(${JSON.stringify(message)});`,
 	];
 	// declared after the throw so nothing can read them, but still statically exported so

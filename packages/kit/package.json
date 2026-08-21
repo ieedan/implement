@@ -3,6 +3,9 @@
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
+	"bin": {
+		"implement-kit": "./dist/cli.mjs"
+	},
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
@@ -24,6 +27,7 @@
 	"scripts": {
 		"dev": "tsdown --watch",
 		"build": "tsdown",
+		"prepare": "tsdown",
 		"check": "tsc --noEmit",
 		"test": "vitest run"
 	},

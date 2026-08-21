@@ -7,7 +7,7 @@
 		"dev": "pnpm generate && vite",
 		"generate": "velite",
 		"registry": "jsrepo build",
-		"sync": "node --experimental-strip-types scripts/sync.ts",
+		"sync": "implement-kit sync",
 		"build": "pnpm generate && vite build",
 		"test": "vitest run",
 		"preview": "vite preview",
