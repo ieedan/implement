@@ -1,4 +1,3 @@
-import { raws } from "../../.velite";
 import { apiReference, type ApiPart } from "./api-reference";
 import { demoSources } from "./components/demos/sources";
 
@@ -10,6 +9,10 @@ import { demoSources } from "./components/demos/sources";
  */
 
 const placeholderPattern = /<div data-(demo|api)="([^"]+)"([^>]*)><\/div>/g;
+
+/** Tab markers, which delimit content rather than standing in for it. */
+const tabPattern = /<div data-tab="([^"]*)"[^>]*><\/div>\n*/g;
+const tabsEndPattern = /<div data-tabs-end[^>]*><\/div>\n*/g;
 
 /** Table cells cannot hold raw pipes (`"single" | "multiple"`). */
 function cell(value: string): string {
@@ -57,12 +60,23 @@ function apiPartMarkdown(part: ApiPart): string {
 }
 
 /**
+ * Tabs have no equivalent in plain markdown, so each one becomes a heading and
+ * the panels simply follow one another — a reader gets every path instead of
+ * only the open one.
+ */
+function resolveTabs(markdown: string): string {
+	return markdown
+		.replace(tabPattern, (_marker, label: string) => `### ${label}\n\n`)
+		.replace(tabsEndPattern, "");
+}
+
+/**
  * Swaps `<div data-demo>` for the demo's source and `<div data-api>` for its
  * tables. A `data-demo-description` attribute becomes a blockquote above the
  * code, describing what the demo renders — the markdown reader can't see it.
  */
 function resolvePlaceholders(markdown: string): string {
-	return markdown.replace(
+	return resolveTabs(markdown).replace(
 		placeholderPattern,
 		(placeholder, kind: string, name: string, rest: string) => {
 			if (kind === "demo") {
@@ -76,6 +90,31 @@ function resolvePlaceholders(markdown: string): string {
 			return parts == null ? placeholder : parts.map(apiPartMarkdown).join("\n\n");
 		},
 	);
+}
+
+/**
+ * The page sources, straight from disk rather than through a second Velite
+ * collection matching the same files: Velite caches a parsed file by path and
+ * keeps only the last schema's result, so a file two collections both match
+ * lands in the page collections as a raw entry with no title, slug, or
+ * section. Under the content watcher that empties whole sections of the site
+ * out until Velite is run again from scratch.
+ *
+ * Server-only, like every module the `.md` routes import — the glob never
+ * reaches the client bundle.
+ */
+const sources = import.meta.glob<string>("../content/**/*.md", {
+	query: "?raw",
+	import: "default",
+	eager: true,
+});
+
+const frontmatterPattern = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
+
+/** A page's markdown body, frontmatter stripped, by path under `src/content`. */
+function pageSource(path: string): string | null {
+	const raw = sources[`../content/${path}.md`];
+	return raw == null ? null : raw.replace(frontmatterPattern, "").trim();
 }
 
 type MarkdownPage = { title: string; description: string; slug: string };
@@ -92,12 +131,11 @@ export function markdownResponse(
 ): Response {
 	const page = collection.find((entry) => entry.slug === slug);
 	const prefix = folder === "" ? "" : `${folder}/`;
-	const path = slug === "" ? `${prefix}index` : `${prefix}${slug}`;
-	const raw = raws.find((entry) => entry.path === path);
+	const raw = pageSource(slug === "" ? `${prefix}index` : `${prefix}${slug}`);
 	if (page == null || raw == null) {
 		return new Response("Not found", { status: 404 });
 	}
-	const body = `# ${page.title}\n\n> ${page.description}\n\n${resolvePlaceholders(raw.raw)}`;
+	const body = `# ${page.title}\n\n> ${page.description}\n\n${resolvePlaceholders(raw)}`;
 	return new Response(body, {
 		headers: { "content-type": "text/markdown; charset=utf-8" },
 	});

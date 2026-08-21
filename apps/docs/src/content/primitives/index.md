@@ -16,16 +16,10 @@ import {
 } from "@implementjs/primitives";
 ```
 
-Add it next to core as a workspace dependency:
+Add it next to core:
 
-```jsonc
-// package.json
-{
-	"dependencies": {
-		"@implementjs/core": "workspace:*",
-		"@implementjs/primitives": "workspace:*",
-	},
-}
+```sh
+npm install @implementjs/core @implementjs/primitives
 ```
 
 The [REPL](/repl) and tutorial playgrounds resolve `@implementjs/primitives` the same way they resolve core, so you can try a primitive without scaffolding an app.

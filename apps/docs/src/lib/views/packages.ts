@@ -73,6 +73,19 @@ const groups: PackageGroup[] = [
 		],
 	},
 	{
+		title: "Tooling",
+		description: "What you reach for before the first line of app code.",
+		packages: [
+			{
+				name: "create-implement-app",
+				description:
+					"Scaffolds a new implement app — kit or plain Vite, with Tailwind, primitives, and icons as optional addons.",
+				docs: { label: "Read the docs", to: "/create" },
+				sourceDir: "create-implement-app",
+			},
+		],
+	},
+	{
 		title: "Icons",
 		description: "Icon sets packaged as implement components.",
 		packages: [
@@ -156,7 +169,7 @@ export function PackagesPage(data: Readable<PackagesData>): Mountable {
 				H1({ class: "text-3xl font-semibold tracking-tight" }, "Packages"),
 				P(
 					{ class: "max-w-xl text-foreground/60" },
-					"Everything ships from one repo as scoped packages. Start with the framework, then pull in the pieces you need.",
+					"Everything ships from one repo as separate packages. Start with the framework, then pull in the pieces you need.",
 				),
 			),
 			Div(

@@ -1,9 +1,11 @@
 import {
+	create as createPages,
 	kit as kitPages,
 	lucide as lucidePages,
 	pages,
 	primitives as primitivePages,
 	tutorials as generated,
+	type CreatePage,
 	type KitPage,
 	type LucidePage,
 	type Page,
@@ -14,10 +16,12 @@ import { contentError } from "./content-error";
 import { stripLessonSource } from "./lesson-source";
 
 export {
+	createPages,
 	kitPages,
 	lucidePages,
 	pages,
 	primitivePages,
+	type CreatePage,
 	type KitPage,
 	type LucidePage,
 	type Page,

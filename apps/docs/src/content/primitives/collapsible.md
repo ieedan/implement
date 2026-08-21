@@ -55,13 +55,48 @@ Every part sets a `data-collapsible-*` attribute so you can target it in CSS, an
 ```ts
 CollapsibleTrigger({ class: "inline-flex items-center gap-2 text-sm font-medium" }, "Show more");
 
-CollapsibleContent(
-	{ class: "text-sm text-foreground/70 data-[state=closed]:animate-collapse" },
-	"The rest of the details live here.",
-);
+CollapsibleContent({ class: "text-sm text-foreground/70" }, "The rest of the details live here.");
 ```
 
 The `hidden` attribute already hides closed content. `data-state` is there for transitions, chevrons, and anything else that should react to open versus closed without you threading a signal through.
+
+## Animating open and close
+
+`CollapsibleContent` measures itself whenever it opens or closes and exposes the result as `--ip-collapsible-content-height` and `--ip-collapsible-content-width` on the element, so keyframes can animate between zero and the natural size. When the region closes, the content keeps rendering until any animation running on it finishes — only then does the `hidden` attribute go on.
+
+```css
+[data-collapsible-content] {
+	overflow: hidden;
+}
+
+[data-collapsible-content][data-state="open"] {
+	animation: collapsible-down 0.2s ease-out;
+}
+
+[data-collapsible-content][data-state="closed"] {
+	animation: collapsible-up 0.2s ease-out;
+}
+
+@keyframes collapsible-down {
+	from {
+		height: 0;
+	}
+	to {
+		height: var(--ip-collapsible-content-height);
+	}
+}
+
+@keyframes collapsible-up {
+	from {
+		height: var(--ip-collapsible-content-height);
+	}
+	to {
+		height: 0;
+	}
+}
+```
+
+Content that is open on first render does not replay its open animation on page load.
 
 ## API Reference
 

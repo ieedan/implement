@@ -189,8 +189,19 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	}
 }
 
+/**
+ * Where a disposed app parks its mounted tree for whichever app mounts next.
+ * It lives on the target element rather than in module state so the handoff
+ * survives an update that replaces this module too — module state would reset
+ * and strand the old tree in the document forever.
+ */
+const HANDOFF = Symbol.for("implementjs.hmrHandoff");
+
+type HandoffTarget = HTMLElement & { [HANDOFF]?: () => void };
+
 export function App(options: { target: HTMLElement }) {
 	const { target } = options;
+	const host = target as HandoffTarget;
 	const roots = new Set<() => void>();
 
 	const mountAll = (children: Child[], parent: HTMLElement): IMountable[] =>
@@ -215,57 +226,104 @@ export function App(options: { target: HTMLElement }) {
 		 * is discarded and mounted fresh in the same task — the browser never
 		 * paints in between — restoring scroll because removing the old tree
 		 * collapses the page height, which would clamp the scroll position.
+		 *
+		 * A tree handed over by an HMR-disposed app (see `unmount`) is swapped
+		 * out here, once this mount is up, in that same single task.
 		 */
 		render: (...children: Child[]) => {
 			let instances: IMountable[];
+			let adopted: Element | null = null;
+			// a handed-over tree is still on screen, so this mount appends after
+			// it; remember where it ended to roll a failed mount back
+			const handoff = host[HANDOFF];
+			const mark = handoff === undefined ? -1 : target.childNodes.length;
 			const ssr = target.querySelector("[data-ssr]");
-			if (ssr) {
-				beginHydration(ssr);
-				let hydrated: IMountable[];
-				try {
-					hydrated = mountAll(children, ssr as HTMLElement);
-				} catch (error) {
-					endHydration();
-					throw error;
-				}
-				if (endHydration()) {
-					// adopted: the wrapper stays as the mount root; drop the
-					// attribute so a second render cannot re-claim it
-					ssr.removeAttribute("data-ssr");
-					sweepHead();
-					instances = hydrated;
-				} else {
-					console.warn("hydration mismatch: discarding server-rendered markup and mounting fresh");
-					for (const instance of hydrated) {
-						try {
-							instance.unmount();
-						} catch {
-							// best-effort teardown of a partially adopted tree
-						}
+			try {
+				if (ssr) {
+					beginHydration(ssr);
+					let hydrated: IMountable[];
+					try {
+						hydrated = mountAll(children, ssr as HTMLElement);
+					} catch (error) {
+						endHydration();
+						throw error;
 					}
-					const { scrollX, scrollY } = window;
-					ssr.remove();
-					sweepHead();
+					if (endHydration()) {
+						// adopted: the wrapper stays as the mount root; drop the
+						// attribute so a second render cannot re-claim it
+						ssr.removeAttribute("data-ssr");
+						sweepHead();
+						adopted = ssr;
+						instances = hydrated;
+					} else {
+						console.warn(
+							"hydration mismatch: discarding server-rendered markup and mounting fresh",
+						);
+						for (const instance of hydrated) {
+							try {
+								instance.unmount();
+							} catch {
+								// best-effort teardown of a partially adopted tree
+							}
+						}
+						const { scrollX, scrollY } = window;
+						ssr.remove();
+						sweepHead();
+						instances = mountAll(children, target);
+						window.scrollTo(scrollX, scrollY);
+					}
+				} else {
 					instances = mountAll(children, target);
-					window.scrollTo(scrollX, scrollY);
 				}
-			} else {
-				instances = mountAll(children, target);
+			} catch (error) {
+				// the handed-over tree keeps the page painted, so drop whatever
+				// this mount managed to build rather than leaving both on screen
+				if (mark >= 0) {
+					while (target.childNodes.length > mark) target.lastChild!.remove();
+				}
+				throw error;
 			}
 			const unmount = () => {
 				roots.delete(unmount);
 				instances.forEach((instance) => instance.unmount());
+				// the adopted wrapper is the mount root, not one of the instances
+				adopted?.remove();
 			};
 			roots.add(unmount);
+			// only now that this render is up does the previous tree come down,
+			// so the browser never paints the gap between them
+			if (handoff !== undefined) {
+				delete host[HANDOFF];
+				handoff();
+			}
 			return unmount;
 		},
 		/**
-		 * Unmounts every root this app has rendered. An app entry passes this to
-		 * `import.meta.hot.dispose` so the old tree is torn down before the
-		 * updated entry module re-executes and mounts a fresh one.
+		 * Unmounts every root this app has rendered.
+		 *
+		 * Pass it straight to `import.meta.hot.dispose`. Vite disposes the entry
+		 * module *before* it imports the replacement, so tearing the tree down
+		 * here would blank the page for however long that import takes — seconds
+		 * on a large graph — and leave it blank for good if the replacement
+		 * throws. Given the hot data Vite passes its dispose handlers, the app
+		 * hands the live tree to whatever mounts next instead: the next `render`
+		 * swaps it out once its own mount succeeded. Called with no argument
+		 * (tests, manual teardown) it unmounts immediately.
 		 */
-		unmount: () => {
-			roots.forEach((unmount) => unmount());
+		unmount: (hotData?: unknown) => {
+			if (hotData === undefined) {
+				roots.forEach((unmount) => unmount());
+				return;
+			}
+			// chained, not replaced: a replacement that failed to mount is
+			// disposed too, and its (empty) teardown must not strand the tree
+			// still on screen
+			const pending = host[HANDOFF];
+			const mine = new Set(roots);
+			host[HANDOFF] = () => {
+				pending?.();
+				mine.forEach((unmount) => unmount());
+			};
 		},
 	};
 }

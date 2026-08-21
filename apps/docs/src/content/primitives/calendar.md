@@ -6,7 +6,7 @@ section: Components
 
 <div data-demo="calendar"></div>
 
-A calendar shows one or more months as a grid of days and owns which date is selected. `Calendar` is the root; instead of plain children it takes a render function, which receives the visible `months` and localized `weekdays` so you can lay out the grid yourself with [ForEach](/docs/control-flow):
+A calendar shows one or more months as a grid of days and owns which date is selected. `Calendar` is the root; instead of plain children it takes a render function, which receives the visible `months` and localized `weekdays` so you can lay out the grid yourself with [ForEach](/docs/foreach):
 
 ```ts
 import {

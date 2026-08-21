@@ -56,8 +56,8 @@ export const CollapsibleContent = createComponent(function CollapsibleContent(
 			...props,
 			"data-slot": "collapsible-content",
 			class:
-				"grid grid-rows-[0fr] text-sm transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none data-[state=open]:grid-rows-[1fr] [&[hidden]]:!grid",
+				"overflow-hidden text-sm motion-reduce:animate-none data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down",
 		},
-		Div({ class: ["min-h-0 overflow-hidden", className] }, ...children),
+		Div({ class: className }, ...children),
 	);
 });

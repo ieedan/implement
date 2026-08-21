@@ -6,6 +6,7 @@ import { EditableDemo } from "../demos/editable-demo";
 import { ApiReference } from "./api-reference";
 import { CheckIcon, CopyIcon, type IconComponent } from "@implementjs/lucide";
 import { buttonVariants } from "../ui/button";
+import { TabsBlock, type TabPanel } from "./tabs-block";
 
 const copyButtonClass = [
 	buttonVariants({ variant: "ghost", size: "icon-xs" }),
@@ -48,7 +49,8 @@ function addCopyButton(pre: HTMLPreElement) {
 
 // The literal form the placeholders keep through the markdown pipeline. Extra
 // attributes (data-demo-description feeds the `.md` twin) are tolerated.
-const placeholderPattern = /<div data-(demo|api)="([^"]+)"[^>]*><\/div>/g;
+// `tabs-end` has to precede `tab` in the alternation, or it matches as one.
+const placeholderPattern = /<div data-(demo|api|tabs-end|tab)(?:="([^"]*)")?[^>]*><\/div>/g;
 
 // demos and api tables style themselves; data-not-typeset opts the subtree
 // out of typeset styles
@@ -64,23 +66,74 @@ function ApiPlaceholder(name: string): Mountable | null {
 	return Div({ "data-api": name, "data-not-typeset": "" }, ApiReference(parts));
 }
 
-// Splits the rendered markdown at its `data-demo`/`data-api` placeholders and
-// interleaves the real components as children, so they are part of the render
-// itself — and therefore of the server render — instead of DOM patched in
-// after mount.
+// Splits the rendered markdown at its placeholders and interleaves the real
+// components as children, so they are part of the render itself — and
+// therefore of the server render — instead of DOM patched in after mount.
+//
+// `data-tab` markers are delimiters rather than a single placeholder: each one
+// opens a panel that runs to the next marker, and `data-tabs-end` (or the end
+// of the page) closes the group. Panels recurse, so a demo or an API table
+// inside a tab still renders.
 function contentChildren(content: string): Child[] {
 	const children: Child[] = [];
 	let last = 0;
+	// non-null while a tab group is open
+	let panels: TabPanel[] | null = null;
+	let panelStart = 0;
+	let panelLabel = "";
+
+	const pushHtml = (from: number, to: number) => {
+		if (to > from) children.push(Html(content.slice(from, to)));
+	};
+	const closePanel = (end: number) => {
+		panels?.push({ label: panelLabel, children: contentChildren(content.slice(panelStart, end)) });
+	};
+
 	for (const match of content.matchAll(placeholderPattern)) {
 		const [placeholder, kind, name = ""] = match;
+		const start = match.index;
+		const end = start + placeholder.length;
+
+		if (kind === "tab") {
+			if (panels === null) {
+				pushHtml(last, start);
+				panels = [];
+			} else closePanel(start);
+			panelLabel = name;
+			panelStart = end;
+			last = end;
+			continue;
+		}
+
+		if (kind === "tabs-end") {
+			// a stray end marker outside a group is left in the surrounding html
+			if (panels === null) continue;
+			closePanel(start);
+			children.push(TabsBlock(panels));
+			panels = null;
+			last = end;
+			continue;
+		}
+
+		// inside a group these belong to the panel, which recurses over them
+		if (panels !== null) continue;
+
 		const replacement = kind === "demo" ? DemoPlaceholder(name) : ApiPlaceholder(name);
 		// unregistered name: leave the placeholder in the surrounding html
 		if (replacement == null) continue;
-		if (match.index > last) children.push(Html(content.slice(last, match.index)));
+		pushHtml(last, start);
 		children.push(replacement);
-		last = match.index + placeholder.length;
+		last = end;
 	}
-	if (last < content.length) children.push(Html(content.slice(last)));
+
+	// an unterminated group runs to the end of the page
+	if (panels !== null) {
+		closePanel(content.length);
+		children.push(TabsBlock(panels));
+		last = content.length;
+	}
+
+	pushHtml(last, content.length);
 	return children;
 }
 
@@ -90,6 +143,22 @@ function contentChildren(content: string): Child[] {
  * live demo of the matching source from the {@link demos} registry at that
  * spot, and a `<div data-api="name"></div>` renders that primitive's
  * {@link apiReference} tables.
+ *
+ * `<div data-tab="Label"></div>` opens a tab whose content is the markdown
+ * that follows it, up to the next tab or a closing
+ * `<div data-tabs-end></div>` — consecutive tabs form one group:
+ *
+ * ```md
+ * <div data-tab="Automatic"></div>
+ *
+ * Run the scaffolder.
+ *
+ * <div data-tab="Manual"></div>
+ *
+ * Or install it yourself.
+ *
+ * <div data-tabs-end></div>
+ * ```
  */
 export function Typeset(content: string, className?: string): Mountable {
 	return Div(

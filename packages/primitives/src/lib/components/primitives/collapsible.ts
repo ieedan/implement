@@ -2,15 +2,21 @@ import {
 	Button,
 	context,
 	Div,
+	Implement,
+	ref,
 	signal,
 	type Bindable,
 	type Child,
 	type ComponentProps,
 	type Signal,
 } from "@implementjs/core";
+import { collapsePresence } from "../helpers/collapse-presence";
 import { mergeProps } from "../../merge-props";
-import { getId } from "../../utils";
+import { getId, LIB_PREFIX, resolveId } from "../../utils";
 import { createComponent } from "../../create-component";
+
+const CONTENT_HEIGHT_VAR = `--${LIB_PREFIX}-collapsible-content-height`;
+const CONTENT_WIDTH_VAR = `--${LIB_PREFIX}-collapsible-content-width`;
 
 export type CollapsibleRootProps = ComponentProps<typeof Div> & {
 	open?: Signal<boolean> | boolean;
@@ -20,13 +26,14 @@ const CollapsibleCtx = context<CollapsibleState>();
 
 class CollapsibleState {
 	open: Signal<boolean>;
-	contentId: Bindable<string> | null = null;
+	/** The content's id, so the trigger can point at it with `aria-controls`. */
+	contentId = signal<string | null>(null);
 	constructor(opts: { open?: Signal<boolean> | boolean }) {
 		this.open = signal(opts.open ?? false);
 	}
 
 	registerContent(id: Bindable<string>) {
-		this.contentId = id;
+		this.contentId.set(resolveId(id));
 	}
 
 	get state() {
@@ -59,7 +66,7 @@ export const CollapsibleTrigger = createComponent(function CollapsibleTrigger(
 				{
 					type: "button",
 					"aria-expanded": state.open,
-					"aria-controls": state.contentId,
+					"aria-controls": state.contentId.bind((contentId) => contentId ?? undefined),
 					"data-collapsible-trigger": "",
 					"data-state": state.state,
 					onClick: () => state.open.toggle(),
@@ -81,20 +88,31 @@ export const CollapsibleContent = createComponent(function CollapsibleContent(
 ) {
 	return CollapsibleCtx.Use((state) => {
 		state.registerContent(id);
-		return Div(
-			mergeProps(
-				{
-					id,
-					"data-collapsible-content": "",
-					"data-state": state.state,
-					onBeforeMatch: () => state.open.set(true),
-					hidden: state.open.bind((open) =>
-						open ? undefined : hiddenUntilFound ? "until-found" : "",
-					),
-				},
-				restProps,
+		const contentRef = ref<HTMLDivElement>();
+		const { hidden, onMount } = collapsePresence({
+			open: state.open,
+			ref: contentRef,
+			heightVar: CONTENT_HEIGHT_VAR,
+			widthVar: CONTENT_WIDTH_VAR,
+			hiddenUntilFound,
+		});
+
+		return Implement.Lifecycle(
+			{ onMount },
+			Div(
+				mergeProps(
+					{
+						id,
+						this: contentRef,
+						"data-collapsible-content": "",
+						"data-state": state.state,
+						onBeforeMatch: () => state.open.set(true),
+						hidden,
+					},
+					restProps,
+				),
+				...children,
 			),
-			...children,
 		);
 	});
 });

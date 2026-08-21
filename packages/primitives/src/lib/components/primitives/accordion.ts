@@ -1,99 +1,141 @@
 import {
 	Button,
 	context,
+	derived,
 	Div,
 	Implement,
 	ref,
 	signal,
-	type Ref,
 	type Child,
 	type ComponentProps,
+	type Readable,
+	type Ref,
+	type Signal,
 } from "@implementjs/core";
+import { handleRovingKeydown } from "../helpers/roving-focus";
+import { collapsePresence } from "../helpers/collapse-presence";
 import { mergeProps } from "../../merge-props";
-import { getId } from "../../utils";
+import { getId, LIB_PREFIX, resolveId } from "../../utils";
 import { createComponent } from "../../create-component";
 
-export type AccordionRootProps = ComponentProps<typeof Div> & {
-	type?: "single" | "multiple";
-	loop?: boolean;
-};
+const CONTENT_HEIGHT_VAR = `--${LIB_PREFIX}-accordion-content-height`;
+const CONTENT_WIDTH_VAR = `--${LIB_PREFIX}-accordion-content-width`;
+
+export type AccordionRootProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
+	? { type: "multiple"; value?: Signal<string[]> }
+	: { type?: "single"; value?: Signal<string | null> }) &
+	ComponentProps<typeof Div> & {
+		disabled?: Signal<boolean> | boolean;
+		/** Whether arrow keys wrap from the last trigger back to the first. */
+		loop?: boolean;
+		orientation?: "horizontal" | "vertical";
+	};
 
 const AccordionCtx = context<AccordionState>();
 
-class AccordionState {
-	open = Implement.Set<string>();
-	focused = signal<string | null>(null);
+abstract class AccordionState {
+	disabled: Signal<boolean>;
 	constructor(
-		readonly opts: Pick<AccordionRootProps, "type" | "loop">,
+		readonly opts: { loop: boolean; orientation: "horizontal" | "vertical" },
 		readonly ref: Ref<HTMLDivElement>,
-	) {}
+		disabled: Signal<boolean> | boolean,
+	) {
+		this.disabled = signal(disabled);
+	}
+
+	abstract isOpen(value: string): Readable<boolean>;
+	abstract isOpenNow(value: string): boolean;
+	abstract toggle(value: string): void;
+	abstract openItem(value: string): void;
+
+	onTriggerKeydown(e: KeyboardEvent) {
+		handleRovingKeydown(e, {
+			root: this.ref,
+			candidateAttr: "data-accordion-trigger",
+			loop: this.opts.loop,
+			orientation: this.opts.orientation,
+		});
+	}
+}
+
+class AccordionSingleState extends AccordionState {
+	value: Signal<string | null>;
+	constructor(
+		opts: { loop: boolean; orientation: "horizontal" | "vertical" },
+		rootRef: Ref<HTMLDivElement>,
+		disabled: Signal<boolean> | boolean,
+		value?: Signal<string | null>,
+	) {
+		super(opts, rootRef, disabled);
+		this.value = value ?? signal<string | null>(null);
+	}
+
+	isOpen(value: string) {
+		return this.value.bind((current) => current === value);
+	}
+
+	isOpenNow(value: string) {
+		return this.value.get() === value;
+	}
 
 	toggle(value: string) {
-		const isOpen = this.open.has(value);
-		if (isOpen) {
-			this.open.delete(value);
-		} else {
-			if (this.opts.type === "single") {
-				this.open.clear();
-			}
-			this.open.add(value);
-		}
+		this.value.update((current) => (current === value ? null : value));
 	}
 
-	down() {
-		const info = this.getFocusInfo();
-		if (!info) return;
+	openItem(value: string) {
+		this.value.set(value);
+	}
+}
 
-		if (info.focusedIndex === info.items.length - 1) {
-			if (this.opts.loop) info.items[0]!.focus();
-		} else {
-			info.items[info.focusedIndex + 1]!.focus();
-		}
+class AccordionMultipleState extends AccordionState {
+	value: Signal<string[]>;
+	constructor(
+		opts: { loop: boolean; orientation: "horizontal" | "vertical" },
+		rootRef: Ref<HTMLDivElement>,
+		disabled: Signal<boolean> | boolean,
+		value?: Signal<string[]>,
+	) {
+		super(opts, rootRef, disabled);
+		this.value = value ?? signal<string[]>([]);
 	}
 
-	up() {
-		const info = this.getFocusInfo();
-		if (!info) return;
-
-		if (info.focusedIndex === 0) {
-			if (this.opts.loop) info.items[info.items.length - 1]!.focus();
-		} else {
-			info.items[info.focusedIndex - 1]!.focus();
-		}
+	isOpen(value: string) {
+		return this.value.bind((current) => current.includes(value));
 	}
 
-	private getFocusInfo() {
-		const items = this.ref.get()?.querySelectorAll<HTMLButtonElement>("[data-accordion-trigger]");
-		if (!items) return;
-		const focused = this.focused.get();
-		if (!focused) return;
-
-		let focusedIndex = -1;
-		for (let i = 0; i < items.length; i++) {
-			if (items[i]!.getAttribute("data-value") === focused) {
-				focusedIndex = i;
-				break;
-			}
-		}
-
-		return { items, focusedIndex };
+	isOpenNow(value: string) {
+		return this.value.get().includes(value);
 	}
 
-	onKeyDown(e: KeyboardEvent) {
-		if (e.key === "ArrowDown") {
-			this.down();
-		} else if (e.key === "ArrowUp") {
-			this.up();
-		}
+	toggle(value: string) {
+		this.value.update((current) =>
+			current.includes(value) ? current.filter((v) => v !== value) : [...current, value],
+		);
+	}
+
+	openItem(value: string) {
+		this.value.update((current) => (current.includes(value) ? current : [...current, value]));
 	}
 }
 
 export const Accordion = createComponent(function Accordion(
-	{ id = getId(), type = "single", loop = true, ...restProps }: AccordionRootProps,
+	{
+		id = getId(),
+		type = "single",
+		value,
+		disabled = false,
+		loop = true,
+		orientation = "vertical",
+		...restProps
+	}: AccordionRootProps<"single" | "multiple">,
 	...children: Child[]
 ) {
 	const root = ref<HTMLDivElement>();
-	const state = new AccordionState({ type, loop }, root);
+	const opts = { loop, orientation };
+	const state =
+		type === "multiple"
+			? new AccordionMultipleState(opts, root, disabled, value as Signal<string[]> | undefined)
+			: new AccordionSingleState(opts, root, disabled, value as Signal<string | null> | undefined);
 
 	return AccordionCtx.Provide(state).To(
 		Div(
@@ -102,7 +144,8 @@ export const Accordion = createComponent(function Accordion(
 					id,
 					this: root,
 					"data-accordion-root": "",
-					onKeydown: (e: KeyboardEvent) => state.onKeyDown(e),
+					"data-orientation": orientation,
+					"data-disabled": state.disabled.bind((disabled) => (disabled ? "" : undefined)),
 				},
 				restProps,
 			),
@@ -112,66 +155,92 @@ export const Accordion = createComponent(function Accordion(
 });
 
 export type AccordionItemProps = ComponentProps<typeof Div> & {
+	/** Identifies the item. Must be unique within the accordion. */
 	value: string;
+	disabled?: Signal<boolean> | boolean;
 };
 
 class AccordionItemState {
+	disabled: Readable<boolean>;
+	/** The trigger's id, so the content can label itself with `aria-labelledby`. */
+	triggerId = signal<string | null>(null);
+	/** The content's id, so the trigger can point at it with `aria-controls`. */
+	contentId = signal<string | null>(null);
+
 	constructor(
 		readonly rootState: AccordionState,
 		readonly value: AccordionItemProps["value"],
-	) {}
+		disabled: Signal<boolean> | boolean,
+	) {
+		const ownDisabled = signal(disabled);
+		this.disabled = derived([ownDisabled, rootState.disabled], (own, root) => own || root);
+	}
 
 	get isOpen() {
-		return this.rootState.open.bind(() => this.rootState.open.has(this.value));
+		return this.rootState.isOpen(this.value);
 	}
 
 	get state() {
 		return this.isOpen.bind((open) => (open ? "open" : "closed"));
 	}
 
-	onFocus() {
-		this.rootState.focused.set(this.value);
+	get dataDisabled() {
+		return this.disabled.bind((disabled) => (disabled ? "" : undefined));
 	}
 
-	onBlur() {
-		if (this.rootState.focused.get() === this.value) {
-			this.rootState.focused.set(null);
-		}
+	isOpenNow() {
+		return this.rootState.isOpenNow(this.value);
 	}
 
 	toggle() {
+		if (this.disabled.get()) return;
 		this.rootState.toggle(this.value);
 	}
 
 	open() {
-		this.rootState.open.add(this.value);
+		this.rootState.openItem(this.value);
 	}
 }
 
 const AccordionItemCtx = context<AccordionItemState>();
 
 export const AccordionItem = createComponent(function AccordionItem(
-	{ id = getId(), value, ...restProps }: AccordionItemProps,
+	{ id = getId(), value, disabled = false, ...restProps }: AccordionItemProps,
 	...children: Child[]
 ) {
 	return AccordionCtx.Use((rootState) => {
-		const state = new AccordionItemState(rootState, value);
+		const state = new AccordionItemState(rootState, value, disabled);
 		return AccordionItemCtx.Provide(state).To(
 			Div(
-				mergeProps({ id, "data-accordion-item": "", "data-state": state.state }, restProps),
+				mergeProps(
+					{
+						id,
+						"data-accordion-item": "",
+						"data-state": state.state,
+						"data-disabled": state.dataDisabled,
+						"data-orientation": rootState.opts.orientation,
+					},
+					restProps,
+				),
 				...children,
 			),
 		);
 	});
 });
 
-export type AccordionTriggerProps = ComponentProps<typeof Button>;
+export type AccordionTriggerProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
+	disabled?: Signal<boolean> | boolean;
+};
 
 export const AccordionTrigger = createComponent(function AccordionTrigger(
-	{ id = getId(), ...restProps }: AccordionTriggerProps,
+	{ id = getId(), disabled = false, ...restProps }: AccordionTriggerProps,
 	...children: Child[]
 ) {
 	return AccordionItemCtx.Use((state) => {
+		state.triggerId.set(resolveId(id));
+		const ownDisabled = signal(disabled);
+		const isDisabled = derived([ownDisabled, state.disabled], (own, item) => own || item);
+
 		return Button(
 			mergeProps(
 				{
@@ -180,10 +249,13 @@ export const AccordionTrigger = createComponent(function AccordionTrigger(
 					"data-accordion-trigger": "",
 					"data-state": state.state,
 					"data-value": state.value,
+					"data-disabled": isDisabled.bind((disabled) => (disabled ? "" : undefined)),
+					"data-orientation": state.rootState.opts.orientation,
+					disabled: isDisabled,
 					"aria-expanded": state.isOpen,
+					"aria-controls": state.contentId.bind((contentId) => contentId ?? undefined),
 					onClick: () => state.toggle(),
-					onFocus: () => state.onFocus(),
-					onBlur: () => state.onBlur(),
+					onKeydown: (e: KeyboardEvent) => state.rootState.onTriggerKeydown(e),
 				},
 				restProps,
 			),
@@ -201,20 +273,36 @@ export const AccordionContent = createComponent(function AccordionContent(
 	...children: Child[]
 ) {
 	return AccordionItemCtx.Use((state) => {
-		return Div(
-			mergeProps(
-				{
-					id,
-					"data-accordion-content": "",
-					"data-state": state.state,
-					onBeforeMatch: () => state.open(),
-					hidden: state.isOpen.bind((open) =>
-						open ? undefined : hiddenUntilFound ? "until-found" : "",
-					),
-				},
-				restProps,
+		state.contentId.set(resolveId(id));
+		const contentRef = ref<HTMLDivElement>();
+		const { hidden, onMount } = collapsePresence({
+			open: state.isOpen,
+			ref: contentRef,
+			heightVar: CONTENT_HEIGHT_VAR,
+			widthVar: CONTENT_WIDTH_VAR,
+			hiddenUntilFound,
+		});
+
+		return Implement.Lifecycle(
+			{ onMount },
+			Div(
+				mergeProps(
+					{
+						id,
+						this: contentRef,
+						role: "region",
+						"aria-labelledby": state.triggerId.bind((triggerId) => triggerId ?? undefined),
+						"data-accordion-content": "",
+						"data-state": state.state,
+						"data-disabled": state.dataDisabled,
+						"data-orientation": state.rootState.opts.orientation,
+						onBeforeMatch: () => state.open(),
+						hidden,
+					},
+					restProps,
+				),
+				...children,
 			),
-			...children,
 		);
 	});
 });
@@ -234,6 +322,8 @@ export const AccordionHeader = createComponent(function AccordionHeader(
 					id,
 					"data-accordion-header": "",
 					"data-state": state.state,
+					"data-disabled": state.dataDisabled,
+					"data-orientation": state.rootState.opts.orientation,
 					"data-heading-level": level.toString(),
 					"aria-level": level,
 					role: "heading",

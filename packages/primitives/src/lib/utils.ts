@@ -1,4 +1,4 @@
-import { isReadable, type Readable } from "@implementjs/core";
+import { isReadable, type Bindable, type Readable } from "@implementjs/core";
 import { nanoid } from "nanoid";
 
 export type MaybeReadable<T> = T | Readable<T>;
@@ -18,3 +18,8 @@ export function getId() {
 }
 
 export function noop() {}
+
+/** Resolve a `Bindable` id prop to its current string value. */
+export function resolveId(id: Bindable<string>): string | null {
+	return typeof id === "string" ? id : (id.get() ?? null);
+}

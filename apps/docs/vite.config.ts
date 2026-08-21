@@ -29,6 +29,7 @@ function entries(): string[] {
 		...collect("primitives.json", "Primitives"),
 		...collect("lucide.json", "Lucide"),
 		...collect("kit.json", "Kit"),
+		...collect("create.json", "Create"),
 		...collect("tutorials.json"),
 	];
 }
