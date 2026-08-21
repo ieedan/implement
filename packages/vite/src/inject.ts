@@ -38,12 +38,19 @@ export function injectSsr(template: string, result: SsrResult, styles: DevStyle[
 	);
 }
 
-/** {@link injectSsr} plus the render's own `transform`, when it has one. */
+/**
+ * {@link injectSsr}, then the host's own per-page pass (`@implementjs/kit`
+ * adds each route's preload hints there), then the render's `transform` — so
+ * a `transformPageChunk` hook still gets the last word on the finished
+ * document, hints and all.
+ */
 export async function renderDocument(
 	template: string,
 	result: SsrResult,
 	styles: DevStyle[] = [],
+	transformHtml?: (page: string) => string,
 ): Promise<string> {
-	const page = injectSsr(template, result, styles);
+	const injected = injectSsr(template, result, styles);
+	const page = transformHtml === undefined ? injected : transformHtml(injected);
 	return result.transform === undefined ? page : await result.transform(page);
 }

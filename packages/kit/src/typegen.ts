@@ -6,7 +6,7 @@ import { type RouteNode, type RouteTree } from "./scan.ts";
 export const IMPLEMENT_DIR = ".implement";
 
 const ENTRY_CLIENT = `import { App } from "@implementjs/core";
-import { initClientData } from "@implementjs/kit/runtime";
+import { initClientData, preloadRoute } from "@implementjs/kit/runtime";
 import { router } from "$implement/router";
 
 initClientData();
@@ -18,7 +18,19 @@ if (import.meta.hot) {
 	import.meta.hot.dispose(app.unmount);
 }
 
-app.render(router);
+// The landing route's page and layouts are in chunks of their own, and the
+// router renders them synchronously, so they have to be in memory first.
+// Deliberately not a top-level await: Rollup hoists what the route chunks
+// share into this entry's chunk, so those chunks statically import it —
+// waiting here for an import that is waiting for this module deadlocks both.
+preloadRoute(window.location.pathname).then(
+	() => app.render(router),
+	(error) => {
+		// the server-rendered markup is already on screen; leaving a readable
+		// page up beats tearing it down for a route whose code never arrived
+		console.error(error);
+	},
+);
 `;
 
 /**
@@ -41,7 +53,7 @@ function entryServer(hasErrorPage: boolean): string {
 			];
 	return `${[
 		'import { renderToString } from "@implementjs/core/server";',
-		'import { seedData } from "@implementjs/kit/runtime";',
+		'import { preloadRoute, seedData } from "@implementjs/kit/runtime";',
 		'import { createKitServer } from "@implementjs/kit/server";',
 		'import * as hooks from "$implement/hooks";',
 		'import { endpoints } from "$implement/endpoints";',
@@ -54,8 +66,12 @@ function entryServer(hasErrorPage: boolean): string {
 		"	hooks,",
 		"	pages,",
 		"	endpoints,",
-		"	renderPage: ({ url, data, error }) => {",
+		"	renderPage: async ({ url, data, error }) => {",
 		"		if (data !== null) seedData(data);",
+		"		// renderToString walks the tree synchronously, so the route's own",
+		"		// chunks have to be loaded first. The error page is not split, so",
+		"		// an error render has nothing to wait for.",
+		"		if (error === null) await preloadRoute(url.pathname);",
 		...renderPage,
 		"	},",
 		"});",

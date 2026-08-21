@@ -24,6 +24,7 @@ import {
 	prerenderServerFiles,
 } from "./dev.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
+import { manifestPath, preloadHints } from "./preload.ts";
 import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
 import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
@@ -101,6 +102,12 @@ const treeHasLoads = (node: RouteNode): boolean =>
  * client navigation — and produces the response by calling `resolve(event)`,
  * with `event.locals` carrying whatever it wants the route's loads and
  * handlers to see. See `@implementjs/kit/server` for the hook types.
+ *
+ * Routes are code-split: each page and layout is its own chunk, so a visitor
+ * downloads the prerendered html plus the code for the route they landed on,
+ * and the rest arrives as they navigate. The prerendered pages carry
+ * `modulepreload` hints for their own chunks, so the first load fetches them
+ * alongside the entry rather than after it.
  *
  * Kit also sets up the app conventions: static assets in `static/` are
  * served at the site root and copied into the build (unless the app sets
@@ -196,7 +203,12 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				appType: "custom",
 				publicDir: userConfig.publicDir ?? "static",
 				resolve: { alias },
-				...(overrideInput ? { build: { rollupOptions: { input: shellPath.path } } } : {}),
+				build: {
+					// the prerender needs chunk filenames to emit preload hints for
+					// each route's own modules, and only the manifest has them
+					manifest: userConfig.build?.manifest ?? true,
+					...(overrideInput ? { rollupOptions: { input: shellPath.path } } : {}),
+				},
 			};
 		},
 		configResolved(config) {
@@ -208,6 +220,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			const scanned = scan();
 			writeGenerated(root, scanned, genOptions);
 			if (scanned.error !== null) prerenderConfig.notFound = NOT_FOUND_ROUTE;
+			prerenderConfig.transformHtml = preloadHints({
+				manifest: manifestPath(outDir, config.build.manifest),
+				routesBase,
+				tree: () => tree ?? scan(),
+			});
 		},
 		resolveId(id) {
 			if (id === ROUTER_ID) return RESOLVED_ROUTER_ID;

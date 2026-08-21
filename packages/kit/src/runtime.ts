@@ -5,7 +5,10 @@ import {
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
+import { preloadRoute } from "./lazy.ts";
 import { dataPath, matchRoutePattern, normalizeRoutePath, type RouteData } from "./match.ts";
+
+export { lazyModule, preloadRoute, registerRouteModules, type ModuleHandle } from "./lazy.ts";
 
 export {
 	comparePatterns,
@@ -71,11 +74,22 @@ export function registerRoutes(routes: ClientRoute[]): void {
 	clientRoutes = routes;
 }
 
+/** Fetch and seed the destination's `__data.json`; no-op for a route with no loads. */
+async function fetchRouteData(path: string): Promise<void> {
+	const route = clientRoutes.find((entry) => matchRoutePattern(entry.pattern, path) !== null);
+	if (route === undefined) return;
+	const response = await fetch(dataPath(path));
+	if (!response.ok) throw new Error(`fetching route data failed: ${response.status}`);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Route data JSON matches the generated load module shape.
+	seedData((await response.json()) as RouteData);
+}
+
 /**
  * Called by the generated client entry: seeds the store from the data the
  * server render embedded in the page, then installs the navigation resolver
- * that fetches the destination's `__data.json` before a navigation commits.
- * If the fetch fails the navigation falls back to a full document load.
+ * that resolves everything the destination needs before a navigation commits —
+ * its route chunks and its `__data.json`. If either fails the navigation falls
+ * back to a full document load.
  */
 export function initClientData(): void {
 	const embedded = document.querySelector("script[data-implement-data]");
@@ -87,16 +101,17 @@ export function initClientData(): void {
 		seedData(JSON.parse(embedded.textContent) as RouteData);
 	}
 	setNavigationResolver(async (to) => {
-		// same-path navigations (query, hash) keep the data already loaded
+		// same-path navigations (query, hash) render what is already loaded
 		if (to.path === normalizeRoutePath(window.location.pathname)) return;
-		const route = clientRoutes.find((entry) => matchRoutePattern(entry.pattern, to.path) !== null);
-		if (route === undefined) return;
 		try {
-			const response = await fetch(dataPath(to.path));
-			if (!response.ok) throw new Error(`fetching route data failed: ${response.status}`);
-			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Route data JSON matches the generated load module shape.
-			seedData((await response.json()) as RouteData);
+			// concurrently: the code and the data are independent fetches, and
+			// sequencing them would put two round trips in front of every
+			// navigation instead of one
+			await Promise.all([preloadRoute(to.path), fetchRouteData(to.path)]);
 		} catch (error) {
+			// a data fetch that failed, or a route chunk that is gone because
+			// the site was redeployed under this tab — either way the app
+			// cannot render the destination, so let the browser fetch it
 			window.location.assign(to.path + to.search + to.hash);
 			throw error;
 		}

@@ -249,13 +249,14 @@ export type PageRender = { html: string; head: string };
 /**
  * Renders a page for a request: the app's router at `url`, or its `error.ts`
  * page when `error` is set. `null` when there is nothing to render — an app
- * without an `error.ts` has no error page.
+ * without an `error.ts` has no error page. May be async: routes are code-split,
+ * so the generated entry loads the route's chunks before it renders.
  */
 export type RenderPage = (input: {
 	url: URL;
 	data: RouteData | null;
 	error: { code: number; message: string } | null;
-}) => PageRender | null;
+}) => MaybePromise<PageRender | null>;
 
 /** Applies the resolve options' `transformPageChunk`, or `null` when there is none. */
 export type PageTransform = ((html: string) => Promise<string>) | null;
@@ -377,7 +378,7 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			pageError: { code: number; message: string } | null,
 		): Promise<Response> => {
 			const data = match === null ? null : await runLoads(match.route, current);
-			const rendered = renderPage({ url: current.url, data, error: pageError });
+			const rendered = await renderPage({ url: current.url, data, error: pageError });
 			if (rendered === null) {
 				return new Response(pageError?.message ?? "Not Found", {
 					status,

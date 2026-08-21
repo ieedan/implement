@@ -52,17 +52,44 @@ const tree: RouteTree = {
 describe("generateRouterModule", () => {
 	const code = generateRouterModule(tree, "/src/routes");
 
-	it("imports route modules with root-relative ids", () => {
-		expect(code).toContain('from "/src/routes/index.ts"');
-		expect(code).toContain('from "/src/routes/docs/[...slug]/index.ts"');
+	it("declares route modules as lazy handles, never static imports", () => {
+		expect(code).toContain(
+			'lazyModule("src/routes/index.ts", () => import("/src/routes/index.ts"))',
+		);
+		expect(code).toContain(
+			'lazyModule("src/routes/docs/[...slug]/index.ts", () => import("/src/routes/docs/[...slug]/index.ts"))',
+		);
+		// nothing under the routes dir may be statically imported, or Rollup
+		// pulls the whole app back into one chunk — the error page aside
+		const staticImports = [...code.matchAll(/^import .* from "(\/src\/routes\/[^"]+)";$/gm)];
+		expect(staticImports.map((match) => match[1])).toEqual(["/src/routes/error.ts"]);
 	});
 
 	it("adapts pages and layouts onto the core Router", () => {
 		expect(code).toContain('import { Router } from "@implementjs/core"');
-		expect(code).toContain("({ params, url: router.location, data: routeData([]) })");
-		expect(code).toContain("({ children, params, url: router.location, data: routeData([]) })");
+		expect(code).toContain(".get()({ params, url: router.location, data: routeData([]) })");
+		expect(code).toContain(
+			".get()({ children, params, url: router.location, data: routeData([]) })",
+		);
 		expect(code).toContain('"/docs":');
 		expect(code).toContain('"/:...slug":');
+	});
+
+	it("lists each route's page and layout chain for the runtime to preload", () => {
+		expect(code).toContain("registerRouteModules(");
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Parsing back the manifest the generator just emitted.
+		const registered = JSON.parse(/registerRouteModules\((\[[\s\S]*?\n\])\);/.exec(code)![1]!) as {
+			pattern: string;
+			modules: string[];
+		}[];
+		expect(registered).toEqual([
+			{ pattern: "/", modules: ["src/routes/layout.ts", "src/routes/index.ts"] },
+			{ pattern: "/docs", modules: ["src/routes/layout.ts", "src/routes/docs/index.ts"] },
+			{
+				pattern: "/docs/:...slug",
+				modules: ["src/routes/layout.ts", "src/routes/docs/[...slug]/index.ts"],
+			},
+		]);
 	});
 
 	it("registers no client routes when nothing loads", () => {
@@ -72,7 +99,10 @@ describe("generateRouterModule", () => {
 	it("wires the root error page as the fallback, passing the error", () => {
 		expect(code).toContain("fallback: (error) =>");
 		expect(code).toContain("({ error, url: router.location })");
-		expect(code).toContain('from "/src/routes/error.ts"');
+		// statically imported: it renders unmatched paths, so no route match
+		// can be what pulls it in
+		expect(code).toContain('import ErrorPage_4 from "/src/routes/error.ts";');
+		expect(code).not.toContain('lazyModule("src/routes/error.ts"');
 	});
 
 	it("omits the fallback without an error page", () => {
@@ -103,7 +133,7 @@ describe("generateRouterModule", () => {
 		};
 		const code = generateRouterModule(grouped, "/src/routes");
 		expect(code).toContain('"/(app)":');
-		expect(code).toContain('from "/src/routes/(app)/layout.ts"');
+		expect(code).toContain('import("/src/routes/(app)/layout.ts")');
 		expect(code).toContain('"/dashboard":');
 	});
 
@@ -132,7 +162,11 @@ describe("generateRouterModule", () => {
 		const code = generateRouterModule(reset, "/src/routes");
 		// the page lands at the root under its full path, escaping dashboard's layout
 		expect(code).toContain('"/dashboard/print/(@reset)":');
-		expect(code).toContain('from "/src/routes/dashboard/print/index@.ts"');
+		expect(code).toContain('import("/src/routes/dashboard/print/index@.ts")');
+		// and the reset drops dashboard's layout from what the route preloads
+		expect(code).toContain(
+			'"modules": [\n\t\t\t"src/routes/layout.ts",\n\t\t\t"src/routes/dashboard/print/index@.ts"\n\t\t]',
+		);
 	});
 
 	it("hoists a layout@ subtree to its reset target", () => {
@@ -161,7 +195,11 @@ describe("generateRouterModule", () => {
 		const code = generateRouterModule(reset, "/src/routes");
 		// the subtree attaches at the root — the group key keeps matching pathless
 		expect(code).toContain('"/(app)/admin":');
-		expect(code).toContain('from "/src/routes/(app)/admin/layout@.ts"');
+		expect(code).toContain('import("/src/routes/(app)/admin/layout@.ts")');
+		// the reset skips (app)'s layout, so admin's page never preloads it
+		expect(code).toContain(
+			'"modules": [\n\t\t\t"src/routes/layout.ts",\n\t\t\t"src/routes/(app)/admin/layout@.ts",\n\t\t\t"src/routes/(app)/admin/index.ts"\n\t\t]',
+		);
 	});
 });
 
@@ -251,7 +289,9 @@ describe("generateRouterModule with loads", () => {
 	});
 
 	it("registers the load-bearing routes with the client runtime", () => {
-		expect(code).toContain('import { registerRoutes, routeData } from "@implementjs/kit/runtime"');
+		expect(code).toContain(
+			'import { lazyModule, registerRouteModules, registerRoutes, routeData } from "@implementjs/kit/runtime"',
+		);
 		expect(code).toContain("registerRoutes(");
 		expect(code).toContain('"pattern": "/docs"');
 		// the slug page inherits the root load, so it registers too

@@ -8,16 +8,25 @@ export type DataChain = {
 	pageFiles: string[];
 };
 
+/** The layout chains behind one directory, root first, `@` resets applied. */
+type NodeChain = {
+	/** The nodes whose layouts wrap this directory, this directory last. */
+	layout: RouteNode[];
+	/** The nodes whose layouts wrap this directory's page, its own reset applied. */
+	page: RouteNode[];
+};
+
 function layoutServerFiles(chain: RouteNode[]): string[] {
 	return chain.flatMap((entry) => (entry.layoutServer === null ? [] : [entry.layoutServer]));
 }
 
 /**
- * The server-load files that feed each directory's layout and page `data`,
- * resets applied: the chain follows the layouts that actually wrap the
- * render, so an `@` reset also resets which ancestor loads contribute.
+ * Which ancestors actually wrap each directory, `@` resets applied. One answer
+ * settles two questions that must never disagree: which layout components
+ * render around a page, and which ancestor `layout.server.ts` loads feed its
+ * `data` — a reset that skips a layout skips that layout's load too.
  */
-export function dataChains(tree: RouteTree): Map<RouteNode, DataChain> {
+function nodeChains(tree: RouteTree): Map<RouteNode, NodeChain> {
 	const parents = new Map<RouteNode, RouteNode | null>();
 	const linkParents = (node: RouteNode, parent: RouteNode | null) => {
 		parents.set(node, parent);
@@ -33,7 +42,6 @@ export function dataChains(tree: RouteTree): Map<RouteNode, DataChain> {
 		return chain;
 	};
 
-	/** The nodes whose layouts wrap this directory, this directory last. */
 	const effective = new Map<RouteNode, RouteNode[]>();
 	const effectiveChain = (node: RouteNode): RouteNode[] => {
 		const cached = effective.get(node);
@@ -76,21 +84,65 @@ export function dataChains(tree: RouteTree): Map<RouteNode, DataChain> {
 		throw new Error(`No ancestor segment "${node.pageResetTo}" to reset to`);
 	};
 
-	const serverFiles = layoutServerFiles;
-
-	const chains = new Map<RouteNode, DataChain>();
+	const chains = new Map<RouteNode, NodeChain>();
 	const walk = (node: RouteNode) => {
-		chains.set(node, {
-			layoutFiles: serverFiles(effectiveChain(node)),
-			pageFiles: [
-				...serverFiles(pageChain(node)),
-				...(node.pageServer === null ? [] : [node.pageServer]),
-			],
-		});
+		chains.set(node, { layout: effectiveChain(node), page: pageChain(node) });
 		for (const child of node.children) walk(child);
 	};
 	walk(tree.root);
 	return chains;
+}
+
+/**
+ * The server-load files that feed each directory's layout and page `data`,
+ * resets applied: the chain follows the layouts that actually wrap the
+ * render, so an `@` reset also resets which ancestor loads contribute.
+ */
+export function dataChains(tree: RouteTree): Map<RouteNode, DataChain> {
+	const chains = new Map<RouteNode, DataChain>();
+	for (const [node, chain] of nodeChains(tree)) {
+		chains.set(node, {
+			layoutFiles: layoutServerFiles(chain.layout),
+			pageFiles: [
+				...layoutServerFiles(chain.page),
+				...(node.pageServer === null ? [] : [node.pageServer]),
+			],
+		});
+	}
+	return chains;
+}
+
+export type RouteModules = {
+	/** Full path pattern, `:param`/`:...rest` style (`/docs/:...slug`). */
+	pattern: string;
+	/** Routes-relative component files, wrapping layouts first, the page last. */
+	files: string[];
+};
+
+/**
+ * Every page with the component files that render it — the layouts actually
+ * wrapping it (`@` resets applied) and the page itself. This is the preload
+ * list: what has to be in memory before the route can render, and what the
+ * build's preload hints point the browser at.
+ */
+export function routeModules(tree: RouteTree): RouteModules[] {
+	const chains = nodeChains(tree);
+	return [...pagePatterns(tree).entries()].map(([node, pattern]) => ({
+		pattern,
+		files: [
+			...chains.get(node)!.page.flatMap((entry) => (entry.layout === null ? [] : [entry.layout])),
+			node.page!,
+		],
+	}));
+}
+
+/**
+ * The build-manifest key for a route file. Vite keys `build.manifest` by
+ * root-relative path with no leading slash, and the lazy registry uses the
+ * same id, so the preload-hint pass can look one up from the other.
+ */
+export function routeModuleId(routesBase: string, file: string): string {
+	return `${routesBase}/${file}`.replace(/^\//, "");
 }
 
 /** Every page node with its full path pattern. `(group)` segments contribute nothing. */
@@ -123,40 +175,66 @@ function routerKey(segment: RouteSegment): string {
 
 const rawName = (node: RouteNode): string => node.dir.split("/").pop()!;
 
+const routeDataExpr = (files: string[]): string => `routeData(${JSON.stringify(files)})`;
+
 /**
- * The source of the `$implement/router` virtual module: imports every page and
- * layout, adapts them onto `@implementjs/core`'s `Router` tree, and exports
- * the router. Pages render as `Page({ params, url, data })`, layouts as
- * `Layout({ children, params, url, data })`, and a root `error.ts` becomes the
- * router fallback, rendered as `ErrorPage({ error, url })`. `data` is a
- * readable merging what the route's `*.server.ts` loads returned (empty when
- * the route has none); routes with loads are also registered with the client
- * runtime so navigation fetches their data before committing.
+ * The source of the `$implement/router` virtual module: declares a lazy handle
+ * per page and layout, adapts them onto `@implementjs/core`'s `Router` tree,
+ * and exports the router. Pages render as `Page.get()({ params, url, data })`,
+ * layouts as `Layout.get()({ children, params, url, data })`, and a root
+ * `error.ts` becomes the router fallback, rendered as
+ * `ErrorPage({ error, url })`. `data` is a readable merging what the route's
+ * `*.server.ts` loads returned (empty when the route has none); routes with
+ * loads are also registered with the client runtime so navigation fetches
+ * their data before committing.
+ *
+ * Every page and layout is behind a `lazyModule` handle so Rollup splits the
+ * app by route: nothing but the entry route's chunks loads up front. The
+ * handles are declared, never awaited here — the route factories stay
+ * synchronous, and `registerRouteModules` tells the runtime which handles each
+ * route needs so the render paths can preload them (see `./lazy.ts`). The root
+ * `error.ts` stays a static import: it renders unmatched paths, so it cannot
+ * sit behind a route match, and it is small.
  *
  * `@` layout resets are realized by hoisting: a reset page (or a subtree whose
  * layout resets) is emitted at its target ancestor under the full key from
  * there, so only the layouts at and above the target wrap it.
  */
-const routeDataExpr = (files: string[]): string => `routeData(${JSON.stringify(files)})`;
-
 export function generateRouterModule(tree: RouteTree, routesBase: string): string {
 	const chains = dataChains(tree);
 	const patterns = pagePatterns(tree);
 	const manifest = [...patterns.entries()]
 		.filter(([node]) => chains.get(node)!.pageFiles.length > 0)
 		.map(([node, pattern]) => ({ pattern, files: chains.get(node)!.pageFiles }));
-	const runtimeImports = manifest.length > 0 ? "registerRoutes, routeData" : "routeData";
-	const imports: string[] = [
-		'import { Router } from "@implementjs/core";',
-		`import { ${runtimeImports} } from "@implementjs/kit/runtime";`,
-	];
+	const modules = routeModules(tree).map((route) => ({
+		pattern: route.pattern,
+		modules: route.files.map((file) => routeModuleId(routesBase, file)),
+	}));
+	const imports: string[] = ['import { Router } from "@implementjs/core";'];
+	const declarations: string[] = [];
 	const names = new Map<string, string>();
 	let counter = 0;
 
+	const nameFor = (file: string, kind: string): string => `${kind}_${counter++}`;
+
+	/** A page or layout, behind a handle the render paths preload. */
+	const lazyFor = (file: string, kind: string): string => {
+		let name = names.get(file);
+		if (name === undefined) {
+			name = nameFor(file, kind);
+			names.set(file, name);
+			const id = JSON.stringify(routeModuleId(routesBase, file));
+			const specifier = JSON.stringify(`${routesBase}/${file}`);
+			declarations.push(`const ${name} = lazyModule(${id}, () => import(${specifier}));`);
+		}
+		return name;
+	};
+
+	/** The error fallback, which no route match gates and so cannot be lazy. */
 	const importFor = (file: string, kind: string): string => {
 		let name = names.get(file);
 		if (name === undefined) {
-			name = `${kind}_${counter++}`;
+			name = nameFor(file, kind);
 			names.set(file, name);
 			imports.push(`import ${name} from ${JSON.stringify(`${routesBase}/${file}`)};`);
 		}
@@ -205,19 +283,19 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 	plan(tree.root, [tree.root]);
 
 	const pageExpr = (node: RouteNode): string => {
-		const name = importFor(node.page!, "Page");
+		const name = lazyFor(node.page!, "Page");
 		const data = routeDataExpr(chains.get(node)!.pageFiles);
-		return `(params) => ${name}({ params, url: router.location, data: ${data} })`;
+		return `(params) => ${name}.get()({ params, url: router.location, data: ${data} })`;
 	};
 
 	const nodeExpr = (node: RouteNode, indent: string): string => {
 		const inner = `${indent}\t`;
 		const entries: string[] = [];
 		if (node.layout !== null) {
-			const name = importFor(node.layout, "Layout");
+			const name = lazyFor(node.layout, "Layout");
 			const data = routeDataExpr(chains.get(node)!.layoutFiles);
 			entries.push(
-				`${inner}layout: (children, params) => ${name}({ children, params, url: router.location, data: ${data} }),`,
+				`${inner}layout: (children, params) => ${name}.get()({ children, params, url: router.location, data: ${data} }),`,
 			);
 		}
 		if (node.page !== null && !hoistedPages.has(node)) {
@@ -245,16 +323,32 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 			? ""
 			: `, {\n\tfallback: (error) => ${errorName}({ error, url: router.location }),\n}`;
 
-	const register =
-		manifest.length === 0 ? "" : `\n\nregisterRoutes(${JSON.stringify(manifest, null, "\t")});`;
-	// the server renders the error page on its own for a 404 or a thrown error,
-	// where there is no router match to fall back through
-	const errorExport =
-		errorName === null
-			? ""
-			: `\n\nexport const errorPage = (error) => ${errorName}({ error, url: router.location });`;
+	// only what the module actually uses, so a tree with no pages at all still
+	// emits an import list that type-checks and tree-shakes cleanly
+	const runtimeImports = [
+		...(declarations.length > 0 ? ["lazyModule"] : []),
+		...(modules.length > 0 ? ["registerRouteModules"] : []),
+		...(manifest.length > 0 ? ["registerRoutes"] : []),
+		"routeData",
+	];
+	imports.splice(1, 0, `import { ${runtimeImports.join(", ")} } from "@implementjs/kit/runtime";`);
 
-	return `${imports.join("\n")}\n\nexport const router = Router(${routes}${fallback});${register}${errorExport}\n`;
+	const blocks = [
+		imports.join("\n"),
+		...(declarations.length > 0 ? [declarations.join("\n")] : []),
+		`export const router = Router(${routes}${fallback});`,
+		// the server renders the error page on its own for a 404 or a thrown
+		// error, where there is no router match to fall back through. It stays a
+		// static import for the same reason the fallback does.
+		...(errorName === null
+			? []
+			: [`export const errorPage = (error) => ${errorName}({ error, url: router.location });`]),
+		...(modules.length > 0
+			? [`registerRouteModules(${JSON.stringify(modules, null, "\t")});`]
+			: []),
+		...(manifest.length > 0 ? [`registerRoutes(${JSON.stringify(manifest, null, "\t")});`] : []),
+	];
+	return `${blocks.join("\n\n")}\n`;
 }
 
 export type PageRoute = {
