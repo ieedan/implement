@@ -10,6 +10,7 @@ import {
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type CollapsibleRootProps = ComponentProps<typeof Div> & {
 	open?: Signal<boolean> | boolean;
@@ -33,7 +34,10 @@ class CollapsibleState {
 	}
 }
 
-export function Collapsible({ open, ...restProps }: CollapsibleRootProps, ...children: Child[]) {
+export const Collapsible = createComponent(function Collapsible(
+	{ open, ...restProps }: CollapsibleRootProps,
+	...children: Child[]
+) {
 	const state = new CollapsibleState({ open });
 	return CollapsibleCtx.Provide(state).To(
 		Div(
@@ -41,11 +45,11 @@ export function Collapsible({ open, ...restProps }: CollapsibleRootProps, ...chi
 			...children,
 		),
 	);
-}
+});
 
 export type CollapsibleTriggerProps = ComponentProps<typeof Button>;
 
-export function CollapsibleTrigger(
+export const CollapsibleTrigger = createComponent(function CollapsibleTrigger(
 	{ ...restProps }: CollapsibleTriggerProps,
 	...children: Child[]
 ) {
@@ -65,13 +69,13 @@ export function CollapsibleTrigger(
 			...children,
 		);
 	});
-}
+});
 
 export type CollapsibleContentProps = ComponentProps<typeof Div> & {
 	hiddenUntilFound?: boolean;
 };
 
-export function CollapsibleContent(
+export const CollapsibleContent = createComponent(function CollapsibleContent(
 	{ id = getId(), hiddenUntilFound = false, ...restProps }: CollapsibleContentProps,
 	...children: Child[]
 ) {
@@ -93,4 +97,4 @@ export function CollapsibleContent(
 			...children,
 		);
 	});
-}
+});

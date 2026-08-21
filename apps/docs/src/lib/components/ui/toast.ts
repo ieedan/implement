@@ -28,6 +28,7 @@ import {
 	type ToastManager,
 } from "@implementjs/primitives";
 import { buttonVariants } from "./button";
+import { createComponent } from "@implementjs/primitives";
 
 export { createToastManager, type ToastData, type ToastManager };
 
@@ -42,7 +43,7 @@ export type ToastCloseProps = ComponentProps<typeof ToastClosePrimitive>;
 export const ToastProvider = ToastProviderPrimitive;
 export const ToastPortal = ToastPortalPrimitive;
 
-export function ToastViewport(
+export const ToastViewport = createComponent(function ToastViewport(
 	{ class: className, ...props }: ToastViewportProps,
 	...children: Child[]
 ) {
@@ -57,9 +58,12 @@ export function ToastViewport(
 		},
 		...children,
 	);
-}
+});
 
-export function Toast({ class: className, ...props }: ToastRootProps, ...children: Child[]) {
+export const Toast = createComponent(function Toast(
+	{ class: className, ...props }: ToastRootProps,
+	...children: Child[]
+) {
 	return ToastPrimitive(
 		{
 			...props,
@@ -94,9 +98,12 @@ export function Toast({ class: className, ...props }: ToastRootProps, ...childre
 		},
 		...children,
 	);
-}
+});
 
-export function ToastTitle({ class: className, ...props }: ToastTitleProps, ...children: Child[]) {
+export const ToastTitle = createComponent(function ToastTitle(
+	{ class: className, ...props }: ToastTitleProps,
+	...children: Child[]
+) {
 	return ToastTitlePrimitive(
 		{
 			...props,
@@ -105,9 +112,9 @@ export function ToastTitle({ class: className, ...props }: ToastTitleProps, ...c
 		},
 		...children,
 	);
-}
+});
 
-export function ToastDescription(
+export const ToastDescription = createComponent(function ToastDescription(
 	{ class: className, ...props }: ToastDescriptionProps,
 	...children: Child[]
 ) {
@@ -119,9 +126,9 @@ export function ToastDescription(
 		},
 		...children,
 	);
-}
+});
 
-export function ToastAction(
+export const ToastAction = createComponent(function ToastAction(
 	{ class: className, ...props }: ToastActionProps,
 	...children: Child[]
 ) {
@@ -133,9 +140,12 @@ export function ToastAction(
 		},
 		...children,
 	);
-}
+});
 
-export function ToastClose({ class: className, ...props }: ToastCloseProps, ...children: Child[]) {
+export const ToastClose = createComponent(function ToastClose(
+	{ class: className, ...props }: ToastCloseProps,
+	...children: Child[]
+) {
 	return ToastClosePrimitive(
 		{
 			...props,
@@ -150,7 +160,7 @@ export function ToastClose({ class: className, ...props }: ToastCloseProps, ...c
 		XIcon({ class: "size-3.5", "aria-hidden": true }),
 		Span({ class: "sr-only" }, "Close"),
 	);
-}
+});
 
 /** The `data` shape the ready-made `Toaster` understands. */
 export type ToasterToastData = {

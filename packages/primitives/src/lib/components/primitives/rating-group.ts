@@ -13,6 +13,7 @@ import {
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type RatingGroupRootProps = ComponentProps<typeof Div> & {
 	value?: Signal<number> | number;
@@ -142,7 +143,7 @@ class RatingGroupState {
 	}
 }
 
-export function RatingGroup(
+export const RatingGroup = createComponent(function RatingGroup(
 	{
 		id = getId(),
 		value = 0,
@@ -194,7 +195,7 @@ export function RatingGroup(
 			...children,
 		),
 	);
-}
+});
 
 export type RatingGroupItemProps = ComponentProps<typeof Div> & {
 	/** Zero-based position of the item; the item represents the rating `index + 1`. */
@@ -202,7 +203,7 @@ export type RatingGroupItemProps = ComponentProps<typeof Div> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
-export function RatingGroupItem(
+export const RatingGroupItem = createComponent(function RatingGroupItem(
 	{ id = getId(), index, disabled = false, ...restProps }: RatingGroupItemProps,
 	...children: Child[]
 ) {
@@ -237,4 +238,4 @@ export function RatingGroupItem(
 			...children,
 		);
 	});
-}
+});

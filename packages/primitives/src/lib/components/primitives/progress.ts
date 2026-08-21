@@ -8,6 +8,7 @@ import {
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type ProgressProps = ComponentProps<typeof Div> & {
 	/** The current value. Pass `null` for an indeterminate progress bar. */
@@ -23,7 +24,7 @@ export type ProgressProps = ComponentProps<typeof Div> & {
  * duration is unknown and renders an indeterminate bar. For a measurement
  * that can move in either direction, use a meter instead.
  */
-export function Progress(
+export const Progress = createComponent(function Progress(
 	{ id = getId(), value = 0, min = 0, max = 100, ...restProps }: ProgressProps,
 	...children: Child[]
 ) {
@@ -55,4 +56,4 @@ export function Progress(
 		),
 		...children,
 	);
-}
+});

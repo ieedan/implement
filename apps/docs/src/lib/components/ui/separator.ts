@@ -1,9 +1,10 @@
 import type { ComponentProps } from "@implementjs/core";
 import { Separator as SeparatorPrimitive } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type SeparatorProps = ComponentProps<typeof SeparatorPrimitive>;
 
-export function Separator({
+export const Separator = createComponent(function Separator({
 	class: className,
 	orientation = "horizontal",
 	decorative = true,
@@ -19,4 +20,4 @@ export function Separator({
 			className,
 		],
 	});
-}
+});

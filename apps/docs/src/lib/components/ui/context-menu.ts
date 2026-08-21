@@ -26,6 +26,7 @@ import {
 	menuStaticPanelClasses,
 	menuSubTriggerClasses,
 } from "./dropdown-menu";
+import { createComponent } from "@implementjs/primitives";
 
 export type ContextMenuProps = ComponentProps<typeof ContextMenuPrimitive>;
 export const ContextMenu = ContextMenuPrimitive;
@@ -35,7 +36,7 @@ export const ContextMenuTrigger = ContextMenuTriggerPrimitive;
 
 export type ContextMenuContentProps = ComponentProps<typeof ContextMenuContentPrimitive>;
 
-export function ContextMenuContent(
+export const ContextMenuContent = createComponent(function ContextMenuContent(
 	{ class: className, ...props }: ContextMenuContentProps,
 	...children: Child[]
 ) {
@@ -47,11 +48,11 @@ export function ContextMenuContent(
 		},
 		...children,
 	);
-}
+});
 
 export type ContextMenuItemProps = ComponentProps<typeof ContextMenuItemPrimitive>;
 
-export function ContextMenuItem(
+export const ContextMenuItem = createComponent(function ContextMenuItem(
 	{ class: className, ...props }: ContextMenuItemProps,
 	...children: Child[]
 ) {
@@ -59,11 +60,11 @@ export function ContextMenuItem(
 		{ ...props, "data-slot": "context-menu-item", class: [menuItemClasses, className] },
 		...children,
 	);
-}
+});
 
 export type ContextMenuCheckboxItemProps = ComponentProps<typeof ContextMenuCheckboxItemPrimitive>;
 
-export function ContextMenuCheckboxItem(
+export const ContextMenuCheckboxItem = createComponent(function ContextMenuCheckboxItem(
 	{ class: className, ...props }: ContextMenuCheckboxItemProps,
 	...children: Child[]
 ) {
@@ -76,14 +77,14 @@ export function ContextMenuCheckboxItem(
 		MenuCheckIndicator(),
 		...children,
 	);
-}
+});
 
 export type ContextMenuRadioGroupProps = ComponentProps<typeof ContextMenuRadioGroupPrimitive>;
 export const ContextMenuRadioGroup = ContextMenuRadioGroupPrimitive;
 
 export type ContextMenuRadioItemProps = ComponentProps<typeof ContextMenuRadioItemPrimitive>;
 
-export function ContextMenuRadioItem(
+export const ContextMenuRadioItem = createComponent(function ContextMenuRadioItem(
 	{ class: className, ...props }: ContextMenuRadioItemProps,
 	...children: Child[]
 ) {
@@ -96,14 +97,14 @@ export function ContextMenuRadioItem(
 		MenuRadioIndicator(),
 		...children,
 	);
-}
+});
 
 export type ContextMenuGroupProps = ComponentProps<typeof ContextMenuGroupPrimitive>;
 export const ContextMenuGroup = ContextMenuGroupPrimitive;
 
 export type ContextMenuGroupHeadingProps = ComponentProps<typeof ContextMenuGroupHeadingPrimitive>;
 
-export function ContextMenuGroupHeading(
+export const ContextMenuGroupHeading = createComponent(function ContextMenuGroupHeading(
 	{ class: className, ...props }: ContextMenuGroupHeadingProps,
 	...children: Child[]
 ) {
@@ -115,24 +116,27 @@ export function ContextMenuGroupHeading(
 		},
 		...children,
 	);
-}
+});
 
 export type ContextMenuSeparatorProps = ComponentProps<typeof ContextMenuSeparatorPrimitive>;
 
-export function ContextMenuSeparator({ class: className, ...props }: ContextMenuSeparatorProps) {
+export const ContextMenuSeparator = createComponent(function ContextMenuSeparator({
+	class: className,
+	...props
+}: ContextMenuSeparatorProps) {
 	return ContextMenuSeparatorPrimitive({
 		...props,
 		"data-slot": "context-menu-separator",
 		class: [menuSeparatorClasses, className],
 	});
-}
+});
 
 export type ContextMenuSubProps = ComponentProps<typeof ContextMenuSubPrimitive>;
 export const ContextMenuSub = ContextMenuSubPrimitive;
 
 export type ContextMenuSubTriggerProps = ComponentProps<typeof ContextMenuSubTriggerPrimitive>;
 
-export function ContextMenuSubTrigger(
+export const ContextMenuSubTrigger = createComponent(function ContextMenuSubTrigger(
 	{ class: className, ...props }: ContextMenuSubTriggerProps,
 	...children: Child[]
 ) {
@@ -145,11 +149,11 @@ export function ContextMenuSubTrigger(
 		...children,
 		MenuSubTriggerChevron(),
 	);
-}
+});
 
 export type ContextMenuSubContentProps = ComponentProps<typeof ContextMenuSubContentPrimitive>;
 
-export function ContextMenuSubContent(
+export const ContextMenuSubContent = createComponent(function ContextMenuSubContent(
 	{ class: className, offset = 8, ...props }: ContextMenuSubContentProps,
 	...children: Child[]
 ) {
@@ -162,4 +166,4 @@ export function ContextMenuSubContent(
 		},
 		...children,
 	);
-}
+});

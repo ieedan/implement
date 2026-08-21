@@ -5,14 +5,12 @@ export default function AvatarDemo() {
 	return Div(
 		{ class: "flex flex-row flex-wrap items-center gap-8" },
 		Avatar(
-			{},
 			AvatarImage({ src: "https://github.com/ieedan.png", alt: "@ieedan" }),
-			AvatarFallback({}, "AB"),
+			AvatarFallback("AB"),
 		),
 		Avatar(
-			{},
 			AvatarImage({ src: "https://github.com/broken-link-404.png/nope", alt: "broken" }),
-			AvatarFallback({}, "ER"),
+			AvatarFallback("ER"),
 		),
 		Div(
 			{
@@ -20,19 +18,16 @@ export default function AvatarDemo() {
 					"flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background *:data-[slot=avatar]:grayscale",
 			},
 			Avatar(
-				{},
 				AvatarImage({ src: "https://github.com/ieedan.png", alt: "@ieedan" }),
-				AvatarFallback({}, "AB"),
+				AvatarFallback("AB"),
 			),
 			Avatar(
-				{},
 				AvatarImage({ src: "https://github.com/github.png", alt: "@github" }),
-				AvatarFallback({}, "GH"),
+				AvatarFallback("GH"),
 			),
 			Avatar(
-				{},
 				AvatarImage({ src: "https://github.com/shadcn.png", alt: "@shadcn" }),
-				AvatarFallback({}, "CN"),
+				AvatarFallback("CN"),
 			),
 		),
 	);

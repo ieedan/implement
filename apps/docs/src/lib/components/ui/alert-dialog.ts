@@ -11,6 +11,7 @@ import {
 	AlertDialogTrigger as AlertDialogTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { createComponent } from "@implementjs/primitives";
 
 export type AlertDialogProps = ComponentProps<typeof AlertDialogPrimitive>;
 export type AlertDialogTriggerProps = ComponentProps<typeof AlertDialogTriggerPrimitive> & {
@@ -32,11 +33,14 @@ export type AlertDialogDescriptionProps = ComponentProps<typeof AlertDialogDescr
 
 export const AlertDialogPortal = AlertDialogPortalPrimitive;
 
-export function AlertDialog(props: AlertDialogProps, ...children: Child[]) {
+export const AlertDialog = createComponent(function AlertDialog(
+	props: AlertDialogProps,
+	...children: Child[]
+) {
 	return AlertDialogPrimitive(props, ...children);
-}
+});
 
-export function AlertDialogTrigger(
+export const AlertDialogTrigger = createComponent(function AlertDialogTrigger(
 	{
 		class: className,
 		variant = "default",
@@ -57,9 +61,9 @@ export function AlertDialogTrigger(
 		},
 		...children,
 	);
-}
+});
 
-export function AlertDialogOverlay(
+export const AlertDialogOverlay = createComponent(function AlertDialogOverlay(
 	{ class: className, ...props }: AlertDialogOverlayProps,
 	...children: Child[]
 ) {
@@ -79,9 +83,9 @@ export function AlertDialogOverlay(
 		},
 		...children,
 	);
-}
+});
 
-export function AlertDialogContent(
+export const AlertDialogContent = createComponent(function AlertDialogContent(
 	{ class: className, ...props }: AlertDialogContentProps,
 	...children: Child[]
 ) {
@@ -101,9 +105,9 @@ export function AlertDialogContent(
 		},
 		...children,
 	);
-}
+});
 
-export function AlertDialogTitle(
+export const AlertDialogTitle = createComponent(function AlertDialogTitle(
 	{ class: className, ...props }: AlertDialogTitleProps,
 	...children: Child[]
 ) {
@@ -115,9 +119,9 @@ export function AlertDialogTitle(
 		},
 		...children,
 	);
-}
+});
 
-export function AlertDialogDescription(
+export const AlertDialogDescription = createComponent(function AlertDialogDescription(
 	{ class: className, ...props }: AlertDialogDescriptionProps,
 	...children: Child[]
 ) {
@@ -129,9 +133,9 @@ export function AlertDialogDescription(
 		},
 		...children,
 	);
-}
+});
 
-export function AlertDialogCancel(
+export const AlertDialogCancel = createComponent(function AlertDialogCancel(
 	{
 		class: className,
 		variant = "outline",
@@ -152,9 +156,9 @@ export function AlertDialogCancel(
 		},
 		...children,
 	);
-}
+});
 
-export function AlertDialogAction(
+export const AlertDialogAction = createComponent(function AlertDialogAction(
 	{
 		class: className,
 		variant = "default",
@@ -175,4 +179,4 @@ export function AlertDialogAction(
 		},
 		...children,
 	);
-}
+});

@@ -24,6 +24,7 @@ import {
 } from "../helpers/dismissable-layer";
 import { positionFloatingElement, type Side, type Align } from "../helpers/floating-ui";
 import { trackSafePolygon } from "../helpers/safe-polygon";
+import { createComponent } from "../../create-component";
 
 export type { Side, Align };
 
@@ -126,13 +127,16 @@ const TooltipProviderContext = context<TooltipProviderState>();
  * Shares tooltip timing across every `Tooltip` inside it: one open at a time,
  * and moving between triggers within `skipDelayDuration` skips the open delay.
  */
-export function TooltipProvider(props: TooltipProviderProps, ...children: Child[]) {
+export const TooltipProvider = createComponent(function TooltipProvider(
+	props: TooltipProviderProps,
+	...children: Child[]
+) {
 	const state = new TooltipProviderState(props);
 	return TooltipProviderContext.Provide(state).To(
 		Implement.Window({ onScroll: (e: Event) => state.handleScroll(e) }),
 		Implement.Lifecycle({ onUnmount: () => state.dispose() }, ...children),
 	);
-}
+});
 
 export type TooltipRootProps = {
 	open?: Signal<boolean> | boolean;
@@ -354,7 +358,10 @@ class TooltipState {
 
 const TooltipContext = context<TooltipState>();
 
-export function Tooltip(props: TooltipRootProps, ...children: Child[]) {
+export const Tooltip = createComponent(function Tooltip(
+	props: TooltipRootProps,
+	...children: Child[]
+) {
 	return TooltipProviderContext.UseOr((provider) => {
 		// a root without a provider gets a private one with the defaults
 		const ownsProvider = provider === null;
@@ -414,7 +421,7 @@ export function Tooltip(props: TooltipRootProps, ...children: Child[]) {
 			tree,
 		);
 	}, null);
-}
+});
 
 export type TooltipTriggerProps = Omit<ComponentProps<typeof Button>, "id" | "disabled"> & {
 	id?: string;
@@ -562,7 +569,7 @@ class TooltipTriggerState {
 	}
 }
 
-export function TooltipTrigger(
+export const TooltipTrigger = createComponent(function TooltipTrigger(
 	{ id = getId(), disabled = false, ...restProps }: TooltipTriggerProps,
 	...children: Child[]
 ) {
@@ -610,7 +617,7 @@ export function TooltipTrigger(
 			),
 		);
 	});
-}
+});
 
 type TooltipContentOptions = {
 	side: Side;
@@ -636,7 +643,7 @@ class TooltipContentState {
 	}
 }
 
-export function TooltipContent(
+export const TooltipContent = createComponent(function TooltipContent(
 	{
 		id = getId(),
 		side = "top",
@@ -678,7 +685,7 @@ export function TooltipContent(
 			...children,
 		);
 	});
-}
+});
 
 export type TooltipPortalProps = PortalProps;
 

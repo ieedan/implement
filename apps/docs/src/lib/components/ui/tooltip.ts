@@ -7,6 +7,7 @@ import {
 	TooltipTrigger as TooltipTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { createComponent } from "@implementjs/primitives";
 
 export type TooltipProviderProps = ComponentProps<typeof TooltipProviderPrimitive>;
 export type TooltipProps = ComponentProps<typeof TooltipPrimitive>;
@@ -18,15 +19,18 @@ export type TooltipContentProps = ComponentProps<typeof TooltipContentPrimitive>
 
 export const TooltipPortal = TooltipPortalPrimitive;
 
-export function TooltipProvider(props: TooltipProviderProps, ...children: Child[]) {
+export const TooltipProvider = createComponent(function TooltipProvider(
+	props: TooltipProviderProps,
+	...children: Child[]
+) {
 	return TooltipProviderPrimitive(props, ...children);
-}
+});
 
-export function Tooltip(props: TooltipProps, ...children: Child[]) {
+export const Tooltip = createComponent(function Tooltip(props: TooltipProps, ...children: Child[]) {
 	return TooltipPrimitive(props, ...children);
-}
+});
 
-export function TooltipTrigger(
+export const TooltipTrigger = createComponent(function TooltipTrigger(
 	{
 		class: className,
 		variant = "default",
@@ -47,9 +51,9 @@ export function TooltipTrigger(
 		},
 		...children,
 	);
-}
+});
 
-export function TooltipContent(
+export const TooltipContent = createComponent(function TooltipContent(
 	{ offset = 6, side = "top", align = "center", class: className, ...props }: TooltipContentProps,
 	...children: Child[]
 ) {
@@ -74,4 +78,4 @@ export function TooltipContent(
 		},
 		...children,
 	);
-}
+});

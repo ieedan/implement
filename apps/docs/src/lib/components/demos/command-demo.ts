@@ -37,26 +37,22 @@ export default function CommandDemo() {
 			{ label: "Command menu", class: "rounded-lg border shadow-md" },
 			CommandInput({ placeholder: "Type a command or search..." }),
 			CommandList(
-				{},
 				CommandViewport(
-					{},
-					CommandEmpty({}, "No results found."),
+					CommandEmpty("No results found."),
 					CommandGroup(
 						{ value: "suggestions" },
-						CommandGroupHeading({}, "Suggestions"),
+						CommandGroupHeading("Suggestions"),
 						CommandGroupItems(
-							{},
 							item("Calendar", CalendarIcon),
 							item("Search Emoji", SmileIcon),
 							item("Calculator", CalculatorIcon),
 						),
 					),
-					CommandSeparator({}),
+					CommandSeparator(),
 					CommandGroup(
 						{ value: "settings" },
-						CommandGroupHeading({}, "Settings"),
+						CommandGroupHeading("Settings"),
 						CommandGroupItems(
-							{},
 							item("Profile", UserIcon),
 							item("Billing", CreditCardIcon),
 							item("Settings", SettingsIcon),

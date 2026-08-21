@@ -27,10 +27,14 @@ import {
 	menuStaticPanelClasses,
 	menuSubTriggerClasses,
 } from "./dropdown-menu";
+import { createComponent } from "@implementjs/primitives";
 
 export type MenubarProps = ComponentProps<typeof MenubarPrimitive>;
 
-export function Menubar({ class: className, ...props }: MenubarProps, ...children: Child[]) {
+export const Menubar = createComponent(function Menubar(
+	{ class: className, ...props }: MenubarProps,
+	...children: Child[]
+) {
 	return MenubarPrimitive(
 		{
 			...props,
@@ -42,14 +46,14 @@ export function Menubar({ class: className, ...props }: MenubarProps, ...childre
 		},
 		...children,
 	);
-}
+});
 
 export type MenubarMenuProps = ComponentProps<typeof MenubarMenuPrimitive>;
 export const MenubarMenu = MenubarMenuPrimitive;
 
 export type MenubarTriggerProps = ComponentProps<typeof MenubarTriggerPrimitive>;
 
-export function MenubarTrigger(
+export const MenubarTrigger = createComponent(function MenubarTrigger(
 	{ class: className, ...props }: MenubarTriggerProps,
 	...children: Child[]
 ) {
@@ -66,11 +70,11 @@ export function MenubarTrigger(
 		},
 		...children,
 	);
-}
+});
 
 export type MenubarContentProps = ComponentProps<typeof MenubarContentPrimitive>;
 
-export function MenubarContent(
+export const MenubarContent = createComponent(function MenubarContent(
 	{ class: className, offset = 8, ...props }: MenubarContentProps,
 	...children: Child[]
 ) {
@@ -83,11 +87,11 @@ export function MenubarContent(
 		},
 		...children,
 	);
-}
+});
 
 export type MenubarItemProps = ComponentProps<typeof MenubarItemPrimitive>;
 
-export function MenubarItem(
+export const MenubarItem = createComponent(function MenubarItem(
 	{ class: className, ...props }: MenubarItemProps,
 	...children: Child[]
 ) {
@@ -95,11 +99,11 @@ export function MenubarItem(
 		{ ...props, "data-slot": "menubar-item", class: [menuItemClasses, className] },
 		...children,
 	);
-}
+});
 
 export type MenubarCheckboxItemProps = ComponentProps<typeof MenubarCheckboxItemPrimitive>;
 
-export function MenubarCheckboxItem(
+export const MenubarCheckboxItem = createComponent(function MenubarCheckboxItem(
 	{ class: className, ...props }: MenubarCheckboxItemProps,
 	...children: Child[]
 ) {
@@ -112,14 +116,14 @@ export function MenubarCheckboxItem(
 		MenuCheckIndicator(),
 		...children,
 	);
-}
+});
 
 export type MenubarRadioGroupProps = ComponentProps<typeof MenubarRadioGroupPrimitive>;
 export const MenubarRadioGroup = MenubarRadioGroupPrimitive;
 
 export type MenubarRadioItemProps = ComponentProps<typeof MenubarRadioItemPrimitive>;
 
-export function MenubarRadioItem(
+export const MenubarRadioItem = createComponent(function MenubarRadioItem(
 	{ class: className, ...props }: MenubarRadioItemProps,
 	...children: Child[]
 ) {
@@ -132,14 +136,14 @@ export function MenubarRadioItem(
 		MenuRadioIndicator(),
 		...children,
 	);
-}
+});
 
 export type MenubarGroupProps = ComponentProps<typeof MenubarGroupPrimitive>;
 export const MenubarGroup = MenubarGroupPrimitive;
 
 export type MenubarGroupHeadingProps = ComponentProps<typeof MenubarGroupHeadingPrimitive>;
 
-export function MenubarGroupHeading(
+export const MenubarGroupHeading = createComponent(function MenubarGroupHeading(
 	{ class: className, ...props }: MenubarGroupHeadingProps,
 	...children: Child[]
 ) {
@@ -147,24 +151,27 @@ export function MenubarGroupHeading(
 		{ ...props, "data-slot": "menubar-group-heading", class: [menuGroupHeadingClasses, className] },
 		...children,
 	);
-}
+});
 
 export type MenubarSeparatorProps = ComponentProps<typeof MenubarSeparatorPrimitive>;
 
-export function MenubarSeparator({ class: className, ...props }: MenubarSeparatorProps) {
+export const MenubarSeparator = createComponent(function MenubarSeparator({
+	class: className,
+	...props
+}: MenubarSeparatorProps) {
 	return MenubarSeparatorPrimitive({
 		...props,
 		"data-slot": "menubar-separator",
 		class: [menuSeparatorClasses, className],
 	});
-}
+});
 
 export type MenubarSubProps = ComponentProps<typeof MenubarSubPrimitive>;
 export const MenubarSub = MenubarSubPrimitive;
 
 export type MenubarSubTriggerProps = ComponentProps<typeof MenubarSubTriggerPrimitive>;
 
-export function MenubarSubTrigger(
+export const MenubarSubTrigger = createComponent(function MenubarSubTrigger(
 	{ class: className, ...props }: MenubarSubTriggerProps,
 	...children: Child[]
 ) {
@@ -177,11 +184,11 @@ export function MenubarSubTrigger(
 		...children,
 		MenuSubTriggerChevron(),
 	);
-}
+});
 
 export type MenubarSubContentProps = ComponentProps<typeof MenubarSubContentPrimitive>;
 
-export function MenubarSubContent(
+export const MenubarSubContent = createComponent(function MenubarSubContent(
 	{ class: className, offset = 8, ...props }: MenubarSubContentProps,
 	...children: Child[]
 ) {
@@ -194,4 +201,4 @@ export function MenubarSubContent(
 		},
 		...children,
 	);
-}
+});

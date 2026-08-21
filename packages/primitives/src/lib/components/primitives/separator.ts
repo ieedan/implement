@@ -1,6 +1,7 @@
 import { Div, type Child, type ComponentProps } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type SeparatorProps = ComponentProps<typeof Div> & {
 	orientation?: "horizontal" | "vertical";
@@ -8,7 +9,7 @@ export type SeparatorProps = ComponentProps<typeof Div> & {
 	decorative?: boolean;
 };
 
-export function Separator(
+export const Separator = createComponent(function Separator(
 	{ id = getId(), orientation = "horizontal", decorative = false, ...restProps }: SeparatorProps,
 	...children: Child[]
 ) {
@@ -27,4 +28,4 @@ export function Separator(
 		),
 		...children,
 	);
-}
+});

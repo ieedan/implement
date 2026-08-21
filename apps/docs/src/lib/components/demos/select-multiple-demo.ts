@@ -29,7 +29,6 @@ export default function SelectMultipleDemo() {
 				}),
 			),
 			SelectContent(
-				{},
 				...toppings.map((topping) => SelectItem({ value: topping.value }, topping.label)),
 			),
 		),

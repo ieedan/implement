@@ -11,6 +11,7 @@ import {
 import { HiddenInput } from "../../hidden-input";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
+import { createComponent } from "../../create-component";
 
 export type SwitchProps = ComponentProps<typeof Button> & {
 	checked?: Signal<boolean> | boolean;
@@ -30,7 +31,7 @@ class SwitchState {
 	}
 }
 
-export function Switch(
+export const Switch = createComponent(function Switch(
 	{ id = getId(), checked, name, value = "on", required, disabled, ...restProps }: SwitchProps,
 	...children: Child[]
 ) {
@@ -65,11 +66,11 @@ export function Switch(
 					}),
 				]),
 	);
-}
+});
 
 export type SwitchThumbProps = ComponentProps<typeof Span>;
 
-export function SwitchThumb(
+export const SwitchThumb = createComponent(function SwitchThumb(
 	{ id = getId(), ...restProps }: SwitchThumbProps,
 	...children: Child[]
 ) {
@@ -79,4 +80,4 @@ export function SwitchThumb(
 			...children,
 		);
 	});
-}
+});

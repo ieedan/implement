@@ -750,14 +750,17 @@ export type Props<T extends keyof HTMLElementTagNameMap = keyof HTMLElementTagNa
  * ```
  *
  * Works for any function whose first argument is a props object, including
- * user components (`function Card(props: CardProps, ...children)`).
+ * user components (`function Card(props: CardProps, ...children)`) and
+ * components created with `createComponent` from `@implementjs/primitives`.
  */
 export type ComponentProps<T extends ((...args: any) => any) | keyof HTMLElementTagNameMap> =
 	T extends keyof HTMLElementTagNameMap
 		? ElementProps<T>
-		: T extends (...args: any) => any
-			? Parameters<T>[0]
-			: never;
+		: T extends { __componentProps?: infer P }
+			? NonNullable<P>
+			: T extends (...args: any) => any
+				? Parameters<T>[0]
+				: never;
 
 type SvgTypedEvent<E extends keyof SVGElementEventMap> = Omit<
 	SVGElementEventMap[E],

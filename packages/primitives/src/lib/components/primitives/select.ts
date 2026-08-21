@@ -25,6 +25,7 @@ import {
 } from "../helpers/dismissable-layer";
 import { positionFloatingElement, type Align, type Side } from "../helpers/floating-ui";
 import { ScrollLock } from "../helpers/scroll-lock";
+import { createComponent } from "../../create-component";
 
 /** One option in {@link SelectProps.items}. */
 export type SelectItemData = {
@@ -290,7 +291,10 @@ class SelectStateMultiple extends SelectState {
 	}
 }
 
-export function Select(props: SelectProps<"single" | "multiple">, ...children: Child[]) {
+export const Select = createComponent(function Select(
+	props: SelectProps<"single" | "multiple">,
+	...children: Child[]
+) {
 	props.closeOnSelect = props.closeOnSelect ?? props.type !== "multiple";
 	const state =
 		props.type === "multiple" ? new SelectStateMultiple(props) : new SelectStateSingle(props);
@@ -319,11 +323,11 @@ export function Select(props: SelectProps<"single" | "multiple">, ...children: C
 			),
 		),
 	);
-}
+});
 
 export type SelectTriggerProps = ComponentProps<typeof Button>;
 
-export function SelectTrigger(
+export const SelectTrigger = createComponent(function SelectTrigger(
 	{ id = getId(), ...restProps }: SelectTriggerProps,
 	...children: Child[]
 ) {
@@ -347,7 +351,7 @@ export function SelectTrigger(
 			...children,
 		);
 	});
-}
+});
 
 export type SelectValueRenderProps =
 	| {
@@ -366,7 +370,10 @@ export type SelectValueProps = ComponentProps<typeof Span> & {
 	render?: (props: SelectValueRenderProps) => Child;
 };
 
-export function SelectValue({ render, placeholder = "" }: SelectValueProps) {
+export const SelectValue = createComponent(function SelectValue({
+	render,
+	placeholder = "",
+}: SelectValueProps) {
 	return SelectCtx.Use((state) => {
 		if (state.opts.type === "multiple") {
 			const value = state.value() as Signal<string[]>;
@@ -391,7 +398,7 @@ export function SelectValue({ render, placeholder = "" }: SelectValueProps) {
 		if (render) return render(props);
 		return selected.bind((selection) => selection?.label ?? placeholder);
 	});
-}
+});
 
 type SelectContentOptions = {
 	side: Side;
@@ -414,7 +421,7 @@ class SelectContentState {
 	}
 }
 
-export function SelectContent(
+export const SelectContent = createComponent(function SelectContent(
 	{
 		id = getId(),
 		side = "bottom",
@@ -456,7 +463,7 @@ export function SelectContent(
 			...children,
 		);
 	});
-}
+});
 
 export type SelectItemsProps = ComponentProps<typeof Div> & {
 	value: string;
@@ -483,7 +490,7 @@ class SelectItemState {
 	}
 }
 
-export function SelectItem(
+export const SelectItem = createComponent(function SelectItem(
 	{ id = getId(), value, label, disabled, ...restProps }: SelectItemsProps,
 	...children: Child[]
 ) {
@@ -526,7 +533,7 @@ export function SelectItem(
 			),
 		);
 	});
-}
+});
 
 class SelectGroupState {
 	headingId = signal<string | null>(null);
@@ -536,7 +543,7 @@ const SelectGroupCtx = context<SelectGroupState>();
 
 export type SelectGroupProps = ComponentProps<typeof Div>;
 
-export function SelectGroup(
+export const SelectGroup = createComponent(function SelectGroup(
 	{ id = getId(), ...restProps }: SelectGroupProps,
 	...children: Child[]
 ) {
@@ -557,11 +564,11 @@ export function SelectGroup(
 			),
 		);
 	});
-}
+});
 
 export type SelectGroupHeadingProps = ComponentProps<typeof Div>;
 
-export function SelectGroupHeading(
+export const SelectGroupHeading = createComponent(function SelectGroupHeading(
 	{ id = getId(), ...restProps }: SelectGroupHeadingProps,
 	...children: Child[]
 ) {
@@ -572,4 +579,4 @@ export function SelectGroupHeading(
 			...children,
 		);
 	});
-}
+});

@@ -7,6 +7,7 @@ import {
 	PopoverTrigger as PopoverTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { createComponent } from "@implementjs/primitives";
 
 export type PopoverProps = ComponentProps<typeof PopoverPrimitive>;
 export type PopoverTriggerProps = ComponentProps<typeof PopoverTriggerPrimitive> & {
@@ -21,11 +22,11 @@ export type PopoverCloseProps = ComponentProps<typeof PopoverClosePrimitive> & {
 
 export const PopoverPortal = PopoverPortalPrimitive;
 
-export function Popover(props: PopoverProps, ...children: Child[]) {
+export const Popover = createComponent(function Popover(props: PopoverProps, ...children: Child[]) {
 	return PopoverPrimitive(props, ...children);
-}
+});
 
-export function PopoverTrigger(
+export const PopoverTrigger = createComponent(function PopoverTrigger(
 	{
 		class: className,
 		variant = "default",
@@ -46,9 +47,9 @@ export function PopoverTrigger(
 		},
 		...children,
 	);
-}
+});
 
-export function PopoverContent(
+export const PopoverContent = createComponent(function PopoverContent(
 	{ offset = 5, side = "bottom", align = "start", class: className, ...props }: PopoverContentProps,
 	...children: Child[]
 ) {
@@ -73,9 +74,9 @@ export function PopoverContent(
 		},
 		...children,
 	);
-}
+});
 
-export function PopoverClose(
+export const PopoverClose = createComponent(function PopoverClose(
 	{
 		class: className,
 		variant = "ghost",
@@ -96,4 +97,4 @@ export function PopoverClose(
 		},
 		...children,
 	);
-}
+});

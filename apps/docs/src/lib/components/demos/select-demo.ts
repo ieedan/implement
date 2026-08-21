@@ -29,7 +29,6 @@ export default function SelectDemo() {
 				}),
 			),
 			SelectContent(
-				{},
 				...fruits.map((fruit) =>
 					SelectItem({ value: fruit.value, disabled: fruit.disabled }, fruit.label),
 				),

@@ -5,13 +5,17 @@ import {
 	TabsList as TabsListPrimitive,
 	TabsTrigger as TabsTriggerPrimitive,
 } from "@implementjs/primitives";
+import { createComponent } from "@implementjs/primitives";
 
 export type TabsProps = ComponentProps<typeof TabsPrimitive>;
 export type TabsListProps = ComponentProps<typeof TabsListPrimitive>;
 export type TabsTriggerProps = ComponentProps<typeof TabsTriggerPrimitive>;
 export type TabsContentProps = ComponentProps<typeof TabsContentPrimitive>;
 
-export function Tabs({ class: className, ...props }: TabsProps, ...children: Child[]) {
+export const Tabs = createComponent(function Tabs(
+	{ class: className, ...props }: TabsProps,
+	...children: Child[]
+) {
 	return TabsPrimitive(
 		{
 			...props,
@@ -20,9 +24,12 @@ export function Tabs({ class: className, ...props }: TabsProps, ...children: Chi
 		},
 		...children,
 	);
-}
+});
 
-export function TabsList({ class: className, ...props }: TabsListProps, ...children: Child[]) {
+export const TabsList = createComponent(function TabsList(
+	{ class: className, ...props }: TabsListProps,
+	...children: Child[]
+) {
 	return TabsListPrimitive(
 		{
 			...props,
@@ -35,9 +42,9 @@ export function TabsList({ class: className, ...props }: TabsListProps, ...child
 		},
 		...children,
 	);
-}
+});
 
-export function TabsTrigger(
+export const TabsTrigger = createComponent(function TabsTrigger(
 	{ class: className, ...props }: TabsTriggerProps,
 	...children: Child[]
 ) {
@@ -61,9 +68,9 @@ export function TabsTrigger(
 		},
 		...children,
 	);
-}
+});
 
-export function TabsContent(
+export const TabsContent = createComponent(function TabsContent(
 	{ class: className, ...props }: TabsContentProps,
 	...children: Child[]
 ) {
@@ -78,4 +85,4 @@ export function TabsContent(
 		},
 		...children,
 	);
-}
+});

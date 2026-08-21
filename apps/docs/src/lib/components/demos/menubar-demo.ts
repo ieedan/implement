@@ -16,37 +16,36 @@ export default function MenubarDemo() {
 	const theme = signal<string | null>("system");
 
 	return Menubar(
-		{},
 		MenubarMenu(
 			{ value: "file" },
-			MenubarTrigger({}, "File"),
+			MenubarTrigger("File"),
 			MenubarContent(
 				{ class: "w-48" },
 				MenubarItem({ onSelect: () => console.log("new") }, "New file"),
 				MenubarItem({ onSelect: () => console.log("open") }, "Open…"),
-				MenubarSeparator({}),
+				MenubarSeparator(),
 				MenubarItem({ onSelect: () => console.log("save") }, "Save"),
 				MenubarItem({ disabled: true }, "Save all"),
 			),
 		),
 		MenubarMenu(
 			{ value: "edit" },
-			MenubarTrigger({}, "Edit"),
+			MenubarTrigger("Edit"),
 			MenubarContent(
 				{ class: "w-48" },
 				MenubarItem({ onSelect: () => console.log("undo") }, "Undo"),
 				MenubarItem({ onSelect: () => console.log("redo") }, "Redo"),
-				MenubarSeparator({}),
+				MenubarSeparator(),
 				MenubarItem({ onSelect: () => console.log("find") }, "Find…"),
 			),
 		),
 		MenubarMenu(
 			{ value: "view" },
-			MenubarTrigger({}, "View"),
+			MenubarTrigger("View"),
 			MenubarContent(
 				{ class: "w-48" },
 				MenubarCheckboxItem({ checked: wordWrap, closeOnSelect: false }, "Word wrap"),
-				MenubarSeparator({}),
+				MenubarSeparator(),
 				MenubarRadioGroup(
 					{ value: theme },
 					MenubarRadioItem({ value: "light" }, "Light"),
