@@ -17,17 +17,15 @@ import {
 } from "@implementjs/primitives";
 
 ContextMenu(
-	{},
 	ContextMenuTrigger({ class: "block h-36 rounded-md border border-dashed" }, "Right click here"),
 	ContextMenuContent(
-		{},
 		ContextMenuItem({ onSelect: () => reload() }, "Reload"),
 		ContextMenuItem({ onSelect: () => inspect() }, "Inspect"),
 	),
 );
 ```
 
-Each part takes a props object first and then children, the same shape as the [element factories](/docs/elements).
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component).
 
 ## Opening
 

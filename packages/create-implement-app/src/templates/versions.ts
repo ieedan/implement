@@ -10,6 +10,7 @@ export const IMPLEMENT_VERSION = "latest";
 /** Everything a template can put in a generated `package.json`, pinned in one place. */
 export const VERSIONS = {
 	"@implementjs/core": IMPLEMENT_VERSION,
+	"@implementjs/formish": IMPLEMENT_VERSION,
 	"@implementjs/kit": IMPLEMENT_VERSION,
 	"@implementjs/lucide": IMPLEMENT_VERSION,
 	"@implementjs/primitives": IMPLEMENT_VERSION,
@@ -17,6 +18,7 @@ export const VERSIONS = {
 	"@types/node": "^26.2.0",
 	tailwindcss: "^4.3.3",
 	typescript: "^7.0.2",
+	valibot: "^1.4.1",
 	vite: "^7.3.0",
 } as const satisfies Record<string, string>;
 

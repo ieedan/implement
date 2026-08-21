@@ -19,9 +19,13 @@ import {
 } from "@implementjs/core";
 import {
 	matchEndpoint,
-	resolveLoads,
+	matchPage,
+	routeId,
+	runLoads,
 	type EndpointRoute,
-	type LoadRoute,
+	type PageRoute,
+	type RequestEvent,
+	type RequestHandler,
 	type RouteData,
 	type ServerLoad,
 } from "@implementjs/kit/runtime";
@@ -91,19 +95,22 @@ function RawResponse(text: Readable<string | null>): Mountable {
 	);
 }
 
-async function endpointResponseBody(
-	route: EndpointRoute,
-	params: Record<string, string>,
-	target: RouterLocation,
-): Promise<string> {
-	const rawHandler = route.module.GET;
-	if (typeof rawHandler !== "function") {
-		return `405 Method Not Allowed — ${ROUTES_DIR}/${route.file} exports no GET handler.`;
-	}
-	const url = new URL(target.path + target.search, "http://preview.local");
-	const response = await rawHandler({ request: new Request(url), params, url });
-	const body = await response.text();
-	return response.ok ? body : `HTTP ${response.status}\n\n${body}`;
+/** Stand-in request event for kit lesson previews (no hooks.server.ts). */
+function previewEvent(url: URL, params: Record<string, string>, id: string | null): RequestEvent {
+	return {
+		request: new Request(url),
+		url,
+		params,
+		route: { id },
+		locals: {},
+		isDataRequest: false,
+		setHeaders: () => {},
+		getClientAddress: () => "127.0.0.1",
+	};
+}
+
+function previewUrl(target: RouterLocation): URL {
+	return new URL(target.path + target.search, "http://preview.local");
 }
 
 /**
@@ -172,15 +179,31 @@ export async function runKitApp(
 		return exported as ServerLoad;
 	};
 
-	const loads: LoadRoute[] = loadRouteFiles(tree).map((route) => ({
+	const pages: PageRoute[] = loadRouteFiles(tree).map((route) => ({
 		pattern: route.pattern,
+		id: routeId(route.pattern),
 		files: route.files.map((file) => ({ id: file, load: loadFor(file) })),
 	}));
 
 	const endpoints: EndpointRoute[] = endpointFiles(tree).map((route) => ({
 		...route,
+		id: routeId(route.pattern),
 		module: modules.get(`${ROUTES_DIR}/${route.file}`) ?? {},
 	}));
+
+	/**
+	 * The preview has no server, so loads and endpoints get a stand-in event:
+	 * a real URL and params, empty locals, and the no-op response controls a
+	 * `hooks.server.ts` would otherwise drive.
+	 */
+
+	/** Runs the loads of the route serving `target`, or `null` when it has none. */
+	const loadData = (target: RouterLocation): Promise<RouteData | null> => {
+		const match = matchPage(pages, target.path);
+		if (match === null) return Promise.resolve(null);
+		const url = previewUrl(target);
+		return runLoads(match.route, previewEvent(url, match.params, match.route.id));
+	};
 
 	// The preview's stand-in for kit's runtime data store, scoped per app.
 	const store = new Map<string, Signal<unknown>>();
@@ -202,17 +225,33 @@ export async function runKitApp(
 	/** Body of the endpoint response being viewed, `null` while a page shows. */
 	const responseView = signal<string | null>(null);
 
+	const endpointBody = async (
+		route: EndpointRoute,
+		params: Record<string, string>,
+		target: RouterLocation,
+	): Promise<string> => {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint GET handler is optional on the dynamically imported module.
+		const handler = route.module.GET as RequestHandler | undefined;
+		const url = previewUrl(target);
+		if (handler === undefined) {
+			return `405 Method Not Allowed — ${ROUTES_DIR}/${route.file} exports no GET handler.`;
+		}
+		const response = await handler(previewEvent(url, params, route.id));
+		const body = await response.text();
+		return response.ok ? body : `HTTP ${response.status}\n\n${body}`;
+	};
+
 	/** Resolves what the destination needs, returning the commit that shows it. */
 	const resolveTarget = async (destination: RouterLocation): Promise<() => void> => {
 		const match = matchEndpoint(endpoints, destination.path);
 		if (match !== null) {
-			const body = await endpointResponseBody(match.route, match.params, destination);
+			const body = await endpointBody(match.route, match.params, destination);
 			return () => {
 				responseView.set(body);
 				location.set(destination);
 			};
 		}
-		const data = await resolveLoads(loads, destination.path + destination.search);
+		const data = await loadData(destination);
 		return () => {
 			if (data !== null) seed(data);
 			responseView.set(null);
@@ -233,7 +272,7 @@ export async function runKitApp(
 	};
 
 	// the initial location's loads must resolve before the first render
-	const initialData = await resolveLoads(loads, location.get().path + location.get().search);
+	const initialData = await loadData(location.get());
 	if (initialData !== null) seed(initialData);
 
 	let app: ReturnType<Mountable>;

@@ -1,3 +1,4 @@
+import { routeId } from "./match.ts";
 import { segmentKey, type RouteNode, type RouteSegment, type RouteTree } from "./scan.ts";
 
 export type DataChain = {
@@ -238,15 +239,22 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 	};
 
 	const routes = nodeExpr(tree.root, "");
+	const errorName = tree.error === null ? null : importFor(tree.error, "ErrorPage");
 	const fallback =
-		tree.error === null
+		errorName === null
 			? ""
-			: `, {\n\tfallback: (error) => ${importFor(tree.error, "ErrorPage")}({ error, url: router.location }),\n}`;
+			: `, {\n\tfallback: (error) => ${errorName}({ error, url: router.location }),\n}`;
 
 	const register =
 		manifest.length === 0 ? "" : `\n\nregisterRoutes(${JSON.stringify(manifest, null, "\t")});`;
+	// the server renders the error page on its own for a 404 or a thrown error,
+	// where there is no router match to fall back through
+	const errorExport =
+		errorName === null
+			? ""
+			: `\n\nexport const errorPage = (error) => ${errorName}({ error, url: router.location });`;
 
-	return `${imports.join("\n")}\n\nexport const router = Router(${routes}${fallback});${register}\n`;
+	return `${imports.join("\n")}\n\nexport const router = Router(${routes}${fallback});${register}${errorExport}\n`;
 }
 
 export type PageRoute = {
@@ -314,11 +322,11 @@ export function serverRoutes(tree: RouteTree): ServerRoute[] {
 }
 
 /**
- * The source of the `$implement/loads` virtual module (server-only): the
- * routes that have `*.server.ts` loads, each with its load chain — the shape
- * `resolveLoads` from `@implementjs/kit/runtime` consumes.
+ * The source of the `$implement/pages` virtual module (server-only): every
+ * page in the app with its route id and its load chain — the manifest the
+ * request pipeline matches against and runs loads from.
  */
-export function generateLoadsModule(tree: RouteTree, routesBase: string): string {
+export function generatePagesModule(tree: RouteTree, routesBase: string): string {
 	const chains = dataChains(tree);
 	const patterns = pagePatterns(tree);
 	const imports: string[] = [];
@@ -336,14 +344,15 @@ export function generateLoadsModule(tree: RouteTree, routesBase: string): string
 	const entries: string[] = [];
 	for (const [node, pattern] of patterns) {
 		const files = chains.get(node)!.pageFiles;
-		if (files.length === 0) continue;
 		const parts = files.map((file) => `{ id: ${JSON.stringify(file)}, load: ${importFor(file)} }`);
-		entries.push(`\t{ pattern: ${JSON.stringify(pattern)}, files: [${parts.join(", ")}] },`);
+		entries.push(
+			`\t{ pattern: ${JSON.stringify(pattern)}, id: ${JSON.stringify(routeId(pattern))}, files: [${parts.join(", ")}] },`,
+		);
 	}
 
 	const header = imports.length === 0 ? "" : `${imports.join("\n")}\n\n`;
 	const body = entries.length === 0 ? "[]" : `[\n${entries.join("\n")}\n]`;
-	return `${header}export const loads = ${body};\n`;
+	return `${header}export const pages = ${body};\n`;
 }
 
 /**
@@ -358,11 +367,23 @@ export function generateEndpointsModule(tree: RouteTree, routesBase: string): st
 	for (const [index, route] of routes.entries()) {
 		const name = `endpoint_${index}`;
 		imports.push(`import * as ${name} from ${JSON.stringify(`${routesBase}/${route.file}`)};`);
+		const id =
+			route.extension === null
+				? routeId(route.pattern)
+				: `${routeId(route.pattern) === "/" ? "" : routeId(route.pattern)}/${route.extension}`;
 		entries.push(
-			`\t{ pattern: ${JSON.stringify(route.pattern)}, extension: ${JSON.stringify(route.extension)}, file: ${JSON.stringify(route.file)}, module: ${name} },`,
+			`\t{ pattern: ${JSON.stringify(route.pattern)}, id: ${JSON.stringify(id)}, extension: ${JSON.stringify(route.extension)}, file: ${JSON.stringify(route.file)}, module: ${name} },`,
 		);
 	}
 	const header = imports.length === 0 ? "" : `${imports.join("\n")}\n\n`;
 	const body = entries.length === 0 ? "[]" : `[\n${entries.join("\n")}\n]`;
 	return `${header}export const endpoints = ${body};\n`;
+}
+
+/**
+ * The source of the `$implement/hooks` virtual module (server-only): the
+ * app's `src/hooks.server.ts` re-exported, or nothing when it has none.
+ */
+export function generateHooksModule(hooksFile: string | null): string {
+	return hooksFile === null ? "export {};\n" : `export * from ${JSON.stringify(hooksFile)};\n`;
 }

@@ -22,7 +22,7 @@ export async function POST({ request }: RequestEvent): Promise<Response> {
 }
 ```
 
-Handlers receive a `RequestEvent` — the web-standard `request`, the route's `params` as plain strings, and the `url` — typed by the generated `./$types`. A directory serves a page or an endpoint, never both, and requests with a method the module doesn't export get a `405`.
+Handlers receive a `RequestEvent` — the web-standard `request`, the route's `params` as plain strings, the `url`, and the `locals` [`hooks.server.ts`](/kit/hooks) set for this request — typed by the generated `./$types`. A directory serves a page or an endpoint, never both, and requests with a method the module doesn't export get a `405`.
 
 ## Extension routes
 
@@ -52,6 +52,8 @@ export function GET({ params }: RequestEvent): Response {
 
 This is how a page can have a machine-readable twin at the same address. This site dogfoods it: every docs page serves its plain markdown at its own URL plus `.md` — the **Copy Page** button above is fetching [this page's markdown](/kit/server-routes.md).
 
+It also negotiates: a [server hook](/kit/hooks) redirects any request for a docs page that asks for markdown — `Accept: text/markdown` — to that page's twin, so a reader that wants the source doesn't have to know the convention. Browsers never send that header, so nothing about the page changes for them.
+
 ## On build
 
 The prerender renders every `GET` endpoint into a real file in `dist/`, so the built site serves them statically:
@@ -64,4 +66,4 @@ That last point generalizes: the built site is static. `GET` endpoints survive a
 
 ## In dev
 
-The dev server dispatches matching requests to your endpoint modules before falling through to page routing, with Vite transforms applied — endpoints import your app code, aliases and all, and edits apply on the next request.
+The dev server dispatches matching requests to your endpoint modules before falling through to page routing, with Vite transforms applied — endpoints import your app code, aliases and all, and edits apply on the next request. Endpoint requests go through [`hooks.server.ts`](/kit/hooks) like any other, in dev and on build.

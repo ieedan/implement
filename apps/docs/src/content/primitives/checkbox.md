@@ -11,10 +11,10 @@ A checkbox is a button that turns a value on and off. `Checkbox` renders a `Butt
 ```ts
 import { Checkbox } from "@implementjs/primitives";
 
-Checkbox({});
+Checkbox();
 ```
 
-It takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Button`.
+It accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Button`.
 
 ## Checked state
 

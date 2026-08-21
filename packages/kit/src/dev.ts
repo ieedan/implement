@@ -1,25 +1,20 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
-import type { ViteDevServer } from "vite";
+import { collectDevStyles, injectSsr } from "@implementjs/vite";
+import type { Connect, ViteDevServer } from "vite";
 import type { ServerRoute } from "./codegen.ts";
-import {
-	matchEndpoint,
-	matchRoutePattern,
-	normalizeRoutePath,
-	resolveLoads,
-	type EndpointRoute,
-	type LoadRoute,
-} from "./match.ts";
+import { dataPath, matchRoutePattern, type EndpointRoute, type RequestHandler } from "./match.ts";
 import { extensionPattern } from "./scan.ts";
+import { INTERNAL_ORIGIN, type KitServer } from "./server.ts";
 
-export const LOADS_ID = "$implement/loads";
+export const PAGES_ID = "$implement/pages";
 export const ENDPOINTS_ID = "$implement/endpoints";
+export const HOOKS_ID = "$implement/hooks";
 
-const DATA_SUFFIX = "/__data.json";
-
-const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"];
+/** Vite's own dev URLs (`/@vite/client`, `/@fs/…`) are never app routes. */
+const VITE_INTERNAL = /^\/@/;
 
 function toRequest(req: IncomingMessage, url: URL): Request {
 	const method = req.method ?? "GET";
@@ -57,62 +52,46 @@ async function sendResponse(res: ServerResponse, response: Response, head: boole
 }
 
 /**
- * The dev middleware behind kit's server files: serves `__data.json` requests
- * by running the matched route's load chain, and dispatches `server.ts`
- * endpoint requests (extension endpoints included) to their method handler.
- * Returns whether the request was handled.
+ * The dev middleware behind kit's server files: hands every request that got
+ * past Vite's own asset middlewares to the app's request pipeline — the
+ * `hooks.server.ts` `handle` hook, then the page render, the `server.ts`
+ * endpoint, or the `__data.json` payload the request resolves to. Returns
+ * whether the request was handled.
  */
 export async function handleServerRequest(options: {
 	server: ViteDevServer;
-	req: IncomingMessage;
+	req: Connect.IncomingMessage;
 	res: ServerResponse;
-	hasLoads: boolean;
-	hasEndpoints: boolean;
+	/** The generated server entry, which exports the app's pipeline. */
+	entry: string;
+	/** Absolute path of the app's html shell, the template page responses render into. */
+	shell: string | null;
 }): Promise<boolean> {
-	const { server, req, res, hasLoads, hasEndpoints } = options;
-	const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-	const path = normalizeRoutePath(url.pathname);
+	const { server, req, res, entry, shell } = options;
+	const path = req.url ?? "/";
+	if (VITE_INTERNAL.test(path)) return false;
 
-	if (path === DATA_SUFFIX || path.endsWith(DATA_SUFFIX)) {
-		if (!hasLoads) {
-			res.statusCode = 404;
-			res.setHeader("content-type", "application/json");
-			res.end("null");
-			return true;
-		}
-		const base = path === DATA_SUFFIX ? "/" : path.slice(0, -DATA_SUFFIX.length);
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated loads module exports the compiled load route table.
-		const { loads } = (await server.ssrLoadModule(LOADS_ID)) as { loads: LoadRoute[] };
-		const data = await resolveLoads(loads, new URL(base + url.search, url.origin));
-		res.setHeader("content-type", "application/json");
-		if (data === null) {
-			res.statusCode = 404;
-			res.end("null");
-		} else {
-			res.end(JSON.stringify(data));
-		}
-		return true;
-	}
-
-	if (!hasEndpoints) return false;
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated endpoints module exports the compiled endpoint route table.
-	const { endpoints } = (await server.ssrLoadModule(ENDPOINTS_ID)) as {
-		endpoints: EndpointRoute[];
-	};
-	const match = matchEndpoint(endpoints, path);
-	if (match === null) return false;
-
-	const method = req.method ?? "GET";
-	const handlerName = method === "HEAD" && !("HEAD" in match.route.module) ? "GET" : method;
-	const rawHandler = match.route.module[handlerName];
-	if (typeof rawHandler !== "function") {
-		res.statusCode = 405;
-		res.setHeader("allow", METHODS.filter((name) => name in match.route.module).join(", "));
-		res.end();
-		return true;
-	}
-	const response = await rawHandler({ request: toRequest(req, url), params: match.params, url });
-	await sendResponse(res, response, method === "HEAD");
+	const url = new URL(path, `http://${req.headers.host ?? "localhost"}`);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated server entry exports the app request pipeline.
+	const { respond } = (await server.ssrLoadModule(entry)) as unknown as KitServer;
+	const response = await respond(toRequest(req, url), {
+		getClientAddress: () => req.socket.remoteAddress ?? "",
+		document: async ({ render, transform }) => {
+			if (shell === null) {
+				throw new Error("no html shell to render into — add a src/index.html");
+			}
+			// the same transform pipeline Vite runs on an index.html it serves
+			// itself (client injection, plugins), then the app's own render
+			const template = await server.transformIndexHtml(
+				"/index.html",
+				readFileSync(shell, "utf8"),
+				req.originalUrl,
+			);
+			const page = injectSsr(template, render, await collectDevStyles(server, entry));
+			return transform === null ? page : await transform(page);
+		},
+	});
+	await sendResponse(res, response, (req.method ?? "GET") === "HEAD");
 	return true;
 }
 
@@ -121,31 +100,36 @@ export async function handleServerRequest(options: {
  * hook: writes each load-bearing prerendered route's `__data.json` next to
  * its `index.html`, and renders every GET endpoint into a static file —
  * extension endpoints over params derive their concrete paths from the
- * prerendered routes that match their base pattern.
+ * prerendered routes that match their base pattern. Both go through the
+ * app's request pipeline, so `hooks.server.ts` runs for them the same way it
+ * does in dev.
  */
 export async function prerenderServerFiles(options: {
 	routes: string[];
 	outDir: string;
 	load: (id: string) => Promise<Record<string, unknown>>;
+	/** The generated server entry, which exports the app's pipeline. */
+	entry: string;
 	hasLoads: boolean;
 	serverRoutes: ServerRoute[];
 	logger: { info(message: string): void; warn(message: string): void };
 }): Promise<void> {
-	const { routes, outDir, load, hasLoads, serverRoutes, logger } = options;
+	const { routes, outDir, load, entry, hasLoads, serverRoutes, logger } = options;
 	const write = (path: string, contents: string | Buffer) => {
 		const out = join(outDir, path.slice(1));
 		mkdirSync(dirname(out), { recursive: true });
 		writeFileSync(out, contents);
 	};
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated server entry exports the app request pipeline.
+	const { respond } = (await load(entry)) as unknown as KitServer;
+	const get = (path: string) => respond(new Request(new URL(path, INTERNAL_ORIGIN)));
 
 	if (hasLoads) {
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated loads module exports the compiled load route table.
-		const { loads } = (await load(LOADS_ID)) as unknown as { loads: LoadRoute[] };
 		let written = 0;
 		for (const route of routes) {
-			const data = await resolveLoads(loads, route);
-			if (data === null) continue;
-			write(route === "/" ? DATA_SUFFIX : `${route}${DATA_SUFFIX}`, JSON.stringify(data));
+			const response = await get(dataPath(route));
+			if (!response.ok) continue;
+			write(dataPath(route), await response.text());
 			written++;
 		}
 		logger.info(`wrote ${written} route data payloads`);
@@ -157,8 +141,9 @@ export async function prerenderServerFiles(options: {
 	const failed: string[] = [];
 	let written = 0;
 	for (const endpoint of endpoints) {
-		const rawHandler = endpoint.module.GET;
-		if (typeof rawHandler !== "function") {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint module handlers are keyed by HTTP method name.
+		const handler = endpoint.module.GET as RequestHandler | undefined;
+		if (handler === undefined) {
 			logger.warn(`skipping ${endpoint.file} — only GET endpoints prerender`);
 			continue;
 		}
@@ -180,14 +165,8 @@ export async function prerenderServerFiles(options: {
 			continue;
 		}
 		for (const target of targets) {
-			const base =
-				endpoint.extension === null
-					? target
-					: normalizeRoutePath(target.slice(0, -endpoint.extension.length));
-			const params = matchRoutePattern(endpoint.pattern, base) ?? {};
-			const url = new URL(target, "http://implement.internal");
 			try {
-				const response = await rawHandler({ request: new Request(url), params, url });
+				const response = await get(target);
 				if (!response.ok) {
 					failed.push(`${target}: ${response.status}`);
 					continue;

@@ -22,22 +22,20 @@ import {
 } from "@implementjs/primitives";
 
 AlertDialog(
-	{},
-	AlertDialogTrigger({}, "Delete account"),
+	AlertDialogTrigger("Delete account"),
 	AlertDialogPortal(
-		AlertDialogOverlay({}),
+		AlertDialogOverlay(),
 		AlertDialogContent(
-			{},
-			AlertDialogTitle({}, "Are you absolutely sure?"),
-			AlertDialogDescription({}, "This action cannot be undone."),
-			AlertDialogCancel({}, "Cancel"),
+			AlertDialogTitle("Are you absolutely sure?"),
+			AlertDialogDescription("This action cannot be undone."),
+			AlertDialogCancel("Cancel"),
 			AlertDialogAction({ onClick: () => deleteAccount() }, "Delete account"),
 		),
 	),
 );
 ```
 
-Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Button`, `Div`, `H2`, or `P`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Button`, `Div`, `H2`, or `P`.
 
 ## How it differs from Dialog
 
@@ -55,9 +53,8 @@ Use a plain dialog for forms and detail views the user can wander out of; use an
 
 ```ts
 AlertDialogContent(
-	{},
-	AlertDialogTitle({}, "Discard draft?"),
-	AlertDialogCancel({}, "Keep editing"),
+	AlertDialogTitle("Discard draft?"),
+	AlertDialogCancel("Keep editing"),
 	AlertDialogAction({ onClick: () => discard() }, "Discard"),
 );
 ```
@@ -71,7 +68,7 @@ The cancel button receives focus when the dialog opens. If you leave it out, foc
 ```ts
 const open = signal(false);
 
-AlertDialog({ open }, AlertDialogTrigger({}, "Delete"), AlertDialogContent({}, "Sure?"));
+AlertDialog({ open }, AlertDialogTrigger("Delete"), AlertDialogContent("Sure?"));
 
 Button({ onClick: () => open.set(false) }, "Close");
 ```

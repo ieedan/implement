@@ -14,7 +14,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@implementjs/primitive
 Tabs(
 	{ value: "account" },
 	TabsList(
-		{},
 		TabsTrigger({ value: "account" }, "Account"),
 		TabsTrigger({ value: "password" }, "Password"),
 	),
@@ -23,7 +22,7 @@ Tabs(
 );
 ```
 
-Each part takes a props object first and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Div` or `Button`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div` or `Button`.
 
 A trigger and its panel are paired by `value`, and the pairing is what wires `aria-controls` and `aria-labelledby` between them — so the two must match exactly.
 
@@ -36,7 +35,7 @@ const tab = signal("account");
 
 Tabs(
 	{ value: tab },
-	TabsList({}, TabsTrigger({ value: "account" }, "Account")),
+	TabsList(TabsTrigger({ value: "account" }, "Account")),
 	TabsContent({ value: "account" }, "Change your name here."),
 );
 ```

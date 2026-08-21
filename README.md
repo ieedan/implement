@@ -5,5 +5,6 @@ Just some experimentation.
 ## TODOS
 
 - kit
-  - server functions
   - environment variables
+
+- rewrite all docs

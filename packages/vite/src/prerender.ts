@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { injectSsr, type SsrResult } from "./inject.ts";
+import { renderDocument, type SsrResult } from "./inject.ts";
 
 /** May be async — a render that resolves route data first returns a promise. */
 export type RenderFn = (url: string) => SsrResult | Promise<SsrResult>;
@@ -45,7 +45,7 @@ export async function prerenderRoutes(options: {
 	const failed: string[] = [];
 	for (const route of routes) {
 		try {
-			const page = injectSsr(template, await render(route));
+			const page = await renderDocument(template, await render(route));
 			const out =
 				route === "/" ? join(outDir, "index.html") : join(outDir, route.slice(1), "index.html");
 			mkdirSync(dirname(out), { recursive: true });

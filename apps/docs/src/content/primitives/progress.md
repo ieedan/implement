@@ -14,7 +14,7 @@ import { Progress } from "@implementjs/primitives";
 Progress({ value: 40, "aria-label": "Uploading" });
 ```
 
-It takes a props object like the [element factories](/docs/elements), and extra props are forwarded onto the underlying `Div`.
+It accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div`.
 
 A progress bar's value only ever advances toward completion. For a measurement that can move in either direction — CPU usage, battery level — use [Meter](/primitives/docs/meter) instead; assistive technology announces the two differently.
 

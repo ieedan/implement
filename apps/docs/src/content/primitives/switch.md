@@ -11,10 +11,10 @@ A switch is a button that turns a setting on and off. `Switch` renders a `Button
 ```ts
 import { Switch, SwitchThumb } from "@implementjs/primitives";
 
-Switch({}, SwitchThumb({}));
+Switch(SwitchThumb());
 ```
 
-It takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Button`.
+It accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Button`.
 
 A switch has only two states. For a control that can also be mixed, use [Checkbox](/primitives/docs/checkbox).
 
@@ -25,7 +25,7 @@ A switch has only two states. For a control that can also be mixed, use [Checkbo
 ```ts
 const enabled = signal(false);
 
-Switch({ checked: enabled }, SwitchThumb({}));
+Switch({ checked: enabled }, SwitchThumb());
 
 Button({ onClick: () => enabled.set(true) }, "Turn on");
 ```
@@ -57,7 +57,7 @@ import { Label } from "@implementjs/core";
 
 Div(
 	{ class: "flex items-center gap-2" },
-	Switch({ id: "airplane" }, SwitchThumb({})),
+	Switch({ id: "airplane" }, SwitchThumb()),
 	Label({ for: "airplane" }, "Airplane mode"),
 );
 ```
@@ -69,7 +69,7 @@ Pass `name` and the switch renders a visually hidden checkbox that submits with 
 ```ts
 Form(
 	{ method: "post" },
-	Switch({ name: "newsletter", value: "yes" }, SwitchThumb({})),
+	Switch({ name: "newsletter", value: "yes" }, SwitchThumb()),
 	Button({ type: "submit" }, "Save"),
 );
 ```

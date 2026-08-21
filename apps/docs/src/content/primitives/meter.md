@@ -14,7 +14,7 @@ import { Meter } from "@implementjs/primitives";
 Meter({ value: 75, "aria-label": "Storage used" });
 ```
 
-It takes a props object like the [element factories](/docs/elements), and extra props are forwarded onto the underlying `Div`.
+It accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div`.
 
 A meter measures a current state relative to capacity; the value can move in either direction. If the value only ever advances toward completion — a file upload, a multi-step form — that is a progress bar, not a meter, and assistive technology announces the two differently.
 
