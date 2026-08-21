@@ -628,7 +628,7 @@ abstract class LazyReadable<T> implements Readable<T> {
 	bind<P extends BindableKeys<T>>(path: P): Readable<BindPathValue<T, P>>;
 	bind<U>(selector: (value: T) => U): Readable<Unwrapped<U>>;
 	bind(keyOrSelector: PropertyKey | ((value: T) => unknown)): Readable<unknown> {
-		return createBinding(this, keyOrSelector) as Readable<unknown>;
+		return createBinding(this, keyOrSelector);
 	}
 
 	/** Stop watching sources and drop subscribers. Safe to call more than once. */
@@ -745,7 +745,7 @@ function setAtKeys(obj: unknown, keys: readonly string[], value: unknown, path: 
 		return next;
 	}
 	return {
-		...(obj as object),
+		...(obj),
 		[head]:
 			rest.length === 0
 				? value

@@ -55,6 +55,21 @@ export type FileTreeActions = {
 type Creating = { dir: string; kind: "file" | "folder" };
 
 /** Nested tree from file paths plus explicitly created (possibly empty) folders. */
+function sortTreeEntries(entries: TreeEntry[]): void {
+	entries.splice(
+		0,
+		entries.length,
+		...entries.toSorted((a, b) => {
+			const aFolder = a.path === null ? 0 : 1;
+			const bFolder = b.path === null ? 0 : 1;
+			if (aFolder !== bFolder) return aFolder - bFolder;
+			return a.name.localeCompare(b.name);
+		}),
+	);
+	for (const entry of entries) sortTreeEntries(entry.children);
+}
+
+/** Nested tree from file paths plus explicitly created (possibly empty) folders. */
 function buildTree(paths: readonly string[], dirs: readonly string[]): TreeEntry[] {
 	const root: TreeEntry = { name: "", path: null, dir: null, children: [] };
 	const insert = (segments: string[], filePath: string | null) => {
@@ -78,16 +93,7 @@ function buildTree(paths: readonly string[], dirs: readonly string[]): TreeEntry
 	};
 	for (const dir of dirs) insert(dir.split("/"), null);
 	for (const path of paths) insert(path.split("/"), path);
-	const sort = (entries: TreeEntry[]) => {
-		entries.sort((a, b) => {
-			const aFolder = a.path === null ? 0 : 1;
-			const bFolder = b.path === null ? 0 : 1;
-			if (aFolder !== bFolder) return aFolder - bFolder;
-			return a.name.localeCompare(b.name);
-		});
-		for (const entry of entries) sort(entry.children);
-	};
-	sort(root.children);
+	sortTreeEntries(root.children);
 	return root.children;
 }
 

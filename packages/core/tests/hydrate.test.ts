@@ -56,6 +56,67 @@ function expectConverged(build: () => Child | Child[]) {
 	warn.mockRestore();
 }
 
+const buildRootDiv = () => Div({ id: "root" }, Span("hi"));
+
+const makeCountTree = () => {
+	const count = signal(0);
+	return { count, tree: Div(Span("count: ", count)) };
+};
+
+const makeReactiveHelpersTree = () => {
+	const flag = signal(true);
+	const items = signal(["x", "y"]);
+	return {
+		flag,
+		items,
+		tree: Div(
+			If(flag, Span("on")).Else(Span("off")),
+			Ul(
+				ForEach(
+					items,
+					(item) => item,
+					(item) => Li(item),
+				),
+			),
+		),
+	};
+};
+
+const buildAwaitTree = (source: PromiseLike<string>) =>
+	Div(
+		Await(source)
+			.WhileLoading(P("loading"))
+			.Then((value) => Span(value)),
+	);
+
+const buildPortalTree = () => Div(Span("in place"), Portal(P("floating")));
+
+const buildHeadTree = () =>
+	Div(
+		Implement.Head(
+			Implement.Head.Title("Page"),
+			Implement.Head.Meta({ name: "description", content: "d" }),
+		),
+		P("body"),
+	);
+
+const makeHtmlTree = () => {
+	const markup = signal("<b>one</b>");
+	return { markup, tree: Div(Html(markup)) };
+};
+
+const makeSvgTree = () => {
+	const stroke = signal("red");
+	return {
+		stroke,
+		tree: Div(Svg('<svg viewBox="0 0 4 4"><path d="M0 0"/></svg>', { stroke })),
+	};
+};
+
+function throwBoom(): never {
+	throw new Error("boom");
+}
+
 afterEach(() => {
 	document.body.innerHTML = "";
 	document.head.innerHTML = "";
@@ -63,14 +124,13 @@ afterEach(() => {
 
 describe("hydration", () => {
 	it("adopts server elements instead of recreating them", () => {
-		const build = () => Div({ id: "root" }, Span("hi"));
-		const { html } = renderToString(build());
+		const { html } = renderToString(buildRootDiv());
 		const target = document.createElement("div");
 		target.innerHTML = `<div data-ssr>${html}</div>`;
 		document.body.appendChild(target);
 		const serverSpan = target.querySelector("span")!;
 
-		App({ target }).render(build());
+		App({ target }).render(buildRootDiv());
 
 		expect(target.querySelector("span")).toBe(serverSpan);
 		expect(serverSpan.isConnected).toBe(true);
@@ -86,17 +146,13 @@ describe("hydration", () => {
 	});
 
 	it("keeps signals live on claimed text", () => {
-		const make = () => {
-			const count = signal(0);
-			return { count, tree: Div(Span("count: ", count)) };
-		};
-		const server = make();
+		const server = makeCountTree();
 		const { html } = renderToString(server.tree);
 		const target = document.createElement("div");
 		target.innerHTML = `<div data-ssr>${html}</div>`;
 		document.body.appendChild(target);
 
-		const client = make();
+		const client = makeCountTree();
 		App({ target }).render(client.tree);
 		const span = target.querySelector("span")!;
 		expect(span.textContent).toBe("count: 0");
@@ -132,31 +188,13 @@ describe("hydration", () => {
 	});
 
 	it("keeps reactive helpers working after hydration", () => {
-		const make = () => {
-			const flag = signal(true);
-			const items = signal(["x", "y"]);
-			return {
-				flag,
-				items,
-				tree: Div(
-					If(flag, Span("on")).Else(Span("off")),
-					Ul(
-						ForEach(
-							items,
-							(item) => item,
-							(item) => Li(item),
-						),
-					),
-				),
-			};
-		};
-		const server = make();
+		const server = makeReactiveHelpersTree();
 		const { html } = renderToString(server.tree);
 		const target = document.createElement("div");
 		target.innerHTML = `<div data-ssr>${html}</div>`;
 		document.body.appendChild(target);
 
-		const client = make();
+		const client = makeReactiveHelpersTree();
 		App({ target }).render(client.tree);
 		const claimedLi = target.querySelector("li")!;
 
@@ -174,19 +212,13 @@ describe("hydration", () => {
 		const promise = new Promise<string>((r) => {
 			resolve = r;
 		});
-		const build = (source: PromiseLike<string>) =>
-			Div(
-				Await(source)
-					.WhileLoading(P("loading"))
-					.Then((value) => Span(value)),
-			);
-		const { html } = renderToString(build(new Promise<string>(() => {})));
+		const { html } = renderToString(buildAwaitTree(new Promise<string>(() => {})));
 		const target = document.createElement("div");
 		target.innerHTML = `<div data-ssr>${html}</div>`;
 		document.body.appendChild(target);
 		const serverP = target.querySelector("p")!;
 
-		App({ target }).render(build(promise));
+		App({ target }).render(buildAwaitTree(promise));
 		expect(target.querySelector("p")).toBe(serverP);
 
 		resolve("done");
@@ -197,55 +229,42 @@ describe("hydration", () => {
 	});
 
 	it("recreates Portal content and sweeps the serialized copy", () => {
-		const build = () => Div(Span("in place"), Portal(P("floating")));
-		const { html } = renderToString(build());
+		const { html } = renderToString(buildPortalTree());
 		const target = document.createElement("div");
 		target.innerHTML = `<div data-ssr>${html}</div>`;
 		document.body.appendChild(target);
 		// the server render put the portal output at the end of its body
 		expect(html).toContain("floating");
 
-		App({ target }).render(build());
+		App({ target }).render(buildPortalTree());
 		// swept from the wrapper, recreated in document.body
 		expect(target.querySelectorAll("p").length).toBe(0);
 		expect(document.body.querySelector(":scope > p")!.textContent).toBe("floating");
 	});
 
 	it("sweeps server head tags once the client Head mounts", () => {
-		const build = () =>
-			Div(
-				Implement.Head(
-					Implement.Head.Title("Page"),
-					Implement.Head.Meta({ name: "description", content: "d" }),
-				),
-				P("body"),
-			);
-		const { head, html } = renderToString(build());
+		const { head, html } = renderToString(buildHeadTree());
 		document.head.innerHTML = head;
 		const target = document.createElement("div");
 		target.innerHTML = `<div data-ssr>${html}</div>`;
 		document.body.appendChild(target);
 		expect(document.head.querySelectorAll("[data-ssr]").length).toBe(1);
 
-		App({ target }).render(build());
+		App({ target }).render(buildHeadTree());
 		expect(document.head.querySelectorAll("[data-ssr]").length).toBe(0);
 		expect(document.head.querySelectorAll('meta[name="description"]').length).toBe(1);
 		expect(document.title).toBe("Page");
 	});
 
 	it("keeps Html blocks reactive after claiming them", () => {
-		const make = () => {
-			const markup = signal("<b>one</b>");
-			return { markup, tree: Div(Html(markup)) };
-		};
-		const server = make();
+		const server = makeHtmlTree();
 		const { html } = renderToString(server.tree);
 		const target = document.createElement("div");
 		target.innerHTML = `<div data-ssr>${html}</div>`;
 		document.body.appendChild(target);
 		const claimed = target.querySelector("b")!;
 
-		const client = make();
+		const client = makeHtmlTree();
 		App({ target }).render(client.tree);
 		// the initial value was adopted, not re-parsed
 		expect(target.querySelector("b")).toBe(claimed);
@@ -256,21 +275,14 @@ describe("hydration", () => {
 	});
 
 	it("keeps Svg props reactive after claiming the element", () => {
-		const make = () => {
-			const stroke = signal("red");
-			return {
-				stroke,
-				tree: Div(Svg('<svg viewBox="0 0 4 4"><path d="M0 0"/></svg>', { stroke })),
-			};
-		};
-		const server = make();
+		const server = makeSvgTree();
 		const { html } = renderToString(server.tree);
 		const target = document.createElement("div");
 		target.innerHTML = `<div data-ssr>${html}</div>`;
 		document.body.appendChild(target);
 		const claimed = target.querySelector("svg")!;
 
-		const client = make();
+		const client = makeSvgTree();
 		App({ target }).render(client.tree);
 		expect(target.querySelector("svg")).toBe(claimed);
 		client.stroke.set("blue");
@@ -359,10 +371,7 @@ describe("hmr handoff", () => {
 		first.render(Div(Span("first")));
 		first.unmount(hotData);
 
-		const boom = () => {
-			throw new Error("boom");
-		};
-		expect(() => App({ target }).render(Div(Span("half")), boom)).toThrow("boom");
+		expect(() => App({ target }).render(Div(Span("half")), throwBoom)).toThrow("boom");
 
 		// the half-built replacement is rolled back, not left alongside
 		expect(target.textContent).toBe("first");

@@ -61,7 +61,7 @@ describe("crawlRoutes", () => {
 			"/docs/deep": '<a href="/docs">up</a>',
 		};
 		const render = (url: string) => ({ html: pages[url] ?? "", head: "" });
-		expect((await crawlRoutes(render)).sort()).toEqual(["/", "/docs", "/docs/deep"]);
+		expect((await crawlRoutes(render)).toSorted()).toEqual(["/", "/docs", "/docs/deep"]);
 	});
 });
 

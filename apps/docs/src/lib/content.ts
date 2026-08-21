@@ -125,5 +125,5 @@ function dirFiles(
 			path: key.slice(prefix.length),
 			content: stripLessonSource(content),
 		}))
-		.sort((a, b) => a.path.localeCompare(b.path));
+		.toSorted((a, b) => a.path.localeCompare(b.path));
 }

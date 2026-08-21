@@ -241,7 +241,7 @@ abstract class SelectState {
 
 class SelectStateSingle extends SelectState {
 	#value: Signal<string | null>;
-	constructor(readonly opts: SelectProps<"single">) {
+	constructor(readonly opts: SelectProps) {
 		super(opts);
 		this.#value = signal(this.opts.value ?? (null as string | null));
 	}
@@ -437,7 +437,7 @@ export const SelectContent = createComponent(function SelectContent(
 ) {
 	return SelectCtx.Use((state) => {
 		const contentRef = ref<HTMLDivElement>();
-		new SelectContentState(state, {
+		const contentState = new SelectContentState(state, {
 			id,
 			ref: contentRef,
 			side,

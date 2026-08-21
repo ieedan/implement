@@ -378,7 +378,7 @@ export const MenuContent = createComponent(function MenuContent(
 ) {
 	return MenuCtx.Use((state) => {
 		const contentRef = ref<HTMLDivElement>();
-		new MenuContentState(state, {
+		const contentState = new MenuContentState(state, {
 			id,
 			ref: contentRef,
 			side,
@@ -893,7 +893,7 @@ export const MenuSubContent = createComponent(function MenuSubContent(
 	return MenuCtx.Use((root) => {
 		return MenuSubCtx.Use((sub) => {
 			const contentRef = ref<HTMLDivElement>();
-			new MenuContentState(sub, {
+			const contentState = new MenuContentState(sub, {
 				id,
 				ref: contentRef,
 				side,

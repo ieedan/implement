@@ -144,27 +144,30 @@ describe("the dev server with a shell under src/", () => {
 	);
 });
 
-describe("shellOutputPlugin", () => {
-	const emit = (appRoot: string, fileName: string): Record<string, { fileName: string }> => {
-		const plugin = shellOutputPlugin();
-		const configResolved = plugin.configResolved as (config: ResolvedConfig) => void;
-		const generateBundle = plugin.generateBundle as (
-			options: unknown,
-			bundle: Record<string, { fileName: string }>,
-		) => void;
-		configResolved({ root: appRoot } as ResolvedConfig);
-		const bundle = { [fileName]: { fileName } };
-		generateBundle({}, bundle);
-		return bundle;
-	};
+function shellOutputEmit(
+	appRoot: string,
+	fileName: string,
+): Record<string, { fileName: string }> {
+	const plugin = shellOutputPlugin();
+	const configResolved = plugin.configResolved as (config: ResolvedConfig) => void;
+	const generateBundle = plugin.generateBundle as (
+		options: unknown,
+		bundle: Record<string, { fileName: string }>,
+	) => void;
+	configResolved({ root: appRoot } as ResolvedConfig);
+	const bundle = { [fileName]: { fileName } };
+	generateBundle({}, bundle);
+	return bundle;
+}
 
+describe("shellOutputPlugin", () => {
 	it("moves a src/index.html output back to the root of dist", () => {
-		const bundle = emit(makeApp("src/index.html"), "src/index.html");
+		const bundle = shellOutputEmit(makeApp("src/index.html"), "src/index.html");
 		expect(Object.keys(bundle)).toEqual(["index.html"]);
 		expect(bundle["index.html"]?.fileName).toBe("index.html");
 	});
 
 	it("leaves a root index.html output alone", () => {
-		expect(Object.keys(emit(makeApp("index.html"), "index.html"))).toEqual(["index.html"]);
+		expect(Object.keys(shellOutputEmit(makeApp("index.html"), "index.html"))).toEqual(["index.html"]);
 	});
 });

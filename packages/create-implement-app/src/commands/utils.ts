@@ -46,8 +46,8 @@ export async function tryCommand<T, E extends CreateImplementAppError>(
 		if (result.isErr()) return error(result.error);
 		return result.value;
 	} catch (e) {
-		if (e instanceof CreateImplementAppError) error(e);
-		error(
+		if (e instanceof CreateImplementAppError) return error(e);
+		return error(
 			new CreateImplementAppError(e instanceof Error ? e.message : String(e), {
 				suggestion: "Please try again.",
 			}),

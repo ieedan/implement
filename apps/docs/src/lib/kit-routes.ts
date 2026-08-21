@@ -152,7 +152,7 @@ function scanDirectory(
 		children: [],
 	};
 
-	for (const name of [...source.files].sort((a, b) => a.localeCompare(b))) {
+	for (const name of [...source.files].toSorted((a, b) => a.localeCompare(b))) {
 		const relative = dir === "" ? name : `${dir}/${name}`;
 		if (name === ERROR_FILE) {
 			if (dir !== "") {
@@ -194,7 +194,7 @@ function scanDirectory(
 		}
 	}
 
-	for (const name of [...source.dirs.keys()].sort((a, b) => a.localeCompare(b))) {
+	for (const name of [...source.dirs.keys()].toSorted((a, b) => a.localeCompare(b))) {
 		if (name.startsWith(".")) {
 			// a `.<ext>` directory holding a server.ts serves this directory's
 			// path with the extension appended; any other dot-directory is skipped
@@ -344,6 +344,10 @@ export function routeFiles(tree: RouteTree): string[] {
 
 export type DataChain = { layoutFiles: string[]; pageFiles: string[] };
 
+function layoutServerFiles(chain: RouteNode[]): string[] {
+	return chain.flatMap((entry) => (entry.layoutServer === null ? [] : [entry.layoutServer]));
+}
+
 /**
  * The server-load files feeding each directory's layout and page `data`,
  * resets applied — the browser port of kit's `dataChains`.
@@ -404,8 +408,7 @@ export function dataChains(tree: RouteTree): Map<RouteNode, DataChain> {
 		throw new Error(`No ancestor segment "${node.pageResetTo}" to reset to`);
 	};
 
-	const serverFiles = (chain: RouteNode[]): string[] =>
-		chain.flatMap((entry) => (entry.layoutServer === null ? [] : [entry.layoutServer]));
+	const serverFiles = layoutServerFiles;
 
 	const chains = new Map<RouteNode, DataChain>();
 	const walk = (node: RouteNode) => {

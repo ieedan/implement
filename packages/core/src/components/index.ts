@@ -161,14 +161,14 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 		this.#unsubscribeProps = applyElementProps(
 			this.#element,
 			this.#tag,
-			this.#props as Record<string, unknown>,
+			this.#props,
 		);
 		this.#children.forEach((child) => {
 			const createdChild = child();
 			this.#mountedChildren.push(createdChild);
 			mountChild(createdChild, this.#element!);
 		});
-		syncValueProp(this.#element, this.#props as Record<string, unknown>);
+		syncValueProp(this.#element, this.#props);
 		dom.attach(parent, this.#element);
 		this.#props.this?.set(this.#element);
 	}
@@ -199,6 +199,11 @@ const HANDOFF = Symbol.for("implementjs.hmrHandoff");
 
 type HandoffTarget = HTMLElement & { [HANDOFF]?: () => void };
 
+/** Sweep the server-injected head tags — the client `Head` recreates its own. */
+function sweepHead() {
+	for (const el of Array.from(dom.head().querySelectorAll("[data-ssr]"))) el.remove();
+}
+
 export function App(options: { target: HTMLElement }) {
 	const { target } = options;
 	const host = target as HandoffTarget;
@@ -210,11 +215,6 @@ export function App(options: { target: HTMLElement }) {
 			mountChild(instance, parent);
 			return instance;
 		});
-
-	/** Sweep the server-injected head tags — the client `Head` recreates its own. */
-	const sweepHead = () => {
-		for (const el of Array.from(dom.head().querySelectorAll("[data-ssr]"))) el.remove();
-	};
 
 	return {
 		/**

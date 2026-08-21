@@ -12,6 +12,8 @@ export default defineConfig({
 	rules: {
 		// Signal callbacks commonly reuse the signal name for the unwrapped value.
 		"no-shadow": "off",
+		// CSS imports are side-effect-only by design in Vite apps.
+		"import/no-unassigned-import": ["warn", { allow: ["**/*.css"] }],
 	},
 	ignorePatterns: [
 		// Agent worktrees are full repo checkouts; their nested configs break lint.
@@ -28,6 +30,19 @@ export default defineConfig({
 			files: ["packages/*/scripts/**/*.ts", "demos/*/server/**/*.ts"],
 			env: {
 				node: true,
+			},
+		},
+		{
+			// Compile-time type assertions use leading underscores as a convention.
+			files: ["**/type-test.ts"],
+			rules: {
+				"no-underscore-dangle": "off",
+			},
+		},
+		{
+			files: ["**/lesson-test.ts", "**/tutorial-test.ts"],
+			rules: {
+				"no-underscore-dangle": ["warn", { allow: ["__setActiveLesson"] }],
 			},
 		},
 	],

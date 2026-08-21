@@ -298,7 +298,7 @@ class CommandState {
 		if (!rootEl || !this.filterActive(this.search.get())) return;
 		const insertionEl = this.viewport.get() ?? this.list.get();
 
-		const sorted = this.getValidItems().sort((a, b) => {
+		const sorted = this.getValidItems().toSorted((a, b) => {
 			const scoreA = this.scores.get(a.getAttribute("data-value") ?? "") ?? 0;
 			const scoreB = this.scores.get(b.getAttribute("data-value") ?? "") ?? 0;
 			return scoreB - scoreA;
@@ -332,7 +332,7 @@ class CommandState {
 				}
 				return { el, max };
 			})
-			.sort((a, b) => b.max - a.max);
+			.toSorted((a, b) => b.max - a.max);
 		for (const group of groups) {
 			const parent = group.el.parentElement;
 			if (!parent) continue;

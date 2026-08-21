@@ -75,7 +75,7 @@ function UrlBar(urlPath: Signal<string>): Mountable {
 		"aria-label": "Preview URL",
 		onKeydown(event) {
 			if (event.key !== "Enter") return;
-			const raw = (event.currentTarget as HTMLInputElement).value.trim();
+			const raw = (event.currentTarget).value.trim();
 			urlPath.set(raw === "" ? "/" : raw.startsWith("/") ? raw : `/${raw}`);
 		},
 	});
@@ -91,6 +91,13 @@ function normalizeNewPath(raw: string): string | null {
 	}
 	return segments.map((segment) => segment.trim()).join("/");
 }
+
+const reportPlaygroundMessage = (message: string) => window.alert(message);
+
+const dirPrefixes = (path: string): string[] => {
+	const segments = path.split("/");
+	return segments.slice(1, -1).map((_, index) => segments.slice(0, index + 2).join("/"));
+};
 
 export function Playground(
 	files: Signal<PlaygroundFile[]>,
@@ -127,15 +134,10 @@ export function Playground(
 	// Folders exist implicitly through file paths; explicitly created (still
 	// empty) ones live here until a file lands inside or a Reset clears them.
 	const extraDirs = signal<string[]>([]);
-	const report = (message: string) => window.alert(message);
 
 	// Like the Svelte tutorial, lessons only allow creating the specific files
 	// the exercise expects (folders come along as their parents) — so there is
 	// never a wrong file to clean up.
-	const dirPrefixes = (path: string): string[] => {
-		const segments = path.split("/");
-		return segments.slice(1, -1).map((_, index) => segments.slice(0, index + 2).join("/"));
-	};
 	const creatable = options.creatable ?? [];
 	const allowedFiles = new Set(creatable);
 	// only folders the starter doesn't already have count as creatable
@@ -145,8 +147,8 @@ export function Playground(
 	);
 
 	const notAllowed = () => {
-		const listing = [...allowedDirs, ...allowedFiles].sort().join("\n");
-		report(
+		const listing = [...allowedDirs, ...allowedFiles].toSorted().join("\n");
+		reportPlaygroundMessage(
 			`This action is not allowed.\n\nOnly the following files and folders can be created in this exercise:\n\n${listing}`,
 		);
 	};
@@ -165,18 +167,18 @@ export function Playground(
 
 	const addFile = (raw: string) => {
 		const path = normalizeNewPath(raw);
-		if (path == null) return report("That's not a valid file path.");
+		if (path == null) return reportPlaygroundMessage("That's not a valid file path.");
 		if (!allowedFiles.has(path)) return notAllowed();
-		if (files.get().some((file) => file.path === path)) return report(`${path} already exists.`);
+		if (files.get().some((file) => file.path === path)) return reportPlaygroundMessage(`${path} already exists.`);
 		files.set([...files.get(), { path, content: signal("") }]);
 		active.set(path);
 	};
 
 	const addFolder = (raw: string) => {
 		const path = normalizeNewPath(raw);
-		if (path == null) return report("That's not a valid folder path.");
+		if (path == null) return reportPlaygroundMessage("That's not a valid folder path.");
 		if (!allowedDirs.has(path)) return notAllowed();
-		if (allDirs().has(path)) return report(`${path} already exists.`);
+		if (allDirs().has(path)) return reportPlaygroundMessage(`${path} already exists.`);
 		extraDirs.set([...extraDirs.get(), path]);
 	};
 

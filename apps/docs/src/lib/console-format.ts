@@ -91,7 +91,7 @@ function formatValue(value: unknown, depth: number, seen: Set<object>): string {
 		return name ? `ƒ ${name}()` : "ƒ ()";
 	}
 
-	const obj = value as object;
+	const obj = value;
 	if (seen.has(obj)) return "[Circular]";
 
 	const error = asError(obj);

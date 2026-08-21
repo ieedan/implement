@@ -37,5 +37,5 @@ export function createComponent<P, R = Child>(init: ComponentInit<P, R>): Compon
 		return init({} as P, ...children);
 	}
 
-	return component as Component<P, R>;
+	return component;
 }

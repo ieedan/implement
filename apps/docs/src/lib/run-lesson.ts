@@ -24,15 +24,61 @@ function shimKey(specifier: string): string {
 // parked on the executing realm's globalThis and re-exported from a generated
 // blob the imports are rewritten to point at. Parking happens per-import (see
 // importLessonModule) because the realm may be a fresh preview iframe.
+const RESERVED_IDENTIFIERS = new Set([
+	"arguments",
+	"await",
+	"break",
+	"case",
+	"catch",
+	"class",
+	"const",
+	"continue",
+	"debugger",
+	"default",
+	"delete",
+	"do",
+	"else",
+	"enum",
+	"eval",
+	"export",
+	"extends",
+	"false",
+	"finally",
+	"for",
+	"function",
+	"if",
+	"implements",
+	"import",
+	"in",
+	"instanceof",
+	"interface",
+	"let",
+	"new",
+	"null",
+	"package",
+	"private",
+	"protected",
+	"public",
+	"return",
+	"static",
+	"super",
+	"switch",
+	"this",
+	"throw",
+	"true",
+	"try",
+	"typeof",
+	"var",
+	"void",
+	"while",
+	"with",
+	"yield",
+]);
+
 function isExportableName(name: string): boolean {
 	if (name === "default") return false;
 	if (!/^[A-Za-z_$][\w$]*$/.test(name)) return false;
-	try {
-		new Function(`const ${name} = 1`);
-		return true;
-	} catch {
-		return false;
-	}
+	return !RESERVED_IDENTIFIERS.has(name);
 }
 
 function moduleShimUrl(specifier: string, moduleObject: ShimModule): string {
@@ -119,9 +165,9 @@ export async function importLessonModule(
 	realm: Window = window,
 ): Promise<{ mod: Record<string, unknown>; revoke: () => void }> {
 	const modules: Record<string, ShimModule> = {
-		[IMPLEMENT]: implement as unknown as ShimModule,
-		[LUCIDE]: lucide as unknown as ShimModule,
-		[PRIMITIVES]: primitives as unknown as ShimModule,
+		[IMPLEMENT]: implement,
+		[LUCIDE]: lucide,
+		[PRIMITIVES]: primitives,
 		...extraModules,
 	};
 	const rewritten = rewriteImports(transpile(code), modules);
@@ -180,9 +226,9 @@ export async function importLessonProject(
 	realm: Window = window,
 ): Promise<{ modules: Map<string, Record<string, unknown>>; revoke: () => void }> {
 	const shimModules: Record<string, ShimModule> = {
-		[IMPLEMENT]: implement as unknown as ShimModule,
-		[LUCIDE]: lucide as unknown as ShimModule,
-		[PRIMITIVES]: primitives as unknown as ShimModule,
+		[IMPLEMENT]: implement,
+		[LUCIDE]: lucide,
+		[PRIMITIVES]: primitives,
 		...extraModules,
 	};
 	for (const [specifier, moduleObject] of Object.entries(shimModules)) {

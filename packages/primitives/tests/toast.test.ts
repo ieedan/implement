@@ -183,36 +183,36 @@ describe("ToastManager", () => {
 	});
 });
 
-describe("Toast parts", () => {
-	function Toaster(manager: ReturnType<typeof createToastManager>) {
-		return ToastProvider(
-			{ manager },
-			ToastViewport(
-				{},
-				ForEach(
-					manager.toasts,
-					(t) => t.id,
-					(toast) =>
-						Toast(
-							{ toast },
-							ToastTitle(
-								{},
-								toast.bind((t) => t.title ?? ""),
-							),
-							ToastDescription(
-								{},
-								toast.bind((t) => t.description ?? ""),
-							),
-							ToastClose({}, "Close"),
+function toastPartsToaster(manager: ReturnType<typeof createToastManager>) {
+	return ToastProvider(
+		{ manager },
+		ToastViewport(
+			{},
+			ForEach(
+				manager.toasts,
+				(t) => t.id,
+				(toast) =>
+					Toast(
+						{ toast },
+						ToastTitle(
+							{},
+							toast.bind((t) => t.title ?? ""),
 						),
-				),
+						ToastDescription(
+							{},
+							toast.bind((t) => t.description ?? ""),
+						),
+						ToastClose({}, "Close"),
+					),
 			),
-		);
-	}
+		),
+	);
+}
 
+describe("Toast parts", () => {
 	it("renders toasts with state, type, and stacking attributes", async () => {
 		const manager = createToastManager();
-		const { target, unmount } = await mount(Toaster(manager));
+		const { target, unmount } = await mount(toastPartsToaster(manager));
 
 		manager.add({ title: "Saved", description: "Your changes were saved.", type: "success" });
 		manager.add({ title: "Second" });
@@ -243,7 +243,7 @@ describe("Toast parts", () => {
 
 	it("re-stacks live as later toasts arrive and leave", async () => {
 		const manager = createToastManager();
-		const { target, unmount } = await mount(Toaster(manager));
+		const { target, unmount } = await mount(toastPartsToaster(manager));
 
 		manager.add({ title: "First" });
 		await tick();
@@ -265,7 +265,7 @@ describe("Toast parts", () => {
 
 	it("close removes the element (no transition in tests)", async () => {
 		const manager = createToastManager();
-		const { target, unmount } = await mount(Toaster(manager));
+		const { target, unmount } = await mount(toastPartsToaster(manager));
 
 		const id = manager.add({ title: "Hello" });
 		await tick();
@@ -281,7 +281,7 @@ describe("Toast parts", () => {
 
 	it("the close button dismisses its own toast", async () => {
 		const manager = createToastManager();
-		const { target, unmount } = await mount(Toaster(manager));
+		const { target, unmount } = await mount(toastPartsToaster(manager));
 
 		manager.add({ title: "One" });
 		manager.add({ title: "Two" });
@@ -300,7 +300,7 @@ describe("Toast parts", () => {
 
 	it("marks toasts beyond the limit", async () => {
 		const manager = createToastManager({ limit: 2 });
-		const { target, unmount } = await mount(Toaster(manager));
+		const { target, unmount } = await mount(toastPartsToaster(manager));
 
 		manager.add({ title: "1" });
 		manager.add({ title: "2" });
@@ -316,7 +316,7 @@ describe("Toast parts", () => {
 
 	it("Escape on a toast dismisses it", async () => {
 		const manager = createToastManager();
-		const { target, unmount } = await mount(Toaster(manager));
+		const { target, unmount } = await mount(toastPartsToaster(manager));
 
 		manager.add({ title: "Hello" });
 		await tick();

@@ -92,6 +92,21 @@ function RawResponse(text: Readable<string | null>): Mountable {
 	);
 }
 
+async function endpointResponseBody(
+	route: EndpointRoute,
+	params: Record<string, string>,
+	target: RouterLocation,
+): Promise<string> {
+	const handler = route.module.GET as RequestHandler | undefined;
+	const url = new URL(target.path + target.search, "http://preview.local");
+	if (handler === undefined) {
+		return `405 Method Not Allowed — ${ROUTES_DIR}/${route.file} exports no GET handler.`;
+	}
+	const response = await handler({ request: new Request(url), params, url });
+	const body = await response.text();
+	return response.ok ? body : `HTTP ${response.status}\n\n${body}`;
+}
+
 /**
  * Boots a kit lesson inside the preview frame: scans the virtual `src/routes`
  * tree, links the files into modules executing in the frame's realm, and
@@ -183,26 +198,11 @@ export async function runKitApp(
 	/** Body of the endpoint response being viewed, `null` while a page shows. */
 	const responseView = signal<string | null>(null);
 
-	const endpointBody = async (
-		route: EndpointRoute,
-		params: Record<string, string>,
-		target: RouterLocation,
-	): Promise<string> => {
-		const handler = route.module.GET as RequestHandler | undefined;
-		const url = new URL(target.path + target.search, "http://preview.local");
-		if (handler === undefined) {
-			return `405 Method Not Allowed — ${ROUTES_DIR}/${route.file} exports no GET handler.`;
-		}
-		const response = await handler({ request: new Request(url), params, url });
-		const body = await response.text();
-		return response.ok ? body : `HTTP ${response.status}\n\n${body}`;
-	};
-
 	/** Resolves what the destination needs, returning the commit that shows it. */
 	const resolveTarget = async (destination: RouterLocation): Promise<() => void> => {
 		const match = matchEndpoint(endpoints, destination.path);
 		if (match !== null) {
-			const body = await endpointBody(match.route, match.params, destination);
+			const body = await endpointResponseBody(match.route, match.params, destination);
 			return () => {
 				responseView.set(body);
 				location.set(destination);

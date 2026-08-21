@@ -258,6 +258,8 @@ function getCorridorPolygon(
 				[contentRect.left, Math.max(triggerRect.bottom, contentRect.bottom) + buffer],
 				[triggerRect.right, Math.max(triggerRect.bottom, contentRect.bottom) + buffer],
 			];
+		default:
+			throw new Error(`Unhandled side: ${side satisfies string}`);
 	}
 }
 
@@ -312,6 +314,8 @@ function getSafePolygon(
 				[targetRect.right, targetRect.top - buffer],
 				[targetRect.left, targetRect.top - buffer],
 			];
+		default:
+			throw new Error(`Unhandled side: ${effectiveSide satisfies string}`);
 	}
 }
 
@@ -325,5 +329,7 @@ function flipSide(side: Side): Side {
 			return "right";
 		case "right":
 			return "left";
+		default:
+			throw new Error(`Unhandled side: ${side satisfies string}`);
 	}
 }

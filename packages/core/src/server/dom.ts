@@ -370,7 +370,7 @@ export function createServerEnvironment(doc: ServerDocument): DomEnvironment {
 		documentTarget: () => null,
 		insertHtml: (html, parent, before) => {
 			(parent as unknown as ServerContainer).insertBefore(
-				new ServerRaw(html) as unknown as ServerChildNode,
+				new ServerRaw(html),
 				before as unknown as ServerChildNode,
 			);
 		},

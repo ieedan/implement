@@ -962,7 +962,7 @@ function setDomValue(el: HTMLElement, key: string, value: unknown) {
 			return;
 		}
 		if (current !== value) {
-			(el as unknown as Record<string, unknown>)[prop] = value as never;
+			(el as unknown as Record<string, unknown>)[prop] = value;
 		}
 		return;
 	}
@@ -1102,7 +1102,7 @@ function bindDomProp(el: HTMLElement, tag: string, key: string, value: unknown):
 	if (twoWay && isWritable(value)) {
 		const unsub = subscribe([value], apply);
 		const handler = () => {
-			value.set(twoWay.read(el) as never);
+			value.set(twoWay.read(el));
 		};
 		el.addEventListener(twoWay.event, handler);
 		return () => {

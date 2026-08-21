@@ -224,11 +224,15 @@ function assertRestIsLast(segments: Segment[]): void {
 }
 
 /** Static segments outrank params, and params outrank catch-alls, position by position. */
+function segmentRank(segment: Segment): number {
+	return segment.param ? (segment.rest ? 2 : 1) : 0;
+}
+
+/** Static segments outrank params, and params outrank catch-alls, position by position. */
 function compareRoutes(a: LeafRoute, b: LeafRoute): number {
-	const rank = (segment: Segment) => (segment.param ? (segment.rest ? 2 : 1) : 0);
 	const length = Math.min(a.segments.length, b.segments.length);
 	for (let i = 0; i < length; i++) {
-		const difference = rank(a.segments[i]!) - rank(b.segments[i]!);
+		const difference = segmentRank(a.segments[i]!) - segmentRank(b.segments[i]!);
 		if (difference !== 0) return difference;
 	}
 	return a.segments.length - b.segments.length;
