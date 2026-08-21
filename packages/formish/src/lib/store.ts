@@ -260,9 +260,11 @@ export function fieldElements(store: InternalFormStore, name: string): FieldElem
  * form element is not rendered by `Form` — every one in the document.
  */
 function allElements(store: InternalFormStore): FieldElement[] {
-	const form = store.element.get();
-	if (form) return [...form.elements].filter(isFieldElement);
+	// a server render has no DOM to read: the form's own element is a
+	// serializable stand-in, not an `HTMLFormElement` with controls on it
 	if (typeof document === "undefined") return [];
+	const controls = store.element.get()?.elements;
+	if (controls) return [...controls].filter(isFieldElement);
 	return [...document.querySelectorAll("input, select, textarea")].filter(isFieldElement);
 }
 

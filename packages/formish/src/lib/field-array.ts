@@ -22,7 +22,7 @@ import {
 	type InternalFormStore,
 } from "./store";
 import type { InferInput } from "./standard-schema";
-import type { ArrayPath, FieldErrors, FormSchema, ItemValue, PathValue } from "./types";
+import type { ArrayPath, FieldErrors, FormSchema } from "./types";
 
 export interface UseFieldArrayConfig<
 	TSchema extends FormSchema,
@@ -31,11 +31,6 @@ export interface UseFieldArrayConfig<
 	/** Where the array lives, e.g. `["todos"]`. */
 	readonly path: TPath | Readable<TPath>;
 }
-
-/** The item type of the array a path addresses. */
-type ItemOf<TSchema extends FormSchema, TPath extends Path> = ItemValue<
-	PathValue<InferInput<TSchema>, TPath>
->;
 
 type ItemMethodConfig<TConfig> = Omit<TConfig, "path">;
 
@@ -135,5 +130,3 @@ export function useFieldArray<
 		replace: (itemConfig) => replace(form, at(itemConfig) as never),
 	} as FieldArrayStore<TSchema, TPath>;
 }
-
-export type { ItemOf };

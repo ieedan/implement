@@ -204,3 +204,31 @@ describe("field arrays", () => {
 		expect(getInput(form, { path: ["todos"] })).toEqual([{ label: "new" }]);
 	});
 });
+
+describe("array methods out of range", () => {
+	function form() {
+		return createForm({
+			schema: TodosSchema,
+			initialInput: { todos: [{ label: "one" }, { label: "two" }] },
+		});
+	}
+
+	it("leaves the list alone for an index that is not there", () => {
+		const todos = form();
+		remove(todos, { path: ["todos"], at: 5 });
+		move(todos, { path: ["todos"], from: 0, to: 9 });
+		swap(todos, { path: ["todos"], at: -1, and: 0 });
+		expect(getInput(todos, { path: ["todos"] })).toEqual([{ label: "one" }, { label: "two" }]);
+		expect(useFieldArray(todos, { path: ["todos"] }).items.get()).toHaveLength(2);
+	});
+
+	it("clamps an insert to the end of the list", () => {
+		const todos = form();
+		insert(todos, { path: ["todos"], at: 99, initialInput: { label: "three" } });
+		expect(getInput(todos, { path: ["todos"] })).toEqual([
+			{ label: "one" },
+			{ label: "two" },
+			{ label: "three" },
+		]);
+	});
+});

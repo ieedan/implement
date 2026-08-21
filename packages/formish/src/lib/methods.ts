@@ -4,7 +4,6 @@ import { getAtPath, pathName, ROOT_NAME, setAtPath, type Path } from "./path";
 import {
 	clearStateUnder,
 	createId,
-	fieldElements,
 	focusField,
 	formElements,
 	itemsSignal,
@@ -320,6 +319,19 @@ type ArrayItem<TSchema extends FormSchema, TPath extends Path> = PartialInput<
 	ItemValue<PathValue<InferInput<TSchema>, TPath>>
 >;
 
+/**
+ * The number of items an array field currently has. Array methods are bounded
+ * by it, so an index that is not there leaves the list alone instead of
+ * writing a hole into it.
+ */
+function itemCount(store: InternalFormStore, path: Path): number {
+	return itemsSignal(store, path).get().length;
+}
+
+function isItemIndex(index: number, length: number): boolean {
+	return Number.isInteger(index) && index >= 0 && index < length;
+}
+
 /** Applies an array change: the input, the item ids and the field state all move together. */
 function mutateArray(
 	store: InternalFormStore,
@@ -357,7 +369,7 @@ export function insert<
 >(form: FormStore<TSchema>, config: InsertConfig<TSchema, TPath>): void {
 	const store = internal(form);
 	const path = resolve(config.path);
-	const length = itemsSignal(store, path).get().length;
+	const length = itemCount(store, path);
 	const at = clamp(config.at ?? length, 0, length);
 
 	mutateArray(store, path, {
@@ -381,6 +393,7 @@ export function remove<
 	const store = internal(form);
 	const path = resolve(config.path);
 	const { at } = config;
+	if (!isItemIndex(at, itemCount(store, path))) return;
 
 	mutateArray(store, path, {
 		input: (array) => array.filter((_, index) => index !== at),
@@ -403,7 +416,8 @@ export function move<
 	const store = internal(form);
 	const path = resolve(config.path);
 	const { from, to } = config;
-	if (from === to) return;
+	const length = itemCount(store, path);
+	if (from === to || !isItemIndex(from, length) || !isItemIndex(to, length)) return;
 
 	const moveItems = <T>(list: T[]): T[] => {
 		const next = [...list];
@@ -438,7 +452,8 @@ export function swap<
 	const store = internal(form);
 	const path = resolve(config.path);
 	const { at, and } = config;
-	if (at === and) return;
+	const length = itemCount(store, path);
+	if (at === and || !isItemIndex(at, length) || !isItemIndex(and, length)) return;
 
 	const swapItems = <T>(list: T[]): T[] => {
 		const next = [...list];
@@ -469,6 +484,7 @@ export function replace<
 	const store = internal(form);
 	const path = resolve(config.path);
 	const { at } = config;
+	if (!isItemIndex(at, itemCount(store, path))) return;
 	clearStateUnder(store, [...path, at]);
 
 	mutateArray(store, path, {
@@ -481,5 +497,3 @@ export function replace<
 function clamp(value: number, min: number, max: number): number {
 	return Math.min(Math.max(value, min), max);
 }
-
-export { fieldElements };

@@ -40,7 +40,7 @@ export {
 	type SubmitLikeEvent,
 	type SwapConfig,
 } from "./lib/methods";
-export { isDirtyInput, type Path, type PathKey, type RequiredPath } from "./lib/path";
+export type { Path, PathKey, RequiredPath } from "./lib/path";
 export type {
 	InferInput,
 	InferOutput,

@@ -1,4 +1,4 @@
-import type { Readable, ReadableSource } from "@implementjs/core";
+import type { Readable } from "@implementjs/core";
 import type { Path, PathKey, RequiredPath } from "./path";
 import type { InferInput, StandardSchemaV1 } from "./standard-schema";
 
@@ -116,9 +116,6 @@ export type PartialInput<T> = DeepPartial<T> | undefined;
 /** The form input as it currently stands, before it has been validated. */
 export type FormInput<TSchema extends FormSchema> = PartialInput<InferInput<TSchema>> &
 	Record<string, unknown>;
-
-/** A path, or a readable of one — a field whose path moves, like an array item. */
-export type MaybeReadablePath<TPath extends Path> = TPath | ReadableSource<TPath>;
 
 /**
  * When a form validates. `initial` validates once up front, `submit` on the
