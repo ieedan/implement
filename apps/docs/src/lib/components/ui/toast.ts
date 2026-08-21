@@ -28,6 +28,7 @@ import {
 	type ToastManager,
 } from "@implementjs/primitives";
 import { buttonVariants } from "./button";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 export { createToastManager, type ToastData, type ToastManager };
@@ -51,10 +52,10 @@ export const ToastViewport = createComponent(function ToastViewport(
 		{
 			...props,
 			"data-slot": "toast-viewport",
-			class: [
+			class: cn(
 				"fixed right-6 bottom-6 z-50 w-[360px] max-w-[calc(100vw-3rem)] outline-none",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -68,7 +69,7 @@ export const Toast = createComponent(function Toast(
 		{
 			...props,
 			"data-slot": "toast",
-			class: [
+			class: cn(
 				"absolute right-0 bottom-0 w-full touch-none rounded-lg border bg-background p-4 text-foreground shadow-lg outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
 				"z-[calc(100-var(--toast-index))]",
 				// One transform for every state — the states only swap the variables it
@@ -94,7 +95,7 @@ export const Toast = createComponent(function Toast(
 				// toasts past the limit wait invisibly for a slot
 				"data-limited:pointer-events-none data-limited:opacity-0",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -108,7 +109,7 @@ export const ToastTitle = createComponent(function ToastTitle(
 		{
 			...props,
 			"data-slot": "toast-title",
-			class: ["text-sm leading-tight font-medium", className],
+			class: cn("text-sm leading-tight font-medium", className),
 		},
 		...children,
 	);
@@ -122,7 +123,7 @@ export const ToastDescription = createComponent(function ToastDescription(
 		{
 			...props,
 			"data-slot": "toast-description",
-			class: ["text-sm leading-snug text-muted-foreground", className],
+			class: cn("text-sm leading-snug text-muted-foreground", className),
 		},
 		...children,
 	);
@@ -136,7 +137,7 @@ export const ToastAction = createComponent(function ToastAction(
 		{
 			...props,
 			"data-slot": "toast-action",
-			class: [buttonVariants({ variant: "outline", size: "xs" }), "ml-auto shrink-0", className],
+			class: cn(buttonVariants({ variant: "outline", size: "xs" }), "ml-auto shrink-0", className),
 		},
 		...children,
 	);
@@ -150,11 +151,11 @@ export const ToastClose = createComponent(function ToastClose(
 		{
 			...props,
 			"data-slot": "toast-close",
-			class: [
+			class: cn(
 				buttonVariants({ variant: "ghost", size: "icon-xs" }),
 				"absolute top-2 right-2 text-muted-foreground hover:text-foreground",
 				className,
-			],
+			),
 		},
 		...children,
 		XIcon({ class: "size-3.5", "aria-hidden": true }),

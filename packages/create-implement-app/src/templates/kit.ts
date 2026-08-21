@@ -5,11 +5,16 @@ import {
 	DOCS_URL,
 	gitignore,
 	indexHtml,
+	jsrepoConfig,
 	modeModule,
+	needsPnpmWorkspace,
 	packageJson,
+	pnpmWorkspace,
 	signUpFormComponent,
 	styles,
 	tsconfig,
+	UI_PATH,
+	UI_SCRIPT,
 	vitePlugins,
 } from "@/templates/shared";
 import { hasAddon, type Template, type TemplateContext } from "@/templates/types";
@@ -22,6 +27,9 @@ export const kit: Template = {
 	hint: "File based routing, SSR & prerendering",
 	files: (ctx) => [
 		{ path: "package.json", contents: pkg(ctx) },
+		...(needsPnpmWorkspace(ctx)
+			? [{ path: "pnpm-workspace.yaml", contents: pnpmWorkspace() }]
+			: []),
 		{
 			path: "tsconfig.json",
 			contents: tsconfig({
@@ -37,6 +45,7 @@ export const kit: Template = {
 			}),
 		},
 		{ path: "vite.config.ts", contents: viteConfig(ctx) },
+		...(hasAddon(ctx, "ui") ? [{ path: "jsrepo.config.ts", contents: jsrepoConfig(ctx) }] : []),
 		{
 			path: "src/index.html",
 			contents: indexHtml(ctx, { title: ctx.name, entry: "/.implement/entry-client.ts" }),
@@ -70,11 +79,15 @@ function pkg(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "icons")) deps.push("@implementjs/lucide");
 	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
 	if (hasAddon(ctx, "modeWatcher")) deps.push("@implementjs/mode-watcher");
+	// what the styled components are built out of: `tv()` for the variant tables, and the
+	// tailwind-merge behind `cn()` that makes a class passed in override the one baked in
+	if (hasAddon(ctx, "ui")) deps.push("tailwind-merge", "tailwind-variants");
 
 	// zod is a devDependency on purpose: kit evaluates the env files at build time and inlines
 	// the results, so the schemas never reach a bundle
 	const devDeps: Dependency[] = ["@implementjs/kit", "@types/node", "typescript", "vite", "zod"];
 	if (hasAddon(ctx, "tailwind")) devDeps.push("@tailwindcss/vite", "tailwindcss");
+	if (hasAddon(ctx, "ui")) devDeps.push("jsrepo");
 
 	return packageJson({
 		name: ctx.name,
@@ -85,6 +98,7 @@ function pkg(ctx: TemplateContext): string {
 			sync: "node --experimental-strip-types scripts/sync.ts",
 			// tsc needs the generated `.implement/` files, and a fresh clone has never run vite
 			check: "node --experimental-strip-types scripts/sync.ts && tsc --noEmit",
+			...(hasAddon(ctx, "ui") ? { [UI_SCRIPT]: "jsrepo add" } : {}),
 		},
 		dependencies: dependencies(ctx, deps),
 		devDependencies: dependencies(ctx, devDeps),
@@ -235,12 +249,16 @@ function counter(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "modeWatcher")) {
 		links.push({ label: "Dark mode", href: `${DOCS_URL}/tree/main/packages/mode-watcher` });
 	}
+	if (hasAddon(ctx, "ui")) {
+		links.push({ label: "Components", href: `${DOCS_URL}/tree/main/apps/docs/src/content/ui` });
+	}
 
 	return counterComponent(ctx, {
 		editPath: "src/lib/counter.ts",
 		links,
 		formImport: "@/lib/sign-up-form",
 		modeImport: "@/lib/mode",
+		uiImport: `@/${UI_PATH.slice("src/".length)}/button`,
 	});
 }
 

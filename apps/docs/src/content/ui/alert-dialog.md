@@ -18,7 +18,7 @@ jsrepo pulls `button` along with it.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/alert-dialog.ts`. It imports `button` from the same directory, so install that too.
+Copy the file below to `src/lib/components/ui/alert-dialog.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and `button` from the same directory — copy those in beside it too.
 
 <div data-source="alert-dialog"></div>
 

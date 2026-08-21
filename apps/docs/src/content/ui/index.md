@@ -21,13 +21,22 @@ Every component on this site is the same file the registry ships, rendered live.
 
 An implement app with [Tailwind CSS v4](https://tailwindcss.com). [`create-implement-app`](/create) writes one with the `--tailwind` addon; adding it to an existing app is `@tailwindcss/vite` plus an `@import "tailwindcss"` in your stylesheet.
 
+> [!TIP]
+> Starting a new app? `create-implement-app --ui` does everything on this page for you — the packages, the stylesheet below, and the `jsrepo.config.ts` — and opens on a page already using one of the components. See [the ui addon](/create/templates).
+
 Then three packages:
 
 ```sh
-npm install @implementjs/core @implementjs/primitives tailwind-variants
+npm install @implementjs/core @implementjs/primitives tailwind-merge
 ```
 
-`tailwind-variants` is what `tv()` comes from — the variant tables in `button.ts`, `toggle.ts`, and `tabs.ts`. Components that draw an icon (a chevron on the accordion, a check in the checkbox, the close X on a dialog) also want the icon set:
+`tailwind-merge` is what [`cn`](#merging-classes) is built on, and every component in the registry routes its classes through it. Some components also want `tailwind-variants`, which is where `tv()` comes from — the variant tables in `button.ts`, `toggle.ts`, and `tabs.ts`:
+
+```sh
+npm install tailwind-variants
+```
+
+Components that draw an icon (a chevron on the accordion, a check in the checkbox, the close X on a dialog) also want the icon set:
 
 ```sh
 npm install @implementjs/lucide
@@ -39,7 +48,7 @@ Each component page lists exactly which of these it touches.
 
 This is the part that has to be right before anything renders correctly. The components never name a color directly — every class goes through a token, so `bg-primary` and `border-border` only mean something once the tokens exist.
 
-Paste this into the stylesheet your app imports (`src/app.css` in the templates):
+Paste this into the stylesheet your app imports (`src/app.css` in the templates) — the `--ui` addon writes it for you:
 
 ```css
 @import "tailwindcss";
@@ -189,6 +198,33 @@ The values shipped here are the dark palette these components were tuned against
 
 Without them those two components still open and close correctly — they just snap instead of sliding. Every other component animates with plain Tailwind transitions and needs nothing extra.
 
+## Merging classes
+
+Every component takes a `class`, and every component merges it with `cn` — the one helper the registry shares, in `utils.ts` beside the component files:
+
+```ts
+Div({ ...props, "data-slot": "card", class: cn("rounded-xl border p-6", className) });
+```
+
+That merge is what makes the class you pass actually win. `class` is already clsx-shaped, so without it both utilities would survive and the one that painted would be whichever Tailwind emitted later — passing `p-2` to a component whose base is `p-6` would leave you with `p-6`. `cn` runs the resolved list through [tailwind-merge](https://github.com/dcastil/tailwind-merge), which drops the earlier half of each conflicting pair:
+
+```ts
+Card({ class: "p-2" }); // → rounded-xl border p-2
+Button({ variant: "outline", class: "size-20" }); // wins over the size variant's `size-9`
+```
+
+Signals keep working through it. `class` normally re-walks the value it was given whenever a signal in it changes, which is what keeps a signal that appears — or stops appearing — mid-life subscribed. Merging eagerly would collapse that structure into one string and freeze the dependencies at whatever happened to be there the first time, so `cn` does the same bookkeeping instead: re-walk, then subscribe to exactly what the walk just read.
+
+```ts
+Button({ class: count.bind((c) => c > 2 && "size-16 rounded-full") });
+```
+
+The upshot is that a reactive class behaves the same whether it goes through `cn` or not — including a list whose signals change over time.
+
+`utils.ts` is a `lib` item rather than a `ui` one, so it lands beside your own helpers — `src/lib/utils.ts` by default — instead of among the components. It arrives on its own with the first component you add, so it never needs asking for by name, and jsrepo writes each component's import to match wherever your config puts the two. It is a normal file once it lands: `cn` is yours to extend, and a project that already has one can point the components at it instead.
+
+<div data-source="utils"></div>
+
 ## Installing components
 
 <div data-tab="CLI"></div>
@@ -212,7 +248,7 @@ npx jsrepo add dialog button
 npx jsrepo add --registry @implementjs/ui
 ```
 
-Where the files land is `paths` in your `jsrepo.config.ts`. Every item in this registry is typed `ui`, so one entry places all of them:
+Where the files land is `paths` in your `jsrepo.config.ts`. Every component in this registry is typed `ui`, so one entry places all of them; [`cn`](#merging-classes) is a `lib`:
 
 ```ts
 import { defineConfig } from "jsrepo";
@@ -220,11 +256,14 @@ import { defineConfig } from "jsrepo";
 export default defineConfig({
 	paths: {
 		ui: "src/lib/components/ui",
+		lib: "src/lib",
 	},
 });
 ```
 
-That type is the only thing the old `<category>/<name>` specifier is still good for. In jsrepo v3 it decides the destination directory and stays out of the command.
+Those two are free to point anywhere — jsrepo rewrites each component's import of `cn` to match where you put them.
+
+The type is the only thing the old `<category>/<name>` specifier is still good for. In jsrepo v3 it decides the destination directory and stays out of the command.
 
 jsrepo resolves the dependencies between items itself. Asking for `select` brings `dropdown-menu` with it, because the select's group heading reuses its classes; asking for `dialog` brings `button`. The npm dependencies a component needs are installed at the same time.
 
@@ -236,6 +275,7 @@ Every component is one file with no build step, so a manual install is a copy an
 
 Two things to get right:
 
+- **`utils.ts` first.** Every component imports `cn`, so copy that file to `src/lib/utils.ts` before anything else — its source is under [Merging classes](#merging-classes). The components on this site import it as `@/lib/utils`; the CLI rewrites that to a relative path, so rewrite it yourself if your project has no `@/` alias.
 - **Local imports.** A component that builds on another imports it as `./button` — keep the files in one directory and those resolve on their own.
 - **The `@/` alias.** The demos on this site import `@/lib/components/ui/button`. That is the docs app's own alias for `src`; if your project does not have one, rewrite the specifier to a relative path.
 

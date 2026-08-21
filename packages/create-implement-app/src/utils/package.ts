@@ -77,12 +77,22 @@ export function installCommand(pm: PackageManager): ResolvedCommand {
 	return resolveCommand(pm, "install", []) ?? { command: pm, args: ["install"] };
 }
 
-export function runCommand(pm: PackageManager, script: string): ResolvedCommand {
-	return resolveCommand(pm, "run", [script]) ?? { command: pm, args: ["run", script] };
+/**
+ * Run one of the app's own scripts. Anything after the name is passed through to it, which every
+ * agent spells differently — npm needs the `--` separator, deno runs scripts as tasks.
+ */
+export function runCommand(
+	pm: PackageManager,
+	script: string,
+	args: string[] = [],
+): ResolvedCommand {
+	return (
+		resolveCommand(pm, "run", [script, ...args]) ?? { command: pm, args: ["run", script, ...args] }
+	);
 }
 
-/** The command a user types to run a script, e.g. `pnpm dev`. */
-export function runCommandString(pm: PackageManager, script: string): string {
-	const { command, args } = runCommand(pm, script);
-	return [command, ...args].join(" ");
+/** The command a user types to run a script, e.g. `pnpm run dev`. */
+export function runCommandString(pm: PackageManager, script: string, args: string[] = []): string {
+	const { command, args: resolved } = runCommand(pm, script, args);
+	return [command, ...resolved].join(" ");
 }

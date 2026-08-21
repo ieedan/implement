@@ -14,7 +14,6 @@ import {
 	type Signal,
 } from "@implementjs/core";
 import { copyText } from "@/lib/copy-text";
-import { importLessonModule } from "@/lib/run-lesson";
 import { CodeEditor } from "../tutorials/editor";
 import { CheckIcon, CopyIcon } from "@implementjs/lucide";
 import { Button } from "../ui/button";
@@ -50,6 +49,18 @@ function assertDemoChild(value: unknown): Child {
 	throw new Error("Default export must return a component, text, or readable.");
 }
 
+/**
+ * The compile-and-run pipeline, pulled in the first time a demo is edited.
+ *
+ * It carries sucrase plus a namespace import of every package demo code may
+ * import — near a megabyte that a reader who only reads the page never needs,
+ * and that a static import would put on every docs route through `Typeset`.
+ */
+async function lessonPipeline() {
+	const { importLessonModule } = await import("@/lib/run-lesson");
+	return importLessonModule;
+}
+
 // Compiles the code with the lesson pipeline and renders the default export in
 // place. Unlike the tutorial preview there is no iframe: demos use the page's
 // Tailwind styles, so they have to render in the page's own realm — and they
@@ -67,7 +78,8 @@ function DemoRunner(code: Readable<string>, error: Signal<string | null>): Mount
 			unmountRun?.();
 			unmountRun = null;
 			if (host == null) return;
-			void importLessonModule(source, demoModules)
+			void lessonPipeline()
+				.then((importLessonModule) => importLessonModule(source, demoModules))
 				.then(({ mod, revoke }) => {
 					if (current !== generation || host == null) {
 						revoke();

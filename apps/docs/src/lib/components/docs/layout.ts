@@ -10,7 +10,7 @@ import {
 	Span,
 	type Mountable,
 } from "@implementjs/core";
-import { pages, type Page } from "@/lib/content";
+import type { Page } from "@/lib/content";
 import { router } from "../../router";
 import { SiteHeader } from "../site-header";
 import { MenuIcon } from "@implementjs/lucide";
@@ -70,10 +70,8 @@ function DocsNav(collection: Page[], onNavigate?: () => void): Mountable {
 	);
 }
 
-export function DocsLayout(
-	child: Mountable,
-	collection: DocsCollection = { pages, label: "Docs" },
-): Mountable {
+// Required, not defaulted — see the note on `DocsPage`.
+export function DocsLayout(child: Mountable, collection: DocsCollection): Mountable {
 	const menuOpen = signal(false);
 	const currentTitle = derived(
 		[router.location],

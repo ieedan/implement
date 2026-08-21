@@ -74,6 +74,19 @@ describe("runCreate", () => {
 		);
 	});
 
+	it("turns on what the ui addon cannot work without", async () => {
+		// the styled components are tailwind classes over the primitives, so `--no-tailwind --ui`
+		// would otherwise scaffold an app whose first component doesn't render
+		const result = await runCreate("my-app", options({ tailwind: false, ui: true }));
+
+		expect(unwrap(result).addons).toEqual(["tailwind", "primitives", "ui"]);
+		expect(readFileSync(join(cwd, "my-app/jsrepo.config.ts"), "utf8")).toContain(
+			'registries: ["@implementjs/ui"]',
+		);
+		// nothing was installed, so jsrepo never ran — the next steps say to run it
+		expect(unwrap(result).components).toEqual([]);
+	});
+
 	it("derives a valid package name from the directory", async () => {
 		const result = await runCreate("./Some Dir", options());
 

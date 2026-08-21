@@ -18,7 +18,7 @@ Nothing else comes with it — this one stands alone on `@implementjs/core` and 
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/avatar.ts`.
+Copy the file below to `src/lib/components/ui/avatar.ts`. It imports `cn`, so copy [`utils.ts`](/ui#merging-classes) to `src/lib/utils.ts` too.
 
 <div data-source="avatar"></div>
 

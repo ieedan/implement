@@ -66,18 +66,50 @@ my-app/
 
 The whole app lives under `src/`, including `index.html`, so the generated Vite config sets `root: "src"` and points the build back at `dist/`. `src/index.ts` creates the app, mounts the counter, and carries the [four-line HMR block](/docs/vite).
 
+### A note on pnpm
+
+Installing with pnpm also gets a `pnpm-workspace.yaml`:
+
+```yaml
+allowBuilds:
+  esbuild: true
+```
+
+pnpm won't run a dependency's install scripts until the project names it, and since pnpm 11 an unnamed one fails the install with `ERR_PNPM_IGNORED_BUILDS` instead of warning. Vite's transformer, esbuild, downloads its platform binary in a `postinstall`, so without that file the very first `pnpm install` stops. The other package managers don't need it, and neither does an app scaffolded with `--workspace` — it answers to the workspace root's file.
+
 ## Addons
 
-Five optional extras, available on either template. Each has a pair of flags — `--tailwind` / `--no-tailwind` — so a non-interactive run can turn one on or off explicitly. Anything a flag doesn't answer falls back to the default, which is Tailwind on and the rest off.
+Six optional extras, available on either template. Each has a pair of flags — `--tailwind` / `--no-tailwind` — so a non-interactive run can turn one on or off explicitly. Anything a flag doesn't answer falls back to the default, which is Tailwind on and the rest off.
 
 | Addon         | Flag             | What it adds                                                                                              |
 | ------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
 | `tailwind`    | `--tailwind`     | `@tailwindcss/vite` in the Vite config, utilities in place of hand-written CSS                            |
 | `primitives`  | `--primitives`   | [`@implementjs/primitives`](/primitives) — the counter's links move into a `Collapsible`                  |
+| `ui`          | `--ui`           | [`@implementjs/ui`](/ui) — a jsrepo config, the design tokens, and a styled `Button` in the counter       |
 | `icons`       | `--icons`        | [`@implementjs/lucide`](/lucide) — the counter's buttons become `PlusIcon` and `MinusIcon`                |
 | `forms`       | `--forms`        | [`@implementjs/formish`](/formish) and valibot — a validated sign up form under the counter               |
 | `modeWatcher` | `--mode-watcher` | [`@implementjs/mode-watcher`](/mode-watcher) — a light and a dark palette, and a toggle under the counter |
 
 Without Tailwind the generated `app.css` defines plain semantic classes (`.page`, `.counter`, `.button`) and the components reference them by the same names, so the two versions of the counter read identically.
+
+### The ui addon
+
+`--ui` is the only addon that isn't a dependency. [`@implementjs/ui`](/ui) is a [jsrepo](https://jsrepo.dev) registry of styled components you copy into your project, so what the CLI writes is the setup those copies need:
+
+```
+my-app/
+├ src/
+│  ├ lib/
+│  │  └ components/
+│  │     └ ui/       where `jsrepo add` puts a component
+│  └ app.css         the tokens every component reads
+└ jsrepo.config.ts   which registry, and where its items land
+```
+
+It also puts `jsrepo` and `tailwind-variants` in `package.json`, along with a `ui` script — `pnpm ui dialog select` adds two more components. Because the styled components are Tailwind classes over the primitives, picking `ui` turns on `tailwind` and `primitives` even against a `--no-` flag.
+
+`app.css` is the part that has to be right before anything renders: the components never name a color, so the `:root` values and the `@theme inline` block that turns each one into a Tailwind color are what make `bg-primary` and `ring-ring/50` mean something. [The registry's introduction](/ui) walks through it, including how to re-theme.
+
+With `--install` the CLI finishes by running `jsrepo add button`, so the counter — which renders the styled `Button` rather than a bare element — works on the first `dev`. Without it, the next steps printed at the end of the run name the command.
 
 The mode-watcher addon is the one that changes the palette rather than adding to it: the app starts light, `src/lib/mode.ts` (or `src/mode.ts` on the CSR template) holds the manager and the toggle, and `ModeWatcher` is mounted once at the root — in the kit layout, or next to the app in the CSR entry. With Tailwind the generated `app.css` points the `dark:` variant at the class on `<html>`; without it, a `.dark` block redefines the same custom properties the light one does.

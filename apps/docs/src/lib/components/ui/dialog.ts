@@ -11,6 +11,7 @@ import {
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 export type DialogProps = ComponentProps<typeof DialogPrimitive>;
@@ -52,7 +53,7 @@ export const DialogTrigger = createComponent(function DialogTrigger(
 			"data-slot": "dialog-trigger",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);
@@ -66,7 +67,7 @@ export const DialogOverlay = createComponent(function DialogOverlay(
 		{
 			...props,
 			"data-slot": "dialog-overlay",
-			class: [
+			class: cn(
 				"fixed inset-0 z-[calc(50+var(--ip-nested-level,0))] bg-black/50",
 				"transition-[opacity,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
 				"data-[state=open]:block data-[state=open]:opacity-100",
@@ -74,7 +75,7 @@ export const DialogOverlay = createComponent(function DialogOverlay(
 				"starting:data-[state=open]:opacity-0",
 				"data-[nested]:bg-transparent",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -88,7 +89,7 @@ export const DialogContent = createComponent(function DialogContent(
 		{
 			...props,
 			"data-slot": "dialog-content",
-			class: [
+			class: cn(
 				"fixed top-1/2 left-1/2 z-[calc(50+var(--ip-nested-level,0))] grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 text-foreground shadow-lg outline-none sm:max-w-lg",
 				"transition-[opacity,scale,translate,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
 				"data-[state=open]:grid data-[state=open]:scale-[calc(1-0.05*var(--ip-nested-count,0))] data-[state=open]:opacity-100",
@@ -96,7 +97,7 @@ export const DialogContent = createComponent(function DialogContent(
 				"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
 				"data-[nested-open]:-translate-y-[calc(50%+(0.5rem*var(--ip-nested-count,0)))]",
 				className,
-			],
+			),
 		},
 		...children,
 		showCloseButton
@@ -121,7 +122,7 @@ export const DialogTitle = createComponent(function DialogTitle(
 		{
 			...props,
 			"data-slot": "dialog-title",
-			class: ["text-lg leading-none font-semibold", className],
+			class: cn("text-lg leading-none font-semibold", className),
 		},
 		...children,
 	);
@@ -135,7 +136,7 @@ export const DialogDescription = createComponent(function DialogDescription(
 		{
 			...props,
 			"data-slot": "dialog-description",
-			class: ["text-sm text-muted-foreground", className],
+			class: cn("text-sm text-muted-foreground", className),
 		},
 		...children,
 	);
@@ -152,7 +153,7 @@ export const DialogClose = createComponent(function DialogClose(
 			"data-slot": "dialog-close",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);

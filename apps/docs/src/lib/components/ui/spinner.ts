@@ -1,6 +1,7 @@
 import type { SvgProps } from "@implementjs/core";
 import { LoaderCircleIcon } from "@implementjs/lucide";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type SpinnerProps = SvgProps;
 
@@ -17,6 +18,6 @@ export const Spinner = createComponent(function Spinner({
 		"aria-label": "Loading",
 		...props,
 		"data-slot": "spinner",
-		class: ["size-4 animate-spin motion-reduce:animate-none", className],
+		class: cn("size-4 animate-spin motion-reduce:animate-none", className),
 	});
 });

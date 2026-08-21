@@ -4,6 +4,7 @@ import {
 	ToggleGroupItem as ToggleGroupItemPrimitive,
 } from "@implementjs/primitives";
 import { toggleVariants, type ToggleSize, type ToggleVariant } from "./toggle";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 export type ToggleGroupProps = ComponentProps<typeof ToggleGroupPrimitive>;
@@ -20,7 +21,7 @@ export const ToggleGroup = createComponent(function ToggleGroup(
 		{
 			...props,
 			"data-slot": "toggle-group",
-			class: ["flex w-fit items-center rounded-md", className],
+			class: cn("flex w-fit items-center rounded-md", className),
 		},
 		...children,
 	);
@@ -36,12 +37,12 @@ export const ToggleGroupItem = createComponent(function ToggleGroupItem(
 			"data-slot": "toggle-group-item",
 			"data-variant": variant,
 			"data-size": size,
-			class: [
+			class: cn(
 				toggleVariants({ variant, size }),
 				"min-w-0 flex-1 shrink-0 rounded-none shadow-none first:rounded-l-md last:rounded-r-md focus:z-10 focus-visible:z-10",
 				"data-[variant=outline]:border-l-0 data-[variant=outline]:first:border-l",
 				className,
-			],
+			),
 		},
 		...children,
 	);

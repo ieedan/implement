@@ -12,7 +12,7 @@ import {
 import { CopyPage } from "../components/docs/copy-page";
 import { TocDisclosure, TocSidebar } from "../components/docs/toc";
 import { Typeset } from "../components/docs/typeset";
-import { pages, type Page } from "@/lib/content";
+import type { Page } from "@/lib/content";
 import { pageToc } from "@/lib/toc";
 
 function PageLink(page: Page, direction: "prev" | "next"): Mountable {
@@ -35,7 +35,10 @@ function PageLink(page: Page, direction: "prev" | "next"): Mountable {
 	);
 }
 
-export function DocsPage(page: Page, collection: Page[] = pages): Mountable {
+// `collection` is required rather than defaulted to the core docs pages: a
+// default would be a live reference, so every collection's route chunk would
+// carry the core collection's content alongside its own.
+export function DocsPage(page: Page, collection: Page[]): Mountable {
 	const index = collection.findIndex((item) => item.permalink === page.permalink);
 	const prev = index > 0 ? collection[index - 1] : undefined;
 	const next = index >= 0 ? collection[index + 1] : undefined;

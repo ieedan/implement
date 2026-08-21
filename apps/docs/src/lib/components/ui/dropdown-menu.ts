@@ -16,6 +16,7 @@ import {
 	DropdownMenuTrigger as DropdownMenuTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 // no overflow clipping: sub-content panels render nested inside and extend past this box
@@ -103,7 +104,7 @@ export const DropdownMenuTrigger = createComponent(function DropdownMenuTrigger(
 			"data-slot": "dropdown-menu-trigger",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);
@@ -120,11 +121,11 @@ export const DropdownMenuContent = createComponent(function DropdownMenuContent(
 			offset,
 			...props,
 			"data-slot": "dropdown-menu-content",
-			class: [
+			class: cn(
 				menuContentClasses,
 				"origin-(--ip-dropdown-menu-content-transform-origin)",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -137,7 +138,7 @@ export const DropdownMenuItem = createComponent(function DropdownMenuItem(
 	...children: Child[]
 ) {
 	return DropdownMenuItemPrimitive(
-		{ ...props, "data-slot": "dropdown-menu-item", class: [menuItemClasses, className] },
+		{ ...props, "data-slot": "dropdown-menu-item", class: cn(menuItemClasses, className) },
 		...children,
 	);
 });
@@ -154,7 +155,7 @@ export const DropdownMenuCheckboxItem = createComponent(function DropdownMenuChe
 		{
 			...props,
 			"data-slot": "dropdown-menu-checkbox-item",
-			class: ["group/menu-item", menuItemClasses, menuIndicatorItemClasses, className],
+			class: cn("group/menu-item", menuItemClasses, menuIndicatorItemClasses, className),
 		},
 		MenuCheckIndicator(),
 		...children,
@@ -174,7 +175,7 @@ export const DropdownMenuRadioItem = createComponent(function DropdownMenuRadioI
 		{
 			...props,
 			"data-slot": "dropdown-menu-radio-item",
-			class: ["group/menu-item", menuItemClasses, menuIndicatorItemClasses, className],
+			class: cn("group/menu-item", menuItemClasses, menuIndicatorItemClasses, className),
 		},
 		MenuRadioIndicator(),
 		...children,
@@ -196,7 +197,7 @@ export const DropdownMenuGroupHeading = createComponent(function DropdownMenuGro
 		{
 			...props,
 			"data-slot": "dropdown-menu-group-heading",
-			class: [menuGroupHeadingClasses, className],
+			class: cn(menuGroupHeadingClasses, className),
 		},
 		...children,
 	);
@@ -211,7 +212,7 @@ export const DropdownMenuSeparator = createComponent(function DropdownMenuSepara
 	return DropdownMenuSeparatorPrimitive({
 		...props,
 		"data-slot": "dropdown-menu-separator",
-		class: [menuSeparatorClasses, className],
+		class: cn(menuSeparatorClasses, className),
 	});
 });
 
@@ -228,7 +229,7 @@ export const DropdownMenuSubTrigger = createComponent(function DropdownMenuSubTr
 		{
 			...props,
 			"data-slot": "dropdown-menu-sub-trigger",
-			class: [menuItemClasses, menuSubTriggerClasses, className],
+			class: cn(menuItemClasses, menuSubTriggerClasses, className),
 		},
 		...children,
 		MenuSubTriggerChevron(),
@@ -246,7 +247,7 @@ export const DropdownMenuSubContent = createComponent(function DropdownMenuSubCo
 			offset,
 			...props,
 			"data-slot": "dropdown-menu-sub-content",
-			class: [menuStaticPanelClasses, className],
+			class: cn(menuStaticPanelClasses, className),
 		},
 		...children,
 	);

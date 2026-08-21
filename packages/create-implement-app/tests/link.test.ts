@@ -98,6 +98,30 @@ describe("--link", () => {
 		expect(deps("my-app")["@implementjs/core"]).toContain("packages/core");
 	});
 
+	it("points the ui registry at the clone, through jsrepo's fs provider", async () => {
+		const repo = fakeRepo(["core", "kit", "primitives"]);
+		// the registry is built from the docs app, not the repository root
+		mkdirSync(join(cwd, repo, "apps/docs"), { recursive: true });
+		writeFileSync(
+			join(cwd, repo, "apps/docs/registry.json"),
+			JSON.stringify({ name: "@implementjs/ui" }),
+		);
+
+		await runCreate("my-app", options({ link: repo, ui: true }));
+
+		const config = readFileSync(join(cwd, "my-app/jsrepo.config.ts"), "utf8");
+		expect(config).toContain('registries: ["fs://../implement/apps/docs"]');
+		expect(config).toContain("providers: [...DEFAULT_PROVIDERS, fs()]");
+	});
+
+	it("errors when the linked repo has no built registry", async () => {
+		const repo = fakeRepo(["core", "kit", "primitives"]);
+
+		const result = await runCreate("my-app", options({ link: repo, ui: true }));
+
+		expect(unwrapErr(result).toString()).toContain("no built registry.json");
+	});
+
 	it("errors when the path holds no implement packages", async () => {
 		const result = await runCreate("my-app", options({ link: "./nowhere" }));
 

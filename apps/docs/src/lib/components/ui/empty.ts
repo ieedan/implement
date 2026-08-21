@@ -1,6 +1,7 @@
 import { Div, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
+import { cn } from "@/lib/utils";
 
 export const emptyMediaVariants = tv({
 	base: "mb-2 flex shrink-0 items-center justify-center [&_svg:not([class*='size-'])]:size-6",
@@ -36,10 +37,10 @@ export const Empty = createComponent(function Empty(
 		{
 			...props,
 			"data-slot": "empty",
-			class: [
+			class: cn(
 				"flex min-w-0 flex-1 flex-col items-center justify-center gap-6 rounded-lg border-dashed p-6 text-center text-balance md:p-12",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -53,7 +54,7 @@ export const EmptyHeader = createComponent(function EmptyHeader(
 		{
 			...props,
 			"data-slot": "empty-header",
-			class: ["flex max-w-sm flex-col items-center gap-2 text-center", className],
+			class: cn("flex max-w-sm flex-col items-center gap-2 text-center", className),
 		},
 		...children,
 	);
@@ -69,7 +70,7 @@ export const EmptyMedia = createComponent(function EmptyMedia(
 			...props,
 			"data-slot": "empty-media",
 			"data-variant": variant,
-			class: [emptyMediaVariants({ variant }), className],
+			class: cn(emptyMediaVariants({ variant }), className),
 		},
 		...children,
 	);
@@ -83,7 +84,7 @@ export const EmptyTitle = createComponent(function EmptyTitle(
 		{
 			...props,
 			"data-slot": "empty-title",
-			class: ["text-lg font-medium tracking-tight", className],
+			class: cn("text-lg font-medium tracking-tight", className),
 		},
 		...children,
 	);
@@ -97,10 +98,10 @@ export const EmptyDescription = createComponent(function EmptyDescription(
 		{
 			...props,
 			"data-slot": "empty-description",
-			class: [
+			class: cn(
 				"text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -115,10 +116,10 @@ export const EmptyContent = createComponent(function EmptyContent(
 		{
 			...props,
 			"data-slot": "empty-content",
-			class: [
+			class: cn(
 				"flex w-full max-w-sm min-w-0 flex-col items-center gap-4 text-sm text-balance",
 				className,
-			],
+			),
 		},
 		...children,
 	);

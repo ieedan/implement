@@ -1,6 +1,12 @@
 import { Div, If, signal, type Mountable } from "@implementjs/core";
-import { CheckIcon, ChevronDownIcon, CopyIcon, ExternalLinkIcon } from "@implementjs/lucide";
-import { ClaudeIcon, MarkdownIcon, OpenAIIcon } from "./brand-icons";
+import {
+	CheckIcon,
+	ChevronDownIcon,
+	CopyIcon,
+	ExternalLinkIcon,
+	MessageCircleIcon,
+} from "@implementjs/lucide";
+import { ClaudeIcon, FinalchatIcon, MarkdownIcon, OpenAIIcon } from "./brand-icons";
 import { copyText } from "@/lib/copy-text";
 import { Button } from "../ui/button";
 import {
@@ -77,6 +83,18 @@ export function CopyPage(permalink: string): Mountable {
 					{ onSelect: () => openPrompt("https://claude.ai/new?q=") },
 					ClaudeIcon({ class: "size-4", "aria-hidden": true }),
 					"Open in Claude",
+					ExternalLinkIcon({ class: "size-4 ml-auto text-muted-foreground", "aria-hidden": true }),
+				),
+				DropdownMenuItem(
+					{ onSelect: () => openPrompt("https://t3.chat/new?q=") },
+					MessageCircleIcon({ class: "size-4", "aria-hidden": true }),
+					"Open in T3 Chat",
+					ExternalLinkIcon({ class: "size-4 ml-auto text-muted-foreground", "aria-hidden": true }),
+				),
+				DropdownMenuItem(
+					{ onSelect: () => openPrompt("https://finalchat.app/chat?q=") },
+					FinalchatIcon({ class: "size-4", "aria-hidden": true }),
+					"Open in Finalchat",
 					ExternalLinkIcon({ class: "size-4 ml-auto text-muted-foreground", "aria-hidden": true }),
 				),
 			),

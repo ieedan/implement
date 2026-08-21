@@ -1,5 +1,5 @@
 import { Key, type Child } from "@implementjs/core";
-import { tutorials } from "@/lib/content";
+import { tutorials } from "@/lib/tutorials";
 import { NotFound } from "@/lib/views/not-found";
 import { TutorialPage } from "@/lib/views/tutorial-page";
 import type { PageProps } from "./$types";

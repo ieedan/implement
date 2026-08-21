@@ -1,6 +1,7 @@
 import { Div, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
+import { cn } from "@/lib/utils";
 
 export const itemVariants = tv({
 	base: "group/item flex flex-wrap items-center rounded-md border border-transparent text-sm outline-none transition-colors duration-100 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a&]:hover:bg-accent/50 [a&]:transition-colors",
@@ -55,7 +56,7 @@ export const ItemGroup = createComponent(function ItemGroup(
 			role: "list",
 			...props,
 			"data-slot": "item-group",
-			class: ["group/item-group flex flex-col", className],
+			class: cn("group/item-group flex flex-col", className),
 		},
 		...children,
 	);
@@ -69,7 +70,7 @@ export const ItemSeparator = createComponent(function ItemSeparator({
 		role: "separator",
 		...props,
 		"data-slot": "item-separator",
-		class: ["my-0 h-px shrink-0 bg-border", className],
+		class: cn("my-0 h-px shrink-0 bg-border", className),
 	});
 });
 
@@ -91,7 +92,7 @@ export const Item = createComponent(function Item(
 			"data-slot": "item",
 			"data-variant": variant,
 			"data-size": size,
-			class: [itemVariants({ variant, size }), className],
+			class: cn(itemVariants({ variant, size }), className),
 		},
 		...children,
 	);
@@ -107,7 +108,7 @@ export const ItemMedia = createComponent(function ItemMedia(
 			...props,
 			"data-slot": "item-media",
 			"data-variant": variant,
-			class: [itemMediaVariants({ variant }), className],
+			class: cn(itemMediaVariants({ variant }), className),
 		},
 		...children,
 	);
@@ -121,7 +122,7 @@ export const ItemContent = createComponent(function ItemContent(
 		{
 			...props,
 			"data-slot": "item-content",
-			class: ["flex flex-1 flex-col gap-1 [&+[data-slot=item-content]]:flex-none", className],
+			class: cn("flex flex-1 flex-col gap-1 [&+[data-slot=item-content]]:flex-none", className),
 		},
 		...children,
 	);
@@ -135,7 +136,7 @@ export const ItemTitle = createComponent(function ItemTitle(
 		{
 			...props,
 			"data-slot": "item-title",
-			class: ["flex w-fit items-center gap-2 text-sm leading-snug font-medium", className],
+			class: cn("flex w-fit items-center gap-2 text-sm leading-snug font-medium", className),
 		},
 		...children,
 	);
@@ -149,11 +150,11 @@ export const ItemDescription = createComponent(function ItemDescription(
 		{
 			...props,
 			"data-slot": "item-description",
-			class: [
+			class: cn(
 				"line-clamp-2 text-sm leading-normal font-normal text-balance text-muted-foreground",
 				"[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -165,7 +166,7 @@ export const ItemActions = createComponent(function ItemActions(
 	...children: Child[]
 ) {
 	return Div(
-		{ ...props, "data-slot": "item-actions", class: ["flex items-center gap-2", className] },
+		{ ...props, "data-slot": "item-actions", class: cn("flex items-center gap-2", className) },
 		...children,
 	);
 });
@@ -178,7 +179,7 @@ export const ItemHeader = createComponent(function ItemHeader(
 		{
 			...props,
 			"data-slot": "item-header",
-			class: ["flex basis-full items-center justify-between gap-2", className],
+			class: cn("flex basis-full items-center justify-between gap-2", className),
 		},
 		...children,
 	);
@@ -192,7 +193,7 @@ export const ItemFooter = createComponent(function ItemFooter(
 		{
 			...props,
 			"data-slot": "item-footer",
-			class: ["flex basis-full items-center justify-between gap-2", className],
+			class: cn("flex basis-full items-center justify-between gap-2", className),
 		},
 		...children,
 	);

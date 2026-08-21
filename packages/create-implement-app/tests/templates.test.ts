@@ -227,6 +227,75 @@ describe("templates", () => {
 		expect(tailwind).toContain("border-zinc-800");
 	});
 
+	it.each(TEMPLATES)("%s only sets up the ui registry when the addon is selected", (id) => {
+		const counterPath = id === "kit" ? "src/lib/counter.ts" : "src/counter.ts";
+
+		const without = fileMap(id, ctx({ addons: ["tailwind", "primitives"] }));
+		expect(without.has("jsrepo.config.ts")).toBe(false);
+		expect(pkg(without).devDependencies.jsrepo).toBeUndefined();
+		expect(pkg(without).dependencies["tailwind-variants"]).toBeUndefined();
+
+		const withUi = fileMap(id, ctx({ addons: ["tailwind", "primitives", "ui"] }));
+		expect(withUi.get("jsrepo.config.ts")).toContain('registries: ["@implementjs/ui"]');
+		// the components are `ui` items, and the `cn` they share is a `lib`
+		expect(withUi.get("jsrepo.config.ts")).toContain('ui: "src/lib/components/ui"');
+		expect(withUi.get("jsrepo.config.ts")).toContain('lib: "src/lib"');
+		expect(pkg(withUi).devDependencies.jsrepo).toBeDefined();
+		expect(pkg(withUi).dependencies["tailwind-variants"]).toBeDefined();
+		expect(pkg(withUi).scripts.ui).toBe("jsrepo add");
+		// the counter opens on a styled Button rather than the bare element from core
+		expect(withUi.get(counterPath)).toContain("components/ui/button");
+		expect(withUi.get(counterPath)).toContain('variant: "outline", size: "icon"');
+		expect(withUi.get(counterPath)).not.toContain("Button,");
+	});
+
+	it.each(TEMPLATES)("%s reads a linked registry off disk", (id) => {
+		const files = fileMap(
+			id,
+			ctx({ addons: ["tailwind", "primitives", "ui"], linkRoot: "../implement" }),
+		);
+		const config = files.get("jsrepo.config.ts") ?? "";
+
+		expect(config).toContain('registries: ["fs://../implement/apps/docs"]');
+		expect(config).toContain('import { fs } from "jsrepo/providers"');
+		// the fs provider is added to the built in ones, not swapped in for them
+		expect(config).toContain("providers: [...DEFAULT_PROVIDERS, fs()]");
+	});
+
+	it("the ui addon swaps the palette for the tokens the components read", () => {
+		const css = fileMap("csr", ctx({ addons: ["tailwind", "primitives", "ui"] })).get(
+			"src/app.css",
+		);
+
+		// `:root` names the values, `@theme inline` is what makes `bg-primary` compile at all
+		expect(css).toContain("--primary: #fff;");
+		expect(css).toContain("--color-primary: var(--primary);");
+		// components write `border` with no color on the assumption that the default is the token
+		expect(css).toContain("@apply border-border;");
+		expect(css).not.toContain("zinc");
+
+		// with mode-watcher the same tokens get a light half and a `.dark` block
+		const dual = fileMap(
+			"csr",
+			ctx({ addons: ["tailwind", "primitives", "ui", "modeWatcher"] }),
+		).get("src/app.css");
+		expect(dual).toContain(".dark {");
+		expect(dual).not.toContain("color-scheme: dark;");
+	});
+
+	it.each(TEMPLATES)("%s allows the build scripts pnpm would otherwise refuse", (id) => {
+		// pnpm 11 fails the install outright on an unapproved build script, and vite's esbuild has one
+		const workspace = fileMap(id, ctx({ packageManager: "pnpm" })).get("pnpm-workspace.yaml");
+		expect(workspace).toContain("allowBuilds:");
+		expect(workspace).toContain("esbuild: true");
+
+		// nothing else blocks build scripts, and an app inside the monorepo answers to the root file
+		expect(fileMap(id, ctx({ packageManager: "npm" })).has("pnpm-workspace.yaml")).toBe(false);
+		expect(
+			fileMap(id, ctx({ packageManager: "pnpm", workspace: true })).has("pnpm-workspace.yaml"),
+		).toBe(false);
+	});
+
 	it("every template and addon combination writes the same files twice", () => {
 		for (const id of TEMPLATES) {
 			const context = ctx({ addons: [...ADDONS] });

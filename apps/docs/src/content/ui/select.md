@@ -18,7 +18,7 @@ jsrepo pulls [`dropdown-menu`](/ui/dropdown-menu) along with it, and installs `@
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/select.ts`. It imports [`dropdown-menu`](/ui/dropdown-menu) from the same directory, so install that too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/select.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and [`dropdown-menu`](/ui/dropdown-menu) from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide

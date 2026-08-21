@@ -1,5 +1,5 @@
 import { A, Div, Fragment, navigateTo, Span, type Child, type Writable } from "@implementjs/core";
-import type { Tutorial } from "@/lib/content";
+import type { Tutorial } from "@/lib/tutorials";
 import { tutorialParts, type TutorialSection } from "@/lib/tutorials";
 import { SheetContent, SheetOverlay, SheetTitle } from "../ui/sheet";
 

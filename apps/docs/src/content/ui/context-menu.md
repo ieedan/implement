@@ -18,7 +18,7 @@ jsrepo pulls [`dropdown-menu`](/ui/dropdown-menu) along with it.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/context-menu.ts`. It imports [`dropdown-menu`](/ui/dropdown-menu) from the same directory, so install that too.
+Copy the file below to `src/lib/components/ui/context-menu.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and [`dropdown-menu`](/ui/dropdown-menu) from the same directory — copy those in beside it too.
 
 <div data-source="context-menu"></div>
 

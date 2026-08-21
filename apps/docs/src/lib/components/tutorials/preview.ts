@@ -5,7 +5,7 @@ import {
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import type { LessonFile } from "@/lib/content";
+import type { LessonFile } from "@/lib/tutorials";
 import { isKitLesson, runKitApp } from "@/lib/run-kit-lesson";
 import {
 	CONSOLE_LEVELS,

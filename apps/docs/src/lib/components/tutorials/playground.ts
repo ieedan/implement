@@ -15,7 +15,7 @@ import {
 } from "@implementjs/core";
 import { RefreshCwIcon, TerminalIcon } from "@implementjs/lucide";
 import type { ConsoleEntry } from "@/lib/console-format";
-import type { LessonFile } from "@/lib/content";
+import type { LessonFile } from "@/lib/tutorials";
 import { countLessonRoutes, isKitLesson } from "@/lib/run-kit-lesson";
 import { ConsolePanel } from "./console-panel";
 import { CodeEditor } from "./editor";

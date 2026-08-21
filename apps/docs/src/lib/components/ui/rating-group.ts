@@ -5,6 +5,7 @@ import {
 	RatingGroupItem as RatingGroupItemPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type RatingGroupProps = ComponentProps<typeof RatingGroupPrimitive>;
 export type RatingGroupItemProps = ComponentProps<typeof RatingGroupItemPrimitive>;
@@ -17,10 +18,10 @@ export const RatingGroup = createComponent(function RatingGroup(
 		{
 			...props,
 			"data-slot": "rating-group",
-			class: [
+			class: cn(
 				"flex w-fit items-center gap-1 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -34,13 +35,13 @@ export const RatingGroupItem = createComponent(function RatingGroupItem(
 		{
 			...props,
 			"data-slot": "rating-group-item",
-			class: [
+			class: cn(
 				"group/rating-item cursor-pointer text-muted-foreground transition-colors",
 				"data-[state=active]:text-primary",
 				"data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
 				"data-[readonly]:cursor-default",
 				className,
-			],
+			),
 		},
 		...(children.length > 0
 			? children

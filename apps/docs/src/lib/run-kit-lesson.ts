@@ -29,7 +29,7 @@ import {
 	type RouteData,
 	type ServerLoad,
 } from "@implementjs/kit/runtime";
-import type { LessonFile } from "./content";
+import type { LessonFile } from "./tutorials";
 import {
 	buildRouterRoutes,
 	endpointFiles,

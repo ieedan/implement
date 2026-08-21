@@ -8,6 +8,7 @@ import {
 	AccordionTrigger as AccordionTriggerPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type AccordionProps = ComponentProps<typeof AccordionPrimitive>;
 export type AccordionItemProps = ComponentProps<typeof AccordionItemPrimitive>;
@@ -30,7 +31,7 @@ export const AccordionItem = createComponent(function AccordionItem(
 		{
 			...props,
 			"data-slot": "accordion-item",
-			class: ["border-b last:border-b-0", className],
+			class: cn("border-b last:border-b-0", className),
 		},
 		...children,
 	);
@@ -40,7 +41,7 @@ export const AccordionHeader = createComponent(function AccordionHeader(
 	{ class: className, ...props }: AccordionHeaderProps,
 	...children: Child[]
 ) {
-	return AccordionHeaderPrimitive({ ...props, class: ["flex", className] }, ...children);
+	return AccordionHeaderPrimitive({ ...props, class: cn("flex", className) }, ...children);
 });
 
 export const AccordionTrigger = createComponent(function AccordionTrigger(
@@ -53,10 +54,10 @@ export const AccordionTrigger = createComponent(function AccordionTrigger(
 			{
 				...props,
 				"data-slot": "accordion-trigger",
-				class: [
+				class: cn(
 					"flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180",
 					className,
-				],
+				),
 			},
 			...children,
 			ChevronDownIcon({
@@ -79,6 +80,6 @@ export const AccordionContent = createComponent(function AccordionContent(
 			class:
 				"overflow-hidden text-sm motion-reduce:animate-none data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
 		},
-		Div({ class: ["pt-0 pb-4", className] }, ...children),
+		Div({ class: cn("pt-0 pb-4", className) }, ...children),
 	);
 });

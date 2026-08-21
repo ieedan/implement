@@ -17,6 +17,7 @@ import {
 	type Month,
 } from "@implementjs/primitives";
 import { buttonVariants } from "./button";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 export type CalendarProps = CalendarRootProps | CalendarRootProps<"multiple">;
@@ -97,7 +98,7 @@ export const Calendar = createComponent(function Calendar({
 	...props
 }: CalendarProps) {
 	return CalendarPrimitive(
-		{ ...props, class: [calendarRootClasses, className] },
+		{ ...props, class: cn(calendarRootClasses, className) },
 		({ months, weekdays }) =>
 			Fragment(
 				CalendarNav(),

@@ -1,10 +1,12 @@
+import type { PackageManager } from "@/utils/package";
+
 /** The starting points a new app can be created from. */
 export const TEMPLATES = ["kit", "csr"] as const;
 
 export type TemplateId = (typeof TEMPLATES)[number];
 
 /** The optional extras that can be layered onto either template. */
-export const ADDONS = ["tailwind", "primitives", "icons", "forms", "modeWatcher"] as const;
+export const ADDONS = ["tailwind", "primitives", "ui", "icons", "forms", "modeWatcher"] as const;
 
 export type Addon = (typeof ADDONS)[number];
 
@@ -16,6 +18,10 @@ export const ADDON_META = {
 	primitives: {
 		label: "@implementjs/primitives",
 		hint: "Headless, accessible components",
+	},
+	ui: {
+		label: "@implementjs/ui",
+		hint: "Styled components, copied in with jsrepo",
 	},
 	icons: {
 		label: "@implementjs/lucide",
@@ -47,6 +53,17 @@ export type TemplateContext = {
 	 * falls back to a version.
 	 */
 	link?: Record<string, string>;
+	/**
+	 * How the app should spell the path to the local clone `--link` points at — the same relative
+	 * path the linked specifiers use. The `ui` addon turns it into the `fs://` registry its
+	 * `jsrepo.config.ts` reads, so components come off disk instead of over the network.
+	 */
+	linkRoot?: string;
+	/**
+	 * The package manager the app will be installed with. Only pnpm needs anything written for it —
+	 * see {@link pnpmWorkspace}.
+	 */
+	packageManager?: PackageManager;
 };
 
 export type TemplateFile = {

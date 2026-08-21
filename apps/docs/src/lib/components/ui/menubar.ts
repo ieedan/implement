@@ -28,6 +28,7 @@ import {
 	menuSubTriggerClasses,
 } from "./dropdown-menu";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type MenubarProps = ComponentProps<typeof MenubarPrimitive>;
 
@@ -39,10 +40,10 @@ export const Menubar = createComponent(function Menubar(
 		{
 			...props,
 			"data-slot": "menubar",
-			class: [
+			class: cn(
 				"flex h-9 items-center gap-1 rounded-md border bg-background p-1 shadow-xs",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -61,12 +62,12 @@ export const MenubarTrigger = createComponent(function MenubarTrigger(
 		{
 			...props,
 			"data-slot": "menubar-trigger",
-			class: [
+			class: cn(
 				"flex items-center rounded-sm px-2 py-1 text-sm font-medium outline-none select-none",
 				"data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
 				"data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -83,7 +84,7 @@ export const MenubarContent = createComponent(function MenubarContent(
 			offset,
 			...props,
 			"data-slot": "menubar-content",
-			class: [menuContentClasses, "origin-(--ip-menubar-content-transform-origin)", className],
+			class: cn(menuContentClasses, "origin-(--ip-menubar-content-transform-origin)", className),
 		},
 		...children,
 	);
@@ -96,7 +97,7 @@ export const MenubarItem = createComponent(function MenubarItem(
 	...children: Child[]
 ) {
 	return MenubarItemPrimitive(
-		{ ...props, "data-slot": "menubar-item", class: [menuItemClasses, className] },
+		{ ...props, "data-slot": "menubar-item", class: cn(menuItemClasses, className) },
 		...children,
 	);
 });
@@ -111,7 +112,7 @@ export const MenubarCheckboxItem = createComponent(function MenubarCheckboxItem(
 		{
 			...props,
 			"data-slot": "menubar-checkbox-item",
-			class: ["group/menu-item", menuItemClasses, menuIndicatorItemClasses, className],
+			class: cn("group/menu-item", menuItemClasses, menuIndicatorItemClasses, className),
 		},
 		MenuCheckIndicator(),
 		...children,
@@ -131,7 +132,7 @@ export const MenubarRadioItem = createComponent(function MenubarRadioItem(
 		{
 			...props,
 			"data-slot": "menubar-radio-item",
-			class: ["group/menu-item", menuItemClasses, menuIndicatorItemClasses, className],
+			class: cn("group/menu-item", menuItemClasses, menuIndicatorItemClasses, className),
 		},
 		MenuRadioIndicator(),
 		...children,
@@ -148,7 +149,11 @@ export const MenubarGroupHeading = createComponent(function MenubarGroupHeading(
 	...children: Child[]
 ) {
 	return MenubarGroupHeadingPrimitive(
-		{ ...props, "data-slot": "menubar-group-heading", class: [menuGroupHeadingClasses, className] },
+		{
+			...props,
+			"data-slot": "menubar-group-heading",
+			class: cn(menuGroupHeadingClasses, className),
+		},
 		...children,
 	);
 });
@@ -162,7 +167,7 @@ export const MenubarSeparator = createComponent(function MenubarSeparator({
 	return MenubarSeparatorPrimitive({
 		...props,
 		"data-slot": "menubar-separator",
-		class: [menuSeparatorClasses, className],
+		class: cn(menuSeparatorClasses, className),
 	});
 });
 
@@ -179,7 +184,7 @@ export const MenubarSubTrigger = createComponent(function MenubarSubTrigger(
 		{
 			...props,
 			"data-slot": "menubar-sub-trigger",
-			class: [menuItemClasses, menuSubTriggerClasses, className],
+			class: cn(menuItemClasses, menuSubTriggerClasses, className),
 		},
 		...children,
 		MenuSubTriggerChevron(),
@@ -197,7 +202,7 @@ export const MenubarSubContent = createComponent(function MenubarSubContent(
 			offset,
 			...props,
 			"data-slot": "menubar-sub-content",
-			class: [menuStaticPanelClasses, className],
+			class: cn(menuStaticPanelClasses, className),
 		},
 		...children,
 	);

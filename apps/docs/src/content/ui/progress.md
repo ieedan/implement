@@ -18,7 +18,7 @@ Nothing else comes with it — this one stands alone on `@implementjs/core` and 
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/progress.ts`.
+Copy the file below to `src/lib/components/ui/progress.ts`. It imports `cn`, so copy [`utils.ts`](/ui#merging-classes) to `src/lib/utils.ts` too.
 
 <div data-source="progress"></div>
 

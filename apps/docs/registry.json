@@ -1,0 +1,1824 @@
+{
+	"name": "@implementjs/ui",
+	"description": "Styled components built on @implementjs/primitives.",
+	"homepage": "https://github.com/ieedan/implement",
+	"repository": "https://github.com/ieedan/implement",
+	"type": "repository",
+	"defaultPaths": {
+		"ui": "src/lib/components/ui",
+		"lib": "src/lib"
+	},
+	"items": [
+		{
+			"name": "accordion",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "accordion.ts",
+					"relativePath": "src/lib/components/ui/accordion.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "alert-dialog",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "alert-dialog.ts",
+					"relativePath": "src/lib/components/ui/alert-dialog.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "alert",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "alert.ts",
+					"relativePath": "src/lib/components/ui/alert.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "aspect-ratio",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "aspect-ratio.ts",
+					"relativePath": "src/lib/components/ui/aspect-ratio.ts",
+					"_imports_": [],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "avatar",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "avatar.ts",
+					"relativePath": "src/lib/components/ui/avatar.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "badge",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "badge.ts",
+					"relativePath": "src/lib/components/ui/badge.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "breadcrumb",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "breadcrumb.ts",
+					"relativePath": "src/lib/components/ui/breadcrumb.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "button-group",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"separator",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "button-group.ts",
+					"relativePath": "src/lib/components/ui/button-group.ts",
+					"_imports_": [
+						{
+							"import": "./separator",
+							"item": "separator",
+							"file": {
+								"type": "ui",
+								"path": "separator.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "button",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "button.ts",
+					"relativePath": "src/lib/components/ui/button.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "calendar",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "calendar.ts",
+					"relativePath": "src/lib/components/ui/calendar.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "card",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "card.ts",
+					"relativePath": "src/lib/components/ui/card.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "checkbox",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "checkbox.ts",
+					"relativePath": "src/lib/components/ui/checkbox.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "collapsible",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "collapsible.ts",
+					"relativePath": "src/lib/components/ui/collapsible.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "command",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "command.ts",
+					"relativePath": "src/lib/components/ui/command.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "context-menu",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"dropdown-menu",
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "context-menu.ts",
+					"relativePath": "src/lib/components/ui/context-menu.ts",
+					"_imports_": [
+						{
+							"import": "./dropdown-menu",
+							"item": "dropdown-menu",
+							"file": {
+								"type": "ui",
+								"path": "dropdown-menu.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "dialog",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "dialog.ts",
+					"relativePath": "src/lib/components/ui/dialog.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "dropdown-menu",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "dropdown-menu.ts",
+					"relativePath": "src/lib/components/ui/dropdown-menu.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "empty",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "empty.ts",
+					"relativePath": "src/lib/components/ui/empty.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "field",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"label",
+				"separator",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "field.ts",
+					"relativePath": "src/lib/components/ui/field.ts",
+					"_imports_": [
+						{
+							"import": "./label",
+							"item": "label",
+							"file": {
+								"type": "ui",
+								"path": "label.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./separator",
+							"item": "separator",
+							"file": {
+								"type": "ui",
+								"path": "separator.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "input",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "input.ts",
+					"relativePath": "src/lib/components/ui/input.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "item",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "item.ts",
+					"relativePath": "src/lib/components/ui/item.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "kbd",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "kbd.ts",
+					"relativePath": "src/lib/components/ui/kbd.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "label",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "label.ts",
+					"relativePath": "src/lib/components/ui/label.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "link-preview",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "link-preview.ts",
+					"relativePath": "src/lib/components/ui/link-preview.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "menubar",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"dropdown-menu",
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "menubar.ts",
+					"relativePath": "src/lib/components/ui/menubar.ts",
+					"_imports_": [
+						{
+							"import": "./dropdown-menu",
+							"item": "dropdown-menu",
+							"file": {
+								"type": "ui",
+								"path": "dropdown-menu.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "meter",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "meter.ts",
+					"relativePath": "src/lib/components/ui/meter.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "popover",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "popover.ts",
+					"relativePath": "src/lib/components/ui/popover.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "progress",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "progress.ts",
+					"relativePath": "src/lib/components/ui/progress.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "radio-group",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "radio-group.ts",
+					"relativePath": "src/lib/components/ui/radio-group.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "range-calendar",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"calendar",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "range-calendar.ts",
+					"relativePath": "src/lib/components/ui/range-calendar.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./calendar",
+							"item": "calendar",
+							"file": {
+								"type": "ui",
+								"path": "calendar.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "rating-group",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "rating-group.ts",
+					"relativePath": "src/lib/components/ui/rating-group.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "select",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"dropdown-menu",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "select.ts",
+					"relativePath": "src/lib/components/ui/select.ts",
+					"_imports_": [
+						{
+							"import": "./dropdown-menu",
+							"item": "dropdown-menu",
+							"file": {
+								"type": "ui",
+								"path": "dropdown-menu.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "separator",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "separator.ts",
+					"relativePath": "src/lib/components/ui/separator.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "sheet",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "sheet.ts",
+					"relativePath": "src/lib/components/ui/sheet.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "sidebar",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"input",
+				"separator",
+				"sheet",
+				"skeleton",
+				"tooltip",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				},
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "sidebar.ts",
+					"relativePath": "src/lib/components/ui/sidebar.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./input",
+							"item": "input",
+							"file": {
+								"type": "ui",
+								"path": "input.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./separator",
+							"item": "separator",
+							"file": {
+								"type": "ui",
+								"path": "separator.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./sheet",
+							"item": "sheet",
+							"file": {
+								"type": "ui",
+								"path": "sheet.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./skeleton",
+							"item": "skeleton",
+							"file": {
+								"type": "ui",
+								"path": "skeleton.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./tooltip",
+							"item": "tooltip",
+							"file": {
+								"type": "ui",
+								"path": "tooltip.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "skeleton",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "skeleton.ts",
+					"relativePath": "src/lib/components/ui/skeleton.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "spinner",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "spinner.ts",
+					"relativePath": "src/lib/components/ui/spinner.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "switch",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "switch.ts",
+					"relativePath": "src/lib/components/ui/switch.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "tabs",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "tabs.ts",
+					"relativePath": "src/lib/components/ui/tabs.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "textarea",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "textarea.ts",
+					"relativePath": "src/lib/components/ui/textarea.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "toast",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "toast.ts",
+					"relativePath": "src/lib/components/ui/toast.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "toggle-group",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"toggle",
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "toggle-group.ts",
+					"relativePath": "src/lib/components/ui/toggle-group.ts",
+					"_imports_": [
+						{
+							"import": "./toggle",
+							"item": "toggle",
+							"file": {
+								"type": "ui",
+								"path": "toggle.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "toggle",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "toggle.ts",
+					"relativePath": "src/lib/components/ui/toggle.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "tooltip",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "tooltip.ts",
+					"relativePath": "src/lib/components/ui/tooltip.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "utils",
+			"type": "lib",
+			"add": "when-needed",
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "tailwind-merge",
+					"version": "^3.6.0"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "lib",
+					"role": "file",
+					"path": "utils.ts",
+					"relativePath": "src/lib/utils.ts",
+					"_imports_": [],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		}
+	]
+}

@@ -10,6 +10,7 @@ import {
 	tryCommand,
 } from "@/commands/utils";
 import { getTemplate } from "@/templates";
+import { UI_ITEMS, UI_REGISTRY, UI_REGISTRY_DIR, UI_SCRIPT } from "@/templates/shared";
 import {
 	ADDON_META,
 	ADDONS,
@@ -24,9 +25,10 @@ import {
 	ConflictingLinkOptionsError,
 	CreateImplementAppError,
 	DirectoryNotEmptyError,
+	MissingLinkedRegistryError,
 } from "@/utils/errors";
 import { findLinkablePackages, linkSpecifiers } from "@/utils/link";
-import { meaningfulEntries, writeFileSync } from "@/utils/fs";
+import { exists, meaningfulEntries, writeFileSync } from "@/utils/fs";
 import {
 	detectPackageManager,
 	installCommand,
@@ -49,11 +51,20 @@ export const DEFAULT_TEMPLATE: TemplateId = "kit";
 /** The addons `--yes` (and any other non-interactive run) turns on. */
 export const DEFAULT_ADDONS: Addon[] = ["tailwind"];
 
+/**
+ * The addons an addon cannot work without. The styled components are tailwind classes over the
+ * primitives, so picking `ui` alone would scaffold an app whose first component doesn't render.
+ */
+const REQUIRES: Partial<Record<Addon, Addon[]>> = {
+	ui: ["tailwind", "primitives"],
+};
+
 export const schema = defaultCommandOptionsSchema.extend({
 	name: z.string().optional(),
 	template: z.enum(TEMPLATES).optional(),
 	tailwind: z.boolean().optional(),
 	primitives: z.boolean().optional(),
+	ui: z.boolean().optional(),
 	icons: z.boolean().optional(),
 	forms: z.boolean().optional(),
 	modeWatcher: z.boolean().optional(),
@@ -79,6 +90,8 @@ export type CreateCommandResult = {
 	installed: boolean;
 	/** Whether kit's `.implement/` was generated as part of the run. */
 	synced: boolean;
+	/** The `@implementjs/ui` components jsrepo added, empty when the addon is off or nothing ran. */
+	components: string[];
 	/** The implement packages that were linked to a local repo, keyed by name. */
 	linked: Record<string, string> | undefined;
 };
@@ -98,6 +111,8 @@ export function addCreateCommand(cmd: Command): Command {
 		.option("--no-tailwind", "Don't set up tailwindcss.")
 		.option("--primitives", "Add headless components from @implementjs/primitives.")
 		.option("--no-primitives", "Don't add @implementjs/primitives.")
+		.option("--ui", "Add styled components from the @implementjs/ui jsrepo registry.")
+		.option("--no-ui", "Don't add @implementjs/ui.")
 		.option("--icons", "Add icons from @implementjs/lucide.")
 		.option("--no-icons", "Don't add @implementjs/lucide.")
 		.option("--forms", "Add schema-first forms from @implementjs/formish.")
@@ -204,6 +219,13 @@ export async function runCreate(
 	if (linkResult.isErr()) return err(linkResult.error);
 	const link = linkResult.value;
 
+	const ui = addons.includes("ui");
+	// jsrepo's fs provider reads the built manifest, so a clone that has never run `jsrepo build`
+	// would only fail once the components are being added — after everything else succeeded
+	if (ui && link && !exists(joinAbsolute(link.root, UI_REGISTRY_DIR, "registry.json"))) {
+		return err(new MissingLinkedRegistryError(shortestPath(options.cwd, link.root)));
+	}
+
 	spinner.start(`Creating ${pc.cyan(name)}`);
 
 	const filesResult = templateFiles(template, {
@@ -211,6 +233,8 @@ export async function runCreate(
 		addons,
 		workspace: options.workspace,
 		link: link?.specifiers,
+		linkRoot: link?.path,
+		packageManager,
 	});
 	if (filesResult.isErr()) {
 		spinner.stop(pc.red(`Failed to create ${pc.cyan(name)}`));
@@ -277,11 +301,28 @@ export async function runCreate(
 		});
 	}
 
+	// jsrepo copies the components out of the registry, so it needs its own dependency on disk —
+	// which means this waits on the install the same way the sync above does
+	const components = ui && options.install ? UI_ITEMS : [];
+	if (components.length > 0) {
+		await runCommands({
+			title: `Adding ${components.join(", ")} from ${UI_REGISTRY}`,
+			commands: [runCommand(packageManager, UI_SCRIPT, [...components, "--yes"])],
+			cwd: directory,
+			messages: {
+				success: () => `Added ${components.join(", ")} from ${UI_REGISTRY}`,
+				error: (e) => `Failed to add components from ${UI_REGISTRY}: ${String(e)}`,
+			},
+		});
+	}
+
 	logNextSteps({
 		cwd: options.cwd,
 		directory,
 		packageManager,
 		installed: options.install,
+		// without an install the components were never fetched, and the counter imports one
+		components: ui && !options.install ? UI_ITEMS : [],
 	});
 
 	return ok({
@@ -293,6 +334,7 @@ export async function runCreate(
 		packageManager,
 		installed: options.install,
 		synced,
+		components,
 		linked: link?.specifiers,
 	});
 }
@@ -308,7 +350,10 @@ function resolveLink(
 		packageManager,
 		verbose,
 	}: { directory: AbsolutePath; packageManager: PackageManager; verbose: (msg: string) => void },
-): Result<{ root: AbsolutePath; specifiers: Record<string, string> } | undefined, CLIError> {
+): Result<
+	{ root: AbsolutePath; path: string; specifiers: Record<string, string> } | undefined,
+	CLIError
+> {
 	if (options.link === undefined) return ok(undefined);
 	if (options.workspace) return err(new ConflictingLinkOptionsError());
 
@@ -320,6 +365,8 @@ function resolveLink(
 
 	return ok({
 		root,
+		// how the app spells the clone, which is also what the jsrepo `fs://` registry points at
+		path: shortestPath(directory, root),
 		specifiers: linkSpecifiers({
 			packages: packages.value,
 			appDirectory: directory,
@@ -355,7 +402,9 @@ async function resolveAddons(
 	const fromFlags = (addon: Addon): boolean | undefined => options[addon];
 
 	if (!interactive) {
-		return ADDONS.filter((addon) => fromFlags(addon) ?? DEFAULT_ADDONS.includes(addon));
+		return withRequired(
+			ADDONS.filter((addon) => fromFlags(addon) ?? DEFAULT_ADDONS.includes(addon)),
+		);
 	}
 
 	const selected = unwrapPrompt(
@@ -372,7 +421,13 @@ async function resolveAddons(
 	);
 
 	// keep the canonical order so the generated files don't depend on click order
-	return ADDONS.filter((addon) => selected.includes(addon));
+	return withRequired(ADDONS.filter((addon) => selected.includes(addon)));
+}
+
+/** Turns on whatever {@link REQUIRES} says the chosen addons need, even against a `--no-` flag. */
+function withRequired(addons: Addon[]): Addon[] {
+	const required = new Set(addons.flatMap((addon) => REQUIRES[addon] ?? []));
+	return ADDONS.filter((addon) => addons.includes(addon) || required.has(addon));
 }
 
 function logNextSteps({
@@ -380,17 +435,22 @@ function logNextSteps({
 	directory,
 	packageManager,
 	installed,
+	components,
 }: {
 	cwd: AbsolutePath;
 	directory: AbsolutePath;
 	packageManager: PackageManager;
 	installed: boolean;
+	components: string[];
 }) {
 	const relative = relativeToCwd(cwd, directory);
 	const steps: string[] = [];
 
 	if (relative !== "") steps.push(`cd ${relative}`);
 	if (!installed) steps.push(`${packageManager} install`);
+	if (components.length > 0) {
+		steps.push(runCommandString(packageManager, UI_SCRIPT, components));
+	}
 	steps.push(runCommandString(packageManager, "dev"));
 
 	log.message(

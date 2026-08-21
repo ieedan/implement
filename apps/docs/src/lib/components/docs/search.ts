@@ -24,21 +24,14 @@ import {
 	DialogTitle as DialogTitlePrimitive,
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
-import {
-	formishPages,
-	kitPages,
-	lucidePages,
-	modeWatcherPages,
-	pages,
-	primitivePages,
-	tutorials,
-	uiPages,
-} from "@/lib/content";
 import { copyText } from "@/lib/copy-text";
 import {
+	prepareSearchIndex,
 	searchPages,
-	warmSearchIndex,
 	type HighlightPart,
+	type IndexedArea,
+	type SearchArea,
+	type SearchIndex,
 	type SearchPage,
 	type SearchResult,
 } from "@/lib/search";
@@ -61,47 +54,66 @@ import {
 } from "../ui/dropdown-menu";
 import { MarkdownIcon } from "./brand-icons";
 
-type AreaKey =
-	| "lib"
-	| "kit"
-	| "primitives"
-	| "ui"
-	| "formish"
-	| "lucide"
-	| "mode-watcher"
-	| "tutorial";
+const SEARCH_INDEX_URL = "/search.json";
 
-type Area = {
-	key: AreaKey;
-	label: string;
-	pages: SearchPage[];
-	/** Whether kit serves a `.md` twin next to these pages (lessons have none). */
-	markdown: boolean;
-};
+/**
+ * The prebuilt index, fetched the first time the palette opens.
+ *
+ * Module scope rather than component state so it survives the header
+ * remounting across sections — the corpus is downloaded once per document, not
+ * once per visit to the palette. It stays null on the server: nothing calls
+ * {@link loadIndex} outside a dialog the reader opened.
+ */
+const index = signal<SearchArea[] | null>(null);
+const indexFailed = signal(false);
+/** Non-null while a fetch is in flight or has succeeded; cleared on failure. */
+let indexRequest: Promise<void> | null = null;
 
-const areas: Area[] = [
-	{ key: "lib", label: "@implementjs/core", pages, markdown: true },
-	{ key: "kit", label: "@implementjs/kit", pages: kitPages, markdown: true },
-	{
-		key: "primitives",
-		label: "@implementjs/primitives",
-		pages: primitivePages,
-		markdown: true,
-	},
-	{ key: "ui", label: "@implementjs/ui", pages: uiPages, markdown: true },
-	{ key: "formish", label: "@implementjs/formish", pages: formishPages, markdown: true },
-	{ key: "lucide", label: "@implementjs/lucide", pages: lucidePages, markdown: true },
-	{
-		key: "mode-watcher",
-		label: "@implementjs/mode-watcher",
-		pages: modeWatcherPages,
-		markdown: true,
-	},
-	{ key: "tutorial", label: "Tutorial", pages: tutorials, markdown: false },
-];
+function isIndexedArea(value: unknown): value is IndexedArea {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"key" in value &&
+		typeof value.key === "string" &&
+		"label" in value &&
+		typeof value.label === "string" &&
+		"markdown" in value &&
+		typeof value.markdown === "boolean" &&
+		"pages" in value &&
+		Array.isArray(value.pages)
+	);
+}
+
+/**
+ * The index is a file rather than a module, so its shape is checked rather
+ * than assumed. The case worth guarding is a host whose SPA fallback answers
+ * an unknown path with the app shell and a 200 — the palette should say search
+ * is unavailable, not throw on the first keystroke.
+ */
+function asSearchIndex(payload: unknown): SearchIndex {
+	const areas = Array.isArray(payload) ? payload.filter(isIndexedArea) : [];
+	if (areas.length === 0) throw new Error(`${SEARCH_INDEX_URL} held no searchable areas`);
+	return areas;
+}
+
+function loadIndex(): void {
+	indexRequest ??= fetch(SEARCH_INDEX_URL)
+		.then(async (response) => {
+			if (!response.ok) throw new Error(`${SEARCH_INDEX_URL} responded ${response.status}`);
+			index.set(prepareSearchIndex(asSearchIndex(await response.json())));
+			indexFailed.set(false);
+		})
+		.catch((error: unknown) => {
+			// clearing the handle lets the next open try again — a search that
+			// failed once because the network blipped should not stay broken
+			indexRequest = null;
+			indexFailed.set(true);
+			console.error("could not load the docs search index", error);
+		});
+}
 
 /** A result plus the area it came from, which decides the `.md` action. */
-type Hit = { area: Area; result: SearchResult };
+type Hit = { area: SearchArea; result: SearchResult };
 
 /**
  * Rows are rebuilt rather than patched when their text changes, so the key
@@ -133,7 +145,7 @@ function fold(value: string): string {
  * registers — sharing one would leave the surviving row unaccounted for, and
  * the palette claiming it found nothing.
  */
-function hitValue(area: Area, result: SearchResult): string {
+function hitValue(area: SearchArea, result: SearchResult): string {
 	return `${area.key} ${result.href} ${fold(rowKey(result))}`;
 }
 
@@ -150,18 +162,6 @@ async function copyMarkdown(page: SearchPage) {
 
 function focusSearchInput() {
 	queueMicrotask(() => document.getElementById(SEARCH_INPUT_ID)?.focus());
-}
-
-/**
- * Stripping every page down to text is long enough to be felt under the first
- * keystroke, so it happens while the dialog is animating in instead.
- */
-function warmIndex() {
-	const run = () => {
-		for (const entry of areas) warmSearchIndex(entry.pages);
-	};
-	if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 500 });
-	else setTimeout(run, 0);
 }
 
 /** How long to keep trying for an anchor that is not in reach yet. */
@@ -189,7 +189,7 @@ function scrollToAnchor(id: string) {
 	attempt();
 }
 
-function AreaChip(area: Signal<"all" | AreaKey>, key: "all" | AreaKey, label: string): Mountable {
+function AreaChip(area: Signal<string>, key: string, label: string): Mountable {
 	return Button(
 		{
 			type: "button",
@@ -228,7 +228,7 @@ function Highlighted(parts: HighlightPart[], className: string): Mountable {
 	);
 }
 
-function ResultItem(area: Area, result: SearchResult, goTo: (result: SearchResult) => void) {
+function ResultItem(area: SearchArea, result: SearchResult, goTo: (result: SearchResult) => void) {
 	return CommandLinkItem(
 		{
 			value: hitValue(area, result),
@@ -274,8 +274,8 @@ function ResultItem(area: Area, result: SearchResult, goTo: (result: SearchResul
  */
 /** One area's results, under its package name. */
 function AreaGroup(
-	entry: Area,
-	results: Readable<Map<AreaKey, SearchResult[]>>,
+	entry: SearchArea,
+	results: Readable<Map<string, SearchResult[]>>,
 	goTo: (result: SearchResult) => void,
 ): Mountable {
 	return CommandGroup(
@@ -300,14 +300,28 @@ export function DocsSearch(): Mountable {
 	const actionsOpen = signal(false);
 	const search = signal("");
 	const value = signal("");
-	const area = signal<"all" | AreaKey>("all");
+	const area = signal<string>("all");
+
+	/** The areas the fetched index names, or none while it is still loading. */
+	const areas = derived([index], (loaded) => loaded ?? []);
+
+	/**
+	 * What the palette says when it has no rows: three different situations
+	 * look alike from the Command primitive's side, and "No results found."
+	 * under a query that was never run reads as a broken search.
+	 */
+	const emptyText = derived([index, indexFailed], (loaded, failed) => {
+		if (failed) return "Search is unavailable right now.";
+		if (loaded === null) return "Loading search…";
+		return "No results found.";
+	});
 
 	// Command's own filter scores an item's value; these results are matched and
 	// ranked whole pages at a time, so `shouldFilter` is off below and the
 	// ranking happens here.
-	const results = derived([search], (query) => {
-		const byArea = new Map<AreaKey, SearchResult[]>();
-		for (const entry of areas) byArea.set(entry.key, searchPages(entry.pages, query));
+	const results = derived([search, areas], (query, loaded) => {
+		const byArea = new Map<string, SearchResult[]>();
+		for (const entry of loaded) byArea.set(entry.key, searchPages(entry.pages, query));
 		return byArea;
 	});
 
@@ -321,8 +335,8 @@ export function DocsSearch(): Mountable {
 	 * An empty query scores every page 0 and `sort` is stable, so the resting
 	 * list keeps its declared order.
 	 */
-	const ranked = derived([results, area], (byArea, current) => {
-		const visible = areas
+	const ranked = derived([results, area, areas], (byArea, current, loaded) => {
+		const visible = loaded
 			.filter(
 				(entry) =>
 					(current === "all" || current === entry.key) && (byArea.get(entry.key)?.length ?? 0) > 0,
@@ -332,9 +346,9 @@ export function DocsSearch(): Mountable {
 		return visible.map(({ entry }) => entry);
 	});
 
-	const hits = derived([results, area], (byArea, current) => {
+	const hits = derived([results, area, areas], (byArea, current, loaded) => {
 		const map = new Map<string, Hit>();
-		for (const entry of areas) {
+		for (const entry of loaded) {
 			if (current !== "all" && current !== entry.key) continue;
 			for (const result of byArea.get(entry.key) ?? []) {
 				map.set(hitValue(entry, result), { area: entry, result });
@@ -377,7 +391,8 @@ export function DocsSearch(): Mountable {
 					if (isOpen) {
 						// after the modal's own focus pass, move focus into the search box
 						focusSearchInput();
-						warmIndex();
+						// first open pays for the index; every later one is free
+						loadIndex();
 					} else {
 						actionsOpen.set(false);
 						search.set("");
@@ -447,7 +462,14 @@ export function DocsSearch(): Mountable {
 						Div(
 							{ class: "no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" },
 							AreaChip(area, "all", "All"),
-							...areas.map((entry) => AreaChip(area, entry.key, entry.label)),
+							// the areas are whatever the index names, so the filters
+							// appear with it rather than being declared twice
+							ForEach(
+								areas,
+								(entry) => entry.key,
+								// keyed on the area, so the chip's identity is pinned
+								(entry) => AreaChip(area, entry.get().key, entry.get().label),
+							),
 						),
 						Kbd({ class: [kbdClass, "shrink-0"] }, "esc"),
 					),
@@ -456,7 +478,7 @@ export function DocsSearch(): Mountable {
 						{ class: "h-80 max-h-[50dvh]" },
 						CommandViewport(
 							{},
-							CommandEmpty({}, "No results found."),
+							CommandEmpty({}, emptyText),
 							ForEach(
 								ranked,
 								(entry) => entry.key,

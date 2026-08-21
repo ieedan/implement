@@ -11,6 +11,7 @@ import {
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 /**
@@ -63,7 +64,7 @@ export const SheetTrigger = createComponent(function SheetTrigger(
 			"data-slot": "sheet-trigger",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);
@@ -77,14 +78,14 @@ export const SheetOverlay = createComponent(function SheetOverlay(
 		{
 			...props,
 			"data-slot": "sheet-overlay",
-			class: [
+			class: cn(
 				"fixed inset-0 z-50 bg-black/50",
 				"transition-[opacity,display] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
 				"data-[state=open]:block data-[state=open]:opacity-100",
 				"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:opacity-0",
 				"starting:data-[state=open]:opacity-0",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -121,13 +122,13 @@ export const SheetContent = createComponent(function SheetContent(
 		{
 			...props,
 			"data-slot": "sheet-content",
-			class: [
+			class: cn(
 				"fixed z-50 flex flex-col bg-background text-foreground shadow-lg outline-none",
 				"transition-[translate,display] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
 				"data-[state=open]:flex data-[state=closed]:pointer-events-none data-[state=closed]:hidden",
 				sideClasses[side],
 				className,
-			],
+			),
 		},
 		...children,
 		showCloseButton
@@ -152,7 +153,7 @@ export const SheetTitle = createComponent(function SheetTitle(
 		{
 			...props,
 			"data-slot": "sheet-title",
-			class: ["text-sm font-semibold", className],
+			class: cn("text-sm font-semibold", className),
 		},
 		...children,
 	);
@@ -166,7 +167,7 @@ export const SheetDescription = createComponent(function SheetDescription(
 		{
 			...props,
 			"data-slot": "sheet-description",
-			class: ["text-sm text-muted-foreground", className],
+			class: cn("text-sm text-muted-foreground", className),
 		},
 		...children,
 	);
@@ -183,7 +184,7 @@ export const SheetClose = createComponent(function SheetClose(
 			"data-slot": "sheet-close",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);

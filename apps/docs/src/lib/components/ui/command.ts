@@ -15,6 +15,7 @@ import {
 	CommandViewport as CommandViewportPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type CommandProps = ComponentProps<typeof CommandPrimitive>;
 export type CommandInputProps = ComponentProps<typeof CommandInputPrimitive>;
@@ -37,10 +38,10 @@ export const Command = createComponent(function Command(
 		{
 			...props,
 			"data-slot": "command",
-			class: [
+			class: cn(
 				"flex size-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -57,10 +58,10 @@ export const CommandInput = createComponent(function CommandInput({
 			placeholder: "Type to search...",
 			...props,
 			"data-slot": "command-input",
-			class: [
+			class: cn(
 				"flex h-11 w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
 				className,
-			],
+			),
 		}),
 	);
 });
@@ -73,7 +74,7 @@ export const CommandList = createComponent(function CommandList(
 		{
 			...props,
 			"data-slot": "command-list",
-			class: ["max-h-80 scroll-py-1 overflow-x-hidden overflow-y-auto", className],
+			class: cn("max-h-80 scroll-py-1 overflow-x-hidden overflow-y-auto", className),
 		},
 		...children,
 	);
@@ -84,7 +85,7 @@ export const CommandViewport = createComponent(function CommandViewport(
 	...children: Child[]
 ) {
 	return CommandViewportPrimitive(
-		{ ...props, "data-slot": "command-viewport", class: [className] },
+		{ ...props, "data-slot": "command-viewport", class: cn(className) },
 		...children,
 	);
 });
@@ -97,7 +98,7 @@ export const CommandEmpty = createComponent(function CommandEmpty(
 		{
 			...props,
 			"data-slot": "command-empty",
-			class: ["py-6 text-center text-sm text-muted-foreground", className],
+			class: cn("py-6 text-center text-sm text-muted-foreground", className),
 		},
 		...children,
 	);
@@ -111,7 +112,7 @@ export const CommandLoading = createComponent(function CommandLoading(
 		{
 			...props,
 			"data-slot": "command-loading",
-			class: ["py-6 text-center text-sm text-muted-foreground", className],
+			class: cn("py-6 text-center text-sm text-muted-foreground", className),
 		},
 		...children,
 	);
@@ -122,7 +123,7 @@ export const CommandGroup = createComponent(function CommandGroup(
 	...children: Child[]
 ) {
 	return CommandGroupPrimitive(
-		{ ...props, "data-slot": "command-group", class: ["overflow-hidden", className] },
+		{ ...props, "data-slot": "command-group", class: cn("overflow-hidden", className) },
 		...children,
 	);
 });
@@ -135,7 +136,7 @@ export const CommandGroupHeading = createComponent(function CommandGroupHeading(
 		{
 			...props,
 			"data-slot": "command-group-heading",
-			class: ["px-3 pt-3 pb-1 text-xs font-medium text-muted-foreground uppercase", className],
+			class: cn("px-3 pt-3 pb-1 text-xs font-medium text-muted-foreground uppercase", className),
 		},
 		...children,
 	);
@@ -146,7 +147,7 @@ export const CommandGroupItems = createComponent(function CommandGroupItems(
 	...children: Child[]
 ) {
 	return CommandGroupItemsPrimitive(
-		{ ...props, "data-slot": "command-group-items", class: ["p-1", className] },
+		{ ...props, "data-slot": "command-group-items", class: cn("p-1", className) },
 		...children,
 	);
 });
@@ -159,7 +160,7 @@ export const CommandItem = createComponent(function CommandItem(
 	...children: Child[]
 ) {
 	return CommandItemPrimitive(
-		{ ...props, "data-slot": "command-item", class: [itemClass, className] },
+		{ ...props, "data-slot": "command-item", class: cn(itemClass, className) },
 		...children,
 	);
 });
@@ -169,7 +170,7 @@ export const CommandLinkItem = createComponent(function CommandLinkItem(
 	...children: Child[]
 ) {
 	return CommandLinkItemPrimitive(
-		{ ...props, "data-slot": "command-link-item", class: [itemClass, className] },
+		{ ...props, "data-slot": "command-link-item", class: cn(itemClass, className) },
 		...children,
 	);
 });
@@ -179,7 +180,7 @@ export const CommandSeparator = createComponent(function CommandSeparator(
 	...children: Child[]
 ) {
 	return CommandSeparatorPrimitive(
-		{ ...props, "data-slot": "command-separator", class: ["h-px bg-border", className] },
+		{ ...props, "data-slot": "command-separator", class: cn("h-px bg-border", className) },
 		...children,
 	);
 });

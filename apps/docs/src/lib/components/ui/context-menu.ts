@@ -27,6 +27,7 @@ import {
 	menuSubTriggerClasses,
 } from "./dropdown-menu";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type ContextMenuProps = ComponentProps<typeof ContextMenuPrimitive>;
 export const ContextMenu = ContextMenuPrimitive;
@@ -44,7 +45,11 @@ export const ContextMenuContent = createComponent(function ContextMenuContent(
 		{
 			...props,
 			"data-slot": "context-menu-content",
-			class: [menuContentClasses, "origin-(--ip-context-menu-content-transform-origin)", className],
+			class: cn(
+				menuContentClasses,
+				"origin-(--ip-context-menu-content-transform-origin)",
+				className,
+			),
 		},
 		...children,
 	);
@@ -57,7 +62,7 @@ export const ContextMenuItem = createComponent(function ContextMenuItem(
 	...children: Child[]
 ) {
 	return ContextMenuItemPrimitive(
-		{ ...props, "data-slot": "context-menu-item", class: [menuItemClasses, className] },
+		{ ...props, "data-slot": "context-menu-item", class: cn(menuItemClasses, className) },
 		...children,
 	);
 });
@@ -72,7 +77,7 @@ export const ContextMenuCheckboxItem = createComponent(function ContextMenuCheck
 		{
 			...props,
 			"data-slot": "context-menu-checkbox-item",
-			class: ["group/menu-item", menuItemClasses, menuIndicatorItemClasses, className],
+			class: cn("group/menu-item", menuItemClasses, menuIndicatorItemClasses, className),
 		},
 		MenuCheckIndicator(),
 		...children,
@@ -92,7 +97,7 @@ export const ContextMenuRadioItem = createComponent(function ContextMenuRadioIte
 		{
 			...props,
 			"data-slot": "context-menu-radio-item",
-			class: ["group/menu-item", menuItemClasses, menuIndicatorItemClasses, className],
+			class: cn("group/menu-item", menuItemClasses, menuIndicatorItemClasses, className),
 		},
 		MenuRadioIndicator(),
 		...children,
@@ -112,7 +117,7 @@ export const ContextMenuGroupHeading = createComponent(function ContextMenuGroup
 		{
 			...props,
 			"data-slot": "context-menu-group-heading",
-			class: [menuGroupHeadingClasses, className],
+			class: cn(menuGroupHeadingClasses, className),
 		},
 		...children,
 	);
@@ -127,7 +132,7 @@ export const ContextMenuSeparator = createComponent(function ContextMenuSeparato
 	return ContextMenuSeparatorPrimitive({
 		...props,
 		"data-slot": "context-menu-separator",
-		class: [menuSeparatorClasses, className],
+		class: cn(menuSeparatorClasses, className),
 	});
 });
 
@@ -144,7 +149,7 @@ export const ContextMenuSubTrigger = createComponent(function ContextMenuSubTrig
 		{
 			...props,
 			"data-slot": "context-menu-sub-trigger",
-			class: [menuItemClasses, menuSubTriggerClasses, className],
+			class: cn(menuItemClasses, menuSubTriggerClasses, className),
 		},
 		...children,
 		MenuSubTriggerChevron(),
@@ -162,7 +167,7 @@ export const ContextMenuSubContent = createComponent(function ContextMenuSubCont
 			offset,
 			...props,
 			"data-slot": "context-menu-sub-content",
-			class: [menuStaticPanelClasses, className],
+			class: cn(menuStaticPanelClasses, className),
 		},
 		...children,
 	);

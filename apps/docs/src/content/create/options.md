@@ -21,6 +21,7 @@ The `--` is npm's; pnpm, yarn, and bun pass flags through without it.
 | `-t, --template` | `kit` or `csr`. See [Templates](/create/templates).                                                          |
 | `--tailwind`     | Set up Tailwind. `--no-tailwind` opts out.                                                                   |
 | `--primitives`   | Add [`@implementjs/primitives`](/primitives). `--no-primitives` opts out.                                    |
+| `--ui`           | Add [`@implementjs/ui`](/ui). Turns on `--tailwind` and `--primitives`; `--no-ui` opts out.                  |
 | `--icons`        | Add [`@implementjs/lucide`](/lucide). `--no-icons` opts out.                                                 |
 | `--forms`        | Add [`@implementjs/formish`](/formish) and valibot. `--no-forms` opts out.                                   |
 | `--mode-watcher` | Add [`@implementjs/mode-watcher`](/mode-watcher). `--no-mode-watcher` opts out.                              |
@@ -30,11 +31,11 @@ Without `--overwrite`, a non-empty directory stops the run — interactively it 
 
 ## After scaffolding
 
-| Flag                | What it does                                                                                                                  |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `--install`         | Install dependencies. For the kit template this also runs `sync`, so `.implement/` exists and the app typechecks immediately. |
-| `--git`             | Run `git init` in the new directory.                                                                                          |
-| `--package-manager` | `npm`, `pnpm`, `yarn`, `bun`, or `deno`. Detected from the environment otherwise.                                             |
+| Flag                | What it does                                                                                                                                                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--install`         | Install dependencies. For the kit template this also runs `sync`, so `.implement/` exists and the app typechecks immediately. With `--ui` it also runs `jsrepo add button`, the one component the starter page renders. |
+| `--git`             | Run `git init` in the new directory.                                                                                                                                                                                    |
+| `--package-manager` | `npm`, `pnpm`, `yarn`, `bun`, or `deno`. Detected from the environment otherwise.                                                                                                                                       |
 
 The package manager is picked up from how you invoked the CLI, so `pnpm create implement-app` installs with pnpm without being told.
 

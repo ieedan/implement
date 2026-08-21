@@ -18,7 +18,7 @@ jsrepo pulls [`toggle`](/ui/toggle) along with it.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/toggle-group.ts`. It imports [`toggle`](/ui/toggle) from the same directory, so install that too.
+Copy the file below to `src/lib/components/ui/toggle-group.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and [`toggle`](/ui/toggle) from the same directory — copy those in beside it too.
 
 <div data-source="toggle-group"></div>
 

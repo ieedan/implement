@@ -1,6 +1,7 @@
 import { derived, Div, signal, type ComponentProps } from "@implementjs/core";
 import { Meter as MeterPrimitive } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type MeterProps = ComponentProps<typeof MeterPrimitive>;
 
@@ -27,7 +28,7 @@ export const Meter = createComponent(function Meter({
 			max: maxSignal,
 			...props,
 			"data-slot": "meter",
-			class: ["relative h-2 w-full overflow-hidden rounded-full bg-primary/20", className],
+			class: cn("relative h-2 w-full overflow-hidden rounded-full bg-primary/20", className),
 		},
 		Div({
 			"data-slot": "meter-indicator",
