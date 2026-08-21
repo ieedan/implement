@@ -73,13 +73,26 @@ const groups: PackageGroup[] = [
 		],
 	},
 	{
+		title: "Forms",
+		description: "State and validation for the parts of a page users type into.",
+		packages: [
+			{
+				name: "@implementjs/formish",
+				description:
+					"Schema-first forms. The schema types the fields, validates the input and produces the submit handler's output — valibot, zod and arktype all fit.",
+				docs: { label: "Read the docs", to: "/formish" },
+				sourceDir: "formish",
+			},
+		],
+	},
+	{
 		title: "Tooling",
 		description: "What you reach for before the first line of app code.",
 		packages: [
 			{
 				name: "create-implement-app",
 				description:
-					"Scaffolds a new implement app — kit or plain Vite, with Tailwind, primitives, and icons as optional addons.",
+					"Scaffolds a new implement app — kit or plain Vite, with Tailwind, primitives, icons, and forms as optional addons.",
 				docs: { label: "Read the docs", to: "/create" },
 				sourceDir: "create-implement-app",
 			},

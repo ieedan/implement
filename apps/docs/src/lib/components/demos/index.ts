@@ -65,6 +65,10 @@ import CommandDemo from "./command-demo.ts";
 import commandSource from "./command-demo.ts?raw";
 import CommandGridDemo from "./command-grid-demo.ts";
 import commandGridSource from "./command-grid-demo.ts?raw";
+import SignUpFormDemo from "./sign-up-form-demo.ts";
+import signUpFormSource from "./sign-up-form-demo.ts?raw";
+import FieldArrayDemo from "./field-array-demo.ts";
+import fieldArraySource from "./field-array-demo.ts?raw";
 import AlertDemo from "./alert-demo.ts";
 import alertSource from "./alert-demo.ts?raw";
 import BadgeDemo from "./badge-demo.ts";
@@ -167,6 +171,8 @@ export const demos: Record<string, Demo> = {
 	toast: { source: toastSource, component: ToastDemo },
 	command: { source: commandSource, component: CommandDemo },
 	"command-grid": { source: commandGridSource, component: CommandGridDemo },
+	"sign-up-form": { source: signUpFormSource, component: SignUpFormDemo },
+	"field-array": { source: fieldArraySource, component: FieldArrayDemo },
 	alert: { source: alertSource, component: AlertDemo },
 	badge: { source: badgeSource, component: BadgeDemo },
 	breadcrumb: { source: breadcrumbSource, component: BreadcrumbDemo },

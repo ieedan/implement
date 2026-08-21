@@ -125,6 +125,20 @@ const lucide = defineCollection({
 		})),
 });
 
+const formish = defineCollection({
+	name: "FormishPage",
+	pattern: "formish/*.md",
+	schema: markdown
+		.extend({
+			section: s.string().max(99),
+			order: s.number().optional(),
+		})
+		.transform((data) => ({
+			...data,
+			...toPermalink(data.slug, "/formish", "formish"),
+		})),
+});
+
 const tutorials = defineCollection({
 	name: "Tutorial",
 	pattern: "lessons/**/*.md",
@@ -158,7 +172,7 @@ export default defineConfig({
 		base: "/velite/",
 		clean: true,
 	},
-	collections: { pages, tutorials, primitives, ui, lucide, kit, create },
+	collections: { pages, tutorials, primitives, ui, lucide, kit, create, formish },
 	markdown: {
 		remarkPlugins: [
 			// Velite bundles its own unified types, which don't match remark/rehype plugins'.
@@ -211,6 +225,7 @@ export default defineConfig({
 		data.lucide.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.kit.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.create.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.formish.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.tutorials.sort((a, b) =>
 			a.lessonDir.localeCompare(b.lessonDir, undefined, { numeric: true }),
 		);
