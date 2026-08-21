@@ -1,5 +1,5 @@
 import { Fragment, type Child } from "@implementjs/core";
-import { ModeWatcher } from "@implementjs/primitives";
+import { ModeWatcher } from "@implementjs/mode-watcher";
 import { mode } from "@/lib/mode";
 import type { LayoutProps } from "./$types";
 import "../app.css";

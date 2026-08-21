@@ -163,7 +163,7 @@ describe("helpers", () => {
 			}),
 		);
 		expect(html).toBe(
-			'<!--svg--><svg viewBox="0 0 16 16" class="icon" stroke-width="2"><path d="M0 0h16"/></svg>',
+			'<svg viewBox="0 0 16 16" class="icon" stroke-width="2"><path d="M0 0h16"/></svg>',
 		);
 	});
 

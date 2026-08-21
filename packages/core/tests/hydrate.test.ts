@@ -114,6 +114,11 @@ const makeSvgTree = () => {
 	};
 };
 
+const makeSvgInIfTree = () => {
+	const source = signal('<svg id="one"/>');
+	return { source, tree: Button(If(true, Svg(source)), "label") };
+};
+
 function throwBoom(): never {
 	throw new Error("boom");
 }
@@ -183,6 +188,8 @@ describe("hydration", () => {
 			() => [Div(Span("multi")), P("roots")],
 			() => Div(Html("<b>bold</b> raw"), Span("after")),
 			() => Div(Svg('<svg viewBox="0 0 4 4"><path d="M0 0"/></svg>'), Span("s")),
+			// an Svg a helper's sync pass repositions: the icon-in-a-button shape
+			() => Button(If(true, Svg('<svg viewBox="0 0 4 4"><path d="M0 0"/></svg>')), "label"),
 			() => Div(If(true, "a", Span("b"), "c")),
 		];
 		for (const build of cases) expectConverged(build);
@@ -273,6 +280,24 @@ describe("hydration", () => {
 		client.markup.set("<i>two</i>");
 		expect(target.querySelector("b")).toBeNull();
 		expect(target.querySelector("i")!.textContent).toBe("two");
+	});
+
+	it("swaps a reactive Svg in place inside a helper's region", () => {
+		const server = makeSvgInIfTree();
+		const { html } = renderToString(server.tree);
+		const target = document.createElement("div");
+		target.innerHTML = `<div data-ssr>${html}</div>`;
+		document.body.appendChild(target);
+
+		const client = makeSvgInIfTree();
+		App({ target }).render(client.tree);
+		client.source.set('<svg id="two"/>');
+
+		const reference = makeSvgInIfTree();
+		reference.source.set('<svg id="two"/>');
+		expect(target.querySelector("button")!.innerHTML).toBe(
+			fresh(() => reference.tree).querySelector("button")!.innerHTML,
+		);
 	});
 
 	it("keeps Svg props reactive after claiming the element", () => {

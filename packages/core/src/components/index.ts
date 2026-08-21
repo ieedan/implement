@@ -1,5 +1,5 @@
 import { dom } from "../dom";
-import { beginHydration, endHydration } from "../hydrate";
+import { beginHydration, describeMismatch, endHydration } from "../hydrate";
 import { isReadable } from "../signal";
 import { mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
@@ -258,7 +258,8 @@ export function App(options: { target: HTMLElement }) {
 						endHydration();
 						throw error;
 					}
-					if (endHydration()) {
+					const mismatch = endHydration();
+					if (!mismatch) {
 						// adopted: the wrapper stays as the mount root; drop the
 						// attribute so a second render cannot re-claim it
 						ssr.removeAttribute("data-ssr");
@@ -266,9 +267,12 @@ export function App(options: { target: HTMLElement }) {
 						adopted = ssr;
 						instances = hydrated;
 					} else {
-						console.warn(
-							"hydration mismatch: discarding server-rendered markup and mounting fresh",
-						);
+						// the offending nodes ride along as arguments so the console
+						// entry is inspectable, not just readable
+						console.warn(describeMismatch(mismatch), {
+							parent: mismatch.parent,
+							found: mismatch.node,
+						});
 						for (const instance of hydrated) {
 							try {
 								instance.unmount();

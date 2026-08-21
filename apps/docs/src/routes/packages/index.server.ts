@@ -6,6 +6,7 @@ const PACKAGE_DIRS = [
 	"kit",
 	"primitives",
 	"formish",
+	"mode-watcher",
 	"lucide",
 	"vite",
 	"create-implement-app",

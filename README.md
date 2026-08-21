@@ -8,3 +8,4 @@ Just some experimentation.
   - environment variables
 
 - rewrite all docs
+- new homepage

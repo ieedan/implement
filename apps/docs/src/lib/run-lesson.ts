@@ -1,6 +1,7 @@
 import * as implement from "@implementjs/core";
 import * as formish from "@implementjs/formish";
 import * as lucide from "@implementjs/lucide";
+import * as modeWatcher from "@implementjs/mode-watcher";
 import * as primitives from "@implementjs/primitives";
 import { transform } from "sucrase";
 import * as valibot from "valibot";
@@ -8,6 +9,7 @@ import * as valibot from "valibot";
 const IMPLEMENT = "@implementjs/core";
 const FORMISH = "@implementjs/formish";
 const LUCIDE = "@implementjs/lucide";
+const MODE_WATCHER = "@implementjs/mode-watcher";
 const PRIMITIVES = "@implementjs/primitives";
 // formish validates with any Standard Schema library; valibot is the one the
 // docs use, so an edited demo can import it too
@@ -176,6 +178,7 @@ export async function importLessonModule(
 		[IMPLEMENT]: implement,
 		[FORMISH]: formish,
 		[LUCIDE]: lucide,
+		[MODE_WATCHER]: modeWatcher,
 		[PRIMITIVES]: primitives,
 		[VALIBOT]: valibot,
 		...extraModules,
@@ -240,6 +243,7 @@ export async function importLessonProject(
 		[IMPLEMENT]: implement,
 		[FORMISH]: formish,
 		[LUCIDE]: lucide,
+		[MODE_WATCHER]: modeWatcher,
 		[PRIMITIVES]: primitives,
 		[VALIBOT]: valibot,
 		...extraModules,

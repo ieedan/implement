@@ -73,6 +73,19 @@ const groups: PackageGroup[] = [
 		],
 	},
 	{
+		title: "Theming",
+		description: "What decides which of your two palettes the page is wearing.",
+		packages: [
+			{
+				name: "@implementjs/mode-watcher",
+				description:
+					"Dark mode: the visitor's choice, the system preference, and the class on <html> — applied before the first paint, so there is no flash of the wrong theme.",
+				docs: { label: "Read the docs", to: "/mode-watcher" },
+				sourceDir: "mode-watcher",
+			},
+		],
+	},
+	{
 		title: "Forms",
 		description: "State and validation for the parts of a page users type into.",
 		packages: [
@@ -92,7 +105,7 @@ const groups: PackageGroup[] = [
 			{
 				name: "create-implement-app",
 				description:
-					"Scaffolds a new implement app — kit or plain Vite, with Tailwind, primitives, icons, and forms as optional addons.",
+					"Scaffolds a new implement app — kit or plain Vite, with Tailwind, primitives, icons, forms, and dark mode as optional addons.",
 				docs: { label: "Read the docs", to: "/create" },
 				sourceDir: "create-implement-app",
 			},
