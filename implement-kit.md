@@ -197,3 +197,62 @@ renders) and `init` (awaited once before the first request); `sequence`,
 Hooks run in dev and during the build's prerender. A hook that answers a
 prerendered page with its own response fails the build — a static file cannot
 represent one.
+
+## Environment Variables (Phase 4)
+
+Implemented. Two user-authored files, both evaluated in Node at build time and
+re-emitted as literals, so no schema library ever enters a bundle:
+
+- `src/lib/env.public.ts` — safe to ship, inlined into the browser bundle.
+- `src/lib/env.server.ts` — server-only; the client copy holds no values at all.
+
+```ts
+// src/lib/env.public.ts
+import { defineEnv } from "@implementjs/kit";
+import { z } from "zod";
+
+export const env = defineEnv({ PUBLIC_DOCS_URL: z.url() });
+```
+
+`defineEnv` is a plain generic function over [Standard Schema](https://standardschema.dev),
+so `typeof env` infers straight through and no codegen is involved — `sync()`
+stays env-unaware, and `pnpm check` in CI never needs a populated `.env`.
+
+Two files rather than one virtual module because a single specifier cannot have
+two types. Two imports on the server rather than a merged `env` because a merge
+would leave TypeScript seeing only one file's keys, and because a variable's
+exposure should be readable at the call site.
+
+### The `PUBLIC_` prefix
+
+Fixed and not configurable: every key in `env.public.ts` must start with
+`PUBLIC_`, and no key in `env.server.ts` may. The type system was never going to
+catch the mistake that actually happens — pasting `DATABASE_URL` into the public
+file — and a prefix is visible at every call site.
+
+### Enforcement
+
+`env.server.ts` is a server file under the rule that already governs
+`db.server.ts`; there is no env-specific guard logic.
+
+- **Layer 1 — the static guard.** A client-graph module importing a `*.server.ts`
+  specifier is an error, in dev and on build, reported with the importer chain
+  (`$implement/router` imports every page eagerly, so the chain is what makes it
+  actionable). Type-only imports are erased before the module graph sees them and
+  stay legal; an inline `type` specifier under `verbatimModuleSyntax` does not,
+  and is a documented papercut.
+- **Layer 2 — the module itself.** The client copy of any `*.server.ts` keeps its
+  export shape and throws on evaluation. The backstop for computed dynamic
+  imports and re-export chains — and the reason a leak stays impossible even if
+  Layer 1 is bypassed.
+
+### Scope
+
+Kit has no production server, so a server env var is a **build-time secret**:
+`DATABASE_URL` is read during `vite build`, not per request. There is no
+`$env/dynamic` counterpart to design yet — that is additive work for the adapter
+phase, when non-GET endpoints can ship.
+
+A missing or malformed variable fails the build with no opt-out, reporting every
+failing key at once. This is lazy at module granularity: an app that never
+imports `env.server.ts` never validates it.

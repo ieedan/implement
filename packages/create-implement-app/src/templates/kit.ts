@@ -49,6 +49,9 @@ export const kit: Template = {
 		{ path: "src/routes/about/index.ts", contents: aboutPage(ctx) },
 		{ path: "src/routes/error.ts", contents: errorPage(ctx) },
 		{ path: "src/lib/counter.ts", contents: counter(ctx) },
+		{ path: "src/lib/env.public.ts", contents: envPublic() },
+		{ path: ".env", contents: envFile(ctx) },
+		{ path: ".env.example", contents: envFile(ctx) },
 		...(hasAddon(ctx, "modeWatcher")
 			? [{ path: "src/lib/mode.ts", contents: modeModule(ctx) }]
 			: []),
@@ -68,7 +71,9 @@ function pkg(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
 	if (hasAddon(ctx, "modeWatcher")) deps.push("@implementjs/mode-watcher");
 
-	const devDeps: Dependency[] = ["@implementjs/kit", "@types/node", "typescript", "vite"];
+	// zod is a devDependency on purpose: kit evaluates the env files at build time and inlines
+	// the results, so the schemas never reach a bundle
+	const devDeps: Dependency[] = ["@implementjs/kit", "@types/node", "typescript", "vite", "zod"];
 	if (hasAddon(ctx, "tailwind")) devDeps.push("@tailwindcss/vite", "tailwindcss");
 
 	return packageJson({
@@ -180,11 +185,12 @@ function aboutPage(ctx: TemplateContext): string {
 
 	return `${[
 		`import { A, Div, H1, P } from "@implementjs/core";`,
+		`import { env } from "@/lib/env.public";`,
 		``,
 		`export default function Page() {`,
 		`\treturn Div(`,
 		`\t\t{ class: "${c.page}" },`,
-		`\t\tH1({ class: "${c.title}" }, "About"),`,
+		`\t\tH1({ class: "${c.title}" }, env.PUBLIC_APP_NAME),`,
 		`\t\tP(`,
 		`\t\t\t{ class: "${c.subtitle}" },`,
 		`\t\t\t"This page is ",`,
@@ -238,6 +244,26 @@ function counter(ctx: TemplateContext): string {
 	});
 }
 
+function envPublic(): string {
+	return (
+		dedent`
+		import { defineEnv } from "@implementjs/kit";
+		import { z } from "zod";
+
+		// Every key here must start with PUBLIC_ — these values are inlined into the browser
+		// bundle. Secrets belong in a sibling \`env.server.ts\`, which never ships.
+		export const env = defineEnv({
+			PUBLIC_APP_NAME: z.string(),
+		});
+	` + "\n"
+	);
+}
+
+/** Written twice: \`.env\` so the app runs immediately, \`.env.example\` so a fresh clone knows what to set. */
+function envFile(ctx: TemplateContext): string {
+	return `PUBLIC_APP_NAME=${ctx.name}\n`;
+}
+
 function favicon(): string {
 	return (
 		dedent`
@@ -278,6 +304,7 @@ function readme(ctx: TemplateContext): string {
 		${ctx.name}/
 		├ src/
 		│  ├ lib/            @/lib — components, helpers, state
+		│  │  └ env.public.ts  typed environment variables, safe to ship
 		│  ├ routes/         the routing tree
 		│  │  ├ about/
 		│  │  │  └ index.ts  → /about
@@ -288,6 +315,10 @@ function readme(ctx: TemplateContext): string {
 		│  └ index.html      the shell, pointed at the generated client entry
 		└ static/            served from the site root
 		\`\`\`
+
+		\`.env\` holds the values \`src/lib/env.public.ts\` validates; it is gitignored, and
+		\`.env.example\` is the committed list of keys. Keys there must start with \`PUBLIC_\` — add a
+		\`src/lib/env.server.ts\` for anything that must not reach the browser.
 
 		\`index.ts\` is a page, \`layout.ts\` wraps everything below it, and \`[param]\` / \`[...rest]\`
 		directories bind params. Kit generates \`.implement/\` (entries, the tsconfig this app extends, and

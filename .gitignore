@@ -42,6 +42,8 @@ out/
 .env
 .env.*
 !.env.example
+# fixture apps under test ship the .env they are tested against
+!packages/kit/tests/fixtures/*/.env
 
 # Coverage
 coverage/

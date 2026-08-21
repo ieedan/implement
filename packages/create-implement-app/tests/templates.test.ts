@@ -79,6 +79,22 @@ describe("templates", () => {
 		expect(files.get("src/app.d.ts")).toContain("namespace App");
 	});
 
+	it("the kit template wires up public environment variables", () => {
+		const files = fileMap("kit", ctx({ name: "cool-app" }));
+
+		expect(files.get("src/lib/env.public.ts")).toContain("defineEnv({");
+		expect(files.get("src/lib/env.public.ts")).toContain("PUBLIC_APP_NAME");
+		// .env so the app runs straight away, .env.example so a fresh clone knows the keys
+		expect(files.get(".env")).toBe("PUBLIC_APP_NAME=cool-app\n");
+		expect(files.get(".env.example")).toBe(files.get(".env"));
+		expect(files.get(".gitignore")).toContain(".env");
+		expect(files.get(".gitignore")).toContain("!.env.example");
+		expect(files.get("src/routes/about/index.ts")).toContain('from "@/lib/env.public"');
+		// the schemas are evaluated at build time and inlined, so zod never ships
+		expect(pkg(files).devDependencies.zod).toBeDefined();
+		expect(pkg(files).dependencies.zod).toBeUndefined();
+	});
+
 	it("the csr template mounts an app into the page", () => {
 		const files = fileMap("csr", ctx());
 

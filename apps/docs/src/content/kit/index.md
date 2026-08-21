@@ -139,11 +139,12 @@ sync(new URL("..", import.meta.url).pathname);
 
 ## Options
 
-`kit()` takes three options:
+`kit()` takes five options:
 
 - `routes` — the routes directory relative to your Vite root. Defaults to `"src/routes"`.
 - `hooks` — the [server hooks](/kit/hooks) file relative to your Vite root. Defaults to `"src/hooks.server.ts"`.
 - `prerender` — `false` to skip prerendering on build, or `{ entries }` to add dynamic routes to it. Covered in [SSR & Prerendering](/kit/ssr-and-prerendering).
+- `env` — where the two environment-variable files live, relative to your Vite root. Defaults to `src/lib/env.public.ts` and `src/lib/env.server.ts`, and a file that isn't there turns that half off. Covered in [Environment Variables](/kit/environment-variables).
 - `alias` — extra import aliases on top of the automatic `@/lib`, mapped to paths relative to your Vite root. Like `@/lib`, each one is wired into both Vite and the generated tsconfig, so the bundler and the typechecker always agree:
 
 ```ts
@@ -162,3 +163,4 @@ If you run [`sync`](#the-implement-directory) in a check script, pass it the sam
 
 - [Routing](/kit/routing) covers the file conventions, params, layouts, and the generated types.
 - [SSR & Prerendering](/kit/ssr-and-prerendering) covers what happens in dev and on build.
+- [Environment Variables](/kit/environment-variables) covers typed config and secrets that can't leak.

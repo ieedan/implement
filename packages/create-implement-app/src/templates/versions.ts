@@ -21,6 +21,7 @@ export const VERSIONS = {
 	typescript: "^7.0.2",
 	valibot: "^1.4.1",
 	vite: "^7.3.0",
+	zod: "^4.4.3",
 } as const satisfies Record<string, string>;
 
 export type Dependency = keyof typeof VERSIONS;
