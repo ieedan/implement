@@ -15,7 +15,8 @@ export default function MenubarDemo() {
 	const wordWrap = signal(true);
 	const theme = signal<string | null>("system");
 
-	return Menubar(MenubarMenu(
+	return Menubar(
+		MenubarMenu(
 			{ value: "file" },
 			MenubarTrigger("File"),
 			MenubarContent(

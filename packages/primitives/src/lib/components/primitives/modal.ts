@@ -455,7 +455,10 @@ export const ModalOverlay = createComponent(function ModalOverlay(
 
 export type ModalTitleProps = ComponentProps<typeof H2>;
 
-export const ModalTitle = createComponent(function ModalTitle({ id = getId(), ...restProps }: ModalTitleProps, ...children: Child[]) {
+export const ModalTitle = createComponent(function ModalTitle(
+	{ id = getId(), ...restProps }: ModalTitleProps,
+	...children: Child[]
+) {
 	return ModalCtx.Use((rootState) => {
 		rootState.registerTitle(id);
 		return H2(

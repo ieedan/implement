@@ -46,7 +46,10 @@ export type DropdownMenuRootProps = MenuRootOptions;
  * A menu of actions opened from a trigger button. Built on the shared menu
  * base; see ContextMenu and Menubar for the other flavors.
  */
-export const DropdownMenu = createComponent(function DropdownMenu(props: DropdownMenuRootProps, ...children: Child[]) {
+export const DropdownMenu = createComponent(function DropdownMenu(
+	props: DropdownMenuRootProps,
+	...children: Child[]
+) {
 	const state = new MenuState("dropdown-menu", props);
 	return MenuRoot(state, ...children);
 });

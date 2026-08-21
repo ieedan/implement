@@ -9,7 +9,8 @@ import {
 export default function PopoverTriggersDemo() {
 	return Div(
 		{ class: "flex flex-wrap items-center justify-center gap-2" },
-		Popover(PopoverTrigger({ variant: "outline" }, "Left"),
+		Popover(
+			PopoverTrigger({ variant: "outline" }, "Left"),
 			PopoverTrigger({ variant: "outline" }, "Center"),
 			PopoverTrigger({ variant: "outline" }, "Right"),
 			PopoverPortal(

@@ -135,7 +135,10 @@ export type MenubarMenuProps = {
 
 const MenubarMenuCtx = context<{ value: string; menu: MenuState; menubar: MenubarState }>();
 
-export const MenubarMenu = createComponent(function MenubarMenu({ value, preventScroll }: MenubarMenuProps, ...children: Child[]) {
+export const MenubarMenu = createComponent(function MenubarMenu(
+	{ value, preventScroll }: MenubarMenuProps,
+	...children: Child[]
+) {
 	return MenubarCtx.Use((menubar) => {
 		const menu = new MenuState("menubar", { preventScroll });
 		menubar.registerMenu(value, menu);

@@ -5,7 +5,10 @@ import { createComponent } from "@implementjs/primitives";
 
 export type CheckboxProps = ComponentProps<typeof CheckboxPrimitive>;
 
-export const Checkbox = createComponent(function Checkbox({ class: className, ...props }: CheckboxProps, ...children: Child[]) {
+export const Checkbox = createComponent(function Checkbox(
+	{ class: className, ...props }: CheckboxProps,
+	...children: Child[]
+) {
 	return CheckboxPrimitive(
 		{
 			...props,

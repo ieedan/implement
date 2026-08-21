@@ -19,10 +19,7 @@ function mount(tree: Child) {
 
 describe("createComponent", () => {
 	it("accepts props and children", () => {
-		const Box = createComponent(function Box(
-			{ id }: { id?: string },
-			...children: Child[]
-		) {
+		const Box = createComponent(function Box({ id }: { id?: string }, ...children: Child[]) {
 			return Div({ id, "data-testid": "box" }, ...children);
 		});
 

@@ -291,7 +291,10 @@ class SelectStateMultiple extends SelectState {
 	}
 }
 
-export const Select = createComponent(function Select(props: SelectProps<"single" | "multiple">, ...children: Child[]) {
+export const Select = createComponent(function Select(
+	props: SelectProps<"single" | "multiple">,
+	...children: Child[]
+) {
 	props.closeOnSelect = props.closeOnSelect ?? props.type !== "multiple";
 	const state =
 		props.type === "multiple" ? new SelectStateMultiple(props) : new SelectStateSingle(props);
@@ -367,7 +370,10 @@ export type SelectValueProps = ComponentProps<typeof Span> & {
 	render?: (props: SelectValueRenderProps) => Child;
 };
 
-export const SelectValue = createComponent(function SelectValue({ render, placeholder = "" }: SelectValueProps) {
+export const SelectValue = createComponent(function SelectValue({
+	render,
+	placeholder = "",
+}: SelectValueProps) {
 	return SelectCtx.Use((state) => {
 		if (state.opts.type === "multiple") {
 			const value = state.value() as Signal<string[]>;

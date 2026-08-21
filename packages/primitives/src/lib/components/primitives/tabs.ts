@@ -107,7 +107,10 @@ export const Tabs = createComponent(function Tabs(
 
 export type TabsListProps = ComponentProps<typeof Div>;
 
-export const TabsList = createComponent(function TabsList({ id = getId(), ...restProps }: TabsListProps, ...children: Child[]) {
+export const TabsList = createComponent(function TabsList(
+	{ id = getId(), ...restProps }: TabsListProps,
+	...children: Child[]
+) {
 	return TabsCtx.Use((root) => {
 		return Div(
 			mergeProps(

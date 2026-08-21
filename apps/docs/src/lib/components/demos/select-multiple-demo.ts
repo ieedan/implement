@@ -28,7 +28,8 @@ export default function SelectMultipleDemo() {
 					placeholder: "Select toppings",
 				}),
 			),
-			SelectContent(...toppings.map((topping) => SelectItem({ value: topping.value }, topping.label)),
+			SelectContent(
+				...toppings.map((topping) => SelectItem({ value: topping.value }, topping.label)),
 			),
 		),
 		P(

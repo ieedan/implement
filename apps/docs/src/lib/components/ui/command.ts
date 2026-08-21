@@ -29,7 +29,10 @@ export type CommandItemProps = ComponentProps<typeof CommandItemPrimitive>;
 export type CommandLinkItemProps = ComponentProps<typeof CommandLinkItemPrimitive>;
 export type CommandSeparatorProps = ComponentProps<typeof CommandSeparatorPrimitive>;
 
-export const Command = createComponent(function Command({ class: className, ...props }: CommandProps, ...children: Child[]) {
+export const Command = createComponent(function Command(
+	{ class: className, ...props }: CommandProps,
+	...children: Child[]
+) {
 	return CommandPrimitive(
 		{
 			...props,
@@ -43,7 +46,10 @@ export const Command = createComponent(function Command({ class: className, ...p
 	);
 });
 
-export const CommandInput = createComponent(function CommandInput({ class: className, ...props }: CommandInputProps) {
+export const CommandInput = createComponent(function CommandInput({
+	class: className,
+	...props
+}: CommandInputProps) {
 	return Div(
 		{ "data-slot": "command-input-wrapper", class: "flex h-11 items-center gap-2 border-b px-3" },
 		SearchIcon({ class: "size-4 shrink-0 text-muted-foreground", "aria-hidden": true }),

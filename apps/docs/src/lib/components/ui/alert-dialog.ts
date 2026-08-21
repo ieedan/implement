@@ -33,7 +33,10 @@ export type AlertDialogDescriptionProps = ComponentProps<typeof AlertDialogDescr
 
 export const AlertDialogPortal = AlertDialogPortalPrimitive;
 
-export const AlertDialog = createComponent(function AlertDialog(props: AlertDialogProps, ...children: Child[]) {
+export const AlertDialog = createComponent(function AlertDialog(
+	props: AlertDialogProps,
+	...children: Child[]
+) {
 	return AlertDialogPrimitive(props, ...children);
 });
 

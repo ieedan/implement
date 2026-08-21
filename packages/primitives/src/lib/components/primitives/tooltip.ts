@@ -127,7 +127,10 @@ const TooltipProviderContext = context<TooltipProviderState>();
  * Shares tooltip timing across every `Tooltip` inside it: one open at a time,
  * and moving between triggers within `skipDelayDuration` skips the open delay.
  */
-export const TooltipProvider = createComponent(function TooltipProvider(props: TooltipProviderProps, ...children: Child[]) {
+export const TooltipProvider = createComponent(function TooltipProvider(
+	props: TooltipProviderProps,
+	...children: Child[]
+) {
 	const state = new TooltipProviderState(props);
 	return TooltipProviderContext.Provide(state).To(
 		Implement.Window({ onScroll: (e: Event) => state.handleScroll(e) }),
@@ -355,7 +358,10 @@ class TooltipState {
 
 const TooltipContext = context<TooltipState>();
 
-export const Tooltip = createComponent(function Tooltip(props: TooltipRootProps, ...children: Child[]) {
+export const Tooltip = createComponent(function Tooltip(
+	props: TooltipRootProps,
+	...children: Child[]
+) {
 	return TooltipProviderContext.UseOr((provider) => {
 		// a root without a provider gets a private one with the defaults
 		const ownsProvider = provider === null;

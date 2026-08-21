@@ -144,7 +144,10 @@ export const SheetContent = createComponent(function SheetContent(
 	);
 });
 
-export const SheetTitle = createComponent(function SheetTitle({ class: className, ...props }: SheetTitleProps, ...children: Child[]) {
+export const SheetTitle = createComponent(function SheetTitle(
+	{ class: className, ...props }: SheetTitleProps,
+	...children: Child[]
+) {
 	return DialogTitlePrimitive(
 		{
 			...props,

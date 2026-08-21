@@ -57,7 +57,9 @@ export default function CommandGridDemo() {
 		Command(
 			{ label: "Emoji picker", columns: COLUMNS, class: "rounded-lg border shadow-md" },
 			CommandInput({ placeholder: "Search emoji..." }),
-			CommandList(CommandViewport(CommandEmpty("No emoji found."),
+			CommandList(
+				CommandViewport(
+					CommandEmpty("No emoji found."),
 					...sections.map((section) =>
 						CommandGroup(
 							{ value: section.name },

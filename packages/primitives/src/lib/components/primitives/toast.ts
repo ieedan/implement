@@ -327,7 +327,10 @@ const ToastProviderContext = context<ToastProviderState>();
  * the app (or at least around the `ToastViewport`). Timers pause while the
  * pointer is over the stack, while it holds focus, and while the tab is hidden.
  */
-export const ToastProvider = createComponent(function ToastProvider(props: ToastProviderProps, ...children: Child[]) {
+export const ToastProvider = createComponent(function ToastProvider(
+	props: ToastProviderProps,
+	...children: Child[]
+) {
 	const state = new ToastProviderState(props);
 	const ownsManager = props.manager === undefined;
 	return ToastProviderContext.Provide(state).To(
@@ -712,7 +715,10 @@ export const Toast = createComponent(function Toast(
 
 export type ToastTitleProps = ComponentProps<typeof Div>;
 
-export const ToastTitle = createComponent(function ToastTitle({ id = getId(), ...restProps }: ToastTitleProps, ...children: Child[]) {
+export const ToastTitle = createComponent(function ToastTitle(
+	{ id = getId(), ...restProps }: ToastTitleProps,
+	...children: Child[]
+) {
 	return ToastRootContext.Use((rootState) => {
 		rootState.titleId.set(id);
 		return Div(
@@ -777,7 +783,10 @@ export const ToastAction = createComponent(function ToastAction(
 
 export type ToastCloseProps = ComponentProps<typeof Button>;
 
-export const ToastClose = createComponent(function ToastClose({ id = getId(), ...restProps }: ToastCloseProps, ...children: Child[]) {
+export const ToastClose = createComponent(function ToastClose(
+	{ id = getId(), ...restProps }: ToastCloseProps,
+	...children: Child[]
+) {
 	return ToastRootContext.Use((rootState) => {
 		return Button(
 			mergeProps(

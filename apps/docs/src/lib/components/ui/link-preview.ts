@@ -13,7 +13,10 @@ export type LinkPreviewContentProps = ComponentProps<typeof LinkPreviewContentPr
 
 export const LinkPreviewPortal = LinkPreviewPortalPrimitive;
 
-export const LinkPreview = createComponent(function LinkPreview(props: LinkPreviewProps, ...children: Child[]) {
+export const LinkPreview = createComponent(function LinkPreview(
+	props: LinkPreviewProps,
+	...children: Child[]
+) {
 	return LinkPreviewPrimitive(props, ...children);
 });
 

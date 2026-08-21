@@ -15,7 +15,10 @@ export type AccordionHeaderProps = ComponentProps<typeof AccordionHeaderPrimitiv
 export type AccordionTriggerProps = ComponentProps<typeof AccordionTriggerPrimitive>;
 export type AccordionContentProps = ComponentProps<typeof AccordionContentPrimitive>;
 
-export const Accordion = createComponent(function Accordion({ class: className, ...props }: AccordionProps, ...children: Child[]) {
+export const Accordion = createComponent(function Accordion(
+	{ class: className, ...props }: AccordionProps,
+	...children: Child[]
+) {
 	return AccordionPrimitive({ "data-slot": "accordion", class: className, ...props }, ...children);
 });
 

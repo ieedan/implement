@@ -798,7 +798,10 @@ export type CommandInputProps = ComponentProps<typeof Input>;
  * The search box. Typing filters and re-sorts the items. Focus can stay here:
  * arrows, enter, and the vim bindings all work from the input.
  */
-export const CommandInput = createComponent(function CommandInput({ id = getId(), ...restProps }: CommandInputProps) {
+export const CommandInput = createComponent(function CommandInput({
+	id = getId(),
+	...restProps
+}: CommandInputProps) {
 	return CommandCtx.Use((state) => {
 		const activeDescendant = derived([state.value], (value) => {
 			if (value === "") return undefined;

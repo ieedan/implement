@@ -31,7 +31,10 @@ import { createComponent } from "@implementjs/primitives";
 
 export type MenubarProps = ComponentProps<typeof MenubarPrimitive>;
 
-export const Menubar = createComponent(function Menubar({ class: className, ...props }: MenubarProps, ...children: Child[]) {
+export const Menubar = createComponent(function Menubar(
+	{ class: className, ...props }: MenubarProps,
+	...children: Child[]
+) {
 	return MenubarPrimitive(
 		{
 			...props,
@@ -152,7 +155,10 @@ export const MenubarGroupHeading = createComponent(function MenubarGroupHeading(
 
 export type MenubarSeparatorProps = ComponentProps<typeof MenubarSeparatorPrimitive>;
 
-export const MenubarSeparator = createComponent(function MenubarSeparator({ class: className, ...props }: MenubarSeparatorProps) {
+export const MenubarSeparator = createComponent(function MenubarSeparator({
+	class: className,
+	...props
+}: MenubarSeparatorProps) {
 	return MenubarSeparatorPrimitive({
 		...props,
 		"data-slot": "menubar-separator",

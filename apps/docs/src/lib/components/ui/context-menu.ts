@@ -120,7 +120,10 @@ export const ContextMenuGroupHeading = createComponent(function ContextMenuGroup
 
 export type ContextMenuSeparatorProps = ComponentProps<typeof ContextMenuSeparatorPrimitive>;
 
-export const ContextMenuSeparator = createComponent(function ContextMenuSeparator({ class: className, ...props }: ContextMenuSeparatorProps) {
+export const ContextMenuSeparator = createComponent(function ContextMenuSeparator({
+	class: className,
+	...props
+}: ContextMenuSeparatorProps) {
 	return ContextMenuSeparatorPrimitive({
 		...props,
 		"data-slot": "context-menu-separator",

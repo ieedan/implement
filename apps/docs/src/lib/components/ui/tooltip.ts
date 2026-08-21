@@ -19,7 +19,10 @@ export type TooltipContentProps = ComponentProps<typeof TooltipContentPrimitive>
 
 export const TooltipPortal = TooltipPortalPrimitive;
 
-export const TooltipProvider = createComponent(function TooltipProvider(props: TooltipProviderProps, ...children: Child[]) {
+export const TooltipProvider = createComponent(function TooltipProvider(
+	props: TooltipProviderProps,
+	...children: Child[]
+) {
 	return TooltipProviderPrimitive(props, ...children);
 });
 

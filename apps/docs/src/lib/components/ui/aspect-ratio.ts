@@ -4,6 +4,9 @@ import { createComponent } from "@implementjs/primitives";
 
 export type AspectRatioProps = ComponentProps<typeof AspectRatioPrimitive>;
 
-export const AspectRatio = createComponent(function AspectRatio(props: AspectRatioProps, ...children: Child[]) {
+export const AspectRatio = createComponent(function AspectRatio(
+	props: AspectRatioProps,
+	...children: Child[]
+) {
 	return AspectRatioPrimitive({ "data-slot": "aspect-ratio", ...props }, ...children);
 });

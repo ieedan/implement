@@ -555,7 +555,10 @@ const MenuGroupCtx = context<MenuGroupState>();
 
 export type MenuGroupProps = ComponentProps<typeof Div>;
 
-export const MenuGroup = createComponent(function MenuGroup({ id = getId(), ...restProps }: MenuGroupProps, ...children: Child[]) {
+export const MenuGroup = createComponent(function MenuGroup(
+	{ id = getId(), ...restProps }: MenuGroupProps,
+	...children: Child[]
+) {
 	return MenuCtx.Use((state) => {
 		const group = new MenuGroupState();
 		return MenuGroupCtx.Provide(group).To(

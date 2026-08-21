@@ -34,7 +34,10 @@ class CollapsibleState {
 	}
 }
 
-export const Collapsible = createComponent(function Collapsible({ open, ...restProps }: CollapsibleRootProps, ...children: Child[]) {
+export const Collapsible = createComponent(function Collapsible(
+	{ open, ...restProps }: CollapsibleRootProps,
+	...children: Child[]
+) {
 	const state = new CollapsibleState({ open });
 	return CollapsibleCtx.Provide(state).To(
 		Div(

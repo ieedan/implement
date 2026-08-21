@@ -24,7 +24,9 @@ export type SelectValueProps = {
 	placeholder?: string;
 };
 
-export const SelectValue = createComponent(function SelectValue({ placeholder = "" }: SelectValueProps = {}) {
+export const SelectValue = createComponent(function SelectValue({
+	placeholder = "",
+}: SelectValueProps) {
 	return SelectValuePrimitive({
 		render: (props) => {
 			if (props.type === "single") {
@@ -143,7 +145,10 @@ export const SelectContent = createComponent(function SelectContent(
 	);
 });
 
-export const SelectItem = createComponent(function SelectItem({ class: className, ...props }: SelectItemProps, ...children: Child[]) {
+export const SelectItem = createComponent(function SelectItem(
+	{ class: className, ...props }: SelectItemProps,
+	...children: Child[]
+) {
 	return SelectItemPrimitive(
 		{
 			...props,

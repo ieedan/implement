@@ -205,7 +205,10 @@ class LinkPreviewState {
 
 const LinkPreviewCtx = context<LinkPreviewState>();
 
-export const LinkPreview = createComponent(function LinkPreview(props: LinkPreviewRootProps, ...children: Child[]) {
+export const LinkPreview = createComponent(function LinkPreview(
+	props: LinkPreviewRootProps,
+	...children: Child[]
+) {
 	const state = new LinkPreviewState(props);
 	return DismissableLayer(
 		{

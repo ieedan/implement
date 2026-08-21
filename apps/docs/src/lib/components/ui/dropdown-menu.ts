@@ -204,7 +204,10 @@ export const DropdownMenuGroupHeading = createComponent(function DropdownMenuGro
 
 export type DropdownMenuSeparatorProps = ComponentProps<typeof DropdownMenuSeparatorPrimitive>;
 
-export const DropdownMenuSeparator = createComponent(function DropdownMenuSeparator({ class: className, ...props }: DropdownMenuSeparatorProps) {
+export const DropdownMenuSeparator = createComponent(function DropdownMenuSeparator({
+	class: className,
+	...props
+}: DropdownMenuSeparatorProps) {
 	return DropdownMenuSeparatorPrimitive({
 		...props,
 		"data-slot": "dropdown-menu-separator",

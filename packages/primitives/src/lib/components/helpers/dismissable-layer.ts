@@ -212,7 +212,10 @@ function isInteractionWithOutsideElement(
 
 const DismissableLayerCtx = context<DismissableLayerState>();
 
-export const DismissableLayer = createComponent(function DismissableLayer(props: DismissableLayerProps, ...children: Child[]) {
+export const DismissableLayer = createComponent(function DismissableLayer(
+	props: DismissableLayerProps,
+	...children: Child[]
+) {
 	return DismissableLayerCtx.UseOr((parent) => {
 		const state = new DismissableLayerState(parent, { ...props, id: getId() });
 		return DismissableLayerCtx.Provide(state).To(

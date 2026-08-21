@@ -12,7 +12,10 @@ export type TabsListProps = ComponentProps<typeof TabsListPrimitive>;
 export type TabsTriggerProps = ComponentProps<typeof TabsTriggerPrimitive>;
 export type TabsContentProps = ComponentProps<typeof TabsContentPrimitive>;
 
-export const Tabs = createComponent(function Tabs({ class: className, ...props }: TabsProps, ...children: Child[]) {
+export const Tabs = createComponent(function Tabs(
+	{ class: className, ...props }: TabsProps,
+	...children: Child[]
+) {
 	return TabsPrimitive(
 		{
 			...props,
@@ -23,7 +26,10 @@ export const Tabs = createComponent(function Tabs({ class: className, ...props }
 	);
 });
 
-export const TabsList = createComponent(function TabsList({ class: className, ...props }: TabsListProps, ...children: Child[]) {
+export const TabsList = createComponent(function TabsList(
+	{ class: className, ...props }: TabsListProps,
+	...children: Child[]
+) {
 	return TabsListPrimitive(
 		{
 			...props,

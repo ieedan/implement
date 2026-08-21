@@ -10,7 +10,10 @@ export type AvatarProps = ComponentProps<typeof AvatarPrimitive>;
 export type AvatarImageProps = ComponentProps<typeof AvatarImagePrimitive>;
 export type AvatarFallbackProps = ComponentProps<typeof AvatarFallbackPrimitive>;
 
-export const Avatar = createComponent(function Avatar({ class: className, ...props }: AvatarProps, ...children: Child[]) {
+export const Avatar = createComponent(function Avatar(
+	{ class: className, ...props }: AvatarProps,
+	...children: Child[]
+) {
 	return AvatarPrimitive(
 		{
 			...props,
@@ -21,7 +24,10 @@ export const Avatar = createComponent(function Avatar({ class: className, ...pro
 	);
 });
 
-export const AvatarImage = createComponent(function AvatarImage({ class: className, ...props }: AvatarImageProps) {
+export const AvatarImage = createComponent(function AvatarImage({
+	class: className,
+	...props
+}: AvatarImageProps) {
 	return AvatarImagePrimitive({
 		...props,
 		"data-slot": "avatar-image",

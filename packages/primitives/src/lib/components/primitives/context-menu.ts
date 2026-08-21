@@ -72,7 +72,10 @@ export type ContextMenuRootProps = MenuRootOptions;
  * the pointer. Built on the shared menu base; see DropdownMenu and Menubar
  * for the other flavors.
  */
-export const ContextMenu = createComponent(function ContextMenu(props: ContextMenuRootProps, ...children: Child[]) {
+export const ContextMenu = createComponent(function ContextMenu(
+	props: ContextMenuRootProps,
+	...children: Child[]
+) {
 	const state = new ContextMenuState(props);
 	return MenuRoot(state, ...children);
 });

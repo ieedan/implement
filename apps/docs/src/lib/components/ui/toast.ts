@@ -60,7 +60,10 @@ export const ToastViewport = createComponent(function ToastViewport(
 	);
 });
 
-export const Toast = createComponent(function Toast({ class: className, ...props }: ToastRootProps, ...children: Child[]) {
+export const Toast = createComponent(function Toast(
+	{ class: className, ...props }: ToastRootProps,
+	...children: Child[]
+) {
 	return ToastPrimitive(
 		{
 			...props,
@@ -97,7 +100,10 @@ export const Toast = createComponent(function Toast({ class: className, ...props
 	);
 });
 
-export const ToastTitle = createComponent(function ToastTitle({ class: className, ...props }: ToastTitleProps, ...children: Child[]) {
+export const ToastTitle = createComponent(function ToastTitle(
+	{ class: className, ...props }: ToastTitleProps,
+	...children: Child[]
+) {
 	return ToastTitlePrimitive(
 		{
 			...props,
@@ -136,7 +142,10 @@ export const ToastAction = createComponent(function ToastAction(
 	);
 });
 
-export const ToastClose = createComponent(function ToastClose({ class: className, ...props }: ToastCloseProps, ...children: Child[]) {
+export const ToastClose = createComponent(function ToastClose(
+	{ class: className, ...props }: ToastCloseProps,
+	...children: Child[]
+) {
 	return ToastClosePrimitive(
 		{
 			...props,

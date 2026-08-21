@@ -9,7 +9,10 @@ import { createComponent } from "@implementjs/primitives";
 export type RadioGroupProps = ComponentProps<typeof RadioGroupPrimitive>;
 export type RadioGroupItemProps = ComponentProps<typeof RadioGroupItemPrimitive>;
 
-export const RadioGroup = createComponent(function RadioGroup({ class: className, ...props }: RadioGroupProps, ...children: Child[]) {
+export const RadioGroup = createComponent(function RadioGroup(
+	{ class: className, ...props }: RadioGroupProps,
+	...children: Child[]
+) {
 	return RadioGroupPrimitive(
 		{ ...props, "data-slot": "radio-group", class: ["grid gap-3", className] },
 		...children,

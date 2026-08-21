@@ -8,7 +8,10 @@ import { createComponent } from "@implementjs/primitives";
 export type SwitchProps = ComponentProps<typeof SwitchPrimitive>;
 export type SwitchThumbProps = ComponentProps<typeof SwitchThumbPrimitive>;
 
-export const Switch = createComponent(function Switch({ class: className, ...props }: SwitchProps, ...children: Child[]) {
+export const Switch = createComponent(function Switch(
+	{ class: className, ...props }: SwitchProps,
+	...children: Child[]
+) {
 	return SwitchPrimitive(
 		{
 			...props,

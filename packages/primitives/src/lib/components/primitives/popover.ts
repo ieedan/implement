@@ -161,7 +161,10 @@ class PopoverState {
 
 const PopoverContext = context<PopoverState>();
 
-export const Popover = createComponent(function Popover(props: PopoverRootProps, ...children: Child[]) {
+export const Popover = createComponent(function Popover(
+	props: PopoverRootProps,
+	...children: Child[]
+) {
 	const state = new PopoverState(props);
 	return DismissableLayer(
 		{

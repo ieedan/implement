@@ -92,7 +92,10 @@ export function CalendarMonthGrid(
 }
 
 /** A fully assembled, styled calendar. Forward any root prop from the primitive. */
-export const Calendar = createComponent(function Calendar({ class: className, ...props }: CalendarProps = {}) {
+export const Calendar = createComponent(function Calendar({
+	class: className,
+	...props
+}: CalendarProps) {
 	return CalendarPrimitive(
 		{ ...props, class: [calendarRootClasses, className] },
 		({ months, weekdays }) =>

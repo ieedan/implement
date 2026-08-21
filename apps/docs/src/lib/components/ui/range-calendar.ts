@@ -35,7 +35,10 @@ const rangeDayClasses = [
 ].join(" ");
 
 /** A fully assembled, styled range calendar. Forward any root prop from the primitive. */
-export const RangeCalendar = createComponent(function RangeCalendar({ class: className, ...props }: RangeCalendarProps = {}) {
+export const RangeCalendar = createComponent(function RangeCalendar({
+	class: className,
+	...props
+}: RangeCalendarProps) {
 	return RangeCalendarPrimitive(
 		{ ...props, class: [calendarRootClasses, className] },
 		({ months, weekdays }) =>
