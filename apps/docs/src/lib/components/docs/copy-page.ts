@@ -71,13 +71,13 @@ export function CopyPage(permalink: string): Mountable {
 					{ onSelect: () => openPrompt("https://chatgpt.com/?hints=search&q=") },
 					OpenAIIcon({ class: "size-4", "aria-hidden": true }),
 					"Open in ChatGPT",
-					ExternalLinkIcon({ class: "size-4 ml-auto text-muted-foreground", "aria-hidden": true })
+					ExternalLinkIcon({ class: "size-4 ml-auto text-muted-foreground", "aria-hidden": true }),
 				),
 				DropdownMenuItem(
 					{ onSelect: () => openPrompt("https://claude.ai/new?q=") },
 					ClaudeIcon({ class: "size-4", "aria-hidden": true }),
 					"Open in Claude",
-					ExternalLinkIcon({ class: "size-4 ml-auto text-muted-foreground", "aria-hidden": true })
+					ExternalLinkIcon({ class: "size-4 ml-auto text-muted-foreground", "aria-hidden": true }),
 				),
 			),
 		),
