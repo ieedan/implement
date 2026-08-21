@@ -2,11 +2,17 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { createServer, type Plugin, type ResolvedConfig, type ViteDevServer } from "vite";
 import { injectSsr } from "./inject.ts";
-import { crawlRoutes, prerenderRoutes, type RenderFn } from "./prerender.ts";
+import { crawlRoutes, prerenderRoutes, type RenderFn, type TransformHtml } from "./prerender.ts";
 import { collectDevStyles } from "./styles.ts";
 
 export { injectSsr, type SsrResult } from "./inject.ts";
-export { crawlRoutes, normalizeRoute, prerenderRoutes, type RenderFn } from "./prerender.ts";
+export {
+	crawlRoutes,
+	normalizeRoute,
+	prerenderRoutes,
+	type RenderFn,
+	type TransformHtml,
+} from "./prerender.ts";
 export { collectDevStyles, devStyleTags, type DevStyle } from "./styles.ts";
 
 export type PrerenderContext = {
@@ -30,6 +36,12 @@ export type PrerenderOptions = {
 	 * serve the app's not-found fallback for unknown URLs.
 	 */
 	notFound?: string;
+	/**
+	 * A final pass over each prerendered page (the `404.html` fallback
+	 * included), after the server render is injected and before the file is
+	 * written — for the per-route tags only the finished build can name.
+	 */
+	transformHtml?: TransformHtml;
 	/**
 	 * Runs after the routes are prerendered, with the SSR module runner still
 	 * open — for writing extra files (endpoints, data payloads, sitemaps) into
@@ -118,14 +130,25 @@ export function implement(options: ImplementOptions = {}): Plugin {
 						: typeof routesOption === "function"
 							? await routesOption(render)
 							: routesOption;
-				const { written, failed } = await prerenderRoutes({ render, routes, template, outDir });
+				const transformHtml = typeof prerender === "object" ? prerender.transformHtml : undefined;
+				const { written, failed } = await prerenderRoutes({
+					render,
+					routes,
+					template,
+					outDir,
+					transformHtml,
+				});
 				config.logger.info(`prerendered ${written}/${routes.length} routes`);
 				if (failed.length > 0) {
 					throw new Error(`prerender failed:\n  ${failed.join("\n  ")}`);
 				}
 				const notFound = typeof prerender === "object" ? prerender.notFound : undefined;
 				if (notFound !== undefined) {
-					writeFileSync(join(outDir, "404.html"), injectSsr(template, await render(notFound)));
+					const page = injectSsr(template, await render(notFound));
+					writeFileSync(
+						join(outDir, "404.html"),
+						transformHtml === undefined ? page : transformHtml(notFound, page),
+					);
 				}
 				const after = typeof prerender === "object" ? prerender.after : undefined;
 				await after?.({

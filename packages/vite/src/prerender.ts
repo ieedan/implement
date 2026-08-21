@@ -5,6 +5,14 @@ import { injectSsr, type SsrResult } from "./inject.ts";
 /** May be async — a render that resolves route data first returns a promise. */
 export type RenderFn = (url: string) => SsrResult | Promise<SsrResult>;
 
+/**
+ * A last pass over a prerendered page, after the render is injected and before
+ * it is written. Unlike `transformIndexHtml`, this runs per route and after the
+ * client build, so it can reach for things only the finished build knows —
+ * which is what kit's per-route preload hints need.
+ */
+export type TransformHtml = (route: string, html: string) => string;
+
 const INTERNAL_HREF = /href="(\/[^"#?]*)"/g;
 
 /** Trailing slashes dropped so crawled hrefs and configured routes compare equal. */
@@ -40,12 +48,14 @@ export async function prerenderRoutes(options: {
 	routes: string[];
 	template: string;
 	outDir: string;
+	transformHtml?: TransformHtml;
 }): Promise<{ written: number; failed: string[] }> {
-	const { render, routes, template, outDir } = options;
+	const { render, routes, template, outDir, transformHtml } = options;
 	const failed: string[] = [];
 	for (const route of routes) {
 		try {
-			const page = injectSsr(template, await render(route));
+			const rendered = injectSsr(template, await render(route));
+			const page = transformHtml === undefined ? rendered : transformHtml(route, rendered);
 			const out =
 				route === "/" ? join(outDir, "index.html") : join(outDir, route.slice(1), "index.html");
 			mkdirSync(dirname(out), { recursive: true });

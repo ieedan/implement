@@ -1,4 +1,4 @@
-import { basename, join, resolve, sep } from "node:path";
+import { basename, isAbsolute, join, resolve, sep } from "node:path";
 import {
 	crawlRoutes,
 	implement,
@@ -16,6 +16,7 @@ import {
 } from "./codegen.ts";
 import { ENDPOINTS_ID, handleServerRequest, LOADS_ID, prerenderServerFiles } from "./dev.ts";
 import { isRootShell, resolveShell, serveShell, shellOutputPlugin } from "./html.ts";
+import { manifestPath, preloadHints } from "./preload.ts";
 import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
 import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
@@ -78,6 +79,12 @@ const treeHasLoads = (node: RouteNode): boolean =>
  * directory's path; inside a `.<ext>` directory it serves the parent path
  * with the extension appended (`docs/.md/server.ts` → `/docs.md`), and GET
  * endpoints are prerendered into static files.
+ *
+ * Routes are code-split: each page and layout is its own chunk, so a visitor
+ * downloads the prerendered html plus the code for the route they landed on,
+ * and the rest arrives as they navigate. The prerendered pages carry
+ * `modulepreload` hints for their own chunks, so the first load fetches them
+ * alongside the entry rather than after it.
  *
  * Kit also sets up the app conventions: static assets in `static/` are
  * served at the site root and copied into the build (unless the app sets
@@ -162,7 +169,12 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			return {
 				publicDir: userConfig.publicDir ?? "static",
 				resolve: { alias },
-				...(overrideInput ? { build: { rollupOptions: { input: shellPath.path } } } : {}),
+				build: {
+					// the prerender needs chunk filenames to emit preload hints for
+					// each route's own modules, and only the manifest has them
+					manifest: userConfig.build?.manifest ?? true,
+					...(overrideInput ? { rollupOptions: { input: shellPath.path } } : {}),
+				},
 			};
 		},
 		configResolved(config) {
@@ -172,6 +184,14 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			const scanned = scan();
 			writeGenerated(root, scanned, genOptions);
 			if (scanned.error !== null) prerenderConfig.notFound = NOT_FOUND_ROUTE;
+			const outDir = isAbsolute(config.build.outDir)
+				? config.build.outDir
+				: join(root, config.build.outDir);
+			prerenderConfig.transformHtml = preloadHints({
+				manifest: manifestPath(outDir, config.build.manifest),
+				routesBase,
+				tree: () => tree ?? scan(),
+			});
 		},
 		resolveId(id) {
 			if (id === ROUTER_ID) return RESOLVED_ROUTER_ID;

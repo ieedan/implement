@@ -6,7 +6,7 @@ import { type RouteNode, type RouteTree } from "./scan.ts";
 export const IMPLEMENT_DIR = ".implement";
 
 const ENTRY_CLIENT = `import { App } from "@implementjs/core";
-import { initClientData } from "@implementjs/kit/runtime";
+import { initClientData, preloadRoute } from "@implementjs/kit/runtime";
 import { router } from "$implement/router";
 
 initClientData();
@@ -18,11 +18,23 @@ if (import.meta.hot) {
 	import.meta.hot.dispose(app.unmount);
 }
 
-app.render(router);
+// The landing route's page and layouts are in chunks of their own, and the
+// router renders them synchronously, so they have to be in memory first.
+// Deliberately not a top-level await: Rollup hoists what the route chunks
+// share into this entry's chunk, so those chunks statically import it —
+// waiting here for an import that is waiting for this module deadlocks both.
+preloadRoute(window.location.pathname).then(
+	() => app.render(router),
+	(error) => {
+		// the server-rendered markup is already on screen; leaving a readable
+		// page up beats tearing it down for a route whose code never arrived
+		console.error(error);
+	},
+);
 `;
 
 const ENTRY_SERVER = `import { renderToString, type RenderToStringResult } from "@implementjs/core/server";
-import { resolveLoads, seedData, type RouteData } from "@implementjs/kit/runtime";
+import { preloadRoute, resolveLoads, seedData, type RouteData } from "@implementjs/kit/runtime";
 import { loads } from "$implement/loads";
 import { router } from "$implement/router";
 
@@ -31,6 +43,9 @@ export type RenderResult = RenderToStringResult & { data?: RouteData };
 export async function render(url: string): Promise<RenderResult> {
 	const data = await resolveLoads(loads, url);
 	if (data !== null) seedData(data);
+	// renderToString is synchronous, so the route's modules have to be resolved
+	// before it walks the tree
+	await preloadRoute(url);
 	const result = renderToString(router, { location: url });
 	return data === null ? result : { ...result, data };
 }

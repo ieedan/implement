@@ -82,6 +82,28 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect(html).not.toContain('class="authed"');
 	});
 
+	it("hoists a layout@ subtree out of the layouts it resets past", async () => {
+		const { html } = await render("/admin");
+		expect(html).toContain('<main class="shell">');
+		expect(html).toContain('<div class="admin">');
+		expect(html).toContain("<p>admin</p>");
+		expect(html).not.toContain('class="authed"');
+	});
+
+	it("resets an index@<segment> page to that ancestor's layout, keeping its params", async () => {
+		const nested = await render("/shop/42");
+		expect(nested.html).toContain('<div class="shop">');
+		expect(nested.html).toContain('<div class="product">');
+		expect(nested.html).toContain("<p>product 42</p>");
+
+		const { html } = await render("/shop/42/checkout");
+		// the reset stops at shop, so shop's layout still wraps it and [id]'s does not
+		expect(html).toContain('<main class="shell">');
+		expect(html).toContain('<div class="shop">');
+		expect(html).not.toContain('class="product"');
+		expect(html).toContain("<p>checkout 42</p>");
+	});
+
 	it("resolves @/lib imports to src/lib", async () => {
 		expect((await render("/lib-alias")).html).toContain("<p>hello from lib</p>");
 	});

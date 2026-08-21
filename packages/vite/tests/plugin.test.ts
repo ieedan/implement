@@ -1,6 +1,9 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { injectSsr } from "../src/inject.ts";
-import { crawlRoutes, normalizeRoute } from "../src/prerender.ts";
+import { crawlRoutes, normalizeRoute, prerenderRoutes } from "../src/prerender.ts";
 
 const shell = `<html>\n\t<head>\n\t\t<title>shell</title>\n\t</head>\n\t<body id="root"></body>\n</html>`;
 
@@ -69,5 +72,31 @@ describe("normalizeRoute", () => {
 	it("drops trailing slashes but keeps the root", () => {
 		expect(normalizeRoute("/docs/")).toBe("/docs");
 		expect(normalizeRoute("/")).toBe("/");
+	});
+});
+
+describe("prerenderRoutes", () => {
+	it("hands each page to transformHtml with its route before writing it", async () => {
+		const outDir = mkdtempSync(join(tmpdir(), "implement-prerender-"));
+		try {
+			const { written, failed } = await prerenderRoutes({
+				render: (url) => ({ html: `<p>${url}</p>`, head: "" }),
+				routes: ["/", "/docs"],
+				template: shell,
+				outDir,
+				transformHtml: (route, html) =>
+					html.replace("</head>", `<link rel="modulepreload" href="${route}.js">\n</head>`),
+			});
+			expect({ written, failed }).toEqual({ written: 2, failed: [] });
+			expect(readFileSync(join(outDir, "index.html"), "utf8")).toContain(
+				'<link rel="modulepreload" href="/.js">',
+			);
+			const docs = readFileSync(join(outDir, "docs/index.html"), "utf8");
+			expect(docs).toContain('<link rel="modulepreload" href="/docs.js">');
+			// the transform sees the finished page, server render included
+			expect(docs).toContain("<p>/docs</p>");
+		} finally {
+			rmSync(outDir, { recursive: true, force: true });
+		}
 	});
 });
