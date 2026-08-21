@@ -349,8 +349,9 @@ count zero. That sets a floor on memory and creation somewhere above Svelte —
 though at 3.2× the heap today, it is nowhere near that floor yet.
 
 All nine fixes are about 330 lines across seventeen files, keep the core tests
-green (73 now — the merge in fix 7 brought one with it), and add roughly 700
-bytes gzipped, still the smallest bundle of the three by a wide margin.
+green (73 now — the merge in fix 7 brought one with it), and cost 680 bytes
+gzipped: 10.22 kB to 10.90 kB, against 16.9 kB for Svelte and 61.6 kB for React.
+Still the smallest bundle of the three by 1.6×.
 
 ## Reading this fairly
 
