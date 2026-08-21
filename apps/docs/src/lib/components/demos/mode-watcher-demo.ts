@@ -1,6 +1,6 @@
 import { Div, P, Span } from "@implementjs/core";
 import { MonitorIcon, MoonIcon, SunIcon } from "@implementjs/lucide";
-import { createModeManager, type Mode } from "@implementjs/primitives";
+import { createModeManager, type Mode } from "@implementjs/mode-watcher";
 import { Button } from "@/lib/components/ui/button";
 
 // A real app mounts `ModeWatcher({ manager })` at the root and lets the manager

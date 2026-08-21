@@ -13,6 +13,7 @@ export const VERSIONS = {
 	"@implementjs/formish": IMPLEMENT_VERSION,
 	"@implementjs/kit": IMPLEMENT_VERSION,
 	"@implementjs/lucide": IMPLEMENT_VERSION,
+	"@implementjs/mode-watcher": IMPLEMENT_VERSION,
 	"@implementjs/primitives": IMPLEMENT_VERSION,
 	"@tailwindcss/vite": "^4.3.3",
 	"@types/node": "^26.2.0",

@@ -1,4 +1,12 @@
-import { createPages, kitPages, lucidePages, pages, primitivePages } from "@/lib/content";
+import {
+	createPages,
+	formishPages,
+	kitPages,
+	lucidePages,
+	modeWatcherPages,
+	pages,
+	primitivePages,
+} from "@/lib/content";
 
 /**
  * Which docs pages have a plain-markdown twin. Every collection below is
@@ -6,7 +14,15 @@ import { createPages, kitPages, lucidePages, pages, primitivePages } from "@/lib
  * pages, so `/kit/routing` also answers at `/kit/routing.md`. Lessons have
  * no twin — the tutorial is an editor, not a document.
  */
-const collections = [pages, kitPages, primitivePages, lucidePages, createPages];
+const collections = [
+	pages,
+	kitPages,
+	primitivePages,
+	lucidePages,
+	createPages,
+	formishPages,
+	modeWatcherPages,
+];
 
 const permalinks = new Set(
 	collections.flatMap((collection) => collection.map((page) => page.permalink)),

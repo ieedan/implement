@@ -8,7 +8,6 @@ import {
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import { noop } from "../../utils";
 
 /** What the user asked for. `"system"` follows the operating system. */
 export type Mode = "dark" | "light" | "system";
@@ -63,6 +62,8 @@ const MANAGER_DEFAULTS: ResolvedModeManagerOptions = {
 function isBrowser(): boolean {
 	return typeof document !== "undefined";
 }
+
+function noop() {}
 
 /** Merges the options that were actually passed, leaving the rest alone. */
 function assignOptions(target: ResolvedModeManagerOptions, options: ModeManagerOptions) {
@@ -412,7 +413,7 @@ export type ModeWatcherProps = ModeManagerOptions & {
  * it stays mounted.
  *
  * ```ts
- * import { createModeManager, ModeWatcher } from "@implementjs/primitives";
+ * import { createModeManager, ModeWatcher } from "@implementjs/mode-watcher";
  *
  * export const mode = createModeManager();
  *

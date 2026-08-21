@@ -1,4 +1,4 @@
-import { createModeManager } from "@implementjs/primitives";
+import { createModeManager } from "@implementjs/mode-watcher";
 
 /**
  * The docs site's mode. Module scope so anything can read or change it —

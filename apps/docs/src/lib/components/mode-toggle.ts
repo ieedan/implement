@@ -1,6 +1,6 @@
 import { Implement, signal, Span, type Mountable } from "@implementjs/core";
-import { MonitorIcon, MoonIcon, SunIcon } from "@implementjs/lucide";
-import { isMode } from "@implementjs/primitives";
+import { CheckIcon, MonitorIcon, MoonIcon, SunIcon } from "@implementjs/lucide";
+import { isMode } from "@implementjs/mode-watcher";
 import { mode } from "@/lib/mode";
 import {
 	DropdownMenu,
@@ -9,6 +9,19 @@ import {
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+
+// every row already leads with its own icon, so the radio dot reads as clutter:
+// it is hidden along with the gutter it sat in, and the choice is marked by a
+// check at the end of the row instead
+const itemClasses = "pl-2! [&>[data-slot=menu-item-indicator]]:hidden";
+
+/** The check that marks the mode currently chosen. */
+function CheckMark() {
+	return CheckIcon({
+		"aria-hidden": true,
+		class: "ml-auto size-4 hidden group-data-[state=checked]/menu-item:block",
+	});
+}
 
 /**
  * The site's light/dark switcher. Reads and writes the shared
@@ -38,19 +51,22 @@ export function ModeToggle(): Mountable {
 				DropdownMenuRadioGroup(
 					{ value: preference },
 					DropdownMenuRadioItem(
-						{ value: "light" },
+						{ value: "light", class: itemClasses },
 						SunIcon({ class: "size-4", "aria-hidden": true }),
 						Span("Light"),
+						CheckMark(),
 					),
 					DropdownMenuRadioItem(
-						{ value: "dark" },
+						{ value: "dark", class: itemClasses },
 						MoonIcon({ class: "size-4", "aria-hidden": true }),
 						Span("Dark"),
+						CheckMark(),
 					),
 					DropdownMenuRadioItem(
-						{ value: "system" },
+						{ value: "system", class: itemClasses },
 						MonitorIcon({ class: "size-4", "aria-hidden": true }),
 						Span("System"),
+						CheckMark(),
 					),
 				),
 			),

@@ -28,6 +28,7 @@ import {
 	formishPages,
 	kitPages,
 	lucidePages,
+	modeWatcherPages,
 	pages,
 	primitivePages,
 	tutorials,
@@ -60,7 +61,15 @@ import {
 } from "../ui/dropdown-menu";
 import { MarkdownIcon } from "./brand-icons";
 
-type AreaKey = "lib" | "kit" | "primitives" | "ui" | "formish" | "lucide" | "tutorial";
+type AreaKey =
+	| "lib"
+	| "kit"
+	| "primitives"
+	| "ui"
+	| "formish"
+	| "lucide"
+	| "mode-watcher"
+	| "tutorial";
 
 type Area = {
 	key: AreaKey;
@@ -82,6 +91,12 @@ const areas: Area[] = [
 	{ key: "ui", label: "@implementjs/ui", pages: uiPages, markdown: true },
 	{ key: "formish", label: "@implementjs/formish", pages: formishPages, markdown: true },
 	{ key: "lucide", label: "@implementjs/lucide", pages: lucidePages, markdown: true },
+	{
+		key: "mode-watcher",
+		label: "@implementjs/mode-watcher",
+		pages: modeWatcherPages,
+		markdown: true,
+	},
 	{ key: "tutorial", label: "Tutorial", pages: tutorials, markdown: false },
 ];
 

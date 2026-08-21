@@ -62,6 +62,18 @@ describe("runCreate", () => {
 		expect(unwrap(result).addons).toEqual(["primitives", "icons"]);
 	});
 
+	it("wires up mode-watcher from the flag", async () => {
+		const result = await runCreate("my-app", options({ modeWatcher: true }));
+
+		expect(unwrap(result).addons).toEqual(["tailwind", "modeWatcher"]);
+		expect(readFileSync(join(cwd, "my-app/src/routes/layout.ts"), "utf8")).toContain(
+			"ModeWatcher({ manager: mode })",
+		);
+		expect(readFileSync(join(cwd, "my-app/src/lib/mode.ts"), "utf8")).toContain(
+			"createModeManager()",
+		);
+	});
+
 	it("derives a valid package name from the directory", async () => {
 		const result = await runCreate("./Some Dir", options());
 

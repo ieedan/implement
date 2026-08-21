@@ -5,6 +5,7 @@ import {
 	DOCS_URL,
 	gitignore,
 	indexHtml,
+	modeModule,
 	packageJson,
 	signUpFormComponent,
 	styles,
@@ -38,7 +39,7 @@ export const kit: Template = {
 		{ path: "vite.config.ts", contents: viteConfig(ctx) },
 		{
 			path: "src/index.html",
-			contents: indexHtml({ title: ctx.name, entry: "/.implement/entry-client.ts" }),
+			contents: indexHtml(ctx, { title: ctx.name, entry: "/.implement/entry-client.ts" }),
 		},
 		{ path: "src/app.css", contents: appCss(ctx) },
 		{ path: "src/app.d.ts", contents: appTypes() },
@@ -48,6 +49,9 @@ export const kit: Template = {
 		{ path: "src/routes/about/index.ts", contents: aboutPage(ctx) },
 		{ path: "src/routes/error.ts", contents: errorPage(ctx) },
 		{ path: "src/lib/counter.ts", contents: counter(ctx) },
+		...(hasAddon(ctx, "modeWatcher")
+			? [{ path: "src/lib/mode.ts", contents: modeModule(ctx) }]
+			: []),
 		...(hasAddon(ctx, "forms")
 			? [{ path: "src/lib/sign-up-form.ts", contents: signUpFormComponent(ctx) }]
 			: []),
@@ -62,6 +66,7 @@ function pkg(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "primitives")) deps.push("@implementjs/primitives");
 	if (hasAddon(ctx, "icons")) deps.push("@implementjs/lucide");
 	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
+	if (hasAddon(ctx, "modeWatcher")) deps.push("@implementjs/mode-watcher");
 
 	const devDeps: Dependency[] = ["@implementjs/kit", "@types/node", "typescript", "vite"];
 	if (hasAddon(ctx, "tailwind")) devDeps.push("@tailwindcss/vite", "tailwindcss");
@@ -128,15 +133,25 @@ function syncScript(): string {
 
 function layout(ctx: TemplateContext): string {
 	const c = styles(ctx);
+	const modeWatcher = hasAddon(ctx, "modeWatcher");
 
 	return `${[
 		`import { router } from "$implement/router";`,
 		`import { Div, Main, Nav } from "@implementjs/core";`,
+		...(modeWatcher ? [`import { ModeWatcher } from "@implementjs/mode-watcher";`] : []),
+		...(modeWatcher ? [`import { mode } from "@/lib/mode";`] : []),
 		`import type { LayoutProps } from "./$types";`,
 		`import "../app.css";`,
 		``,
 		`export default function Layout({ children }: LayoutProps) {`,
 		`\treturn Div(`,
+		...(modeWatcher
+			? [
+					`\t\t// the root layout stays mounted for the life of the app, so the blocking script`,
+					`\t\t// this renders into the head runs before the first paint of every page`,
+					`\t\tModeWatcher({ manager: mode }),`,
+				]
+			: []),
 		`\t\tNav(`,
 		`\t\t\t{ class: "${c.nav}" },`,
 		`\t\t\trouter.Link({ class: "${c.navLink}", to: "/" }, "Home"),`,
@@ -211,11 +226,15 @@ function counter(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "forms")) {
 		links.push({ label: "Forms", href: `${DOCS_URL}/tree/main/packages/formish` });
 	}
+	if (hasAddon(ctx, "modeWatcher")) {
+		links.push({ label: "Dark mode", href: `${DOCS_URL}/tree/main/packages/mode-watcher` });
+	}
 
 	return counterComponent(ctx, {
 		editPath: "src/lib/counter.ts",
 		links,
 		formImport: "@/lib/sign-up-form",
+		modeImport: "@/lib/mode",
 	});
 }
 
