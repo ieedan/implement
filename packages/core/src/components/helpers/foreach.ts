@@ -1,4 +1,4 @@
-import { dom } from "../../dom";
+import { dom, withInsertionAnchor } from "../../dom";
 import {
 	isReadable,
 	isWritable,
@@ -8,7 +8,7 @@ import {
 	type Readable,
 	type Writable,
 } from "../../signal";
-import { asParent, guarded, mountChild } from "../../tree";
+import { asParent, guarded, mountChild, isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder } from "../../utils";
 import type { IMountable, Mountable } from "../types";
@@ -207,7 +207,11 @@ export function ForEach<T>(
 					const item = new ForEachItem<T>(currentVal, writeBack);
 					const index = signal(i);
 					const instance = render(item, index)();
-					mountChild(instance, parent!);
+					// Mounted against the end marker, so a fresh list arrives in order
+					// and the reordering pass below has nothing left to do.
+					withInsertionAnchor(endMarker, () => {
+						mountChild(instance, parent!);
+					});
 					rendered.set(key, { instance, item, index });
 					ordered.push(instance);
 				}
@@ -248,7 +252,7 @@ export function ForEach<T>(
 					instance.unmount();
 				}
 				rendered.clear();
-				endMarker.remove();
+				if (!isDetaching()) endMarker.remove();
 				parent = null;
 			},
 			getFirstDomNode() {

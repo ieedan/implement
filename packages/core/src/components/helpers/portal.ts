@@ -1,6 +1,6 @@
 import { dom } from "../../dom";
 import { isReadable, subscribe, type Readable } from "../../signal";
-import { asParent, guarded, mountChild } from "../../tree";
+import { asParent, guarded, isDetaching, mountChild, reattached } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { syncDomOrder } from "../../utils";
 import { reconcileChildren } from "..";
@@ -76,7 +76,11 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 			};
 
 			const clear = () => {
-				for (const child of mounted) child.unmount();
+				// The children may be mounted under a target of our own, which an
+				// ancestor's removal does not touch, so they always remove themselves.
+				reattached(() => {
+					for (const child of mounted) child.unmount();
+				});
 				mounted = [];
 			};
 
@@ -113,7 +117,7 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 					unsubscribe?.();
 					unsubscribe = null;
 					clear();
-					endMarker.remove();
+					if (!isDetaching()) endMarker.remove();
 					parent = null;
 				},
 				getFirstDomNode() {

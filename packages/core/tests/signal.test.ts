@@ -100,6 +100,23 @@ describe("selector bind unwrapping", () => {
 		unsubscribe();
 	});
 
+	it("keeps the inner subscription when the selector returns the same readable", () => {
+		const inner = signal("a");
+		const source = signal({ inner, other: 1 });
+		const bound = source.bind((s) => s.inner);
+
+		const seen: string[] = [];
+		const unsubscribe = bound.subscribe((value) => seen.push(value));
+
+		// A change elsewhere in the source re-runs the selector, which returns the
+		// same readable. The inner subscription must survive that.
+		source.set({ inner, other: 2 });
+		inner.set("b");
+		expect(seen).toEqual(["b"]);
+
+		unsubscribe();
+	});
+
 	it("unwraps readables nested more than one level deep", () => {
 		const innermost = signal("a");
 		// signal() would return an existing writable as-is, so nest explicitly

@@ -1,4 +1,5 @@
 import { dom } from "../../dom";
+import { isDetaching } from "../../tree";
 import { subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
 import { applySvgProps, type Bindable, type SvgProps } from "../props";
@@ -83,7 +84,7 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 				unsubscribeSource?.();
 				unsubscribeSource = null;
 				release();
-				current?.remove();
+				if (!isDetaching()) current?.remove();
 				current = null;
 			},
 			getFirstDomNode() {

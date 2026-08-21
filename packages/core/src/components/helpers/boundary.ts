@@ -1,5 +1,12 @@
 import { dom } from "../../dom";
-import { asParent, mountChild, parentOf, raiseError, registerBoundary } from "../../tree";
+import {
+	asParent,
+	mountChild,
+	parentOf,
+	raiseError,
+	registerBoundary,
+	isDetaching,
+} from "../../tree";
 import { syncDomOrder, toError } from "../../utils";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
@@ -112,7 +119,7 @@ export function Boundary(...children: Child[]): BoundaryHelper {
 					pendingError = null;
 					clear();
 					showing = "children";
-					endMarker.remove();
+					if (!isDetaching()) endMarker.remove();
 					parent = null;
 				},
 				getFirstDomNode() {
