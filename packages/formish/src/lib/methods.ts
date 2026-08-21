@@ -35,7 +35,7 @@ function resolve(path: MaybeReadable<Path>): Path {
 	return isReadable<Path>(path) ? path.get() : path;
 }
 
-function internal(form: FormStore<FormSchema>): InternalFormStore {
+function internal(form: FormStore): InternalFormStore {
 	return form[INTERNAL];
 }
 
@@ -59,7 +59,7 @@ export function getInput<
 	form: FormStore<TSchema>,
 	config: GetInputConfig<TPath>,
 ): PartialInput<PathValue<InferInput<TSchema>, TPath>>;
-export function getInput(form: FormStore<FormSchema>, config?: GetInputConfig<Path>): unknown {
+export function getInput(form: FormStore, config?: GetInputConfig<Path>): unknown {
 	return readInput(internal(form), config?.path ? resolve(config.path) : []);
 }
 
@@ -85,7 +85,7 @@ export function setInput<
 	form: FormStore<TSchema>,
 	config: SetInputConfig<TPath, PartialInput<PathValue<InferInput<TSchema>, TPath>>>,
 ): void;
-export function setInput(form: FormStore<FormSchema>, config: SetInputConfig<Path, unknown>): void {
+export function setInput(form: FormStore, config: SetInputConfig<Path, unknown>): void {
 	const store = internal(form);
 	const path = config.path ? resolve(config.path) : [];
 	writeInput(store, path, config.input);
@@ -173,7 +173,7 @@ export function validate<TSchema extends FormSchema>(
 	form: FormStore<TSchema>,
 	config?: ValidateConfig,
 ): Promise<StandardResult<InferOutput<TSchema>>> {
-	return validateInput(internal(form), config) as Promise<StandardResult<InferOutput<TSchema>>>;
+	return validateInput(internal(form), config);
 }
 
 export interface FocusConfig<TPath extends Path> {
@@ -216,7 +216,7 @@ export function handleSubmit<TSchema extends FormSchema>(
 		try {
 			const result = await validateInput(store, { shouldFocus: true });
 			if (!result.issues) {
-				await handler(result.value as InferOutput<TSchema>, event);
+				await handler(result.value, event);
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "An unknown error has occurred.";
@@ -270,7 +270,7 @@ export function reset<
 	form: FormStore<TSchema>,
 	config: ResetConfig<TPath, PartialInput<PathValue<InferInput<TSchema>, TPath>>>,
 ): void;
-export function reset(form: FormStore<FormSchema>, config?: ResetConfig<Path, unknown>): void {
+export function reset(form: FormStore, config?: ResetConfig<Path, unknown>): void {
 	const store = internal(form);
 	const path = config?.path ? resolve(config.path) : [];
 

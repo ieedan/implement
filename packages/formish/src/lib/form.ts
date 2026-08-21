@@ -46,7 +46,7 @@ export interface FormStore<TSchema extends FormSchema = FormSchema> {
 export function createForm<TSchema extends FormSchema>(
 	config: FormConfig<TSchema>,
 ): FormStore<TSchema> {
-	const store = createFormStore(config as FormConfig<FormSchema>);
+	const store = createFormStore(config);
 
 	// deferred so the first validation reports on a mounted form: its elements
 	// are what tell an empty text field apart from a missing one

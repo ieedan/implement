@@ -12,7 +12,7 @@ import {
 
 type Locals = { user?: string };
 
-const localsOf = (event: RequestEvent): Locals => event.locals as Locals;
+const localsOf = (event: RequestEvent): Locals => event.locals;
 
 const page = (pattern: string, files: PageRoute["files"] = []): PageRoute => ({
 	pattern,
@@ -210,18 +210,18 @@ describe("the handle hook", () => {
 	});
 });
 
-describe("sequence", () => {
-	const trace =
-		(name: string, log: string[]): Handle =>
-		async ({ event, resolve }) => {
-			log.push(`${name}:in`);
-			const response = await resolve(event, {
-				transformPageChunk: ({ html }) => `${html}<!--${name}-->`,
-			});
-			log.push(`${name}:out`);
-			return response;
-		};
+const trace =
+	(name: string, log: string[]): Handle =>
+	async ({ event, resolve }) => {
+		log.push(`${name}:in`);
+		const response = await resolve(event, {
+			transformPageChunk: ({ html }) => `${html}<!--${name}-->`,
+		});
+		log.push(`${name}:out`);
+		return response;
+	};
 
+describe("sequence", () => {
 	it("runs handlers left to right, unwinding right to left", async () => {
 		const log: string[] = [];
 		const kit = server({ handle: sequence(trace("first", log), trace("second", log)) });

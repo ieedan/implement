@@ -3,6 +3,7 @@ import { createServer as createHttpServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { createServer, type ResolvedConfig, type ViteDevServer } from "vite";
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and dynamic module loading require intentional narrowing. */
 import { afterEach, describe, expect, it } from "vitest";
 import { previewPages, resolveShell, shellOutputPlugin } from "../src/html.ts";
 import { kit } from "../src/index.ts";
@@ -144,6 +145,23 @@ describe("the dev server with a shell under src/", () => {
 	);
 });
 
+async function withPreview(dist: string, fn: (origin: string) => Promise<void>): Promise<void> {
+	const middleware = previewPages(dist);
+	const listener: Server = createHttpServer((req, res) => {
+		middleware(req, res, () => {
+			res.statusCode = 418;
+			res.end("passed through");
+		});
+	});
+	await new Promise<void>((done) => listener.listen(0, done));
+	try {
+		await fn(`http://localhost:${(listener.address() as AddressInfo).port}`);
+	} finally {
+		listener.closeAllConnections();
+		await new Promise((done) => listener.close(done));
+	}
+}
+
 describe("previewPages", () => {
 	/** A prerendered build: a page at the root, one nested, and the 404 fallback. */
 	function makeDist(): string {
@@ -154,23 +172,6 @@ describe("previewPages", () => {
 		writeFileSync(join(dist, "about/index.html"), "<h1>about</h1>");
 		writeFileSync(join(dist, "404.html"), "<h1>not found</h1>");
 		return dist;
-	}
-
-	async function withPreview(dist: string, fn: (origin: string) => Promise<void>): Promise<void> {
-		const middleware = previewPages(dist);
-		const listener: Server = createHttpServer((req, res) => {
-			middleware(req, res, () => {
-				res.statusCode = 418;
-				res.end("passed through");
-			});
-		});
-		await new Promise<void>((done) => listener.listen(0, done));
-		try {
-			await fn(`http://localhost:${(listener.address() as AddressInfo).port}`);
-		} finally {
-			listener.closeAllConnections();
-			await new Promise((done) => listener.close(done));
-		}
 	}
 
 	it("serves the prerendered page for a path, and 404.html for one without", async () => {
@@ -207,27 +208,29 @@ describe("previewPages", () => {
 	});
 });
 
-describe("shellOutputPlugin", () => {
-	const emit = (appRoot: string, fileName: string): Record<string, { fileName: string }> => {
-		const plugin = shellOutputPlugin();
-		const configResolved = plugin.configResolved as (config: ResolvedConfig) => void;
-		const generateBundle = plugin.generateBundle as (
-			options: unknown,
-			bundle: Record<string, { fileName: string }>,
-		) => void;
-		configResolved({ root: appRoot } as ResolvedConfig);
-		const bundle = { [fileName]: { fileName } };
-		generateBundle({}, bundle);
-		return bundle;
-	};
+function shellOutputEmit(appRoot: string, fileName: string): Record<string, { fileName: string }> {
+	const plugin = shellOutputPlugin();
+	const configResolved = plugin.configResolved as (config: ResolvedConfig) => void;
+	const generateBundle = plugin.generateBundle as (
+		options: unknown,
+		bundle: Record<string, { fileName: string }>,
+	) => void;
+	configResolved({ root: appRoot } as ResolvedConfig);
+	const bundle = { [fileName]: { fileName } };
+	generateBundle({}, bundle);
+	return bundle;
+}
 
+describe("shellOutputPlugin", () => {
 	it("moves a src/index.html output back to the root of dist", () => {
-		const bundle = emit(makeApp("src/index.html"), "src/index.html");
+		const bundle = shellOutputEmit(makeApp("src/index.html"), "src/index.html");
 		expect(Object.keys(bundle)).toEqual(["index.html"]);
 		expect(bundle["index.html"]?.fileName).toBe("index.html");
 	});
 
 	it("leaves a root index.html output alone", () => {
-		expect(Object.keys(emit(makeApp("index.html"), "index.html"))).toEqual(["index.html"]);
+		expect(Object.keys(shellOutputEmit(makeApp("index.html"), "index.html"))).toEqual([
+			"index.html",
+		]);
 	});
 });

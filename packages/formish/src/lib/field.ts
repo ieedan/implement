@@ -83,7 +83,7 @@ export function useField<
 	const TPath extends FieldPath<InferInput<TSchema>>,
 >(form: FormStore<TSchema>, config: UseFieldConfig<TSchema, TPath>): FieldStore<TSchema, TPath> {
 	const store: InternalFormStore = form[INTERNAL];
-	const path = toPathReadable(config.path as Path | Readable<Path>);
+	const path = toPathReadable(config.path);
 	const name = derived([path], (value) => pathName(value));
 
 	if (config.array) markArrayField(store, path.get());

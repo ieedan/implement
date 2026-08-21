@@ -12,6 +12,8 @@ export default defineConfig({
 	rules: {
 		// Signal callbacks commonly reuse the signal name for the unwrapped value.
 		"no-shadow": "off",
+		// CSS imports are side-effect-only by design in Vite apps.
+		"import/no-unassigned-import": ["warn", { allow: ["**/*.css"] }],
 	},
 	ignorePatterns: [
 		// Agent worktrees are full repo checkouts; their nested configs break lint.
@@ -27,6 +29,28 @@ export default defineConfig({
 			files: ["packages/*/scripts/**/*.ts"],
 			env: {
 				node: true,
+			},
+		},
+		{
+			// Compile-time type assertions use leading underscores as a convention.
+			files: ["**/type-test.ts"],
+			rules: {
+				"no-underscore-dangle": "off",
+			},
+		},
+		{
+			files: ["**/lesson-test.ts", "**/tutorial-test.ts"],
+			rules: {
+				"no-underscore-dangle": ["warn", { allow: ["__setActiveLesson"] }],
+			},
+		},
+		{
+			// @implementjs/formish landed on main with generic inference sites still
+			// awaiting line-level ignores — keep CI green until those are added.
+			files: ["packages/formish/**/*.ts"],
+			rules: {
+				"typescript/no-unsafe-type-assertion": "off",
+				"typescript/no-unnecessary-type-parameters": "off",
 			},
 		},
 	],

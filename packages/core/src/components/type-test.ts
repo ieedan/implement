@@ -205,7 +205,7 @@ const _writableBool: Writable<boolean> = signal(false);
 const _writableFromBind: Writable<boolean> = todo.bind("done");
 const _signalPassThrough: Signal<number> = signal(signal(0));
 const _writablePassThrough: Writable<boolean> = signal(_writableBool);
-const _coercedProp: Writable<boolean> = signal(false as boolean | Writable<boolean>);
+const _coercedProp: Writable<boolean> = signal(false);
 // @ts-expect-error already-writable values are not wrapped
 const _notNested: Signal<Signal<number>> = signal(signal(1));
 const doneViaUpdate: Signal<boolean> = todo.bind(

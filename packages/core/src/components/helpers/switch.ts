@@ -45,6 +45,7 @@ export function Switch<T>(
 	signalOrSignals: Readable<T> | readonly Readable<unknown>[],
 	getter?: Getter<T, readonly Readable<unknown>[]>,
 ): SwitchHelper<T> {
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Switch overload resolution and branded helper methods require narrowing. */
 	const signals: readonly Readable<unknown>[] = isReadable(signalOrSignals)
 		? [signalOrSignals]
 		: signalOrSignals;
@@ -151,4 +152,5 @@ export function Switch<T>(
 	);
 
 	return helper as SwitchHelper<T>;
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 }

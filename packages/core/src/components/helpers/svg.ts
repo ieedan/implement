@@ -39,7 +39,7 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 			const next = dom.createSvgRoot(value);
 			clear();
 			if (!next) return;
-			unsubscribeProps = applySvgProps(next, props as Record<string, unknown>);
+			unsubscribeProps = applySvgProps(next, props);
 			anchor.after(next);
 			element = next;
 			props.this?.set(next);

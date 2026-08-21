@@ -1,3 +1,4 @@
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and DOM stubs require intentional narrowing. */
 import { describe, expect, it, vi } from "vitest";
 import {
 	Await,
@@ -196,36 +197,56 @@ describe("helpers", () => {
 	});
 });
 
-describe("router", () => {
-	const makeRouter = () =>
-		Router(
-			{
-				"/": () => P("home"),
-				"/about": () => P("about"),
-				"/issues": {
-					layout: (child: Mountable) => Div({ class: "layout" }, child),
-					"/": () => P("issues"),
-					"/:id": ({ id }) => P(id),
-				},
+const makeIssuesRouter = () =>
+	Router(
+		{
+			"/": () => P("home"),
+			"/about": () => P("about"),
+			"/issues": {
+				layout: (child: Mountable) => Div({ class: "layout" }, child),
+				"/": () => P("issues"),
+				"/:id": ({ id }) => P(id),
 			},
-			{ fallback: () => P("not found") },
-		);
+		},
+		{ fallback: () => P("not found") },
+	);
 
+const makeCatchAllRouter = () =>
+	Router(
+		{
+			"/docs": {
+				"/": () => P("docs home"),
+				"/guide": () => P("static guide"),
+				"/:...slug": ({ slug }) => P(slug),
+			},
+		},
+		{ fallback: () => P("not found") },
+	);
+
+const navigateDuringRender: Mountable = () => ({
+	mount() {
+		navigateTo("/elsewhere");
+	},
+	unmount() {},
+	getFirstDomNode: () => null,
+});
+
+describe("router", () => {
 	it("renders the route matching the provided location", () => {
-		const router = makeRouter();
+		const router = makeIssuesRouter();
 		expect(renderToString(router, { location: "/about" }).html).toBe("<p>about</p><!---->");
 		expect(renderToString(router, { location: { path: "/" } }).html).toBe("<p>home</p><!---->");
 	});
 
 	it("renders layouts and params", () => {
-		const router = makeRouter();
+		const router = makeIssuesRouter();
 		expect(renderToString(router, { location: "/issues/42" }).html).toBe(
 			'<div class="layout"><p>42</p><!----></div><!---->',
 		);
 	});
 
 	it("renders the fallback for unmatched paths", () => {
-		const router = makeRouter();
+		const router = makeIssuesRouter();
 		expect(renderToString(router, { location: "/missing" }).html).toBe("<p>not found</p><!---->");
 	});
 
@@ -277,18 +298,6 @@ describe("router", () => {
 			spy.mockRestore();
 		}
 	});
-
-	const makeCatchAllRouter = () =>
-		Router(
-			{
-				"/docs": {
-					"/": () => P("docs home"),
-					"/guide": () => P("static guide"),
-					"/:...slug": ({ slug }) => P(slug),
-				},
-			},
-			{ fallback: () => P("not found") },
-		);
 
 	it("matches a catch-all across one or more segments", () => {
 		const router = makeCatchAllRouter();
@@ -346,7 +355,7 @@ describe("router", () => {
 	});
 
 	it("renders Link as a plain anchor", () => {
-		const router = makeRouter();
+		const router = makeIssuesRouter();
 		const routes = Router({
 			"/": () => Div(router.Link({ to: "/issues/:id", params: { id: 7 } }, "Open")),
 		});
@@ -356,7 +365,7 @@ describe("router", () => {
 	});
 
 	it("marks the current Link with aria-current", () => {
-		const router = makeRouter();
+		const router = makeIssuesRouter();
 		const routes = Router({
 			"/about": () => Div(router.Link({ to: "/about" }, "About")),
 		});
@@ -366,14 +375,7 @@ describe("router", () => {
 	});
 
 	it("throws a clear error for navigateTo during a server render", () => {
-		const boom: Mountable = () => ({
-			mount() {
-				navigateTo("/elsewhere");
-			},
-			unmount() {},
-			getFirstDomNode: () => null,
-		});
-		expect(() => renderToString(boom)).toThrow(/server rendering/);
+		expect(() => renderToString(navigateDuringRender)).toThrow(/server rendering/);
 		// the environment is restored even after a throw
 		expect(renderToString(P("after")).html).toBe("<p>after</p>");
 	});

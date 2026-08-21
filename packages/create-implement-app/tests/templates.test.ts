@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Template file map lookups return known scaffold paths. */
 import { getTemplate, templates } from "@/templates";
 import { ADDONS, type Addon, TEMPLATES, type TemplateContext } from "@/templates/types";
 

@@ -8,6 +8,10 @@ export type DataChain = {
 	pageFiles: string[];
 };
 
+function layoutServerFiles(chain: RouteNode[]): string[] {
+	return chain.flatMap((entry) => (entry.layoutServer === null ? [] : [entry.layoutServer]));
+}
+
 /**
  * The server-load files that feed each directory's layout and page `data`,
  * resets applied: the chain follows the layouts that actually wrap the
@@ -72,8 +76,7 @@ export function dataChains(tree: RouteTree): Map<RouteNode, DataChain> {
 		throw new Error(`No ancestor segment "${node.pageResetTo}" to reset to`);
 	};
 
-	const serverFiles = (chain: RouteNode[]): string[] =>
-		chain.flatMap((entry) => (entry.layoutServer === null ? [] : [entry.layoutServer]));
+	const serverFiles = layoutServerFiles;
 
 	const chains = new Map<RouteNode, DataChain>();
 	const walk = (node: RouteNode) => {
@@ -134,6 +137,8 @@ const rawName = (node: RouteNode): string => node.dir.split("/").pop()!;
  * layout resets) is emitted at its target ancestor under the full key from
  * there, so only the layouts at and above the target wrap it.
  */
+const routeDataExpr = (files: string[]): string => `routeData(${JSON.stringify(files)})`;
+
 export function generateRouterModule(tree: RouteTree, routesBase: string): string {
 	const chains = dataChains(tree);
 	const patterns = pagePatterns(tree);
@@ -199,11 +204,9 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 	};
 	plan(tree.root, [tree.root]);
 
-	const dataExpr = (files: string[]): string => `routeData(${JSON.stringify(files)})`;
-
 	const pageExpr = (node: RouteNode): string => {
 		const name = importFor(node.page!, "Page");
-		const data = dataExpr(chains.get(node)!.pageFiles);
+		const data = routeDataExpr(chains.get(node)!.pageFiles);
 		return `(params) => ${name}({ params, url: router.location, data: ${data} })`;
 	};
 
@@ -212,7 +215,7 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 		const entries: string[] = [];
 		if (node.layout !== null) {
 			const name = importFor(node.layout, "Layout");
-			const data = dataExpr(chains.get(node)!.layoutFiles);
+			const data = routeDataExpr(chains.get(node)!.layoutFiles);
 			entries.push(
 				`${inner}layout: (children, params) => ${name}({ children, params, url: router.location, data: ${data} }),`,
 			);

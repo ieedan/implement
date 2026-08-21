@@ -56,6 +56,7 @@ export function subscribe<T, Signals extends readonly ReadableSource<any>[]>(
 	signals: readonly [...Signals],
 	getter: Getter<T, Signals>,
 ) {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tuple typing: mapped signal values align with getter rest args.
 	const values = signals.map((signal) => signal.get()) as SignalValues<Signals>;
 	const unsubscribers = signals.map((signal, i) =>
 		signal.subscribe((newValue) => {
@@ -360,8 +361,10 @@ type CoercedSignal<T> =
  * returned as-is, so `signal(props.open ?? false)` accepts a boolean or a signal.
  */
 export function signal<T>(initialValue: T): CoercedSignal<T> {
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Writable passthrough and plain-value wrapping share one entry point. */
 	if (isWritable(initialValue)) return initialValue as CoercedSignal<T>;
 	return new Signal(initialValue as PlainForSignal<T>) as CoercedSignal<T>;
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 }
 
 /**
@@ -628,7 +631,7 @@ abstract class LazyReadable<T> implements Readable<T> {
 	bind<P extends BindableKeys<T>>(path: P): Readable<BindPathValue<T, P>>;
 	bind<U>(selector: (value: T) => U): Readable<Unwrapped<U>>;
 	bind(keyOrSelector: PropertyKey | ((value: T) => unknown)): Readable<unknown> {
-		return createBinding(this, keyOrSelector) as Readable<unknown>;
+		return createBinding(this, keyOrSelector);
 	}
 
 	/** Stop watching sources and drop subscribers. Safe to call more than once. */
@@ -650,6 +653,7 @@ export class Derived<T, Signals extends readonly Readable<any>[]> extends LazyRe
 	}
 
 	protected read(): T {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tuple typing for derived getter inputs.
 		const values = this.signals.map((signal) => signal.get()) as SignalValues<Signals>;
 		return this.getter(...values);
 	}
@@ -674,6 +678,7 @@ class Flattened<U> extends LazyReadable<Unwrapped<U>> {
 	protected read(): Unwrapped<U> {
 		let value: unknown = this.source.get();
 		while (isReadable(value)) value = value.get();
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Unwrapping stops at the innermost plain value.
 		return value as Unwrapped<U>;
 	}
 
@@ -695,6 +700,7 @@ class Flattened<U> extends LazyReadable<Unwrapped<U>> {
 				inner.push(readable.subscribe((next) => follow(next, nextDepth)));
 				value = readable.get();
 			}
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- follow() terminates when nested readables are exhausted.
 			onValue(value as Unwrapped<U>);
 		};
 
@@ -721,6 +727,7 @@ function getAtPath(obj: unknown, path: string): unknown {
 		if (current == null) {
 			throw new Error(`Cannot read "${path}" from ${String(current)}`);
 		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Dotted paths walk plain object keys.
 		current = (current as Record<string, unknown>)[key];
 	}
 	return current;
@@ -745,11 +752,12 @@ function setAtKeys(obj: unknown, keys: readonly string[], value: unknown, path: 
 		return next;
 	}
 	return {
-		...(obj as object),
+		...obj,
 		[head]:
 			rest.length === 0
 				? value
-				: setAtKeys((obj as Record<string, unknown>)[head], rest, value, path),
+				: // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Immutable update recurses into nested object fields.
+					setAtKeys((obj as Record<string, unknown>)[head], rest, value, path),
 	};
 }
 
@@ -773,6 +781,7 @@ class BoundPath<T> extends Signal<unknown> {
 	set(value: unknown) {
 		const parent = this.source.get();
 		if (Object.is(getAtPath(parent, this.path), value)) return;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- setAtPath preserves the parent object's shape.
 		this.source.set(setAtPath(parent, this.path, value) as T);
 	}
 

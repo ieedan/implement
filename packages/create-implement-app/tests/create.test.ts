@@ -9,6 +9,7 @@ import { unwrap, unwrapErr } from "./utils";
 let cwd: AbsolutePath;
 
 beforeEach(() => {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Branded path: temp dir from mkdtempSync is absolute.
 	cwd = mkdtempSync(join(tmpdir(), "create-implement-app-")) as AbsolutePath;
 });
 

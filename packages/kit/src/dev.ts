@@ -30,9 +30,11 @@ function toRequest(req: IncomingMessage, url: URL): Request {
 	const body =
 		method === "GET" || method === "HEAD"
 			? undefined
-			: (Readable.toWeb(req) as unknown as BodyInit);
+			: // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Node Readable streams convert to Fetch BodyInit for endpoint handlers.
+				(Readable.toWeb(req) as unknown as BodyInit);
 	const init: RequestInit = { method, headers, body };
 	// streaming request bodies require half duplex
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- RequestInit duplex is required for streaming request bodies.
 	if (body !== undefined) (init as { duplex?: string }).duplex = "half";
 	return new Request(url, init);
 }
@@ -70,6 +72,7 @@ export async function handleServerRequest(options: {
 	if (VITE_INTERNAL.test(path)) return false;
 
 	const url = new URL(path, `http://${req.headers.host ?? "localhost"}`);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated server entry exports the app request pipeline.
 	const { respond } = (await server.ssrLoadModule(entry)) as unknown as KitServer;
 	const response = await respond(toRequest(req, url), {
 		getClientAddress: () => req.socket.remoteAddress ?? "",
@@ -117,6 +120,7 @@ export async function prerenderServerFiles(options: {
 		mkdirSync(dirname(out), { recursive: true });
 		writeFileSync(out, contents);
 	};
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated server entry exports the app request pipeline.
 	const { respond } = (await load(entry)) as unknown as KitServer;
 	const get = (path: string) => respond(new Request(new URL(path, INTERNAL_ORIGIN)));
 
@@ -132,10 +136,12 @@ export async function prerenderServerFiles(options: {
 	}
 
 	if (serverRoutes.length === 0) return;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated endpoints module exports the compiled endpoint route table.
 	const { endpoints } = (await load(ENDPOINTS_ID)) as unknown as { endpoints: EndpointRoute[] };
 	const failed: string[] = [];
 	let written = 0;
 	for (const endpoint of endpoints) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint module handlers are keyed by HTTP method name.
 		const handler = endpoint.module.GET as RequestHandler | undefined;
 		if (handler === undefined) {
 			logger.warn(`skipping ${endpoint.file} — only GET endpoints prerender`);

@@ -56,13 +56,17 @@ export function matchRoutePattern(pattern: string, path: string): Record<string,
 }
 
 /** Static segments outrank params, and params outrank catch-alls, position by position. */
+function patternSegmentRank(segment: PatternSegment): number {
+	return segment.param ? (segment.rest ? 2 : 1) : 0;
+}
+
+/** Static segments outrank params, and params outrank catch-alls, position by position. */
 export function comparePatterns(a: string, b: string): number {
-	const rank = (segment: PatternSegment) => (segment.param ? (segment.rest ? 2 : 1) : 0);
 	const left = parsePattern(a);
 	const right = parsePattern(b);
 	const length = Math.min(left.length, right.length);
 	for (let i = 0; i < length; i++) {
-		const difference = rank(left[i]!) - rank(right[i]!);
+		const difference = patternSegmentRank(left[i]!) - patternSegmentRank(right[i]!);
 		if (difference !== 0) return difference;
 	}
 	return left.length - right.length;
@@ -122,7 +126,7 @@ export type PageMatch = { route: PageRoute; params: Record<string, string> };
 
 /** The most specific page serving a path, or `null` when none does. */
 export function matchPage(pages: PageRoute[], path: string): PageMatch | null {
-	const sorted = [...pages].sort((a, b) => comparePatterns(a.pattern, b.pattern));
+	const sorted = [...pages].toSorted((a, b) => comparePatterns(a.pattern, b.pattern));
 	for (const route of sorted) {
 		const params = matchRoutePattern(route.pattern, path);
 		if (params !== null) return { route, params };
@@ -166,7 +170,7 @@ export type EndpointMatch = { route: EndpointRoute; params: Record<string, strin
 
 /** The most specific endpoint serving a path; extension endpoints outrank plain ones. */
 export function matchEndpoint(endpoints: EndpointRoute[], path: string): EndpointMatch | null {
-	const sorted = [...endpoints].sort(
+	const sorted = [...endpoints].toSorted(
 		(a, b) =>
 			comparePatterns(a.pattern, b.pattern) ||
 			(a.extension === null ? 1 : 0) - (b.extension === null ? 1 : 0),

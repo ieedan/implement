@@ -83,6 +83,7 @@ export function initClientData(): void {
 	// data for wherever the app navigated to; re-seeding there would put the
 	// landing page's payload back and re-render every route with it.
 	if (embedded?.textContent && store.size === 0) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Embedded route data is JSON serialized at build time.
 		seedData(JSON.parse(embedded.textContent) as RouteData);
 	}
 	setNavigationResolver(async (to) => {
@@ -93,6 +94,7 @@ export function initClientData(): void {
 		try {
 			const response = await fetch(dataPath(to.path));
 			if (!response.ok) throw new Error(`fetching route data failed: ${response.status}`);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Route data JSON matches the generated load module shape.
 			seedData((await response.json()) as RouteData);
 		} catch (error) {
 			window.location.assign(to.path + to.search + to.hash);

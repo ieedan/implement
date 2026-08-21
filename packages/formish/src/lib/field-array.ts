@@ -128,5 +128,5 @@ export function useFieldArray<
 		move: (itemConfig) => move(form, at(itemConfig) as never),
 		swap: (itemConfig) => swap(form, at(itemConfig) as never),
 		replace: (itemConfig) => replace(form, at(itemConfig) as never),
-	} as FieldArrayStore<TSchema, TPath>;
+	};
 }

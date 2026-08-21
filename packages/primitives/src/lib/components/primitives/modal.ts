@@ -331,8 +331,9 @@ export class ModalTriggerState {
 	}
 
 	get open() {
-		return derived([this.rootState.open, this.rootState.currentTriggerId], (open, current) =>
-			open && current === this.opts.id ? true : false,
+		return derived(
+			[this.rootState.open, this.rootState.currentTriggerId],
+			(open, current) => open && current === this.opts.id,
 		);
 	}
 
@@ -399,7 +400,7 @@ export const ModalContent = createComponent(function ModalContent(
 ) {
 	return ModalCtx.Use((rootState) => {
 		const contentRef = ref<HTMLDivElement>();
-		new ModalContentState(rootState, {
+		void new ModalContentState(rootState, {
 			id,
 			ref: contentRef,
 			onInteractOutside,

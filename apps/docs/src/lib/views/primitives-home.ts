@@ -292,20 +292,20 @@ function AspectRatioPreview(): Mountable {
 	);
 }
 
-function RadioGroupPreview(): Mountable {
-	function Option(value: string, label: string) {
-		return Div(
-			{ class: "flex items-center gap-2" },
-			RadioGroupItem({ value }),
-			Span({ class: "text-sm leading-none font-medium" }, label),
-		);
-	}
+function radioGroupOption(value: string, label: string) {
+	return Div(
+		{ class: "flex items-center gap-2" },
+		RadioGroupItem({ value }),
+		Span({ class: "text-sm leading-none font-medium" }, label),
+	);
+}
 
+function RadioGroupPreview(): Mountable {
 	return RadioGroup(
 		{ value: "comfortable", "aria-label": "Density" },
-		Option("default", "Default"),
-		Option("comfortable", "Comfortable"),
-		Option("compact", "Compact"),
+		radioGroupOption("default", "Default"),
+		radioGroupOption("comfortable", "Comfortable"),
+		radioGroupOption("compact", "Compact"),
 	);
 }
 
@@ -617,17 +617,19 @@ function TooltipPreview(): Mountable {
 	);
 }
 
+function commandPreviewItem(label: string, selected = false) {
+	return Div(
+		{
+			class: [
+				"rounded-sm px-2 py-1.5",
+				selected ? "bg-accent text-accent-foreground" : "text-foreground/70",
+			],
+		},
+		label,
+	);
+}
+
 function CommandPreview(): Mountable {
-	const item = (label: string, selected = false) =>
-		Div(
-			{
-				class: [
-					"rounded-sm px-2 py-1.5",
-					selected ? "bg-accent text-accent-foreground" : "text-foreground/70",
-				],
-			},
-			label,
-		);
 	return Div(
 		{ class: "w-56 overflow-hidden rounded-md border bg-background text-xs shadow-sm" },
 		Div(
@@ -641,9 +643,9 @@ function CommandPreview(): Mountable {
 				{ class: "px-2 py-1 text-[10px] font-medium tracking-wide text-foreground/40 uppercase" },
 				"Suggestions",
 			),
-			item("Calendar", true),
-			item("Calculator"),
-			item("Settings"),
+			commandPreviewItem("Calendar", true),
+			commandPreviewItem("Calculator"),
+			commandPreviewItem("Settings"),
 		),
 	);
 }

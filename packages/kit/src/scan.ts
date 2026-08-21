@@ -157,7 +157,7 @@ function scanDirectory(
 		children: [],
 	};
 	const absolute = dir === "" ? routesDir : join(routesDir, dir);
-	const entries = readdirSync(absolute, { withFileTypes: true }).sort((a, b) =>
+	const entries = readdirSync(absolute, { withFileTypes: true }).toSorted((a, b) =>
 		a.name.localeCompare(b.name),
 	);
 

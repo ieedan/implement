@@ -338,7 +338,7 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			url,
 			params: endpoint?.params ?? page?.params ?? {},
 			route: { id: endpoint?.route.id ?? page?.route.id ?? null },
-			locals: {} as App.Locals,
+			locals: {},
 			isDataRequest,
 			setHeaders: (values) => {
 				for (const [name, value] of Object.entries(values)) {
@@ -488,6 +488,7 @@ async function runEndpoint(match: EndpointMatch, event: RequestEvent): Promise<R
 	const method = event.request.method;
 	// HEAD falls back to GET, and the caller drops the body
 	const name = method === "HEAD" && !("HEAD" in module) ? "GET" : method;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint module handlers are keyed by HTTP method name.
 	const handler = module[name] as RequestHandler | undefined;
 	if (handler === undefined) {
 		return new Response(null, {

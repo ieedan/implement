@@ -47,8 +47,8 @@ export function lockBodyScroll(): () => void {
 		const htmlStyle = getComputedStyle(document.documentElement);
 		const bodyStyle = getComputedStyle(document.body);
 		const hasStableGutter =
-			htmlStyle.scrollbarGutter?.includes("stable") === true ||
-			bodyStyle.scrollbarGutter?.includes("stable") === true;
+			htmlStyle.scrollbarGutter?.includes("stable") ||
+			bodyStyle.scrollbarGutter?.includes("stable");
 		const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 		const rtl = htmlStyle.direction === "rtl" || bodyStyle.direction === "rtl";
 		const paddingProp = rtl ? "paddingLeft" : "paddingRight";
@@ -92,7 +92,7 @@ export type ScrollLockProps = {
 export function ScrollLock({ open, enabled = true }: ScrollLockProps): Mountable {
 	return Implement.Lifecycle({
 		onMount: () => {
-			if (!enabled) return;
+			if (!enabled) return () => {};
 
 			let unlock: (() => void) | null = null;
 			const sync = (isOpen: boolean) => {
