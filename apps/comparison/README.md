@@ -164,100 +164,109 @@ initial list is 200 rows.
 ## What to fix in implement
 
 Ranked by how implement compares to whichever of React and Svelte was faster on
-each operation, the gaps are not spread across the board — they cluster on three
-pieces of framework code:
+each operation, the gaps cluster on three pieces of framework code rather than
+spreading across the board: removing rows, reordering rows, and building rows.
+Splitting each operation into framework JavaScript and browser work says where
+optimizing pays — clearing 10k rows is almost entirely JavaScript, while creating
+10k rows is roughly half layout and paint that every framework pays alike.
 
-|                                    | implement ÷ best of the other two |
-| ---------------------------------- | --------------------------------: |
-| swap two rows of 1k                |                             4.06× |
-| JS heap at 10k rows                |                             3.87× |
-| clear 10k rows                     |                             3.57× |
-| clear 2k rows                      |                             2.33× |
-| swap two rows of 10k               |                             2.05× |
-| filter 1k by text                  |                             1.64× |
-| create 1k rows                     |                             1.53× |
-| clear the filter / create 10k rows |                             1.51× |
-| append 1k to 1k                    |                             1.31× |
-| time to mounted                    |                             1.28× |
-| everything else                    |                     0.63× – 1.09× |
+Four changes follow. All four are implemented and measured on the
+`perf-prototype` branch, in one back-to-back run of the baseline and the
+optimized build on the same machine. (The tables above are a separate, earlier
+run on a different host and the two are not directly comparable — the container
+was replaced mid-session, and the untouched React and Svelte apps measured 1.48×
+slower afterwards, which is what caught it.)
 
-A second measurement splits each operation into framework JavaScript and browser
-work, by sampling the synchronous portion separately. It says where the fixes are
-worth making: clearing 10k rows is 297 ms of JavaScript out of a 359 ms
-operation — almost none of it is the browser — while creating 10k rows is 595 ms
-of JavaScript inside 1,221 ms, the rest being layout and paint that every
-framework pays.
+| operation                | baseline | + fixes 1, 2 | + fixes 3, 4 | Svelte | React |
+| ------------------------ | -------: | -----------: | -----------: | -----: | ----: |
+| swap two rows of 1k      |      108 |           25 |       **23** |     22 |   108 |
+| swap two rows of 10k     |      206 |          141 |      **138** |    118 |   229 |
+| clear 10k rows           |      382 |          303 |      **270** |    141 |   166 |
+| filter 1k by text        |       46 |           35 |       **35** |     21 |    28 |
+| append 1k to 1k          |      207 |          196 |      **174** |    143 |   141 |
+| clear 2k rows            |       74 |           84 |       **65** |     35 |    43 |
+| create 1k rows           |      209 |          220 |      **201** |    139 |   150 |
+| create 10k rows          |     1757 |         1894 |     **1813** |   1208 |  1532 |
+| JS heap at 10k rows (MB) |     89.5 |         84.9 |     **75.3** |   23.6 |  23.1 |
 
-Four changes follow from that. The first two are implemented and measured on the
-`perf-prototype` branch; the other two are located but not written.
+One result went the wrong way and is unexplained: sorting 1k rows back by id
+measured 107 ms before and 140 ms after, while the other sort in the same run
+stayed flat. It needs chasing before this lands.
 
-### 1. Take a subtree out in one call — measured
+### 1. Take a subtree out in one call
 
-`Component.unmount` unmounts children first and each child removes its own node,
-so discarding one row makes ten `removeChild` calls where one would do. A detach
+`Component.unmount` unmounted children first and each child removed its own node,
+so discarding one row made ten `removeChild` calls where one would do. A detach
 depth counter in `tree.ts` lets a node unmounting under an element that is
 already removing itself skip its own removal and only release its subscriptions.
 `Portal` resets the counter, because its children hang off a parent of its own.
 
-|                         |  before |  after | best of the other two |
-| ----------------------- | ------: | -----: | --------------------: |
-| clear 10k rows          |  359 ms | 237 ms |                104 ms |
-| filter 1k by text       |   32 ms |  25 ms |                 20 ms |
-| DOM removals, clear 10k | 100,000 | 10,000 |                10,000 |
+Removals to clear 10,000 rows go from 100,000 to 10,000 — exactly what React and
+Svelte make. **Going further, to a single bulk removal, buys nothing**: removing
+10,000 rows one at a time measured 41.7 ms against 41.4 ms for one
+`Range.deleteContents()` spanning all of them and 38.7 ms for `replaceChildren`.
+Chromium charges per detached node, not per call. And the JavaScript walk cannot
+be skipped whatever the DOM does, because a row's bindings subscribe to signals
+that outlive it — the row watching whether it is selected is subscribed to a
+module-level signal, and leaving that subscription in place is a leak.
 
-The call count reaches parity; the time falls by a third. What is left is real
-work — the browser detaching 10,000 subtrees — plus the per-element teardown fix
-3 goes after.
+### 2. Move only the rows that actually moved
 
-### 2. Move only the rows that actually moved — measured
+`syncDomOrder` walked the list backwards inserting any node whose next sibling
+was not where it should be, so moving one row past 997 others shifted all 997.
+Keeping the longest already-ordered run of nodes in place and repositioning only
+the rest — a longest-increasing-subsequence pass, as Vue and Svelte do — makes a
+two-row swap two moves. A guard in front returns immediately when nothing moved,
+which is what most updates do. 997 moves become 2.
 
-`syncDomOrder` walks the list backwards inserting any node whose next sibling is
-not where it should be, so moving one row past 997 others shifts all 997. Keeping
-the longest already-ordered run of nodes in place and repositioning only the rest
-(a longest-increasing-subsequence pass, the same approach Vue and Svelte take)
-makes a two-row swap two moves. A guard in front returns immediately when nothing
-moved at all, which is what most updates do.
+### 3. Stop paying for props that never change
 
-|                         | before | after | best of the other two |
-| ----------------------- | -----: | ----: | --------------------: |
-| swap two rows of 1k     |  74 ms | 21 ms |                 18 ms |
-| swap two rows of 10k    | 132 ms | 77 ms |                 67 ms |
-| DOM moves, two-row swap |    997 |     2 |                     2 |
+A literal `class` string now sets the attribute and returns a shared no-op
+instead of allocating a `Map`, a `Set`, an array and two closures; a static prop
+returns that same no-op rather than a fresh `() => {}`; an element whose props
+are all static leaves with no unsubscriber array to walk; and a listener on a
+node being discarded is no longer individually removed.
 
-### 3. Stop paying for props that never change — located
+### 4. Allocate less per node
 
-With fix 1 in, about a fifth of what is left in a teardown is per-element prop
-bookkeeping: `applyElementProps` allocates an array of unsubscribers for every
-element even when every prop is static, `bindClassProp` allocates a `Map` beside
-it, and each subscription hands back its own closure. Every listener is also
-individually removed from a node that is about to be discarded.
+`mountChild` stopped allocating two callbacks per node — a hundred thousand of
+them to build ten thousand rows — and `reconcileChildren` maps its arguments
+directly in the shape almost every call has.
 
-Three local changes: return a shared no-op instead of an array when no prop on an
-element is reactive, hold a single subscription in a field rather than a `Map`,
-and skip `removeEventListener` for an element being discarded. A first cut of the
-last one is in the prototype and took listener removal from 8.4% of teardown to
-4.3%.
+**This is where an earlier version of this document was wrong.** It claimed
+cloning a `<template>` per row, as Svelte does, was the largest remaining win.
+Measured against a hand-written baseline it is worth about 7%: building 10,000
+rows of this exact shape costs 724 ms node by node and 673 ms by cloning a
+template and filling in three text positions. Against implement's 1,813 ms that
+recovers roughly 50 ms. The cost of creating a row is not how its nodes get
+built — it is the reactive graph built alongside them, about eight readables and
+ten mountable objects per row, each with its own closure and subscription.
 
-### 4. Build a row from a template — located
+### What no amount of work removes
 
-Each row costs 6 `createElement` calls, 11 insertions and 7 attribute writes.
-Svelte clones a `<template>` once per row: 2 insertions, whatever the row
-contains. The same is available here, because an element factory's tag and static
-props are fixed at the call site — build the static skeleton once, clone it per
-row, and walk only the positions carrying a signal.
+Two floors, measured on the same page with no framework involved — plain
+`createElement` and `remove` calls against the same row shape:
 
-This is the largest remaining win and the most invasive change, and it is
-probably also the memory story. implement holds 89.5 MB with 10,000 rows against
-23 MB, and the profile puts 13–18% of both creation and teardown in garbage
-collection; what is being collected is the per-node objects and closures a
-template clone would stop creating. A first pass at that — one shared subscriber
-store holding a single callback in a field instead of allocating a `Map` per
-signal — is in the prototype and moved the heap by only 5%, which is the evidence
-that the allocations are in node construction rather than in the signal graph.
+|                    | implement | browser's own share |  Svelte |
+| ------------------ | --------: | ------------------: | ------: |
+| build 10,000 rows  |   1813 ms |              724 ms | 1208 ms |
+| remove 10,000 rows |    270 ms |              118 ms |  141 ms |
 
-Fixes 1 and 2 are about 60 lines across four files, keep all 72 core tests green,
-and add roughly 300 bytes to the gzipped bundle. They leave creation timings
-unchanged, as expected.
+Roughly 40% of creating 10,000 rows and 44% of clearing them is browser work
+every framework pays alike. Svelte sits about 480 ms above the build floor and
+23 ms above the removal floor; implement sits 1,090 ms and 152 ms above them.
+That headroom is work available, not a wall.
+
+The one genuine limit is the design itself. Fine-grained reactivity without a
+compiler means an object per reactive position, created at runtime, where a
+compiler can emit code that closes over a shared template and allocates nothing
+per row. implement can make each object smaller and rarer; it cannot make the
+count zero. That sets a floor on memory and creation somewhere above Svelte —
+though at 3.2× the heap today, it is nowhere near that floor yet.
+
+All four fixes are about 230 lines across fifteen files, keep the 72 core tests
+green, and add roughly 600 bytes gzipped (10.0 kB to 10.8 kB), still the smallest
+bundle of the three by a wide margin.
 
 ## Reading this fairly
 
