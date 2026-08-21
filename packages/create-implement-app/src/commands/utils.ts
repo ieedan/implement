@@ -10,7 +10,10 @@ import { safeValidate } from "@/utils/zod";
 export const TRACE_ENV_VAR = "CREATE_IMPLEMENT_APP_TRACE";
 
 export const defaultCommandOptionsSchema = z.object({
-	cwd: z.string().transform((v) => v as AbsolutePath),
+	cwd: z.string().transform(
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Branded path: CLI cwd is normalized to absolute before use.
+		(v) => v as AbsolutePath,
+	),
 });
 
 export const commonOptions = {
@@ -46,8 +49,8 @@ export async function tryCommand<T, E extends CreateImplementAppError>(
 		if (result.isErr()) return error(result.error);
 		return result.value;
 	} catch (e) {
-		if (e instanceof CreateImplementAppError) error(e);
-		error(
+		if (e instanceof CreateImplementAppError) return error(e);
+		return error(
 			new CreateImplementAppError(e instanceof Error ? e.message : String(e), {
 				suggestion: "Please try again.",
 			}),

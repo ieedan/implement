@@ -4,9 +4,19 @@
    preview.ts. */
 
 :root {
+	--background: #fff;
+	--foreground: #000;
+	--border: #e5e5e5;
+	--link: #1d4ed8;
+	color-scheme: light;
+}
+
+/* preview.ts mirrors the host page's mode onto this document's <html>. */
+:root.dark {
 	--background: #000;
 	--foreground: #fff;
 	--border: #222;
+	--link: #93c5fd;
 	color-scheme: dark;
 }
 
@@ -77,7 +87,7 @@ textarea {
 }
 
 .tutorial-preview a {
-	color: #93c5fd;
+	color: var(--link);
 	text-decoration: none;
 }
 

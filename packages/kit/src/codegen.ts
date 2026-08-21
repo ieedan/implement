@@ -1,3 +1,4 @@
+import { routeId } from "./match.ts";
 import { segmentKey, type RouteNode, type RouteSegment, type RouteTree } from "./scan.ts";
 
 export type DataChain = {
@@ -14,6 +15,10 @@ type NodeChain = {
 	/** The nodes whose layouts wrap this directory's page, its own reset applied. */
 	page: RouteNode[];
 };
+
+function layoutServerFiles(chain: RouteNode[]): string[] {
+	return chain.flatMap((entry) => (entry.layoutServer === null ? [] : [entry.layoutServer]));
+}
 
 /**
  * Which ancestors actually wrap each directory, `@` resets applied. One answer
@@ -94,15 +99,12 @@ function nodeChains(tree: RouteTree): Map<RouteNode, NodeChain> {
  * render, so an `@` reset also resets which ancestor loads contribute.
  */
 export function dataChains(tree: RouteTree): Map<RouteNode, DataChain> {
-	const serverFiles = (chain: RouteNode[]): string[] =>
-		chain.flatMap((entry) => (entry.layoutServer === null ? [] : [entry.layoutServer]));
-
 	const chains = new Map<RouteNode, DataChain>();
 	for (const [node, chain] of nodeChains(tree)) {
 		chains.set(node, {
-			layoutFiles: serverFiles(chain.layout),
+			layoutFiles: layoutServerFiles(chain.layout),
 			pageFiles: [
-				...serverFiles(chain.page),
+				...layoutServerFiles(chain.page),
 				...(node.pageServer === null ? [] : [node.pageServer]),
 			],
 		});
@@ -172,6 +174,8 @@ function routerKey(segment: RouteSegment): string {
 }
 
 const rawName = (node: RouteNode): string => node.dir.split("/").pop()!;
+
+const routeDataExpr = (files: string[]): string => `routeData(${JSON.stringify(files)})`;
 
 /**
  * The source of the `$implement/router` virtual module: declares a lazy handle
@@ -278,11 +282,9 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 	};
 	plan(tree.root, [tree.root]);
 
-	const dataExpr = (files: string[]): string => `routeData(${JSON.stringify(files)})`;
-
 	const pageExpr = (node: RouteNode): string => {
 		const name = lazyFor(node.page!, "Page");
-		const data = dataExpr(chains.get(node)!.pageFiles);
+		const data = routeDataExpr(chains.get(node)!.pageFiles);
 		return `(params) => ${name}.get()({ params, url: router.location, data: ${data} })`;
 	};
 
@@ -291,7 +293,7 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 		const entries: string[] = [];
 		if (node.layout !== null) {
 			const name = lazyFor(node.layout, "Layout");
-			const data = dataExpr(chains.get(node)!.layoutFiles);
+			const data = routeDataExpr(chains.get(node)!.layoutFiles);
 			entries.push(
 				`${inner}layout: (children, params) => ${name}.get()({ children, params, url: router.location, data: ${data} }),`,
 			);
@@ -315,10 +317,11 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 	};
 
 	const routes = nodeExpr(tree.root, "");
+	const errorName = tree.error === null ? null : importFor(tree.error, "ErrorPage");
 	const fallback =
-		tree.error === null
+		errorName === null
 			? ""
-			: `, {\n\tfallback: (error) => ${importFor(tree.error, "ErrorPage")}({ error, url: router.location }),\n}`;
+			: `, {\n\tfallback: (error) => ${errorName}({ error, url: router.location }),\n}`;
 
 	// only what the module actually uses, so a tree with no pages at all still
 	// emits an import list that type-checks and tree-shakes cleanly
@@ -330,18 +333,20 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 	];
 	imports.splice(1, 0, `import { ${runtimeImports.join(", ")} } from "@implementjs/kit/runtime";`);
 
-	const register = [
-		...(modules.length > 0
-			? [`registerRouteModules(${JSON.stringify(modules, null, "\t")});`]
-			: []),
-		...(manifest.length > 0 ? [`registerRoutes(${JSON.stringify(manifest, null, "\t")});`] : []),
-	];
-
 	const blocks = [
 		imports.join("\n"),
 		...(declarations.length > 0 ? [declarations.join("\n")] : []),
 		`export const router = Router(${routes}${fallback});`,
-		...register,
+		// the server renders the error page on its own for a 404 or a thrown
+		// error, where there is no router match to fall back through. It stays a
+		// static import for the same reason the fallback does.
+		...(errorName === null
+			? []
+			: [`export const errorPage = (error) => ${errorName}({ error, url: router.location });`]),
+		...(modules.length > 0
+			? [`registerRouteModules(${JSON.stringify(modules, null, "\t")});`]
+			: []),
+		...(manifest.length > 0 ? [`registerRoutes(${JSON.stringify(manifest, null, "\t")});`] : []),
 	];
 	return `${blocks.join("\n\n")}\n`;
 }
@@ -411,11 +416,11 @@ export function serverRoutes(tree: RouteTree): ServerRoute[] {
 }
 
 /**
- * The source of the `$implement/loads` virtual module (server-only): the
- * routes that have `*.server.ts` loads, each with its load chain — the shape
- * `resolveLoads` from `@implementjs/kit/runtime` consumes.
+ * The source of the `$implement/pages` virtual module (server-only): every
+ * page in the app with its route id and its load chain — the manifest the
+ * request pipeline matches against and runs loads from.
  */
-export function generateLoadsModule(tree: RouteTree, routesBase: string): string {
+export function generatePagesModule(tree: RouteTree, routesBase: string): string {
 	const chains = dataChains(tree);
 	const patterns = pagePatterns(tree);
 	const imports: string[] = [];
@@ -433,14 +438,15 @@ export function generateLoadsModule(tree: RouteTree, routesBase: string): string
 	const entries: string[] = [];
 	for (const [node, pattern] of patterns) {
 		const files = chains.get(node)!.pageFiles;
-		if (files.length === 0) continue;
 		const parts = files.map((file) => `{ id: ${JSON.stringify(file)}, load: ${importFor(file)} }`);
-		entries.push(`\t{ pattern: ${JSON.stringify(pattern)}, files: [${parts.join(", ")}] },`);
+		entries.push(
+			`\t{ pattern: ${JSON.stringify(pattern)}, id: ${JSON.stringify(routeId(pattern))}, files: [${parts.join(", ")}] },`,
+		);
 	}
 
 	const header = imports.length === 0 ? "" : `${imports.join("\n")}\n\n`;
 	const body = entries.length === 0 ? "[]" : `[\n${entries.join("\n")}\n]`;
-	return `${header}export const loads = ${body};\n`;
+	return `${header}export const pages = ${body};\n`;
 }
 
 /**
@@ -455,11 +461,23 @@ export function generateEndpointsModule(tree: RouteTree, routesBase: string): st
 	for (const [index, route] of routes.entries()) {
 		const name = `endpoint_${index}`;
 		imports.push(`import * as ${name} from ${JSON.stringify(`${routesBase}/${route.file}`)};`);
+		const id =
+			route.extension === null
+				? routeId(route.pattern)
+				: `${routeId(route.pattern) === "/" ? "" : routeId(route.pattern)}/${route.extension}`;
 		entries.push(
-			`\t{ pattern: ${JSON.stringify(route.pattern)}, extension: ${JSON.stringify(route.extension)}, file: ${JSON.stringify(route.file)}, module: ${name} },`,
+			`\t{ pattern: ${JSON.stringify(route.pattern)}, id: ${JSON.stringify(id)}, extension: ${JSON.stringify(route.extension)}, file: ${JSON.stringify(route.file)}, module: ${name} },`,
 		);
 	}
 	const header = imports.length === 0 ? "" : `${imports.join("\n")}\n\n`;
 	const body = entries.length === 0 ? "[]" : `[\n${entries.join("\n")}\n]`;
 	return `${header}export const endpoints = ${body};\n`;
+}
+
+/**
+ * The source of the `$implement/hooks` virtual module (server-only): the
+ * app's `src/hooks.server.ts` re-exported, or nothing when it has none.
+ */
+export function generateHooksModule(hooksFile: string | null): string {
+	return hooksFile === null ? "export {};\n" : `export * from ${JSON.stringify(hooksFile)};\n`;
 }

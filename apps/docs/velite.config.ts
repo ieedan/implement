@@ -69,6 +69,20 @@ const primitives = defineCollection({
 		})),
 });
 
+const ui = defineCollection({
+	name: "UiPage",
+	pattern: "ui/*.md",
+	schema: markdown
+		.extend({
+			section: s.string().max(99),
+			order: s.number().optional(),
+		})
+		.transform((data) => ({
+			...data,
+			...toPermalink(data.slug, "/ui", "ui"),
+		})),
+});
+
 const kit = defineCollection({
 	name: "KitPage",
 	pattern: "kit/*.md",
@@ -111,6 +125,20 @@ const lucide = defineCollection({
 		})),
 });
 
+const formish = defineCollection({
+	name: "FormishPage",
+	pattern: "formish/*.md",
+	schema: markdown
+		.extend({
+			section: s.string().max(99),
+			order: s.number().optional(),
+		})
+		.transform((data) => ({
+			...data,
+			...toPermalink(data.slug, "/formish", "formish"),
+		})),
+});
+
 const tutorials = defineCollection({
 	name: "Tutorial",
 	pattern: "lessons/**/*.md",
@@ -144,7 +172,7 @@ export default defineConfig({
 		base: "/velite/",
 		clean: true,
 	},
-	collections: { pages, tutorials, primitives, lucide, kit, create },
+	collections: { pages, tutorials, primitives, ui, lucide, kit, create, formish },
 	markdown: {
 		remarkPlugins: [
 			// Velite bundles its own unified types, which don't match remark/rehype plugins'.
@@ -157,7 +185,9 @@ export default defineConfig({
 				// @ts-expect-error
 				rehypeShiki,
 				{
-					theme: "github-dark",
+					// both themes at build time; app.css picks one per mode
+					themes: { light: "github-light", dark: "github-dark" },
+					defaultColor: false,
 					langs: [
 						"typescript",
 						"ts",
@@ -176,7 +206,20 @@ export default defineConfig({
 	},
 	prepare(data) {
 		data.pages.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		const primitiveSectionOrder: Record<string, number> = {
+			"Start Here": 0,
+			Components: 1,
+			Utils: 2,
+		};
 		data.primitives.sort((a, b) => {
+			const bySection =
+				(primitiveSectionOrder[a.section] ?? 99) - (primitiveSectionOrder[b.section] ?? 99);
+			if (bySection !== 0) return bySection;
+			const byOrder = (a.order ?? Infinity) - (b.order ?? Infinity);
+			if (byOrder !== 0) return byOrder;
+			return a.title.localeCompare(b.title);
+		});
+		data.ui.sort((a, b) => {
 			const byOrder = (a.order ?? Infinity) - (b.order ?? Infinity);
 			if (byOrder !== 0) return byOrder;
 			return a.title.localeCompare(b.title);
@@ -184,6 +227,7 @@ export default defineConfig({
 		data.lucide.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.kit.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.create.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+		data.formish.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 		data.tutorials.sort((a, b) =>
 			a.lessonDir.localeCompare(b.lessonDir, undefined, { numeric: true }),
 		);

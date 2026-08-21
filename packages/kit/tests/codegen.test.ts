@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	dataChains,
 	generateEndpointsModule,
-	generateLoadsModule,
+	generatePagesModule,
 	generateRouterModule,
 	serverRoutes,
 } from "../src/codegen.ts";
@@ -77,6 +77,7 @@ describe("generateRouterModule", () => {
 
 	it("lists each route's page and layout chain for the runtime to preload", () => {
 		expect(code).toContain("registerRouteModules(");
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Parsing back the manifest the generator just emitted.
 		const registered = JSON.parse(/registerRouteModules\((\[[\s\S]*?\n\])\);/.exec(code)![1]!) as {
 			pattern: string;
 			modules: string[];
@@ -317,16 +318,22 @@ describe("serverRoutes", () => {
 	});
 });
 
-describe("generateLoadsModule", () => {
-	const code = generateLoadsModule(loaded, "/src/routes");
+describe("generatePagesModule", () => {
+	const code = generatePagesModule(loaded, "/src/routes");
 
-	it("imports each load once and lists every load-bearing route", () => {
+	it("imports each load once and lists every page with its chain", () => {
 		expect(code).toContain('import load_0 from "/src/routes/layout.server.ts"');
 		expect(code).toContain('import load_1 from "/src/routes/docs/index.server.ts"');
-		expect(code).toContain('{ pattern: "/", files: [{ id: "layout.server.ts", load: load_0 }] }');
 		expect(code).toContain(
-			'{ pattern: "/docs", files: [{ id: "layout.server.ts", load: load_0 }, { id: "docs/index.server.ts", load: load_1 }] }',
+			'{ pattern: "/", id: "/", files: [{ id: "layout.server.ts", load: load_0 }] }',
 		);
+		expect(code).toContain(
+			'{ pattern: "/docs", id: "/docs", files: [{ id: "layout.server.ts", load: load_0 }, { id: "docs/index.server.ts", load: load_1 }] }',
+		);
+	});
+
+	it("gives every page a route id, params in directory form", () => {
+		expect(code).toContain('pattern: "/docs/:...slug", id: "/docs/[...slug]"');
 	});
 });
 
@@ -336,10 +343,10 @@ describe("generateEndpointsModule", () => {
 	it("imports each endpoint namespace with its pattern and extension", () => {
 		expect(code).toContain('import * as endpoint_0 from "/src/routes/docs/.md/server.ts"');
 		expect(code).toContain(
-			'{ pattern: "/docs", extension: ".md", file: "docs/.md/server.ts", module: endpoint_0 }',
+			'{ pattern: "/docs", id: "/docs/.md", extension: ".md", file: "docs/.md/server.ts", module: endpoint_0 }',
 		);
 		expect(code).toContain(
-			'{ pattern: "/api", extension: null, file: "api/server.ts", module: endpoint_2 }',
+			'{ pattern: "/api", id: "/api", extension: null, file: "api/server.ts", module: endpoint_2 }',
 		);
 	});
 });

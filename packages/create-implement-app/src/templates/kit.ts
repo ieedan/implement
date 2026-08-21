@@ -6,6 +6,7 @@ import {
 	gitignore,
 	indexHtml,
 	packageJson,
+	signUpFormComponent,
 	styles,
 	tsconfig,
 	vitePlugins,
@@ -40,12 +41,16 @@ export const kit: Template = {
 			contents: indexHtml({ title: ctx.name, entry: "/.implement/entry-client.ts" }),
 		},
 		{ path: "src/app.css", contents: appCss(ctx) },
+		{ path: "src/app.d.ts", contents: appTypes() },
 		{ path: "scripts/sync.ts", contents: syncScript() },
 		{ path: "src/routes/layout.ts", contents: layout(ctx) },
 		{ path: "src/routes/index.ts", contents: page() },
 		{ path: "src/routes/about/index.ts", contents: aboutPage(ctx) },
 		{ path: "src/routes/error.ts", contents: errorPage(ctx) },
 		{ path: "src/lib/counter.ts", contents: counter(ctx) },
+		...(hasAddon(ctx, "forms")
+			? [{ path: "src/lib/sign-up-form.ts", contents: signUpFormComponent(ctx) }]
+			: []),
 		{ path: "static/favicon.svg", contents: favicon() },
 		{ path: ".gitignore", contents: gitignore() },
 		{ path: "README.md", contents: readme(ctx) },
@@ -56,6 +61,7 @@ function pkg(ctx: TemplateContext): string {
 	const deps: Dependency[] = ["@implementjs/core"];
 	if (hasAddon(ctx, "primitives")) deps.push("@implementjs/primitives");
 	if (hasAddon(ctx, "icons")) deps.push("@implementjs/lucide");
+	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
 
 	const devDeps: Dependency[] = ["@implementjs/kit", "@types/node", "typescript", "vite"];
 	if (hasAddon(ctx, "tailwind")) devDeps.push("@tailwindcss/vite", "tailwindcss");
@@ -87,6 +93,25 @@ function viteConfig(ctx: TemplateContext): string {
 		`\tplugins: [${plugins.join(", ")}],`,
 		`});`,
 	].join("\n")}\n`;
+}
+
+/**
+ * The app's server types. `App.Locals` is what `src/hooks.server.ts` hands the
+ * app's loads and endpoints, so this is where it gets typed.
+ */
+function appTypes(): string {
+	return (
+		dedent`
+		declare global {
+			namespace App {
+				// what src/hooks.server.ts puts on event.locals, and routes read
+				interface Locals {}
+			}
+		}
+
+		export {};
+	` + "\n"
+	);
 }
 
 function syncScript(): string {
@@ -183,8 +208,15 @@ function counter(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "primitives")) {
 		links.push({ label: "Primitives", href: `${DOCS_URL}/tree/main/packages/primitives` });
 	}
+	if (hasAddon(ctx, "forms")) {
+		links.push({ label: "Forms", href: `${DOCS_URL}/tree/main/packages/formish` });
+	}
 
-	return counterComponent(ctx, { editPath: "src/lib/counter.ts", links });
+	return counterComponent(ctx, {
+		editPath: "src/lib/counter.ts",
+		links,
+		formImport: "@/lib/sign-up-form",
+	});
 }
 
 function favicon(): string {

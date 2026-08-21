@@ -1,15 +1,15 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { injectSsr, type SsrResult } from "./inject.ts";
+import { renderDocument, type SsrResult } from "./inject.ts";
 
 /** May be async — a render that resolves route data first returns a promise. */
 export type RenderFn = (url: string) => SsrResult | Promise<SsrResult>;
 
 /**
- * A last pass over a prerendered page, after the render is injected and before
- * it is written. Unlike `transformIndexHtml`, this runs per route and after the
- * client build, so it can reach for things only the finished build knows —
- * which is what kit's per-route preload hints need.
+ * A pass over a prerendered page, after the render is injected and before the
+ * app's own `transformPageChunk` sees it. Unlike `transformIndexHtml`, this
+ * runs per route and after the client build, so it can reach for things only
+ * the finished build knows — which is what kit's per-route preload hints need.
  */
 export type TransformHtml = (route: string, html: string) => string;
 
@@ -54,8 +54,12 @@ export async function prerenderRoutes(options: {
 	const failed: string[] = [];
 	for (const route of routes) {
 		try {
-			const rendered = injectSsr(template, await render(route));
-			const page = transformHtml === undefined ? rendered : transformHtml(route, rendered);
+			const page = await renderDocument(
+				template,
+				await render(route),
+				[],
+				transformHtml === undefined ? undefined : (html) => transformHtml(route, html),
+			);
 			const out =
 				route === "/" ? join(outDir, "index.html") : join(outDir, route.slice(1), "index.html");
 			mkdirSync(dirname(out), { recursive: true });

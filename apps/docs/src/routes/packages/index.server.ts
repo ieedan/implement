@@ -5,12 +5,26 @@ const PACKAGE_DIRS = [
 	"core",
 	"kit",
 	"primitives",
+	"formish",
 	"lucide",
 	"vite",
 	"create-implement-app",
 ] as const;
 
 export type PackageInfo = { name: string; version: string };
+
+function readPackageManifest(path: string, dir: string): PackageInfo {
+	const raw: unknown = JSON.parse(readFileSync(path, "utf8"));
+	if (raw == null || typeof raw !== "object") {
+		throw new Error(`Invalid package.json for ${dir}: expected an object`);
+	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON object validated before reading name and version fields.
+	const { name, version } = raw as Record<string, unknown>;
+	if (typeof name !== "string" || typeof version !== "string") {
+		throw new Error(`Invalid package.json for ${dir}: "name" and "version" must be strings`);
+	}
+	return { name, version };
+}
 
 /**
  * Reads each workspace package's manifest off disk — data only the server
@@ -21,13 +35,10 @@ export type PackageInfo = { name: string; version: string };
 export default function load(): { packages: Record<string, PackageInfo> } {
 	const packages: Record<string, PackageInfo> = {};
 	for (const dir of PACKAGE_DIRS) {
-		const manifest = JSON.parse(
-			readFileSync(
-				fileURLToPath(new URL(`../../../../../packages/${dir}/package.json`, import.meta.url)),
-				"utf8",
-			),
-		) as { name: string; version: string };
-		packages[dir] = { name: manifest.name, version: manifest.version };
+		const path = fileURLToPath(
+			new URL(`../../../../../packages/${dir}/package.json`, import.meta.url),
+		);
+		packages[dir] = readPackageManifest(path, dir);
 	}
 	return { packages };
 }

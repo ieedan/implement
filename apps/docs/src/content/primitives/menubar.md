@@ -18,16 +18,15 @@ import {
 } from "@implementjs/primitives";
 
 Menubar(
-	{},
 	MenubarMenu(
 		{ value: "file" },
-		MenubarTrigger({}, "File"),
-		MenubarContent({}, MenubarItem({ onSelect: () => save() }, "Save")),
+		MenubarTrigger("File"),
+		MenubarContent(MenubarItem({ onSelect: () => save() }, "Save")),
 	),
 	MenubarMenu(
 		{ value: "edit" },
-		MenubarTrigger({}, "Edit"),
-		MenubarContent({}, MenubarItem({ onSelect: () => undo() }, "Undo")),
+		MenubarTrigger("Edit"),
+		MenubarContent(MenubarItem({ onSelect: () => undo() }, "Undo")),
 	),
 );
 ```

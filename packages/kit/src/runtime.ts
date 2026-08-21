@@ -14,12 +14,15 @@ export {
 	comparePatterns,
 	dataPath,
 	matchEndpoint,
+	matchPage,
 	matchRoutePattern,
-	resolveLoads,
+	routeId,
+	runLoads,
 	type EndpointMatch,
 	type EndpointRoute,
 	type LoadEvent,
-	type LoadRoute,
+	type PageMatch,
+	type PageRoute,
 	type RequestEvent,
 	type RequestHandler,
 	type RouteData,
@@ -77,6 +80,7 @@ async function fetchRouteData(path: string): Promise<void> {
 	if (route === undefined) return;
 	const response = await fetch(dataPath(path));
 	if (!response.ok) throw new Error(`fetching route data failed: ${response.status}`);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Route data JSON matches the generated load module shape.
 	seedData((await response.json()) as RouteData);
 }
 
@@ -93,6 +97,7 @@ export function initClientData(): void {
 	// data for wherever the app navigated to; re-seeding there would put the
 	// landing page's payload back and re-render every route with it.
 	if (embedded?.textContent && store.size === 0) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Embedded route data is JSON serialized at build time.
 		seedData(JSON.parse(embedded.textContent) as RouteData);
 	}
 	setNavigationResolver(async (to) => {

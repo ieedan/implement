@@ -5,6 +5,12 @@ export type SsrResult = {
 	head: string;
 	/** Serializable route data to embed in the page for the client to pick up. */
 	data?: unknown;
+	/**
+	 * Final pass over the assembled document, after the render has been
+	 * injected into the shell — how `@implementjs/kit` applies a hook's
+	 * `transformPageChunk`.
+	 */
+	transform?: (page: string) => string | Promise<string>;
 };
 
 /** `</script>` (and any `<`) in embedded JSON must not terminate the script tag. */
@@ -30,4 +36,21 @@ export function injectSsr(template: string, result: SsrResult, styles: DevStyle[
 		/<body([^>]*)>/,
 		`<body$1><div data-ssr style="display: contents">${result.html}</div>${dataTag}`,
 	);
+}
+
+/**
+ * {@link injectSsr}, then the host's own per-page pass (`@implementjs/kit`
+ * adds each route's preload hints there), then the render's `transform` — so
+ * a `transformPageChunk` hook still gets the last word on the finished
+ * document, hints and all.
+ */
+export async function renderDocument(
+	template: string,
+	result: SsrResult,
+	styles: DevStyle[] = [],
+	transformHtml?: (page: string) => string,
+): Promise<string> {
+	const injected = injectSsr(template, result, styles);
+	const page = transformHtml === undefined ? injected : transformHtml(injected);
+	return result.transform === undefined ? page : await result.transform(page);
 }

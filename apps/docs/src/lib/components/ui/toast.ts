@@ -215,6 +215,7 @@ export function Toaster({ manager, ...props }: ToastProviderProps & { manager: T
 }
 
 function actionOf(toast: ToastData): ToasterToastData["action"] {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Toast action lives on optional extended toast data.
 	const data = toast.data as ToasterToastData | undefined;
 	return data?.action;
 }

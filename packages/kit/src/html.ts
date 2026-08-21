@@ -1,14 +1,17 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import type { Connect, Plugin, ViteDevServer } from "vite";
+import { join, sep } from "node:path";
+import type { Connect, Plugin } from "vite";
 
 /** Where an app's html shell lives, preferred first. */
 const SHELL_PATHS = ["src/index.html", "index.html"] as const;
 
-/** The name Vite serves the root shell under, and the file the prerender reads. */
+/** The name the build output uses for the shell, and the file the prerender reads. */
 const ROOT_SHELL = "index.html";
 
-/** A shell Vite already handles on its own — nothing about the config needs changing for it. */
+/** What the prerender writes the app's error page to, and static hosts serve for unknown paths. */
+const NOT_FOUND_SHELL = "404.html";
+
+/** A shell already at Vite's own entry — nothing about the build config needs changing for it. */
 export const isRootShell = (relative: string): boolean => relative === ROOT_SHELL;
 
 /**
@@ -23,31 +26,39 @@ export function resolveShell(root: string): { path: string; relative: string } |
 	return null;
 }
 
-const cleanUrl = (url: string): string => url.replace(/[?#].*$/, "");
-
 /**
- * Serves `src/index.html` for navigations. Vite only ever reads `<root>/index.html`, so a shell
- * under `src/` needs its own middleware — registered from a `configureServer` post hook so it lands
- * after Vite's static and html-fallback middlewares (which have already rewritten the URL of every
- * navigation to `/index.html`) and before the 404.
+ * Serves the prerendered pages in `vite preview`. Kit turns Vite's SPA fallback off — it answers
+ * page requests itself in dev — which also takes Vite's `/path` → `/path/index.html` resolution
+ * with it, so preview needs both halves here: the page for a path that has one, and the prerendered
+ * `404.html` for a path that doesn't. Together that is what a static host does with the build.
  */
-export function serveShell(server: ViteDevServer, shell: string): Connect.NextHandleFunction {
+export function previewPages(outDir: string): Connect.NextHandleFunction {
 	return (req, res, next) => {
 		if (res.writableEnded) return next();
 		if (req.method !== "GET" && req.method !== "HEAD") return next();
-		if (req.url === undefined || cleanUrl(req.url) !== `/${ROOT_SHELL}`) return next();
-		// an html file imported as a module, not a page
-		if (req.headers["sec-fetch-dest"] === "script") return next();
+		if (!(req.headers.accept ?? "").includes("text/html")) return next();
 
-		server
-			.transformIndexHtml(`/${ROOT_SHELL}`, readFileSync(shell, "utf8"), req.originalUrl)
-			.then((html) => {
-				res.statusCode = 200;
-				res.setHeader("Content-Type", "text/html");
-				res.setHeader("Cache-Control", "no-cache");
-				res.end(req.method === "HEAD" ? "" : html);
-			}, next);
+		const path = decodeURIPath(req.url ?? "/");
+		if (path === null) return next();
+		const page = join(outDir, path, ROOT_SHELL);
+		// a decoded path may still climb out of the output directory
+		const found = page.startsWith(outDir + sep) && existsSync(page);
+		const file = found ? page : join(outDir, NOT_FOUND_SHELL);
+		if (!found && !existsSync(file)) return next();
+
+		res.statusCode = found ? 200 : 404;
+		res.setHeader("Content-Type", "text/html");
+		res.end(req.method === "HEAD" ? "" : readFileSync(file, "utf8"));
 	};
+}
+
+/** The pathname of a request url, decoded, or `null` when it is not decodable. */
+function decodeURIPath(url: string): string | null {
+	try {
+		return decodeURI(new URL(url, "http://preview.local").pathname);
+	} catch {
+		return null;
+	}
 }
 
 /**

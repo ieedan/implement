@@ -28,40 +28,34 @@ import { ForEach, Fragment } from "@implementjs/core";
 RangeCalendar({ calendarLabel: "Trip dates" }, ({ months, weekdays }) =>
 	Fragment(
 		RangeCalendarHeader(
-			{},
-			RangeCalendarPrevButton({}, "←"),
-			RangeCalendarHeading({}),
-			RangeCalendarNextButton({}, "→"),
+			RangeCalendarPrevButton("←"),
+			RangeCalendarHeading(),
+			RangeCalendarNextButton("→"),
 		),
 		ForEach(
 			months,
 			(month) => month.value.toString(),
 			(month) =>
 				RangeCalendarGrid(
-					{},
 					RangeCalendarGridHead(
-						{},
 						RangeCalendarGridRow(
-							{},
 							ForEach(
 								weekdays,
 								(_, i) => i,
-								(weekday) => RangeCalendarHeadCell({}, weekday),
+								(weekday) => RangeCalendarHeadCell(weekday),
 							),
 						),
 					),
 					RangeCalendarGridBody(
-						{},
 						ForEach(
 							month.bind((m) => m.weeks),
 							(week) => week[0].toString(),
 							(week) =>
 								RangeCalendarGridRow(
-									{},
 									ForEach(
 										week,
 										(date) => date.toString(),
-										(date) => RangeCalendarCell({ date, month }, RangeCalendarDay({})),
+										(date) => RangeCalendarCell({ date, month }, RangeCalendarDay()),
 									),
 								),
 						),

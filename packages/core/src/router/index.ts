@@ -187,28 +187,60 @@ function parseKey(key: string): Segment[] {
 	);
 }
 
+function routePath(segments: Segment[]): string {
+	if (segments.length === 0) return "/";
+	return `/${segments.map((segment) => (segment.param ? `:${segment.name}` : segment.value)).join("/")}`;
+}
+
+function assertRouteRender(value: unknown, at: string): LeafRoute["render"] {
+	if (typeof value !== "function") {
+		throw new Error(`Route render at ${at} must be a function, got ${typeof value}`);
+	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Validated render function matches the compiled route shape.
+	return value as LeafRoute["render"];
+}
+
+function assertLayoutHandler(value: unknown): LayoutEntry["handler"] {
+	if (typeof value !== "function") {
+		throw new Error(`Route layout must be a function, got ${typeof value}`);
+	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Validated layout handler matches the compiled route shape.
+	return value as LayoutEntry["handler"];
+}
+
 function compileNode(
 	node: Record<string, unknown>,
 	prefix: Segment[],
 	layouts: LayoutEntry[],
 	out: LeafRoute[],
 ): void {
-	const layout = node.layout as LayoutEntry["handler"] | undefined;
-	const scope = layout ? [...layouts, { handler: layout }] : layouts;
+	const scope =
+		node.layout === undefined
+			? layouts
+			: [...layouts, { handler: assertLayoutHandler(node.layout) }];
 	for (const [key, value] of Object.entries(node)) {
 		if (key === "layout") continue;
 		if (key === "/") {
 			assertRestIsLast(prefix);
-			out.push({ segments: prefix, layouts: scope, render: value as LeafRoute["render"] });
+			out.push({
+				segments: prefix,
+				layouts: scope,
+				render: assertRouteRender(value, routePath(prefix)),
+			});
 			continue;
 		}
 		// A bare handler at a path key is shorthand for `{ "/": handler }`.
 		if (typeof value === "function") {
 			const segments = [...prefix, ...parseKey(key)];
 			assertRestIsLast(segments);
-			out.push({ segments, layouts: scope, render: value as LeafRoute["render"] });
+			out.push({
+				segments,
+				layouts: scope,
+				render: assertRouteRender(value, routePath(segments)),
+			});
 			continue;
 		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Non-function route values are nested route objects.
 		compileNode(value as Record<string, unknown>, [...prefix, ...parseKey(key)], scope, out);
 	}
 }
@@ -224,11 +256,15 @@ function assertRestIsLast(segments: Segment[]): void {
 }
 
 /** Static segments outrank params, and params outrank catch-alls, position by position. */
+function segmentRank(segment: Segment): number {
+	return segment.param ? (segment.rest ? 2 : 1) : 0;
+}
+
+/** Static segments outrank params, and params outrank catch-alls, position by position. */
 function compareRoutes(a: LeafRoute, b: LeafRoute): number {
-	const rank = (segment: Segment) => (segment.param ? (segment.rest ? 2 : 1) : 0);
 	const length = Math.min(a.segments.length, b.segments.length);
 	for (let i = 0; i < length; i++) {
-		const difference = rank(a.segments[i]!) - rank(b.segments[i]!);
+		const difference = segmentRank(a.segments[i]!) - segmentRank(b.segments[i]!);
 		if (difference !== 0) return difference;
 	}
 	return a.segments.length - b.segments.length;
@@ -526,8 +562,10 @@ export function Router<T extends Routes<T>>(
 
 	const navigate = (path: string, ...rest: unknown[]) => {
 		const takesParams = path.includes(":");
+		/* oxlint-disable typescript/no-unsafe-type-assertion -- Overloaded navigate rest args depend on whether the path has params. */
 		const params = takesParams ? (rest[0] as Record<string, string | number>) : undefined;
 		const navOptions = (takesParams ? rest[1] : rest[0]) as NavigateOptions | undefined;
+		/* oxlint-enable typescript/no-unsafe-type-assertion */
 		navigateTo(buildHref(path, params), navOptions);
 	};
 
@@ -576,6 +614,7 @@ export function Router<T extends Routes<T>>(
 		);
 	};
 
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Router helper methods are merged onto the mountable return value.
 	return Object.assign(mountable, {
 		location: lazyLocation,
 		href,

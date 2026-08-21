@@ -58,6 +58,7 @@ const browser: DomEnvironment = {
 			console.warn("Svg: source did not parse to a root <svg> element", source);
 			return null;
 		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Parsed SVG root was verified as SVGSVGElement above.
 		return root.cloneNode(true) as SVGSVGElement;
 	},
 };

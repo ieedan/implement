@@ -51,18 +51,18 @@ function AccordionPreview(): Mountable {
 		{ class: "w-full max-w-md" },
 		AccordionItem(
 			{ value: "what" },
-			AccordionTrigger({}, "What is implement?"),
-			AccordionContent({}, "A signal-based UI framework with no compiler."),
+			AccordionTrigger("What is implement?"),
+			AccordionContent("A signal-based UI framework with no compiler."),
 		),
 		AccordionItem(
 			{ value: "why" },
-			AccordionTrigger({}, "Why no compiler?"),
-			AccordionContent({}, "Your app is plain TypeScript that builds real DOM nodes."),
+			AccordionTrigger("Why no compiler?"),
+			AccordionContent("Your app is plain TypeScript that builds real DOM nodes."),
 		),
 		AccordionItem(
 			{ value: "styling" },
-			AccordionTrigger({}, "How do I style it?"),
-			AccordionContent({}, "Every part exposes data attributes, so plain CSS works."),
+			AccordionTrigger("How do I style it?"),
+			AccordionContent("Every part exposes data attributes, so plain CSS works."),
 		),
 	);
 }
@@ -75,14 +75,14 @@ function AvatarPreview(): Mountable {
 		Avatar(
 			{ class: "size-12" },
 			AvatarImage({ src: "https://github.com/ieedan.png", alt: "" }),
-			AvatarFallback({}, "AB"),
+			AvatarFallback("AB"),
 		),
 		Avatar(
 			{ class: "size-12" },
 			AvatarImage({ src: "https://github.com/github.png", alt: "" }),
-			AvatarFallback({}, "GH"),
+			AvatarFallback("GH"),
 		),
-		Avatar({ class: "size-12" }, AvatarFallback({}, "+3")),
+		Avatar({ class: "size-12" }, AvatarFallback("+3")),
 	);
 }
 
@@ -103,7 +103,7 @@ function LinkPreviewPreview(): Mountable {
 			Avatar(
 				{ class: "size-10" },
 				AvatarImage({ src: "https://github.com/ieedan.png", alt: "" }),
-				AvatarFallback({}, "AB"),
+				AvatarFallback("AB"),
 			),
 			Div(
 				{ class: "space-y-1" },
@@ -198,7 +198,7 @@ function CheckboxPreview(): Mountable {
 		),
 		Div(
 			{ class: "flex items-center gap-2" },
-			Checkbox({}),
+			Checkbox(),
 			Label({ class: "text-sm leading-none font-medium" }, "Accept terms"),
 		),
 	);
@@ -214,7 +214,7 @@ function SwitchPreview(): Mountable {
 		),
 		Div(
 			{ class: "flex items-center gap-2" },
-			Switch({}),
+			Switch(),
 			Label({ class: "text-sm leading-none font-medium" }, "Marketing emails"),
 		),
 		Div(
@@ -292,20 +292,20 @@ function AspectRatioPreview(): Mountable {
 	);
 }
 
-function RadioGroupPreview(): Mountable {
-	function Option(value: string, label: string) {
-		return Div(
-			{ class: "flex items-center gap-2" },
-			RadioGroupItem({ value }),
-			Span({ class: "text-sm leading-none font-medium" }, label),
-		);
-	}
+function radioGroupOption(value: string, label: string) {
+	return Div(
+		{ class: "flex items-center gap-2" },
+		RadioGroupItem({ value }),
+		Span({ class: "text-sm leading-none font-medium" }, label),
+	);
+}
 
+function RadioGroupPreview(): Mountable {
 	return RadioGroup(
 		{ value: "comfortable", "aria-label": "Density" },
-		Option("default", "Default"),
-		Option("comfortable", "Comfortable"),
-		Option("compact", "Compact"),
+		radioGroupOption("default", "Default"),
+		radioGroupOption("comfortable", "Comfortable"),
+		radioGroupOption("compact", "Compact"),
 	);
 }
 
@@ -617,17 +617,19 @@ function TooltipPreview(): Mountable {
 	);
 }
 
+function commandPreviewItem(label: string, selected = false) {
+	return Div(
+		{
+			class: [
+				"rounded-sm px-2 py-1.5",
+				selected ? "bg-accent text-accent-foreground" : "text-foreground/70",
+			],
+		},
+		label,
+	);
+}
+
 function CommandPreview(): Mountable {
-	const item = (label: string, selected = false) =>
-		Div(
-			{
-				class: [
-					"rounded-sm px-2 py-1.5",
-					selected ? "bg-accent text-accent-foreground" : "text-foreground/70",
-				],
-			},
-			label,
-		);
 	return Div(
 		{ class: "w-56 overflow-hidden rounded-md border bg-background text-xs shadow-sm" },
 		Div(
@@ -641,9 +643,9 @@ function CommandPreview(): Mountable {
 				{ class: "px-2 py-1 text-[10px] font-medium tracking-wide text-foreground/40 uppercase" },
 				"Suggestions",
 			),
-			item("Calendar", true),
-			item("Calculator"),
-			item("Settings"),
+			commandPreviewItem("Calendar", true),
+			commandPreviewItem("Calculator"),
+			commandPreviewItem("Settings"),
 		),
 	);
 }

@@ -9,6 +9,7 @@ import type { AbsolutePath } from "@/utils/types";
  * @returns
  */
 export function joinAbsolute(p: AbsolutePath, ...paths: string[]): AbsolutePath {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Branded path: join preserves absoluteness when the base is absolute.
 	return join(p, ...paths) as AbsolutePath;
 }
 
@@ -20,6 +21,7 @@ export function joinAbsolute(p: AbsolutePath, ...paths: string[]): AbsolutePath 
  * @returns
  */
 export function resolveAbsolute(cwd: AbsolutePath, p: string): AbsolutePath {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Branded path: resolve against an absolute cwd is absolute.
 	return resolve(cwd, p) as AbsolutePath;
 }
 
@@ -30,6 +32,7 @@ export function resolveAbsolute(cwd: AbsolutePath, p: string): AbsolutePath {
  * @returns
  */
 export function dirname(p: AbsolutePath): AbsolutePath {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Branded path: dirname of an absolute path stays absolute.
 	return _dirname(p) as AbsolutePath;
 }
 

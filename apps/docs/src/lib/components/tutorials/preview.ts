@@ -17,6 +17,7 @@ import {
 	parseStack,
 	type ConsoleEntry,
 } from "@/lib/console-format";
+import { mode } from "@/lib/mode";
 import { runLesson } from "@/lib/run-lesson";
 import frameCss from "./preview-frame.css?inline";
 
@@ -63,6 +64,12 @@ function createPreviewFrame(
 	);
 	doc.close();
 
+	// The frame is its own document, so the host's `dark` class doesn't reach
+	// it — mirror the mode in, and keep mirroring it as it changes.
+	const unwatchMode = watch([mode.mode], (current) => {
+		doc.documentElement.classList.toggle("dark", current !== "light");
+	});
+
 	// Reparenting an iframe (hydration reordering, layout swaps) reloads it,
 	// silently replacing the written document and orphaning everything mounted
 	// into it. Detect the replacement and let the caller boot a fresh frame.
@@ -70,6 +77,7 @@ function createPreviewFrame(
 		if (iframe.contentDocument !== doc) onReset();
 	});
 
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Preview iframe console is captured for the lesson output panel.
 	const frameConsole = (frameWindow as Window & typeof globalThis).console;
 	for (const level of CONSOLE_LEVELS) {
 		const original = frameConsole[level].bind(frameConsole);
@@ -111,7 +119,10 @@ function createPreviewFrame(
 		window: frameWindow,
 		body: doc.body,
 		element: iframe,
-		destroy: () => iframe.remove(),
+		destroy: () => {
+			unwatchMode();
+			iframe.remove();
+		},
 	};
 }
 

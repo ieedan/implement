@@ -852,6 +852,7 @@ function twoWayBinding(
 	tag: string,
 	key: string,
 ): { event: string; read: (el: HTMLElement) => unknown } | null {
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Tag-specific DOM properties for two-way binding. */
 	if (key === "value") {
 		if (tag === "select") {
 			return { event: "change", read: (el) => (el as HTMLSelectElement).value };
@@ -867,6 +868,7 @@ function twoWayBinding(
 	if (key === "open" && (tag === "details" || tag === "dialog")) {
 		return { event: "toggle", read: (el) => (el as HTMLDetailsElement).open };
 	}
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 	return null;
 }
 
@@ -903,10 +905,12 @@ function setStyleProperty(el: HTMLElement | SVGElement, property: string, value:
 		el.style.setProperty(property, value);
 		return;
 	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- camelCase style properties are indexed on CSSStyleDeclaration.
 	(el.style as unknown as Record<string, string>)[property] = value;
 }
 
 function setDomValue(el: HTMLElement, key: string, value: unknown) {
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Generic DOM prop writes keyed by string names. */
 	if (key === "style") {
 		el.style.cssText = value == null ? "" : toAttrString(value);
 		return;
@@ -962,12 +966,13 @@ function setDomValue(el: HTMLElement, key: string, value: unknown) {
 			return;
 		}
 		if (current !== value) {
-			(el as unknown as Record<string, unknown>)[prop] = value as never;
+			(el as unknown as Record<string, unknown>)[prop] = value;
 		}
 		return;
 	}
 
 	setAttribute(el, key, value, false);
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 }
 
 function noop() {}
@@ -975,6 +980,7 @@ function noop() {}
 function bindEvent(el: Element, event: string, value: unknown): Unsubscribe {
 	const attach = (handler: unknown): Unsubscribe => {
 		if (typeof handler !== "function") return noop;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Event props accept any listener after a function check.
 		const listener = handler as EventListener;
 		el.addEventListener(event, listener);
 		return () => el.removeEventListener(event, listener);
@@ -1093,6 +1099,7 @@ function bindDomProp(el: HTMLElement, tag: string, key: string, value: unknown):
 	}
 
 	if (key === "style" && value !== null && typeof value === "object" && !isReadable(value)) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Style objects are plain records after an object check.
 		return bindStyleObject(el, value as Record<string, unknown>);
 	}
 
@@ -1102,7 +1109,7 @@ function bindDomProp(el: HTMLElement, tag: string, key: string, value: unknown):
 	if (twoWay && isWritable(value)) {
 		const unsub = subscribe([value], apply);
 		const handler = () => {
-			value.set(twoWay.read(el) as never);
+			value.set(twoWay.read(el));
 		};
 		el.addEventListener(twoWay.event, handler);
 		return () => {
@@ -1149,6 +1156,7 @@ function bindSvgProp(el: SVGElement, key: string, value: unknown): Unsubscribe {
 	}
 
 	if (key === "style" && value !== null && typeof value === "object" && !isReadable(value)) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Style objects are plain records after an object check.
 		return bindStyleObject(el, value as Record<string, unknown>);
 	}
 

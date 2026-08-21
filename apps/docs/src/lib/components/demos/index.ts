@@ -65,6 +65,44 @@ import CommandDemo from "./command-demo.ts";
 import commandSource from "./command-demo.ts?raw";
 import CommandGridDemo from "./command-grid-demo.ts";
 import commandGridSource from "./command-grid-demo.ts?raw";
+import ModeWatcherDemo from "./mode-watcher-demo.ts";
+import modeWatcherSource from "./mode-watcher-demo.ts?raw";
+import SignUpFormDemo from "./sign-up-form-demo.ts";
+import signUpFormSource from "./sign-up-form-demo.ts?raw";
+import FieldArrayDemo from "./field-array-demo.ts";
+import fieldArraySource from "./field-array-demo.ts?raw";
+import AlertDemo from "./alert-demo.ts";
+import alertSource from "./alert-demo.ts?raw";
+import BadgeDemo from "./badge-demo.ts";
+import badgeSource from "./badge-demo.ts?raw";
+import BreadcrumbDemo from "./breadcrumb-demo.ts";
+import breadcrumbSource from "./breadcrumb-demo.ts?raw";
+import ButtonDemo from "./button-demo.ts";
+import buttonSource from "./button-demo.ts?raw";
+import ButtonGroupDemo from "./button-group-demo.ts";
+import buttonGroupSource from "./button-group-demo.ts?raw";
+import CardDemo from "./card-demo.ts";
+import cardSource from "./card-demo.ts?raw";
+import EmptyDemo from "./empty-demo.ts";
+import emptySource from "./empty-demo.ts?raw";
+import FieldDemo from "./field-demo.ts";
+import fieldSource from "./field-demo.ts?raw";
+import InputDemo from "./input-demo.ts";
+import inputSource from "./input-demo.ts?raw";
+import ItemDemo from "./item-demo.ts";
+import itemSource from "./item-demo.ts?raw";
+import KbdDemo from "./kbd-demo.ts";
+import kbdSource from "./kbd-demo.ts?raw";
+import LabelDemo from "./label-demo.ts";
+import labelSource from "./label-demo.ts?raw";
+import SidebarDemo from "./sidebar-demo.ts";
+import sidebarSource from "./sidebar-demo.ts?raw";
+import SkeletonDemo from "./skeleton-demo.ts";
+import skeletonSource from "./skeleton-demo.ts?raw";
+import SpinnerDemo from "./spinner-demo.ts";
+import spinnerSource from "./spinner-demo.ts?raw";
+import TextareaDemo from "./textarea-demo.ts";
+import textareaSource from "./textarea-demo.ts?raw";
 
 export type Demo = {
 	/** The demo's source text: shown in the editor and, once edited, compiled and run live. */
@@ -135,4 +173,23 @@ export const demos: Record<string, Demo> = {
 	toast: { source: toastSource, component: ToastDemo },
 	command: { source: commandSource, component: CommandDemo },
 	"command-grid": { source: commandGridSource, component: CommandGridDemo },
+	"mode-watcher": { source: modeWatcherSource, component: ModeWatcherDemo },
+	"sign-up-form": { source: signUpFormSource, component: SignUpFormDemo },
+	"field-array": { source: fieldArraySource, component: FieldArrayDemo },
+	alert: { source: alertSource, component: AlertDemo },
+	badge: { source: badgeSource, component: BadgeDemo },
+	breadcrumb: { source: breadcrumbSource, component: BreadcrumbDemo },
+	button: { source: buttonSource, component: ButtonDemo },
+	"button-group": { source: buttonGroupSource, component: ButtonGroupDemo },
+	card: { source: cardSource, component: CardDemo },
+	empty: { source: emptySource, component: EmptyDemo },
+	field: { source: fieldSource, component: FieldDemo },
+	input: { source: inputSource, component: InputDemo },
+	item: { source: itemSource, component: ItemDemo },
+	kbd: { source: kbdSource, component: KbdDemo },
+	label: { source: labelSource, component: LabelDemo },
+	sidebar: { source: sidebarSource, component: SidebarDemo },
+	skeleton: { source: skeletonSource, component: SkeletonDemo },
+	spinner: { source: spinnerSource, component: SpinnerDemo },
+	textarea: { source: textareaSource, component: TextareaDemo },
 };

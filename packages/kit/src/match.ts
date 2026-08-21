@@ -56,67 +56,97 @@ export function matchRoutePattern(pattern: string, path: string): Record<string,
 }
 
 /** Static segments outrank params, and params outrank catch-alls, position by position. */
+function patternSegmentRank(segment: PatternSegment): number {
+	return segment.param ? (segment.rest ? 2 : 1) : 0;
+}
+
+/** Static segments outrank params, and params outrank catch-alls, position by position. */
 export function comparePatterns(a: string, b: string): number {
-	const rank = (segment: PatternSegment) => (segment.param ? (segment.rest ? 2 : 1) : 0);
 	const left = parsePattern(a);
 	const right = parsePattern(b);
 	const length = Math.min(left.length, right.length);
 	for (let i = 0; i < length; i++) {
-		const difference = rank(left[i]!) - rank(right[i]!);
+		const difference = patternSegmentRank(left[i]!) - patternSegmentRank(right[i]!);
 		if (difference !== 0) return difference;
 	}
 	return left.length - right.length;
+}
+
+/** The directory-name form of a pattern: `/docs/:...slug` → `/docs/[...slug]`. */
+export function routeId(pattern: string): string {
+	return pattern
+		.split("/")
+		.map((part) => (part.startsWith(":") ? `[${part.replace(/^:(\.\.\.)?/, "$1")}]` : part))
+		.join("/");
 }
 
 // ---------------------------------------------------------------------------
 // Server loads
 // ---------------------------------------------------------------------------
 
-/** What a `*.server.ts` load receives. `Params` narrows through `./$types`. */
-export type LoadEvent<Params extends Record<string, string> = Record<string, string>> = {
-	params: Params;
-	url: URL;
-};
-
-export type ServerLoad = (event: LoadEvent) => unknown;
-
-export type LoadRoute = {
-	pattern: string;
-	/** The route's load chain, root layout first, the page's own load last. */
-	files: { id: string; load: ServerLoad }[];
-};
-
-/** What a `server.ts` endpoint handler receives. `Params` narrows through `./$types`. */
+/**
+ * What a request handler and a `*.server.ts` load receive. `Params` narrows
+ * through `./$types`; `locals` is whatever `src/hooks.server.ts` put there,
+ * typed by the app through `App.Locals`.
+ */
 export type RequestEvent<Params extends Record<string, string> = Record<string, string>> = {
 	request: Request;
 	params: Params;
 	url: URL;
+	/** The matched route's id (`/docs/[...slug]`), or `null` when nothing matched. */
+	route: { id: string | null };
+	/** Per-request state set by `src/hooks.server.ts`, typed through `App.Locals`. */
+	locals: App.Locals;
+	/** Whether this is a client navigation's `__data.json` request rather than a document request. */
+	isDataRequest: boolean;
+	/** Adds headers to the response `resolve` produces. Each header may only be set once. */
+	setHeaders: (headers: Record<string, string>) => void;
+	getClientAddress: () => string;
 };
+
+/** What a `*.server.ts` load receives — the request event, `params` as plain strings. */
+export type LoadEvent<Params extends Record<string, string> = Record<string, string>> =
+	RequestEvent<Params>;
+
+export type ServerLoad = (event: LoadEvent) => unknown;
 
 export type RequestHandler = (event: RequestEvent) => Response | Promise<Response>;
 
-/**
- * Runs the load chain of the route matching `url`: every layout load down to
- * the page's own, root first. Returns the results keyed by server file, or
- * `null` when no load-bearing route matches.
- */
-export async function resolveLoads(
-	loads: LoadRoute[],
-	url: string | URL,
-): Promise<RouteData | null> {
-	const target = typeof url === "string" ? new URL(url, "http://implement.internal") : url;
-	const path = normalizeRoutePath(target.pathname);
-	const sorted = [...loads].sort((a, b) => comparePatterns(a.pattern, b.pattern));
+/** A page route with the load chain feeding it, as the generated `$implement/pages` module emits it. */
+export type PageRoute = {
+	/** Full path pattern, `:param`/`:...rest` style (`/docs/:...slug`). */
+	pattern: string;
+	/** The route's id, directory-name style (`/docs/[...slug]`). */
+	id: string;
+	/** The route's load chain, root layout first, the page's own load last. */
+	files: { id: string; load: ServerLoad }[];
+};
+
+export type PageMatch = { route: PageRoute; params: Record<string, string> };
+
+/** The most specific page serving a path, or `null` when none does. */
+export function matchPage(pages: PageRoute[], path: string): PageMatch | null {
+	const sorted = [...pages].toSorted((a, b) => comparePatterns(a.pattern, b.pattern));
 	for (const route of sorted) {
 		const params = matchRoutePattern(route.pattern, path);
-		if (params === null) continue;
-		const data: RouteData = {};
-		for (const { id, load } of route.files) {
-			data[id] = (await load({ params, url: target })) ?? {};
-		}
-		return data;
+		if (params !== null) return { route, params };
 	}
 	return null;
+}
+
+/**
+ * Runs a route's load chain — every layout load down to the page's own, root
+ * first — and returns the results keyed by server file. `null` when the route
+ * has no loads, which is also what a page with nothing to load serves for its
+ * `__data.json`.
+ */
+export async function runLoads(route: PageRoute, event: LoadEvent): Promise<RouteData | null> {
+	if (route.files.length === 0) return null;
+	const data: RouteData = {};
+	for (const { id, load } of route.files) {
+		data[id] = (await load(event)) ?? {};
+	}
+	return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +156,8 @@ export async function resolveLoads(
 export type EndpointRoute = {
 	/** Path pattern of the endpoint's directory. */
 	pattern: string;
+	/** The endpoint's id, directory-name style (`/docs/[...slug]/.md`). */
+	id: string;
 	/** Extension a `.<ext>/server.ts` appends to the pattern; `null` for a plain `server.ts`. */
 	extension: string | null;
 	/** Relative path of the `server.ts` file, for error messages. */
@@ -138,7 +170,7 @@ export type EndpointMatch = { route: EndpointRoute; params: Record<string, strin
 
 /** The most specific endpoint serving a path; extension endpoints outrank plain ones. */
 export function matchEndpoint(endpoints: EndpointRoute[], path: string): EndpointMatch | null {
-	const sorted = [...endpoints].sort(
+	const sorted = [...endpoints].toSorted(
 		(a, b) =>
 			comparePatterns(a.pattern, b.pattern) ||
 			(a.extension === null ? 1 : 0) - (b.extension === null ? 1 : 0),

@@ -22,10 +22,9 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Type-aware lint rules need the generated API clients and content
-      # collections to resolve imports; without them the demos' types degrade
-      # to error types and false-positive as lint errors. Docs also needs sync
-      # so `.implement/tsconfig.json` exists for oxlint's type-aware project.
+      # Type-aware lint rules need generated content collections to resolve
+      # imports. Docs also needs sync so `.implement/tsconfig.json` exists for
+      # oxlint's type-aware project.
       - run: pnpm generate
       - run: pnpm --filter @apps/docs sync
       - run: pnpm lint

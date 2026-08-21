@@ -241,7 +241,7 @@ abstract class SelectState {
 
 class SelectStateSingle extends SelectState {
 	#value: Signal<string | null>;
-	constructor(readonly opts: SelectProps<"single">) {
+	constructor(readonly opts: SelectProps) {
 		super(opts);
 		this.#value = signal(this.opts.value ?? (null as string | null));
 	}
@@ -376,6 +376,7 @@ export const SelectValue = createComponent(function SelectValue({
 }: SelectValueProps) {
 	return SelectCtx.Use((state) => {
 		if (state.opts.type === "multiple") {
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Select state value shape follows the discriminated `type` prop.
 			const value = state.value() as Signal<string[]>;
 			const selected = derived([value, state.items, state.itemLabels], (values, items, labels) =>
 				values.map((current) => ({
@@ -390,6 +391,7 @@ export const SelectValue = createComponent(function SelectValue({
 			);
 		}
 
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Select state value shape follows the discriminated `type` prop.
 		const value = state.value() as Signal<string | null>;
 		const selected = derived([value, state.items, state.itemLabels], (current, items, labels) =>
 			current == null ? null : { value: current, label: labelForValue(current, items, labels) },
@@ -437,7 +439,7 @@ export const SelectContent = createComponent(function SelectContent(
 ) {
 	return SelectCtx.Use((state) => {
 		const contentRef = ref<HTMLDivElement>();
-		new SelectContentState(state, {
+		void new SelectContentState(state, {
 			id,
 			ref: contentRef,
 			side,

@@ -18,15 +18,12 @@ import {
 } from "@implementjs/primitives";
 
 Popover(
-	{},
-	PopoverTrigger({}, "Open popover"),
-	PopoverPortal(
-		PopoverContent({}, "Place content for the popover here.", PopoverClose({}, "Done")),
-	),
+	PopoverTrigger("Open popover"),
+	PopoverPortal(PopoverContent("Place content for the popover here.", PopoverClose("Done"))),
 );
 ```
 
-Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props on the trigger, content, and close are forwarded onto the underlying `Button` or `Div`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props on the trigger, content, and close are forwarded onto the underlying `Button` or `Div`.
 
 ## Open state
 
@@ -35,7 +32,7 @@ Each part takes a props object first (even if it is empty) and then children, th
 ```ts
 const open = signal(false);
 
-Popover({ open }, PopoverTrigger({}, "Open popover"), PopoverContent({}, "Hello"));
+Popover({ open }, PopoverTrigger("Open popover"), PopoverContent("Hello"));
 
 Button({ onClick: () => open.set(false) }, "Close");
 ```
@@ -55,9 +52,9 @@ The page behind stays scrollable while the popover is open. Pass `preventScroll:
 Wrap `PopoverContent` in it. Chain `.To(target)` or pass `to` to pick a different parent, and `disabled` to mount in place instead. Nested popovers typically disable the inner portal so the nested panel stays in the outer overlay:
 
 ```ts
-PopoverPortal(PopoverContent({}, "Hello"));
+PopoverPortal(PopoverContent("Hello"));
 
-PopoverPortal({ to: overlayRoot, disabled: nested }, PopoverContent({}, "Hello"));
+PopoverPortal({ to: overlayRoot, disabled: nested }, PopoverContent("Hello"));
 ```
 
 ## Close
@@ -65,7 +62,7 @@ PopoverPortal({ to: overlayRoot, disabled: nested }, PopoverContent({}, "Hello")
 `PopoverClose` is a `Button` that sets the popover closed. Put it inside the content for a Done or dismiss control. You can still close from outside by writing the `open` signal.
 
 ```ts
-PopoverContent({}, "Place content for the popover here.", PopoverClose({}, "Done"));
+PopoverContent("Place content for the popover here.", PopoverClose("Done"));
 ```
 
 ## Multiple triggers
@@ -77,10 +74,10 @@ When the popover starts open, it still has to pick an anchor. That's the first t
 ```ts
 Popover(
 	{ open: true },
-	PopoverTrigger({}, "Left"),
+	PopoverTrigger("Left"),
 	PopoverTrigger({ default: true }, "Center"),
-	PopoverTrigger({}, "Right"),
-	PopoverContent({}, "Starts open against Center."),
+	PopoverTrigger("Right"),
+	PopoverContent("Starts open against Center."),
 );
 ```
 
@@ -94,15 +91,12 @@ Disable the inner portal. If both teleport to `document.body`, closing the outer
 
 ```ts
 Popover(
-	{},
-	PopoverTrigger({}, "Open popover"),
+	PopoverTrigger("Open popover"),
 	PopoverPortal(
 		PopoverContent(
-			{},
 			"This is the outer popover.",
 			Popover(
-				{},
-				PopoverTrigger({}, "Open nested"),
+				PopoverTrigger("Open nested"),
 				PopoverPortal(
 					{ disabled: true },
 					PopoverContent({ side: "right" }, "This is nested inside the first one."),

@@ -84,6 +84,15 @@ export function styles(ctx: TemplateContext): Record<string, string> {
 			nav: "flex items-center justify-center gap-4 border-b border-zinc-800 p-4 text-sm",
 			navLink: "text-zinc-400 hover:text-zinc-200",
 			main: "flex-1",
+			form: "flex w-full max-w-xs flex-col gap-4",
+			field: "flex flex-col gap-1.5",
+			label: "text-sm font-medium text-zinc-300",
+			input:
+				"rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-zinc-600",
+			error: "min-h-4 text-xs text-red-400",
+			submit:
+				"cursor-pointer rounded-md bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-white disabled:opacity-50",
+			success: "text-sm text-emerald-400",
 		};
 	}
 
@@ -102,6 +111,13 @@ export function styles(ctx: TemplateContext): Record<string, string> {
 		nav: "nav",
 		navLink: "nav-link",
 		main: "main",
+		form: "form",
+		field: "field",
+		label: "label",
+		input: "input",
+		error: "error",
+		submit: "submit",
+		success: "success",
 	};
 }
 
@@ -257,6 +273,66 @@ export function appCss(ctx: TemplateContext): string {
 		.main {
 			flex: 1;
 		}
+
+		.form {
+			display: flex;
+			width: 100%;
+			max-width: 20rem;
+			flex-direction: column;
+			gap: 1rem;
+		}
+
+		.field {
+			display: flex;
+			flex-direction: column;
+			gap: 0.375rem;
+		}
+
+		.label {
+			font-size: 0.875rem;
+			font-weight: 500;
+		}
+
+		.input {
+			border: 1px solid var(--border);
+			border-radius: 0.375rem;
+			background: var(--surface);
+			padding: 0.5rem 0.75rem;
+			color: inherit;
+			font: inherit;
+			font-size: 0.875rem;
+		}
+
+		.input:focus {
+			border-color: var(--muted);
+			outline: none;
+		}
+
+		.error {
+			min-height: 1rem;
+			color: #f87171;
+			font-size: 0.75rem;
+		}
+
+		.submit {
+			cursor: pointer;
+			border: none;
+			border-radius: 0.375rem;
+			background: var(--fg);
+			padding: 0.5rem 0.75rem;
+			color: var(--bg);
+			font-size: 0.875rem;
+			font-weight: 500;
+		}
+
+		.submit:disabled {
+			opacity: 0.5;
+		}
+
+		.success {
+			color: #34d399;
+			font-size: 0.875rem;
+		}
 	` + "\n"
 	);
 }
@@ -270,11 +346,12 @@ export type Link = { label: string; href: string };
  */
 export function counterComponent(
 	ctx: TemplateContext,
-	{ editPath, links }: { editPath: string; links: Link[] },
+	{ editPath, links, formImport }: { editPath: string; links: Link[]; formImport: string },
 ): string {
 	const c = styles(ctx);
 	const icons = hasAddon(ctx, "icons");
 	const primitives = hasAddon(ctx, "primitives");
+	const forms = hasAddon(ctx, "forms");
 
 	const coreImports = ["A", "Button", "Code", "Div", "H1", "Li", "P", "Span", "Ul", "signal"];
 
@@ -289,6 +366,7 @@ export function counterComponent(
 			`} from "@implementjs/primitives";`,
 		);
 	}
+	if (forms) lines.push(`import { SignUpForm } from ${JSON.stringify(formImport)};`);
 
 	// the class names live in one object so the components below stay readable
 	const used = ["page", "title", "subtitle", "code", "counter", "button", "count", "links", "link"];
@@ -338,6 +416,7 @@ export function counterComponent(
 		`\t\t\t\t${label("plus")},`,
 		`\t\t\t),`,
 		`\t\t),`,
+		...(forms ? [`\t\tSignUpForm(),`] : []),
 		`\t\tLinks(),`,
 		`\t);`,
 		`}`,
@@ -378,6 +457,61 @@ export function counterComponent(
 	}
 
 	return `${lines.join("\n")}\n`;
+}
+
+/**
+ * The sign up form the `forms` addon adds: a valibot schema, two fields, and the errors the
+ * schema reports. Everything the form knows — the value, the error, whether it is submitting —
+ * is a readable, so it binds straight into the DOM.
+ */
+export function signUpFormComponent(ctx: TemplateContext): string {
+	const c = styles(ctx);
+	const used = ["form", "field", "label", "input", "error", "submit", "success"];
+
+	return `${[
+		`import { Button, Div, Input, Label, Span, signal } from "@implementjs/core";`,
+		`import { createForm, Field, Form } from "@implementjs/formish";`,
+		`import * as v from "valibot";`,
+		``,
+		`const styles = {`,
+		...used.map((key) => `\t${key}: ${JSON.stringify(c[key])},`),
+		`};`,
+		``,
+		`const SignUpSchema = v.object({`,
+		`\temail: v.pipe(v.string(), v.minLength(1, "Enter your email"), v.email("Enter a valid email")),`,
+		`\tpassword: v.pipe(v.string(), v.minLength(8, "At least 8 characters")),`,
+		`});`,
+		``,
+		`export function SignUpForm() {`,
+		`\tconst form = createForm({ schema: SignUpSchema });`,
+		`\tconst signedUpAs = signal("");`,
+		``,
+		`\treturn Form(`,
+		`\t\t{ class: styles.form, of: form, onSubmit: (output) => signedUpAs.set(output.email) },`,
+		`\t\tTextField(form, "email", "Email", "email"),`,
+		`\t\tTextField(form, "password", "Password", "password"),`,
+		`\t\tButton({ class: styles.submit, type: "submit", disabled: form.isSubmitting }, "Sign up"),`,
+		`\t\tSpan({ class: styles.success }, signedUpAs.bind((email) => (email ? \`Signed up as \${email}\` : ""))),`,
+		`\t);`,
+		`}`,
+		``,
+		`/** One labelled input, wired to the field at \`path\` and showing whatever the schema says about it. */`,
+		`function TextField(`,
+		`\tform: ReturnType<typeof createForm<typeof SignUpSchema>>,`,
+		`\tpath: "email" | "password",`,
+		`\tlabel: string,`,
+		`\ttype: "email" | "password",`,
+		`) {`,
+		`\treturn Field({ of: form, path: [path] }, (field) =>`,
+		`\t\tDiv(`,
+		`\t\t\t{ class: styles.field },`,
+		`\t\t\tLabel({ class: styles.label, htmlFor: path }, label),`,
+		`\t\t\tInput({ ...field.props, class: styles.input, id: path, type, value: field.input }),`,
+		`\t\t\tSpan({ class: styles.error }, field.error),`,
+		`\t\t),`,
+		`\t);`,
+		`}`,
+	].join("\n")}\n`;
 }
 
 export function tsconfig({

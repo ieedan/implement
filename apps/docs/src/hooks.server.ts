@@ -1,0 +1,37 @@
+import { redirect, type Handle } from "@implementjs/kit/server";
+import { markdownTwin } from "@/lib/markdown-pages";
+
+const MARKDOWN = "text/markdown";
+
+/**
+ * Whether the client explicitly asked for markdown. A wildcard doesn't count —
+ * every browser's Accept header ends in one, and browsers want the page. The
+ * substring check answers the common case (no mention of markdown at all)
+ * before anything gets parsed.
+ */
+function acceptsMarkdown(accept: string | null): boolean {
+	if (accept === null || !accept.includes(MARKDOWN)) return false;
+	return accept.split(",").some((entry) => {
+		const [type, ...parameters] = entry.split(";").map((part) => part.trim().toLowerCase());
+		return type === MARKDOWN && !parameters.includes("q=0");
+	});
+}
+
+/**
+ * Content negotiation for the docs. Every docs page has a plain-markdown twin
+ * at its own URL plus `.md`, so a client that asks for markdown — an agent, a
+ * reader, `curl -H "accept: text/markdown"` — gets sent there instead of the
+ * page. Browsers never ask for it, so nothing about the site changes for them,
+ * and nothing but the header is read on the way past.
+ */
+export const handle: Handle = async ({ event, resolve }) => {
+	if (acceptsMarkdown(event.request.headers.get("accept"))) {
+		const markdown = markdownTwin(event.url.pathname);
+		if (markdown !== null) {
+			// a cache must not replay this redirect for a request that wanted the page
+			event.setHeaders({ vary: "Accept" });
+			redirect(303, `${markdown}${event.url.search}`);
+		}
+	}
+	return await resolve(event);
+};

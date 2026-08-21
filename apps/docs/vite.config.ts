@@ -3,9 +3,9 @@ import { resolve } from "node:path";
 import { kit } from "@implementjs/kit";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import { velite } from "./plugins/velite";
 
 const veliteDir = resolve(import.meta.dirname, ".velite");
-const lessonsDir = resolve(import.meta.dirname, "src/content/lessons");
 
 /**
  * Dynamic `[...slug]` routes, straight from the Velite collections. Called only
@@ -27,6 +27,7 @@ function entries(): string[] {
 	return [
 		...collect("pages.json", "Docs"),
 		...collect("primitives.json", "Primitives"),
+		...collect("ui.json", "UI"),
 		...collect("lucide.json", "Lucide"),
 		...collect("kit.json", "Kit"),
 		...collect("create.json", "Create"),
@@ -37,28 +38,12 @@ function entries(): string[] {
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
+		velite(),
 		kit({
 			prerender: { entries },
 			// Mirrored in scripts/sync.ts, which regenerates the tsconfig without Vite.
 			alias: { "@": "src", "@tutorial/test": "src/lib/tutorial-test.ts" },
 		}),
-		{
-			name: "reload-velite",
-			configureServer(server) {
-				server.watcher.add([veliteDir, lessonsDir]);
-				let reload: ReturnType<typeof setTimeout> | undefined;
-				server.watcher.on("change", (file) => {
-					const lessonTs =
-						file.startsWith(lessonsDir) &&
-						(file.endsWith("/code.ts") || file.endsWith("/solution.ts"));
-					if (!lessonTs && !file.startsWith(veliteDir)) return;
-					clearTimeout(reload);
-					reload = setTimeout(() => {
-						server.ws.send({ type: "full-reload" });
-					}, 50);
-				});
-			},
-		},
 	],
 	server: { port: 3004, strictPort: true },
 });

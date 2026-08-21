@@ -57,7 +57,7 @@ export function preloadHints(options: {
 				modules: entry.files.map((file) => routeModuleId(options.routesBase, file)),
 			}))
 			// most specific first, matching how the runtime resolves a path
-			.sort((a, b) => comparePatterns(a.pattern, b.pattern));
+			.toSorted((a, b) => comparePatterns(a.pattern, b.pattern));
 
 		const path = normalizeRoutePath(route);
 		const match = routes.find((entry) => matchRoutePattern(entry.pattern, path) !== null);
@@ -70,6 +70,7 @@ export function preloadHints(options: {
 
 function readManifest(path: string | null): ViteManifest | null {
 	if (path === null || !existsSync(path)) return null;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Vite writes the build manifest in this shape.
 	return JSON.parse(readFileSync(path, "utf8")) as ViteManifest;
 }
 

@@ -80,7 +80,7 @@ let moduleRoutes: ModuleRoute[] = [];
 export function registerRouteModules(routes: ModuleRoute[]): void {
 	// most specific first, so `/users/new` preloads its own page rather than
 	// `/users/:id`'s — the ordering `resolveLoads` already applies server-side
-	moduleRoutes = [...routes].sort((a, b) => comparePatterns(a.pattern, b.pattern));
+	moduleRoutes = routes.toSorted((a, b) => comparePatterns(a.pattern, b.pattern));
 }
 
 /**

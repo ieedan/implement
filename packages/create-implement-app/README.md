@@ -24,8 +24,9 @@ Both templates are TypeScript.
 | `tailwind`   | `tailwindcss` through `@tailwindcss/vite`                                    |
 | `primitives` | [`@implementjs/primitives`](../primitives) — headless, accessible components |
 | `icons`      | [`@implementjs/lucide`](../lucide) — Lucide icons as implement components    |
+| `forms`      | [`@implementjs/formish`](../formish) — schema-first forms, with valibot      |
 
-Each addon changes the generated app: tailwind swaps the stylesheet and adds the Vite plugin, primitives wraps the starter page's links in a collapsible, and icons swap the counter's button labels for Lucide icons.
+Each addon changes the generated app: tailwind swaps the stylesheet and adds the Vite plugin, primitives wraps the starter page's links in a collapsible, icons swap the counter's button labels for Lucide icons, and forms adds a validated sign up form under the counter.
 
 ## Non-interactive
 
@@ -35,7 +36,7 @@ Every prompt has a flag, and the CLI never prompts when `--yes` is passed or whe
 pnpm create implement-app my-app --template kit --tailwind --primitives --no-icons --yes
 ```
 
-Anything a flag didn't answer falls back to the defaults: the `kit` template, tailwind on, primitives and icons off, and the directory `implement-app`.
+Anything a flag didn't answer falls back to the defaults: the `kit` template, tailwind on, the other addons off, and the directory `implement-app`.
 
 | Flag                     | Default            | What it does                                                |
 | ------------------------ | ------------------ | ----------------------------------------------------------- |
@@ -45,6 +46,7 @@ Anything a flag didn't answer falls back to the defaults: the `kit` template, ta
 | `--tailwind`             | on                 | Set up tailwindcss (`--no-tailwind` to skip)                |
 | `--primitives`           | off                | Add `@implementjs/primitives` (`--no-primitives` to skip)   |
 | `--icons`                | off                | Add `@implementjs/lucide` (`--no-icons` to skip)            |
+| `--forms`                | off                | Add `@implementjs/formish` (`--no-forms` to skip)           |
 | `--package-manager <pm>` | detected           | `npm`, `pnpm`, `yarn`, `bun`, or `deno`                     |
 | `--install`              | off                | Install dependencies after scaffolding                      |
 | `--git`                  | off                | Run `git init` in the new app                               |

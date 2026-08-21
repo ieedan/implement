@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import type { RenderToStringResult } from "@implementjs/core/server";
 import { createServer, type ViteDevServer } from "vite";
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and dynamic module loading require intentional narrowing. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { kit } from "../src/index.ts";
 
@@ -168,6 +169,48 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			const rejected = await fetch(`${origin}/api`);
 			expect(rejected.status).toBe(405);
 			expect(rejected.headers.get("allow")).toBe("POST");
+		});
+	});
+
+	it("runs hooks.server.ts around every request", async () => {
+		await withListener(async (origin) => {
+			// the page render, with the hook's transformPageChunk applied to the document
+			const page = await fetch(`${origin}/locals`, { headers: { "x-user": "ada" } });
+			expect(page.status).toBe(200);
+			expect(page.headers.get("x-route-id")).toBe("/locals");
+			expect(page.headers.get("x-data-request")).toBe("false");
+			const html = await page.text();
+			expect(html).toContain("<p>hello ada</p>");
+			expect(html).toContain('<meta name="stamped" />');
+
+			// the same locals reach the route's load through __data.json
+			const data = await fetch(`${origin}/locals/__data.json`, { headers: { "x-user": "grace" } });
+			expect(data.headers.get("x-data-request")).toBe("true");
+			expect(await data.json()).toEqual({ "locals/index.server.ts": { user: "grace" } });
+
+			// and an endpoint handler
+			const endpoint = await fetch(`${origin}/whoami`, { headers: { "x-user": "ada" } });
+			expect(await endpoint.json()).toEqual({ user: "ada", routeId: "/whoami" });
+		});
+	});
+
+	it("lets a hook answer a request itself, without rendering the route", async () => {
+		await withListener(async (origin) => {
+			const blocked = await fetch(`${origin}/private`);
+			expect(blocked.status).toBe(401);
+			expect(await blocked.text()).toBe("nope");
+
+			const allowed = await fetch(`${origin}/private`, { headers: { "x-user": "ada" } });
+			expect(allowed.status).toBe(200);
+			expect(await allowed.text()).toContain("<p>secret</p>");
+		});
+	});
+
+	it("renders the error page with a 404 for an unmatched path", async () => {
+		await withListener(async (origin) => {
+			const response = await fetch(`${origin}/nope`, { headers: { accept: "text/html" } });
+			expect(response.status).toBe(404);
+			expect(await response.text()).toContain("<p>not found</p>");
 		});
 	});
 

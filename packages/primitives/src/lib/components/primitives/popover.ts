@@ -220,8 +220,9 @@ class PopoverTriggerState {
 	}
 
 	get open() {
-		return derived([this.rootState.open, this.rootState.currentTriggerId], (open, current) =>
-			open && current === this.opts.id ? true : false,
+		return derived(
+			[this.rootState.open, this.rootState.currentTriggerId],
+			(open, current) => open && current === this.opts.id,
 		);
 	}
 
@@ -294,7 +295,7 @@ export const PopoverContent = createComponent(function PopoverContent(
 ) {
 	return PopoverContext.Use((rootState) => {
 		const contentRef = ref<HTMLDivElement>();
-		new PopoverContentState(rootState, {
+		void new PopoverContentState(rootState, {
 			id,
 			ref: contentRef,
 			side,

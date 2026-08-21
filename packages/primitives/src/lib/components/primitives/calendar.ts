@@ -317,6 +317,7 @@ export function Calendar(
 		yearFormat,
 	};
 
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Discriminated `type` prop selects the matching calendar state class. */
 	const state =
 		type === "multiple"
 			? new CalendarStateMultiple(
@@ -336,6 +337,7 @@ export function Calendar(
 					readonlyProp,
 					onDateSelect,
 				);
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 
 	const invalid = state.isInvalid();
 

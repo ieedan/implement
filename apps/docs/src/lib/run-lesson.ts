@@ -1,11 +1,17 @@
 import * as implement from "@implementjs/core";
+import * as formish from "@implementjs/formish";
 import * as lucide from "@implementjs/lucide";
 import * as primitives from "@implementjs/primitives";
 import { transform } from "sucrase";
+import * as valibot from "valibot";
 
 const IMPLEMENT = "@implementjs/core";
+const FORMISH = "@implementjs/formish";
 const LUCIDE = "@implementjs/lucide";
 const PRIMITIVES = "@implementjs/primitives";
+// formish validates with any Standard Schema library; valibot is the one the
+// docs use, so an edited demo can import it too
+const VALIBOT = "valibot";
 
 export type ShimModule = Record<string, unknown>;
 
@@ -24,15 +30,61 @@ function shimKey(specifier: string): string {
 // parked on the executing realm's globalThis and re-exported from a generated
 // blob the imports are rewritten to point at. Parking happens per-import (see
 // importLessonModule) because the realm may be a fresh preview iframe.
+const RESERVED_IDENTIFIERS = new Set([
+	"arguments",
+	"await",
+	"break",
+	"case",
+	"catch",
+	"class",
+	"const",
+	"continue",
+	"debugger",
+	"default",
+	"delete",
+	"do",
+	"else",
+	"enum",
+	"eval",
+	"export",
+	"extends",
+	"false",
+	"finally",
+	"for",
+	"function",
+	"if",
+	"implements",
+	"import",
+	"in",
+	"instanceof",
+	"interface",
+	"let",
+	"new",
+	"null",
+	"package",
+	"private",
+	"protected",
+	"public",
+	"return",
+	"static",
+	"super",
+	"switch",
+	"this",
+	"throw",
+	"true",
+	"try",
+	"typeof",
+	"var",
+	"void",
+	"while",
+	"with",
+	"yield",
+]);
+
 function isExportableName(name: string): boolean {
 	if (name === "default") return false;
 	if (!/^[A-Za-z_$][\w$]*$/.test(name)) return false;
-	try {
-		new Function(`const ${name} = 1`);
-		return true;
-	} catch {
-		return false;
-	}
+	return !RESERVED_IDENTIFIERS.has(name);
 }
 
 function moduleShimUrl(specifier: string, moduleObject: ShimModule): string {
@@ -52,11 +104,13 @@ function moduleShimUrl(specifier: string, moduleObject: ShimModule): string {
 // globals (console, window, setTimeout, alert) resolve to that realm.
 function importInRealm(realm: Window, url: string): Promise<Record<string, unknown>> {
 	if (realm === window) return import(/* @vite-ignore */ url);
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Preview iframe realms need dynamic import via their Function constructor. */
 	const RealmFunction = (realm as Window & { Function: FunctionConstructor }).Function;
 	const dynamicImport = new RealmFunction("url", "return import(url)") as (
 		url: string,
 	) => Promise<Record<string, unknown>>;
 	return dynamicImport(url);
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 }
 
 function transpile(code: string): string {
@@ -119,9 +173,11 @@ export async function importLessonModule(
 	realm: Window = window,
 ): Promise<{ mod: Record<string, unknown>; revoke: () => void }> {
 	const modules: Record<string, ShimModule> = {
-		[IMPLEMENT]: implement as unknown as ShimModule,
-		[LUCIDE]: lucide as unknown as ShimModule,
-		[PRIMITIVES]: primitives as unknown as ShimModule,
+		[IMPLEMENT]: implement,
+		[FORMISH]: formish,
+		[LUCIDE]: lucide,
+		[PRIMITIVES]: primitives,
+		[VALIBOT]: valibot,
 		...extraModules,
 	};
 	const rewritten = rewriteImports(transpile(code), modules);
@@ -129,6 +185,7 @@ export async function importLessonModule(
 	// The shim blobs read their module off globalThis at import time, so the
 	// module objects must be parked on the realm that executes the import.
 	for (const [specifier, moduleObject] of Object.entries(modules)) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Shim modules are parked on the preview realm's globalThis.
 		(realm as Window & ShimModule)[shimKey(specifier)] = moduleObject;
 	}
 
@@ -180,12 +237,15 @@ export async function importLessonProject(
 	realm: Window = window,
 ): Promise<{ modules: Map<string, Record<string, unknown>>; revoke: () => void }> {
 	const shimModules: Record<string, ShimModule> = {
-		[IMPLEMENT]: implement as unknown as ShimModule,
-		[LUCIDE]: lucide as unknown as ShimModule,
-		[PRIMITIVES]: primitives as unknown as ShimModule,
+		[IMPLEMENT]: implement,
+		[FORMISH]: formish,
+		[LUCIDE]: lucide,
+		[PRIMITIVES]: primitives,
+		[VALIBOT]: valibot,
 		...extraModules,
 	};
 	for (const [specifier, moduleObject] of Object.entries(shimModules)) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Shim modules are parked on the preview realm's globalThis.
 		(realm as Window & ShimModule)[shimKey(specifier)] = moduleObject;
 	}
 
