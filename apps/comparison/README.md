@@ -170,28 +170,30 @@ Splitting each operation into framework JavaScript and browser work says where
 optimizing pays — clearing 10k rows is almost entirely JavaScript, while creating
 10k rows is roughly half layout and paint that every framework pays alike.
 
-Four changes follow. All four are implemented and measured on the
-`perf-prototype` branch, in one back-to-back run of the baseline and the
-optimized build on the same machine. (The tables above are a separate, earlier
+Six changes follow. All six are implemented and measured on the
+`perf-prototype` branch, in back-to-back runs of the baseline and the optimized
+builds on the same machine. (The tables above are a separate, earlier
 run on a different host and the two are not directly comparable — the container
 was replaced mid-session, and the untouched React and Svelte apps measured 1.48×
 slower afterwards, which is what caught it.)
 
-| operation                | baseline | + fixes 1, 2 | + fixes 3, 4 | Svelte | React |
-| ------------------------ | -------: | -----------: | -----------: | -----: | ----: |
-| swap two rows of 1k      |      108 |           25 |       **23** |     22 |   108 |
-| swap two rows of 10k     |      206 |          141 |      **138** |    118 |   229 |
-| clear 10k rows           |      382 |          303 |      **270** |    141 |   166 |
-| filter 1k by text        |       46 |           35 |       **35** |     21 |    28 |
-| append 1k to 1k          |      207 |          196 |      **174** |    143 |   141 |
-| clear 2k rows            |       74 |           84 |       **65** |     35 |    43 |
-| create 1k rows           |      209 |          220 |      **201** |    139 |   150 |
-| create 10k rows          |     1757 |         1894 |     **1813** |   1208 |  1532 |
-| JS heap at 10k rows (MB) |     89.5 |         84.9 |     **75.3** |   23.6 |  23.1 |
+| operation                | baseline | + fixes 1–4 | + fixes 5, 6 | Svelte | React |
+| ------------------------ | -------: | ----------: | -----------: | -----: | ----: |
+| swap two rows of 1k      |      108 |          23 |       **22** |     22 |   108 |
+| clear 10k rows           |      382 |         270 |      **223** |    133 |   166 |
+| swap two rows of 10k     |      206 |         138 |      **138** |    114 |   229 |
+| filter 1k by text        |       46 |          35 |       **32** |     22 |    28 |
+| clear 2k rows            |       74 |          65 |       **53** |     34 |    43 |
+| append 1k to 1k          |      207 |         174 |      **166** |    147 |   141 |
+| clear the filter         |      159 |         154 |      **139** |    110 |   115 |
+| create 1k rows           |      209 |         201 |      **186** |    140 |   150 |
+| create 10k rows          |     1757 |        1813 |     **1600** |   1213 |  1532 |
+| JS heap at 10k rows (MB) |     89.5 |        75.3 |     **71.1** |   23.6 |  23.1 |
 
-One result went the wrong way and is unexplained: sorting 1k rows back by id
-measured 107 ms before and 140 ms after, while the other sort in the same run
-stayed flat. It needs chasing before this lands.
+One result is still unexplained: sorting 1k rows back by id measured 107 ms at
+baseline, 140 ms after fixes 1–4 and 122 ms after 5 and 6, while the other sort
+in the same runs stayed flat at 122 ms. The reordering pass is the obvious
+suspect, and it needs chasing before this lands.
 
 ### 1. Take a subtree out in one call
 
@@ -242,6 +244,58 @@ recovers roughly 50 ms. The cost of creating a row is not how its nodes get
 built — it is the reactive graph built alongside them, about eight readables and
 ten mountable objects per row, each with its own closure and subscription.
 
+### Where creating a row actually goes
+
+Building the same 10,000 rows three ways, on the same page, splits the cost into
+three parts that want different fixes:
+
+|                                      | create 10k | JS heap |
+| ------------------------------------ | ---------: | ------: |
+| the app's row (8 bindings)           |    1388 ms | 77.3 MB |
+| the same row with no bindings at all |    1074 ms | 29.8 MB |
+| hand-written DOM, no framework       |     724 ms |       — |
+
+So of that 1,388 ms: 724 ms is the browser's, 350 ms is the element and mountable
+machinery, and 314 ms is the reactive graph. Memory divides the other way — the
+graph is **47 of the 77 MB**, and the DOM and mountables together are 30. That is
+why fixes 5 and 6 go after allocation rather than DOM calls.
+
+### 5. A cheaper parent link
+
+Every mounted node recorded its tree parent in a `WeakMap`, purely so a thrown
+error can walk up to the nearest boundary. A weak-map write measures about 40×
+the cost of a symbol-keyed field (24.2 ms against 0.58 ms per 100,000), and it
+runs once per node — a hundred thousand times to build ten thousand rows. It now
+writes a symbol field, and only while an error boundary is live, since nothing
+else reads the link.
+
+### 6. One-source subscriptions
+
+`subscribe()` kept a values array, an unsubscribers array and a closure to
+unsubscribe through, whatever the number of sources. Every binding and most
+deriveds have exactly one source, and a row carries about eight of them. The
+one-source path keeps none of the three.
+
+Together, fixes 5 and 6 took the same page from 1,388 ms to 1,296 ms and 77.3 MB
+to 71.1 MB.
+
+### What is left
+
+Named, with the evidence, but not written:
+
+- **`bind(selector)` allocates two objects**, `new Flattened(new Derived(...))`,
+  where the wrapper exists only for selectors that return a readable. Folding the
+  unwrap into `Derived` would halve the readable count for every selector bind —
+  five of the eight in this row. This is the largest remaining item for memory.
+- **Text mountables are object literals holding three closures each.** Four per
+  row is forty thousand objects at 10k rows; a class with a shared prototype
+  would cost one.
+- **`Component` allocates a children array even for childless elements** like
+  `Input`.
+- The remaining 350 ms of element machinery above the DOM floor has no single
+  owner yet — it needs the same decomposition treatment the reactive graph just
+  got.
+
 ### What no amount of work removes
 
 Two floors, measured on the same page with no framework involved — plain
@@ -264,8 +318,8 @@ per row. implement can make each object smaller and rarer; it cannot make the
 count zero. That sets a floor on memory and creation somewhere above Svelte —
 though at 3.2× the heap today, it is nowhere near that floor yet.
 
-All four fixes are about 230 lines across fifteen files, keep the 72 core tests
-green, and add roughly 600 bytes gzipped (10.0 kB to 10.8 kB), still the smallest
+All six fixes are about 260 lines across sixteen files, keep the 72 core tests
+green, and add roughly 650 bytes gzipped (10.0 kB to 10.9 kB), still the smallest
 bundle of the three by a wide margin.
 
 ## Reading this fairly
