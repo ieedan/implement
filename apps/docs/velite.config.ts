@@ -185,7 +185,9 @@ export default defineConfig({
 				// @ts-expect-error
 				rehypeShiki,
 				{
-					theme: "github-dark",
+					// both themes at build time; app.css picks one per mode
+					themes: { light: "github-light", dark: "github-dark" },
+					defaultColor: false,
 					langs: [
 						"typescript",
 						"ts",

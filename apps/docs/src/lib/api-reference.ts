@@ -2856,6 +2856,104 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			dataAttributes: [{ name: "data-select-group-heading", value: "Present" }],
 		},
 	],
+	"mode-watcher": [
+		{
+			name: "createModeManager",
+			description:
+				"Creates the ModeManager that owns the mode. mode, userPrefersMode, systemPrefersMode, and theme are readables; setMode, toggleMode, resetMode, and setTheme change them. Usually created at module scope so any code can flip the mode. Nothing reaches the DOM until a mounted ModeWatcher starts it.",
+			props: [
+				{
+					name: "defaultMode",
+					type: '"dark" | "light" | "system"',
+					default: '"system"',
+					description: "The mode to use until the visitor picks one.",
+				},
+				{
+					name: "defaultTheme",
+					type: "string",
+					default: '""',
+					description: "The data-theme value to use until one is set. Empty means no attribute.",
+				},
+				{
+					name: "darkClassNames",
+					type: "string[]",
+					default: '["dark"]',
+					description: "Classes put on the html element in dark mode.",
+				},
+				{
+					name: "lightClassNames",
+					type: "string[]",
+					default: "[]",
+					description: "Classes put on the html element in light mode.",
+				},
+				{
+					name: "themeColors",
+					type: "{ dark: string; light: string }",
+					description: "Keeps meta[name=theme-color] in step with the mode.",
+				},
+				{
+					name: "modeStorageKey",
+					type: "string",
+					default: '"implement-mode"',
+					description: "localStorage key holding the picked mode.",
+				},
+				{
+					name: "themeStorageKey",
+					type: "string",
+					default: '"implement-theme"',
+					description: "localStorage key holding the theme.",
+				},
+				{
+					name: "disableTransitions",
+					type: "boolean",
+					default: "true",
+					description: "Suppresses CSS transitions while the mode swaps, so colors don't smear.",
+				},
+				{
+					name: "track",
+					type: "boolean",
+					default: "true",
+					description:
+						"Whether to follow prefers-color-scheme as it changes. False keeps the first reading.",
+				},
+			],
+		},
+		{
+			name: "ModeWatcher",
+			description:
+				"Mounted once at the root. Renders a blocking script into the head so the stored mode lands on the html element before the first paint, then applies the manager's mode — classes, color-scheme, data-theme, and the theme-color meta — for as long as it stays mounted. Takes every createModeManager option, applying them to the manager it is given or to the one it makes.",
+			props: [
+				{
+					name: "manager",
+					type: "ModeManager",
+					description:
+						"A manager from createModeManager(). Omitted, the component creates a private one.",
+				},
+				{
+					name: "injectScript",
+					type: "boolean",
+					default: "true",
+					description:
+						"Whether to add the blocking script. False when it is injected elsewhere with createInitialModeExpression.",
+				},
+				{
+					name: "nonce",
+					type: "string",
+					description: "nonce for the injected script, for pages under a Content Security Policy.",
+				},
+			],
+			dataAttributes: [
+				{ name: "class", value: "darkClassNames or lightClassNames, on the html element" },
+				{ name: "style", value: "color-scheme: dark | light, on the html element" },
+				{ name: "data-theme", value: "The current theme, when it is not empty" },
+			],
+		},
+		{
+			name: "createInitialModeExpression",
+			description:
+				"Returns the source of the blocking script ModeWatcher injects, for inlining into an index.html or injecting from a server hook. Takes defaultMode, defaultTheme, darkClassNames, lightClassNames, themeColors, modeStorageKey, and themeStorageKey — pass the same values the manager has, or the page corrects itself after it loads.",
+		},
+	],
 	toast: [
 		{
 			name: "createToastManager",
