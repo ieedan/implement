@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { basename, join, resolve, sep } from "node:path";
-import { pathToFileURL } from "node:url";
 import { crawlRoutes, implement, normalizeRoute, type PrerenderOptions } from "@implementjs/vite";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
 import type { Adapter } from "./adapter.ts";
@@ -36,9 +35,7 @@ import {
 	serverImportError,
 	type ImporterLookup,
 } from "./guard.ts";
-import type { FetchHandler } from "./handler.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
-import { serveApp } from "./node.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
 import type { KitPluginApi } from "./sync.ts";
@@ -460,21 +457,16 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			}
 			return null;
 		},
+		/**
+		 * `vite preview` serves what the build wrote: with no adapter that is the
+		 * whole site, and with one it is the static half of it. The server half is
+		 * the adapter's own artifact — its entry is whatever shape its host wants
+		 * — so previewing that means running it (`node dist`, `wrangler dev`).
+		 */
 		configurePreviewServer(server) {
 			// after preview's own static middleware, so it only sees what missed
 			return () => {
 				server.middlewares.use(previewPages(outDir));
-				// with a server adapter most pages are not files, so preview is only
-				// a preview of the deployment if it runs the server that was built
-				const entry = join(root, OUTPUT_DIR, "server", "index.js");
-				if (adapter === undefined || adapter.server === false || !existsSync(entry)) return;
-				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The built server entry exports kit's request handler.
-				const loaded = import(pathToFileURL(entry).href) as Promise<{ handler: FetchHandler }>;
-				server.middlewares.use((req, res, next) => {
-					loaded.then(({ handler }) => {
-						serveApp(handler)(req, res, next);
-					}, next);
-				});
 			};
 		},
 		configureServer(server) {

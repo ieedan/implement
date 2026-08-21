@@ -86,6 +86,13 @@ export async function runAdapter(options: AdapterStageOptions): Promise<void> {
 	if (adapter.server !== false) {
 		serverDir = join(outDir, "server");
 		await buildServer({ ...options, info, serverDir, entryServer });
+		// Vite writes the shell as `index.html`, and to a host that resolves
+		// directory indexes that looks like the site's front page. It is not one:
+		// it is the empty template the server renders into, and serving it for a
+		// path the app was about to render is a blank page instead of the app.
+		// The server already carries it in its manifest, and every adapter has it
+		// as `builder.template`.
+		if (!pages.includes("/")) rmSync(join(clientDir, "index.html"), { force: true });
 	}
 
 	const builder: Builder = {

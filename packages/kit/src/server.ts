@@ -377,7 +377,9 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			getClientAddress:
 				respondOptions.getClientAddress ??
 				(() => {
-					throw new Error("getClientAddress is not available while prerendering");
+					throw new Error(
+						"getClientAddress is not available — nothing is serving this request a client to name (the prerender, or a host that did not supply one)",
+					);
 				}),
 		};
 

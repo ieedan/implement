@@ -149,6 +149,30 @@ describe("prerender.default", () => {
 	});
 });
 
+describe("a root the server renders", () => {
+	const { adapter, builder } = recorder();
+
+	beforeAll(async () => {
+		await buildWith(adapter, { prerender: { default: false } });
+	}, 120_000);
+
+	afterAll(() => {
+		rmSync(join(fixture, ".implement"), { recursive: true, force: true });
+	});
+
+	it("drops the shell, which a host would otherwise serve as the front page", () => {
+		expect(builder().prerendered.pages).not.toContain("/");
+		expect(existsSync(join(builder().clientDir, "index.html"))).toBe(false);
+		// the server still has it, and so does every adapter
+		expect(builder().template).toContain("<!doctype html>");
+	});
+
+	it("keeps a route that asked to prerender", () => {
+		expect(builder().prerendered.pages).toContain("/pinned");
+		expect(existsSync(join(builder().clientDir, "pinned/index.html"))).toBe(true);
+	});
+});
+
 describe("an adapter that ships no server", () => {
 	const { adapter, builder } = recorder({ server: false });
 
