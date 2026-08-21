@@ -17,7 +17,6 @@ export default defineConfig({
 		// Agent worktrees are full repo checkouts; their nested configs break lint.
 		".claude/**",
 		"dist/**",
-		"demos/*/src/api/**",
 		".velite/**",
 		// Lesson starter/solution/test sidecars are teaching content shown in the
 		// tutorial editor; they intentionally import things the learner will use.
@@ -25,7 +24,7 @@ export default defineConfig({
 	],
 	overrides: [
 		{
-			files: ["packages/*/scripts/**/*.ts", "demos/*/server/**/*.ts"],
+			files: ["packages/*/scripts/**/*.ts"],
 			env: {
 				node: true,
 			},

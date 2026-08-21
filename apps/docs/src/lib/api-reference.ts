@@ -566,11 +566,10 @@ const rangeCellDataAttributes: ApiDataAttribute[] = [
 ];
 
 /**
- * API reference tables, keyed by the `data-api` attribute a docs page uses to
- * place them: `<div data-api="avatar"></div>` in the markdown renders the
- * tables for every part of that primitive at that spot.
+ * The primitives' own tables, keyed by primitive. The `ui-*` entries below are
+ * derived from these, so a prop only ever gets written once.
  */
-export const apiReference: Record<string, ApiPart[]> = {
+const primitiveReference: Record<string, ApiPart[]> = {
 	command: [
 		{
 			name: "Command",
@@ -3138,4 +3137,985 @@ export const apiReference: Record<string, ApiPart[]> = {
 			],
 		},
 	],
+};
+
+/** How one styled part differs from the primitive part it wraps. */
+type StyledPart = {
+	/** Props the wrapper adds — the variant tables, and the odd styling switch. */
+	props?: ApiProp[];
+	/** Forwarded props the wrapper hands its own value to, by prop name. */
+	defaults?: Record<string, string>;
+	/** Forwarded props the wrapper consumes itself and no longer accepts. */
+	omitProps?: string[];
+	/** Replaces the primitive's description, where the styling makes it untrue. */
+	description?: string;
+	/** Appended to the primitive's description: what the styling adds. */
+	note?: string;
+};
+
+type StyledOptions = {
+	/** Keyed by the primitive's name for the part. */
+	parts?: Record<string, StyledPart>;
+	/** Primitive parts the styled file does not re-export. */
+	omit?: string[];
+	/** The only primitive parts the styled file re-exports, when that is the shorter list. */
+	keep?: string[];
+	/** Parts that exist only in the styled layer. */
+	append?: ApiPart[];
+};
+
+/**
+ * A styled component's parts: the primitive's tables with the wrapper's
+ * additions merged in. Every prop the styling layer does not consume is
+ * forwarded, so the behavior half of each table *is* the primitive's — shared
+ * rather than transcribed, and so unable to drift out of step with it.
+ */
+function styledParts(base: string, options: StyledOptions = {}): ApiPart[] {
+	const { parts = {}, omit = [], keep, append = [] } = options;
+	const source = primitiveReference[base] ?? [];
+	const styled = source
+		.filter((part) => (keep == null || keep.includes(part.name)) && !omit.includes(part.name))
+		.map((part): ApiPart => {
+			const override = parts[part.name];
+			if (override == null) return part;
+			const forwarded = (part.props ?? [])
+				.filter((prop) => !(override.omitProps ?? []).includes(prop.name))
+				.map((prop) => {
+					const changed = override.defaults?.[prop.name];
+					return changed == null ? prop : { ...prop, default: changed };
+				});
+			const described = override.description ?? part.description;
+			return {
+				...part,
+				description: override.note
+					? [described, override.note].filter(Boolean).join(" ")
+					: described,
+				props: [...(override.props ?? []), ...forwarded],
+			};
+		});
+	return [...styled, ...append];
+}
+
+const BUTTON_VARIANTS = '"default" | "destructive" | "outline" | "secondary" | "ghost" | "link"';
+const BUTTON_SIZES = '"default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg"';
+
+/** The pair every part that renders through `buttonVariants` takes. */
+function buttonStyleProps(variant: string, size: string): ApiProp[] {
+	return [
+		{
+			name: "variant",
+			type: BUTTON_VARIANTS,
+			default: `"${variant}"`,
+			description: "Which button style the part renders with. Also set as data-variant.",
+		},
+		{
+			name: "size",
+			type: BUTTON_SIZES,
+			default: `"${size}"`,
+			description: "The button's height and padding scale. Also set as data-size.",
+		},
+	];
+}
+
+/** The pair every part that renders through `toggleVariants` takes. */
+function toggleStyleProps(): ApiProp[] {
+	return [
+		{
+			name: "variant",
+			type: '"default" | "outline"',
+			default: '"default"',
+			description: "Transparent by default; outline adds a border. Also set as data-variant.",
+		},
+		{
+			name: "size",
+			type: '"default" | "sm" | "lg"',
+			default: '"default"',
+			description: "The toggle's height and padding scale. Also set as data-size.",
+		},
+	];
+}
+
+const menuPanelDescription =
+	'The floating panel of items. Sets role="menu". Styled as a popover panel that fades and scales in from the side it opens on, and hides itself when closed.';
+
+const subTriggerNote = "The styled trigger appends a chevron pointing into the submenu.";
+const checkboxItemNote = "Renders its own check indicator, shown while the item is checked.";
+const radioItemNote = "Renders its own dot indicator, shown while the item is selected.";
+
+/** Every menu flavor styles the same parts the same way. */
+function menuStyledParts(prefix: string, contentOffset: string): Record<string, StyledPart> {
+	return {
+		[`${prefix}Content`]: {
+			description: menuPanelDescription,
+			defaults: { offset: contentOffset },
+		},
+		[`${prefix}SubContent`]: {
+			description:
+				"A submenu's panel. Styled like the content panel but without the transition — a submenu should feel instant.",
+			defaults: { offset: "8" },
+		},
+		[`${prefix}SubTrigger`]: { note: subTriggerNote },
+		[`${prefix}CheckboxItem`]: { note: checkboxItemNote },
+		[`${prefix}RadioItem`]: { note: radioItemNote },
+	};
+}
+
+/** A part that only styles an element: no props of its own beyond `class`. */
+function part(name: string, element: string, description: string): ApiPart {
+	return { name, element, description };
+}
+
+/** A `variant` prop, spelled out once. */
+function variantProp(type: string, fallback: string, description: string): ApiProp {
+	return { name: "variant", type, default: `"${fallback}"`, description };
+}
+
+/**
+ * The styled components' tables, keyed the way a UI page places them:
+ * `<div data-api="ui-avatar"></div>`.
+ */
+const styledReference: Record<string, ApiPart[]> = {
+	"ui-accordion": styledParts("accordion", {
+		parts: {
+			AccordionItem: { note: "Styled with a bottom border, dropped on the last item." },
+			AccordionTrigger: {
+				note: "The styled trigger wraps itself in an AccordionHeader and appends a chevron that turns over while the item is open.",
+			},
+			AccordionContent: {
+				note: "class lands on an inner padded Div, so the animated element keeps the overflow and height classes it needs. The slide comes from the accordion keyframes in your stylesheet.",
+			},
+		},
+	}),
+	"ui-alert-dialog": styledParts("alert-dialog", {
+		parts: {
+			AlertDialogTrigger: { props: buttonStyleProps("default", "default") },
+			AlertDialogCancel: { props: buttonStyleProps("outline", "default") },
+			AlertDialogAction: { props: buttonStyleProps("default", "default") },
+			AlertDialogOverlay: {
+				note: "Styled as a fixed scrim that fades in and out; a nested alert dialog's overlay renders transparent so the stack does not darken twice.",
+			},
+			AlertDialogContent: {
+				note: "Styled as a centered panel that scales in, and shifts up as further dialogs stack on top of it.",
+			},
+		},
+	}),
+	"ui-aspect-ratio": styledParts("aspect-ratio"),
+	"ui-avatar": styledParts("avatar", {
+		parts: {
+			Avatar: { note: "Styled as a 2rem circle that clips whatever is inside it." },
+			AvatarFallback: { note: "Styled as a filled circle that centers its content." },
+		},
+	}),
+	"ui-calendar": styledParts("calendar", {
+		// The file exports an assembled root and two helpers; every other part
+		// a custom layout needs comes from @implementjs/primitives directly.
+		keep: ["Calendar"],
+		parts: {
+			Calendar: {
+				description:
+					"A calendar, fully assembled: month navigation, the weekday header, and the day grid are built in, so the styled root takes children of its own only through the primitive's render function. Every root prop below is forwarded.",
+			},
+		},
+		append: [
+			{
+				name: "CalendarNav",
+				description:
+					"The header row the root renders — previous button, month heading, next button. Exported so a custom layout can reuse it. Takes no arguments.",
+			},
+			{
+				name: "CalendarMonthGrid",
+				description:
+					"One month's grid, weekday header included: CalendarMonthGrid(month, weekdays, Cell?, Day?, dayClasses?). The trailing arguments are what the range calendar swaps out to get its own cells and day classes.",
+			},
+		],
+	}),
+	"ui-checkbox": styledParts("checkbox", {
+		parts: {
+			Checkbox: {
+				note: "Renders a check — or a dash while indeterminate — unless you pass children of your own.",
+			},
+		},
+	}),
+	"ui-collapsible": styledParts("collapsible", {
+		parts: {
+			CollapsibleTrigger: { props: buttonStyleProps("ghost", "default") },
+			CollapsibleContent: {
+				note: "class lands on an inner Div, so the animated element keeps the overflow and height classes it needs. The slide comes from the collapsible keyframes in your stylesheet.",
+			},
+		},
+	}),
+	"ui-command": styledParts("command", {
+		parts: {
+			Command: { note: "Styled as a rounded popover surface that clips its list." },
+			CommandInput: {
+				note: 'The styled input arrives wrapped in a bordered row with a search icon, and defaults its placeholder to "Type to search...".',
+			},
+			CommandList: { note: "Styled with a 20rem cap and its own vertical scrolling." },
+		},
+	}),
+	"ui-context-menu": styledParts("context-menu", {
+		parts: menuStyledParts("ContextMenu", "0"),
+	}),
+	"ui-dialog": styledParts("dialog", {
+		parts: {
+			DialogTrigger: { props: buttonStyleProps("default", "default") },
+			DialogClose: { props: buttonStyleProps("ghost", "sm") },
+			DialogOverlay: {
+				note: "Styled as a fixed scrim that fades in and out; a nested dialog's overlay renders transparent so the stack does not darken twice.",
+			},
+			DialogContent: {
+				props: [
+					{
+						name: "showCloseButton",
+						type: "boolean",
+						default: "true",
+						description:
+							"Renders a DialogClose in the top right corner. Turn it off for a dialog that must be dismissed through its own buttons.",
+					},
+				],
+				note: "Styled as a centered panel that scales in, and shifts up as further dialogs stack on top of it.",
+			},
+		},
+	}),
+	"ui-dropdown-menu": styledParts("dropdown-menu", {
+		parts: {
+			DropdownMenuTrigger: { props: buttonStyleProps("outline", "default") },
+			...menuStyledParts("DropdownMenu", "4"),
+		},
+	}),
+	"ui-link-preview": styledParts("link-preview", {
+		parts: {
+			LinkPreviewTrigger: { note: "Styled as an underlined link." },
+			LinkPreviewContent: {
+				description:
+					"The preview card. Styled as a 20rem popover panel that fades and scales in, and hides itself when closed.",
+				defaults: { offset: "8", side: '"top"', align: '"center"' },
+			},
+		},
+	}),
+	"ui-menubar": styledParts("menubar", {
+		parts: {
+			Menubar: { note: "Styled as a bordered bar the menu triggers sit in." },
+			MenubarTrigger: {
+				note: "Styled as a compact menu title that fills in while its menu is highlighted or open.",
+			},
+			...menuStyledParts("Menubar", "8"),
+		},
+	}),
+	"ui-meter": styledParts("meter", {
+		parts: {
+			Meter: {
+				note: "Styled as a rounded track. The wrapper renders the indicator inside it and drives its position from value, min, and max.",
+			},
+		},
+	}),
+	"ui-popover": styledParts("popover", {
+		parts: {
+			PopoverTrigger: { props: buttonStyleProps("default", "default") },
+			PopoverClose: { props: buttonStyleProps("ghost", "sm") },
+			PopoverContent: {
+				description:
+					"The floating panel. Styled as an 18rem popover surface that fades and scales in from the side it opens on, and hides itself when closed.",
+				defaults: { offset: "5", side: '"bottom"', align: '"start"' },
+			},
+		},
+	}),
+	"ui-progress": styledParts("progress", {
+		parts: {
+			Progress: {
+				note: "Styled as a rounded track. The wrapper renders the indicator inside it; an indeterminate bar pulses at full width instead of showing a position.",
+			},
+		},
+	}),
+	"ui-radio-group": styledParts("radio-group", {
+		parts: {
+			RadioGroup: { note: "Styled as a vertical grid with a gap between items." },
+			RadioGroupItem: {
+				note: "Renders its own dot indicator unless you pass children of your own.",
+			},
+		},
+	}),
+	"ui-range-calendar": styledParts("range-calendar", {
+		keep: ["RangeCalendar"],
+		parts: {
+			RangeCalendar: {
+				description:
+					"A range calendar, fully assembled: month navigation, the weekday header, and the day grid are built in, with day styling for the start, middle, and end of a range. Every root prop below is forwarded.",
+			},
+		},
+	}),
+	"ui-rating-group": styledParts("rating-group", {
+		parts: {
+			RatingGroupItem: {
+				note: "Renders a star that fills while active, unless you pass children of your own.",
+			},
+		},
+	}),
+	"ui-select": styledParts("select", {
+		parts: {
+			Select: {
+				note: "The styled root wraps its children in a positioned Div, which is what the content anchors against.",
+			},
+			SelectTrigger: { note: "Styled as a bordered field with a chevron appended." },
+			SelectValue: {
+				description:
+					"The selected label, for the inside of the trigger. The styled version brings its own render: a truncated label for a single select, and removable chips for a multiple one.",
+				omitProps: ["render"],
+			},
+			SelectContent: {
+				description:
+					'The list. Sets role="listbox". Styled as a popover panel that matches the trigger\'s width, caps itself at the available height, and hides itself when closed.',
+				defaults: { offset: "4" },
+			},
+			SelectItem: {
+				note: "Styled with a check on the right that appears while the item is selected.",
+			},
+			SelectGroupHeading: { note: "Styled to match the menu group headings." },
+		},
+	}),
+	"ui-separator": styledParts("separator", {
+		parts: {
+			Separator: {
+				note: "Styled as a 1px line in the border color, running along whichever orientation you pick.",
+			},
+		},
+	}),
+	"ui-switch": styledParts("switch", {
+		parts: {
+			Switch: { note: "Renders a SwitchThumb for you unless you pass children of your own." },
+			SwitchThumb: { note: "Styled as a circle that slides across when the switch turns on." },
+		},
+	}),
+	"ui-tabs": styledParts("tabs", {
+		parts: {
+			TabsList: {
+				props: [
+					{
+						name: "variant",
+						type: '"default" | "underline"',
+						default: '"default"',
+						description:
+							"default is the segmented control, a filled track the triggers sit in. underline is the flatter form for prose.",
+					},
+				],
+			},
+			TabsTrigger: {
+				props: [
+					{
+						name: "variant",
+						type: '"default" | "underline"',
+						default: '"default"',
+						description: "Match the list's variant — the two are styled as a pair.",
+					},
+				],
+			},
+		},
+	}),
+	"ui-toast": styledParts("toast", {
+		parts: {
+			ToastViewport: {
+				note: "Styled as a fixed 360px column in the bottom right corner.",
+			},
+			Toast: {
+				note: "Styled as the stack itself: collapsed toasts peek out behind the front one and scale down, an expanded stack fans out by real heights, and a swiped toast keeps travelling in the direction it was thrown.",
+			},
+			ToastAction: { note: "Styled as an extra-small outline button, pushed to the right." },
+			ToastClose: {
+				note: "Styled as a ghost icon button in the corner; the X and its screen-reader label are built in.",
+			},
+		},
+		append: [
+			{
+				name: "Toaster",
+				description:
+					"The whole stack, ready made: provider, portal, viewport, and a styled toast for every entry in the manager — icon by type, title, description, and an action button when the toast carries one. Mount it once near the root and call manager.add(...) from anywhere.",
+				props: [
+					{
+						name: "manager",
+						type: "ToastManager",
+						required: true,
+						description: "The manager from createToastManager() whose toasts it renders.",
+					},
+				],
+			},
+		],
+	}),
+	"ui-toggle": styledParts("toggle", {
+		parts: { Toggle: { props: toggleStyleProps() } },
+	}),
+	"ui-toggle-group": styledParts("toggle-group", {
+		parts: {
+			ToggleGroup: {
+				note: "Styled as a joined row: items square off against each other and only the ends are rounded.",
+			},
+			ToggleGroupItem: { props: toggleStyleProps() },
+		},
+	}),
+	"ui-tooltip": styledParts("tooltip", {
+		parts: {
+			TooltipTrigger: { props: buttonStyleProps("default", "default") },
+			TooltipContent: {
+				description:
+					"The tooltip bubble. Styled as a small inverted panel that fades and scales in from the side it opens on, and hides itself when closed.",
+				defaults: { offset: "6", side: '"top"', align: '"center"' },
+			},
+		},
+	}),
+	"ui-button": [
+		{
+			name: "Button",
+			element: "Button",
+			description:
+				"The button. `buttonVariants` is exported alongside it, which is how the parts of other components that render as buttons — a dialog trigger, a calendar's arrows — borrow the same styles.",
+			props: [
+				variantProp(
+					BUTTON_VARIANTS,
+					"default",
+					"Which button style to render. Also set as data-variant.",
+				),
+				{
+					name: "size",
+					type: BUTTON_SIZES,
+					default: '"default"',
+					description:
+						"Height and padding. The icon sizes are square and drop the horizontal padding. Also set as data-size.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-slot", value: '"button"' },
+				{ name: "data-variant", value: BUTTON_VARIANTS },
+				{ name: "data-size", value: BUTTON_SIZES },
+			],
+		},
+	],
+	"ui-badge": [
+		{
+			name: "Badge",
+			element: "Span",
+			description:
+				"A status marker. `badgeVariants` is exported so a badge that navigates can be an `A` instead — the hover rules only apply once it really is a link.",
+			props: [
+				variantProp(
+					'"default" | "secondary" | "destructive" | "outline"',
+					"default",
+					"Which badge style to render. Also set as data-variant.",
+				),
+			],
+		},
+	],
+	"ui-alert": [
+		{
+			name: "Alert",
+			element: "Div",
+			description:
+				'Sets role="alert". A grid that grows an icon column only when an icon is present, so a text-only alert has no empty gutter.',
+			props: [
+				variantProp(
+					'"default" | "destructive"',
+					"default",
+					"destructive turns the title and description red for a failure.",
+				),
+			],
+		},
+		part("AlertTitle", "Div", "The headline. Clamped to one line."),
+		part("AlertDescription", "Div", "The body, in muted text under the title."),
+	],
+	"ui-breadcrumb": [
+		part("Breadcrumb", "Nav", 'The trail. Labelled "breadcrumb" for screen readers.'),
+		part("BreadcrumbList", "Ol", "The ordered list of crumbs, wrapping on narrow screens."),
+		part("BreadcrumbItem", "Li", "One crumb."),
+		part("BreadcrumbLink", "A", "A crumb that navigates."),
+		part(
+			"BreadcrumbPage",
+			"Span",
+			'The crumb for the page you are on: not a link, and marked aria-current="page".',
+		),
+		part(
+			"BreadcrumbSeparator",
+			"Li",
+			"The mark between crumbs — a chevron unless you pass your own. Presentational and aria-hidden: the list already says these are steps.",
+		),
+		part("BreadcrumbEllipsis", "Span", "Stands in for crumbs that have been collapsed away."),
+	],
+	"ui-button-group": [
+		{
+			name: "ButtonGroup",
+			element: "Div",
+			description:
+				'Sets role="group". Squares off the inner corners and drops the doubled borders between children, so the row reads as one control. It styles by position rather than by type — a select trigger or an input joins the row on the same terms as a button.',
+			props: [
+				{
+					name: "orientation",
+					type: '"horizontal" | "vertical"',
+					default: '"horizontal"',
+					description: "Which edges are joined. Also set as data-orientation.",
+				},
+			],
+		},
+		part(
+			"ButtonGroupText",
+			"Div",
+			"A non-interactive label sitting in the row, styled like a button — a prefix, a unit, a count.",
+		),
+		{
+			name: "ButtonGroupSeparator",
+			element: "Separator",
+			description:
+				"A divider inside the group. The group removes the borders between children, so this is how a visible line goes back in.",
+			props: [
+				{
+					name: "orientation",
+					type: '"horizontal" | "vertical"',
+					default: '"vertical"',
+					description: "Which way the line runs.",
+				},
+			],
+		},
+	],
+	"ui-card": [
+		part("Card", "Div", "A bordered surface holding one self-contained piece of the page."),
+		part(
+			"CardHeader",
+			"Div",
+			"A grid rather than a flex row, so CardAction can take a second column without the title and description having to know it is there.",
+		),
+		part("CardTitle", "Div", "The card's name."),
+		part("CardDescription", "Div", "A line under the title, in muted text."),
+		part(
+			"CardAction",
+			"Div",
+			"A control in the top right of the header — a menu, a link, a switch.",
+		),
+		part("CardContent", "Div", "The body."),
+		part("CardFooter", "Div", "The bottom row, usually the actions."),
+	],
+	"ui-empty": [
+		part(
+			"Empty",
+			"Div",
+			"The state a list is in before it has anything in it: centered, dashed, and roomy.",
+		),
+		part("EmptyHeader", "Div", "Media, title, and description as one centered stack."),
+		{
+			name: "EmptyMedia",
+			element: "Div",
+			description: "The icon or illustration above the title.",
+			props: [
+				variantProp(
+					'"default" | "icon"',
+					"default",
+					"icon puts the glyph in a filled, rounded tile.",
+				),
+			],
+		},
+		part("EmptyTitle", "Div", "What is missing."),
+		part("EmptyDescription", "Div", "Why it is worth having, in a line."),
+		part("EmptyContent", "Div", "Whatever comes after the message — a button, a form, a hint."),
+	],
+	"ui-field": [
+		part("FieldSet", "Fieldset", "A group of related fields."),
+		{
+			name: "FieldLegend",
+			element: "Legend",
+			description: "Names the field set.",
+			props: [
+				variantProp(
+					'"legend" | "label"',
+					"legend",
+					"label sizes it like a field label instead of a section heading.",
+				),
+			],
+		},
+		part(
+			"FieldGroup",
+			"Div",
+			"The column the fields sit in. It is a container, which is what the responsive orientation measures — so a field goes side-by-side when the form is wide enough, whatever the window is doing.",
+		),
+		{
+			name: "Field",
+			element: "Div",
+			description:
+				'Sets role="group". One control and everything describing it. Setting data-invalid="true" here turns the whole field destructive at once.',
+			props: [
+				{
+					name: "orientation",
+					type: '"vertical" | "horizontal" | "responsive"',
+					default: '"vertical"',
+					description:
+						"Label above the control, beside it, or beside it once the form is wide enough. Also set as data-orientation.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-invalid", value: '"true" while the field is in error' },
+				{ name: "data-orientation", value: '"vertical" | "horizontal" | "responsive"' },
+			],
+		},
+		part(
+			"FieldContent",
+			"Div",
+			"Title and description together, for a horizontal field with the control beside them.",
+		),
+		part(
+			"FieldLabel",
+			"Label",
+			"The field's label. Wraps Label, and adds the rules for a label with a whole control nested inside it — a checkbox row, where the label is the click target for the box.",
+		),
+		part("FieldTitle", "Div", "A heading inside a label that wraps a control."),
+		part("FieldDescription", "P", "The hint under the control."),
+		part(
+			"FieldSeparator",
+			"Div",
+			"A rule between fields. Pass children to sit a word on the line.",
+		),
+		part(
+			"FieldError",
+			"Div",
+			'Sets role="alert". Give the control aria-invalid and the field data-invalid="true" so the styling and the announcement agree.',
+		),
+	],
+	"ui-input": [
+		{
+			name: "Input",
+			element: "Input",
+			description:
+				"A text field. Every prop goes through, so type, value, and placeholder work as they always do. aria-invalid is styled as well as announced, which is how FieldError marks its control.",
+		},
+	],
+	"ui-textarea": [
+		{
+			name: "Textarea",
+			element: "Textarea",
+			description:
+				"A multi-line field, styled to match Input. field-sizing-content grows it with what is typed where the browser supports it — cap it with a max-h-* class.",
+		},
+	],
+	"ui-item": [
+		part("ItemGroup", "Div", 'Sets role="list". A list of items.'),
+		part("ItemSeparator", "Div", 'Sets role="separator". A line between items.'),
+		{
+			name: "Item",
+			element: "Div",
+			description:
+				"One row: something on the left, a title and description in the middle, controls on the right — the shape a settings row, a search result, and a file listing all turn out to share.",
+			props: [
+				variantProp(
+					'"default" | "outline" | "muted"',
+					"default",
+					"Transparent, bordered, or on a muted fill. Also set as data-variant.",
+				),
+				{
+					name: "size",
+					type: '"default" | "sm"',
+					default: '"default"',
+					description: "Padding and gap. Also set as data-size.",
+				},
+			],
+		},
+		{
+			name: "ItemMedia",
+			element: "Div",
+			description:
+				"The leading block. It self-aligns to the top only when the row has a description, so single-line rows stay centered.",
+			props: [
+				variantProp(
+					'"default" | "icon" | "image"',
+					"default",
+					"icon gives a bordered tile; image clips a picture to a rounded square.",
+				),
+			],
+		},
+		part("ItemContent", "Div", "Title and description, taking the remaining width."),
+		part("ItemTitle", "Div", "The row's name."),
+		part("ItemDescription", "Div", "A line or two under the title, clamped at two."),
+		part("ItemActions", "Div", "The trailing block: buttons, a menu, a switch."),
+		part("ItemHeader", "Div", "A full-width row above the item's content."),
+		part("ItemFooter", "Div", "A full-width row below it."),
+	],
+	"ui-kbd": [
+		part("Kbd", "Kbd", "One key, for documenting a shortcut."),
+		part("KbdGroup", "Kbd", "A chord or a sequence: several keys read as one shortcut."),
+	],
+	"ui-label": [
+		part(
+			"Label",
+			"Label",
+			"A label for a control. Point it at one with `for`; the primitives render buttons rather than inputs, so `for` and `id` are how they pair up. It dims with a disabled sibling marked `peer`, and with a disabled wrapper marked `group`.",
+		),
+	],
+	"ui-skeleton": [
+		part(
+			"Skeleton",
+			"Div",
+			"A shape standing in for content that has not arrived. Size it with the classes the real content will have, so the swap does not move the layout.",
+		),
+	],
+	"ui-spinner": [
+		{
+			name: "Spinner",
+			element: "LoaderCircleIcon",
+			description:
+				'A turning ring for work in flight. Carries role="status" and a default label; pass aria-label to say what is loading. Size and color it with classes, like any icon.',
+		},
+	],
+	"ui-sidebar": [
+		{
+			name: "SidebarProvider",
+			element: "Div",
+			description:
+				"Owns the open state and provides it to every part, so the trigger, the rail, and the inset stay in step without being wired to each other. It also watches the viewport and binds the keyboard shortcut.",
+			props: [
+				{
+					name: "open",
+					type: "Signal<boolean>",
+					description:
+						"Own the desktop open state from outside — which is also how you persist it. Omit for uncontrolled.",
+				},
+				{
+					name: "defaultOpen",
+					type: "boolean",
+					default: "true",
+					description: "Starting state when uncontrolled.",
+				},
+				{
+					name: "keyboardShortcut",
+					type: "boolean",
+					default: "true",
+					description: "Whether ⌘B / Ctrl+B toggles the sidebar.",
+				},
+			],
+		},
+		{
+			name: "Sidebar",
+			element: "Div",
+			description:
+				"The sidebar itself. Below 768px it renders as a Sheet instead — an off-canvas panel with the dialog's focus trap and dismissal — and the desktop tree is the one that prerenders.",
+			props: [
+				{
+					name: "side",
+					type: '"left" | "right"',
+					default: '"left"',
+					description: "Which edge it docks to.",
+				},
+				{
+					name: "variant",
+					type: '"sidebar" | "floating" | "inset"',
+					default: '"sidebar"',
+					description:
+						"Flush against the edge, floated as a rounded card, or inset with the page floating beside it.",
+				},
+				{
+					name: "collapsible",
+					type: '"offcanvas" | "icon" | "none"',
+					default: '"offcanvas"',
+					description:
+						"Slide fully out of view, shrink to a rail of icons, or never collapse at all. none skips the state machinery entirely.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-state", value: '"expanded" | "collapsed"' },
+				{ name: "data-collapsible", value: 'The collapsible mode while collapsed, else ""' },
+				{ name: "data-variant", value: '"sidebar" | "floating" | "inset"' },
+				{ name: "data-side", value: '"left" | "right"' },
+			],
+			cssVariables: [
+				{ name: "--sidebar-width", description: "Expanded width. Defaults to 16rem." },
+				{ name: "--sidebar-width-icon", description: "Width of the icon rail. Defaults to 3rem." },
+				{
+					name: "--sidebar-width-mobile",
+					description: "Width of the off-canvas sheet. Defaults to 18rem.",
+				},
+			],
+		},
+		{
+			name: "SidebarTrigger",
+			element: "Button",
+			description:
+				"Toggles whichever open state applies — the desktop one or the mobile sheet. Renders a panel icon unless you pass children.",
+			props: [
+				variantProp(BUTTON_VARIANTS, "ghost", "Which button style to render."),
+				{
+					name: "size",
+					type: BUTTON_SIZES,
+					default: '"icon-sm"',
+					description: "Height and padding.",
+				},
+			],
+		},
+		part(
+			"SidebarRail",
+			"Button",
+			"The strip along the sidebar's inner edge: click it to toggle. Out of the tab order, since the trigger already does the same job.",
+		),
+		part(
+			"SidebarInset",
+			"Div",
+			"The page beside the sidebar. Under the inset variant it floats as a rounded card with a margin.",
+		),
+		part("SidebarHeader", "Div", "The block at the top, above the scrolling content."),
+		part("SidebarContent", "Div", "The scrolling middle. Collapsed to icons it stops scrolling."),
+		part("SidebarFooter", "Div", "The block at the bottom."),
+		part("SidebarSeparator", "Separator", "A line across the sidebar, inset from its edges."),
+		part(
+			"SidebarInput",
+			"Input",
+			"An input sized for the sidebar — shorter, and without a shadow.",
+		),
+		part("SidebarGroup", "Div", "A titled section of the sidebar."),
+		part(
+			"SidebarGroupLabel",
+			"Div",
+			"The section's title. It slides up and fades out as the sidebar collapses to icons.",
+		),
+		part(
+			"SidebarGroupAction",
+			"Button",
+			"A control in the section's top right. Hidden while collapsed to icons.",
+		),
+		part("SidebarGroupContent", "Div", "The section's body."),
+		part("SidebarMenu", "Ul", "A list of navigation rows."),
+		part("SidebarMenuItem", "Li", "One row, and anything anchored to it."),
+		{
+			name: "SidebarMenuButton",
+			element: "Button",
+			description:
+				"A row that acts. `tooltip` is what makes an icon-collapsed sidebar usable: the label reappears on hover, and only while collapsed.",
+			props: [
+				{
+					name: "tooltip",
+					type: "string",
+					description:
+						"Label to show while the sidebar is collapsed to icons. Setting it makes the row the tooltip's trigger.",
+				},
+				{
+					name: "isActive",
+					type: "boolean",
+					default: "false",
+					description: "Marks the current row. Written out as data-active, which the styles read.",
+				},
+				variantProp('"default" | "outline"', "default", "Plain, or on a background with a ring."),
+				{
+					name: "size",
+					type: '"default" | "sm" | "lg"',
+					default: '"default"',
+					description: "Row height. lg is the shape for an account row with an avatar.",
+				},
+			],
+		},
+		{
+			name: "SidebarMenuLink",
+			element: "A",
+			description:
+				"A row that navigates, styled identically. It exists separately because the tooltip primitive's trigger is a button, so one component cannot be both — the same split as CommandItem and CommandLinkItem.",
+			props: [
+				{
+					name: "isActive",
+					type: "boolean",
+					default: "false",
+					description: "Marks the current row.",
+				},
+				variantProp('"default" | "outline"', "default", "Plain, or on a background with a ring."),
+				{
+					name: "size",
+					type: '"default" | "sm" | "lg"',
+					default: '"default"',
+					description: "Row height.",
+				},
+			],
+		},
+		{
+			name: "SidebarMenuAction",
+			element: "Button",
+			description: "A control anchored to a row's right edge. Hidden while collapsed to icons.",
+			props: [
+				{
+					name: "showOnHover",
+					type: "boolean",
+					default: "false",
+					description:
+						"Reveal it only on hover or keyboard focus. It stays visible on touch, where there is no hover to reveal it.",
+				},
+			],
+		},
+		part(
+			"SidebarMenuBadge",
+			"Div",
+			"A count on a row's right edge. Not interactive, and hidden while collapsed to icons.",
+		),
+		{
+			name: "SidebarMenuSkeleton",
+			element: "Div",
+			description: "A placeholder row, for a menu whose items are still loading.",
+			props: [
+				{
+					name: "showIcon",
+					type: "boolean",
+					default: "false",
+					description: "Also draw a square where the row's icon will be.",
+				},
+				{
+					name: "width",
+					type: "string",
+					default: '"70%"',
+					description:
+						"Text width for the row. Vary it across a list so the placeholders do not look ruled.",
+				},
+			],
+		},
+		part("SidebarMenuSub", "Ul", "A nested list under a row. Hidden while collapsed to icons."),
+		part("SidebarMenuSubItem", "Li", "One nested row."),
+		{
+			name: "SidebarMenuSubButton",
+			element: "Button",
+			description: "A nested row that acts.",
+			props: [
+				{
+					name: "size",
+					type: '"sm" | "md"',
+					default: '"md"',
+					description: "Text size for the nested row.",
+				},
+				{
+					name: "isActive",
+					type: "boolean",
+					default: "false",
+					description: "Marks the current nested row.",
+				},
+			],
+		},
+		{
+			name: "SidebarMenuSubLink",
+			element: "A",
+			description: "A nested row that navigates.",
+			props: [
+				{
+					name: "size",
+					type: '"sm" | "md"',
+					default: '"md"',
+					description: "Text size for the nested row.",
+				},
+				{
+					name: "isActive",
+					type: "boolean",
+					default: "false",
+					description: "Marks the current nested row.",
+				},
+			],
+		},
+		{
+			name: "useSidebar",
+			description:
+				"Render with the nearest sidebar's state: useSidebar(({ open, openMobile, isMobile, state, toggle }) => …). The parts' own escape hatch, for anything the parts do not cover.",
+		},
+	],
+};
+
+/**
+ * API reference tables, keyed by the `data-api` attribute a docs page uses to
+ * place them: `<div data-api="avatar"></div>` in the markdown renders the
+ * tables for every part of that primitive at that spot, and
+ * `<div data-api="ui-avatar"></div>` the styled component's.
+ */
+export const apiReference: Record<string, ApiPart[]> = {
+	...primitiveReference,
+	...styledReference,
 };

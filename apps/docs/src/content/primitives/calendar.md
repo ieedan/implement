@@ -27,41 +27,31 @@ import { ForEach, Fragment } from "@implementjs/core";
 
 Calendar({ calendarLabel: "Appointment date" }, ({ months, weekdays }) =>
 	Fragment(
-		CalendarHeader(
-			{},
-			CalendarPrevButton({}, "←"),
-			CalendarHeading({}),
-			CalendarNextButton({}, "→"),
-		),
+		CalendarHeader(CalendarPrevButton("←"), CalendarHeading(), CalendarNextButton("→")),
 		ForEach(
 			months,
 			(month) => month.value.toString(),
 			(month) =>
 				CalendarGrid(
-					{},
 					CalendarGridHead(
-						{},
 						CalendarGridRow(
-							{},
 							ForEach(
 								weekdays,
 								(_, i) => i,
-								(weekday) => CalendarHeadCell({}, weekday),
+								(weekday) => CalendarHeadCell(weekday),
 							),
 						),
 					),
 					CalendarGridBody(
-						{},
 						ForEach(
 							month.bind((m) => m.weeks),
 							(week) => week[0].toString(),
 							(week) =>
 								CalendarGridRow(
-									{},
 									ForEach(
 										week,
 										(date) => date.toString(),
-										(date) => CalendarCell({ date, month }, CalendarDay({})),
+										(date) => CalendarCell({ date, month }, CalendarDay()),
 									),
 								),
 						),
@@ -113,7 +103,7 @@ The `placeholder` is the date the view starts on and keyboard focus follows; it 
 `CalendarPrevButton` and `CalendarNextButton` page the view one month at a time — or by `numberOfMonths` when `pagedNavigation` is set — and disable themselves at `minValue`/`maxValue`. `CalendarMonthSelect` and `CalendarYearSelect` render native `select` elements that jump straight to a month or year:
 
 ```ts
-CalendarHeader({}, CalendarMonthSelect({}), CalendarYearSelect({}));
+CalendarHeader(CalendarMonthSelect(), CalendarYearSelect());
 ```
 
 ## Keyboard and focus

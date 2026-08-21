@@ -12,13 +12,12 @@ A collapsible is a single region that opens and closes. `Collapsible` is the roo
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@implementjs/primitives";
 
 Collapsible(
-	{},
-	CollapsibleTrigger({}, "Show more"),
-	CollapsibleContent({}, "The rest of the details live here."),
+	CollapsibleTrigger("Show more"),
+	CollapsibleContent("The rest of the details live here."),
 );
 ```
 
-Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props are forwarded onto the underlying `Div` or `Button`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props are forwarded onto the underlying `Div` or `Button`.
 
 ## Open state
 
@@ -29,8 +28,8 @@ const open = signal(false);
 
 Collapsible(
 	{ open },
-	CollapsibleTrigger({}, "Show more"),
-	CollapsibleContent({}, "The rest of the details live here."),
+	CollapsibleTrigger("Show more"),
+	CollapsibleContent("The rest of the details live here."),
 );
 
 Button({ onClick: () => open.set(true) }, "Expand");

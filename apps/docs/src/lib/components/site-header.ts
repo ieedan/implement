@@ -1,6 +1,7 @@
 import { derived, Div, Header, Nav, type Mountable } from "@implementjs/core";
 import { router } from "../router";
 import { DocsSearch } from "./docs/search";
+import { Logo } from "./logo";
 import { ModeToggle } from "./mode-toggle";
 
 function navClass(active: boolean): string {
@@ -20,6 +21,10 @@ export function SiteHeader(): Mountable {
 		[router.location],
 		(location) => location.path === "/primitives" || location.path.startsWith("/primitives/"),
 	);
+	const onUi = derived(
+		[router.location],
+		(location) => location.path === "/ui" || location.path.startsWith("/ui/"),
+	);
 	const onPackages = derived(
 		[router.location],
 		(location) => location.path === "/packages" || location.path.startsWith("/packages/"),
@@ -38,7 +43,11 @@ export function SiteHeader(): Mountable {
 			class:
 				"sticky top-0 z-10 flex h-12 shrink-0 items-center gap-6 border-b border-border bg-background px-4",
 		},
-		router.Link({ to: "/", class: "text-sm font-semibold tracking-tight" }, "implement"),
+		router.Link(
+			{ to: "/", class: "flex items-center gap-2 text-sm font-semibold tracking-tight" },
+			Logo({ class: "h-4 w-auto", "aria-hidden": true }),
+			"implement",
+		),
 		Nav(
 			{ class: "flex items-center gap-4" },
 			router.Link({ to: "/docs", class: derived([onDocs], (active) => navClass(active)) }, "Docs"),
@@ -47,6 +56,7 @@ export function SiteHeader(): Mountable {
 				{ to: "/primitives", class: derived([onPrimitives], (active) => navClass(active)) },
 				"Primitives",
 			),
+			router.Link({ to: "/ui", class: derived([onUi], (active) => navClass(active)) }, "UI"),
 			router.Link(
 				{ to: "/packages", class: derived([onPackages], (active) => navClass(active)) },
 				"Packages",

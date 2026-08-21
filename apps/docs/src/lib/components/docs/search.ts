@@ -2,13 +2,16 @@ import {
 	Button,
 	derived,
 	Div,
+	ForEach,
 	If,
 	Implement,
 	Kbd,
+	Mark,
 	navigateTo,
 	signal,
 	Span,
 	type Mountable,
+	type Readable,
 	type Signal,
 } from "@implementjs/core";
 import { ArrowRightIcon, SearchIcon } from "@implementjs/lucide";
@@ -21,8 +24,15 @@ import {
 	DialogTitle as DialogTitlePrimitive,
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
-import { kitPages, lucidePages, pages, primitivePages, tutorials } from "@/lib/content";
+import { kitPages, lucidePages, pages, primitivePages, tutorials, uiPages } from "@/lib/content";
 import { copyText } from "@/lib/copy-text";
+import {
+	searchPages,
+	warmSearchIndex,
+	type HighlightPart,
+	type SearchPage,
+	type SearchResult,
+} from "@/lib/search";
 import {
 	Command,
 	CommandEmpty,
@@ -42,15 +52,12 @@ import {
 } from "../ui/dropdown-menu";
 import { MarkdownIcon } from "./brand-icons";
 
-/** The shape every content collection shares. */
-type DocPage = { title: string; description: string; permalink: string };
-
-type AreaKey = "lib" | "kit" | "primitives" | "lucide" | "tutorial";
+type AreaKey = "lib" | "kit" | "primitives" | "ui" | "lucide" | "tutorial";
 
 type Area = {
 	key: AreaKey;
 	label: string;
-	pages: DocPage[];
+	pages: SearchPage[];
 	/** Whether kit serves a `.md` twin next to these pages (lessons have none). */
 	markdown: boolean;
 };
@@ -64,22 +71,46 @@ const areas: Area[] = [
 		pages: primitivePages,
 		markdown: true,
 	},
+	{ key: "ui", label: "@implementjs/ui", pages: uiPages, markdown: true },
 	{ key: "lucide", label: "@implementjs/lucide", pages: lucidePages, markdown: true },
 	{ key: "tutorial", label: "Tutorial", pages: tutorials, markdown: false },
 ];
 
-/** Titles repeat across areas ("Introduction"), so items key on area + title. */
-function entryValue(area: Area, page: DocPage): string {
-	return `${area.key} ${page.title}`;
+/** A result plus the area it came from, which decides the `.md` action. */
+type Hit = { area: Area; result: SearchResult };
+
+/**
+ * Rows are rebuilt rather than patched when their text changes, so the key
+ * carries the highlighting: the same page under a different query is a
+ * different row.
+ */
+function partsKey(parts: HighlightPart[]): string {
+	return parts.map((part) => (part.match ? `[${part.text}]` : part.text)).join("");
 }
 
-type Entry = { page: DocPage; markdown: boolean };
+function rowKey(result: SearchResult): string {
+	return `${result.href} ${partsKey(result.title)} ${partsKey(result.detail)}`;
+}
 
-const entryByValue = new Map<string, Entry>();
-for (const area of areas) {
-	for (const page of area.pages) {
-		entryByValue.set(entryValue(area, page), { page, markdown: area.markdown });
+/** FNV-1a, for a short stand-in for the row's text inside an item value. */
+function fold(value: string): string {
+	let hash = 2166136261;
+	for (let index = 0; index < value.length; index++) {
+		hash ^= value.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
 	}
+	return (hash >>> 0).toString(36);
+}
+
+/**
+ * The item value Command tracks a row by. Permalinks repeat across areas
+ * (`/docs` and `/kit` both have an index), and the row's text is folded in
+ * because a replaced row unregisters its value *after* its replacement
+ * registers — sharing one would leave the surviving row unaccounted for, and
+ * the palette claiming it found nothing.
+ */
+function hitValue(area: Area, result: SearchResult): string {
+	return `${area.key} ${result.href} ${fold(rowKey(result))}`;
 }
 
 const kbdClass =
@@ -87,7 +118,7 @@ const kbdClass =
 
 const SEARCH_INPUT_ID = "docs-search-input";
 
-async function copyMarkdown(page: DocPage) {
+async function copyMarkdown(page: SearchPage) {
 	const response = await fetch(`${page.permalink}.md`);
 	if (!response.ok) return;
 	await copyText(await response.text());
@@ -95,6 +126,43 @@ async function copyMarkdown(page: DocPage) {
 
 function focusSearchInput() {
 	queueMicrotask(() => document.getElementById(SEARCH_INPUT_ID)?.focus());
+}
+
+/**
+ * Stripping every page down to text is long enough to be felt under the first
+ * keystroke, so it happens while the dialog is animating in instead.
+ */
+function warmIndex() {
+	const run = () => {
+		for (const entry of areas) warmSearchIndex(entry.pages);
+	};
+	if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 500 });
+	else setTimeout(run, 0);
+}
+
+/** How long to keep trying for an anchor that is not in reach yet. */
+const SCROLL_TIMEOUT = 600;
+const SCROLL_RETRY = 20;
+
+/**
+ * Scrolls to a heading the palette just navigated to. The destination page
+ * renders a tick later and the dialog holds the body's scroll lock until its
+ * exit transition ends, so one attempt is not enough — keep trying until the
+ * heading is actually on screen. Timers rather than frames: a background tab
+ * runs no frames at all.
+ */
+function scrollToAnchor(id: string) {
+	const deadline = Date.now() + SCROLL_TIMEOUT;
+	const attempt = () => {
+		const target = document.getElementById(id);
+		if (target) {
+			target.scrollIntoView();
+			const { top } = target.getBoundingClientRect();
+			if (top >= 0 && top < window.innerHeight) return;
+		}
+		if (Date.now() < deadline) setTimeout(attempt, SCROLL_RETRY);
+	};
+	attempt();
 }
 
 function AreaChip(area: Signal<"all" | AreaKey>, key: "all" | AreaKey, label: string): Mountable {
@@ -119,25 +187,51 @@ function AreaChip(area: Signal<"all" | AreaKey>, key: "all" | AreaKey, label: st
 	);
 }
 
-function ResultItem(page: DocPage, value: string, goTo: (page: DocPage) => void): Mountable {
+/** A result's text with the runs the query hit marked, so the hit is visible. */
+function Highlighted(parts: HighlightPart[], className: string): Mountable {
+	return Span(
+		{ class: className },
+		...parts
+			.filter((part) => part.text !== "")
+			.map((part) =>
+				part.match
+					? Mark(
+							{ class: "rounded-[3px] bg-foreground/20 px-0.5 font-medium text-foreground" },
+							part.text,
+						)
+					: part.text,
+			),
+	);
+}
+
+function ResultItem(area: Area, result: SearchResult, goTo: (result: SearchResult) => void) {
 	return CommandLinkItem(
 		{
-			value,
-			keywords: [page.title, page.description],
-			href: page.permalink,
+			value: hitValue(area, result),
+			href: result.href,
 			class:
 				"group/search-item mx-2 my-1 flex items-center gap-3 rounded-lg border border-border px-4 py-2.5 no-underline data-selected:bg-accent",
 			onClick(event) {
 				if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 				if (event.button !== 0) return;
 				event.preventDefault();
-				goTo(page);
+				goTo(result);
 			},
 		},
 		Div(
 			{ class: "flex min-w-0 flex-col" },
-			Span({ class: "truncate text-sm text-foreground" }, page.title),
-			Span({ class: "truncate text-sm text-muted-foreground" }, page.description),
+			Span(
+				{ class: "truncate text-sm text-foreground" },
+				// a section hit names the page it sits in ahead of its own heading
+				...(result.heading === null
+					? []
+					: [
+							Span({ class: "text-muted-foreground" }, result.page.title),
+							Span({ class: "text-muted-foreground/60" }, " / "),
+						]),
+				Highlighted(result.title, ""),
+			),
+			Highlighted(result.detail, "truncate text-sm text-muted-foreground"),
 		),
 		ArrowRightIcon({
 			class: "ml-auto size-4 shrink-0 opacity-0 group-data-selected/search-item:opacity-100",
@@ -147,11 +241,36 @@ function ResultItem(page: DocPage, value: string, goTo: (page: DocPage) => void)
 }
 
 /**
- * The docs search palette: a ⌘K dialog over the Command primitive that
- * searches every docs page by title and description. The chips narrow the
- * search to one part of the docs, results group by the part they cover, and
- * ⌘K again opens an actions menu for the highlighted page.
+ * The docs search palette: a Cmd+K dialog over the Command primitive that
+ * searches every docs page by title, description, and page content. A hit in
+ * the body of a page becomes its own result, landing on the heading it sits
+ * under and carrying a snippet with the match highlighted. The chips narrow
+ * the search to one part of the docs, results group by the part they cover,
+ * and Cmd+K again opens an actions menu for the highlighted result.
  */
+/** One area's results, under its package name. */
+function AreaGroup(
+	entry: Area,
+	results: Readable<Map<AreaKey, SearchResult[]>>,
+	goTo: (result: SearchResult) => void,
+): Mountable {
+	return CommandGroup(
+		{ value: entry.label },
+		// package names are cased as published, not upper-cased like the base heading
+		CommandGroupHeading({ class: "font-mono [text-transform:none]!" }, entry.label),
+		CommandGroupItems(
+			{ class: "p-0 py-1" },
+			ForEach(
+				derived([results], (byArea) => byArea.get(entry.key) ?? []),
+				rowKey,
+				// the key covers every word the row renders, so a row
+				// never has to update itself in place
+				(result) => ResultItem(entry, result.get(), goTo),
+			),
+		),
+	);
+}
+
 export function DocsSearch(): Mountable {
 	const open = signal(false);
 	const actionsOpen = signal(false);
@@ -159,12 +278,57 @@ export function DocsSearch(): Mountable {
 	const value = signal("");
 	const area = signal<"all" | AreaKey>("all");
 
-	const selected = derived([value], (current) => entryByValue.get(current) ?? null);
+	// Command's own filter scores an item's value; these results are matched and
+	// ranked whole pages at a time, so `shouldFilter` is off below and the
+	// ranking happens here.
+	const results = derived([search], (query) => {
+		const byArea = new Map<AreaKey, SearchResult[]>();
+		for (const entry of areas) byArea.set(entry.key, searchPages(entry.pages, query));
+		return byArea;
+	});
 
-	const goTo = (page: DocPage) => {
+	/**
+	 * Which areas to render, best match first. Ranking inside an area is the
+	 * search module's job; without this the areas themselves stayed in
+	 * declaration order, so an exact title match in a later package sat below
+	 * every passing mention in an earlier one — "sidebar" led with the router
+	 * page rather than the component.
+	 *
+	 * An empty query scores every page 0 and `sort` is stable, so the resting
+	 * list keeps its declared order.
+	 */
+	const ranked = derived([results, area], (byArea, current) => {
+		const visible = areas
+			.filter(
+				(entry) =>
+					(current === "all" || current === entry.key) && (byArea.get(entry.key)?.length ?? 0) > 0,
+			)
+			.map((entry) => ({ entry, best: byArea.get(entry.key)?.[0]?.score ?? 0 }));
+		visible.sort((a, b) => b.best - a.best);
+		return visible.map(({ entry }) => entry);
+	});
+
+	const hits = derived([results, area], (byArea, current) => {
+		const map = new Map<string, Hit>();
+		for (const entry of areas) {
+			if (current !== "all" && current !== entry.key) continue;
+			for (const result of byArea.get(entry.key) ?? []) {
+				map.set(hitValue(entry, result), { area: entry, result });
+			}
+		}
+		return map;
+	});
+
+	const selected = derived([value, hits], (current, map) => map.get(current) ?? null);
+
+	const goTo = (result: SearchResult) => {
 		actionsOpen.set(false);
 		open.set(false);
-		navigateTo(page.permalink);
+		navigateTo(result.href);
+		// navigateTo puts the page back at the top; the router leaves the
+		// fragment to whoever asked for it
+		const hash = result.href.indexOf("#");
+		if (hash !== -1) scrollToAnchor(result.href.slice(hash + 1));
 	};
 
 	return DialogPrimitive(
@@ -189,6 +353,7 @@ export function DocsSearch(): Mountable {
 					if (isOpen) {
 						// after the modal's own focus pass, move focus into the search box
 						focusSearchInput();
+						warmIndex();
 					} else {
 						actionsOpen.set(false);
 						search.set("");
@@ -239,13 +404,15 @@ export function DocsSearch(): Mountable {
 				DialogTitlePrimitive({ class: "sr-only" }, "Search docs"),
 				DialogDescriptionPrimitive(
 					{ class: "sr-only" },
-					"Search every docs page by title and description.",
+					"Search every docs page by title, description, and page content.",
 				),
 				Command(
 					{
 						label: "Search docs",
 						value,
 						search,
+						// results are matched, ranked, and highlighted above
+						shouldFilter: false,
 						// ctrl+k opens the actions menu instead of moving the highlight
 						vimBindings: false,
 						class: "bg-transparent",
@@ -266,18 +433,12 @@ export function DocsSearch(): Mountable {
 						CommandViewport(
 							{},
 							CommandEmpty({}, "No results found."),
-							...areas.map((entry) =>
-								If(derived([area], (current) => current === "all" || current === entry.key)).Then(
-									CommandGroup(
-										{ value: entry.label },
-										// package names are cased as published, not upper-cased like the base heading
-										CommandGroupHeading({ class: "font-mono [text-transform:none]!" }, entry.label),
-										CommandGroupItems(
-											{ class: "p-0 py-1" },
-											...entry.pages.map((page) => ResultItem(page, entryValue(entry, page), goTo)),
-										),
-									),
-								),
+							ForEach(
+								ranked,
+								(entry) => entry.key,
+								// keyed on the area, so the row's identity is pinned and
+								// reading it once here is safe
+								(entry) => AreaGroup(entry.get(), results, goTo),
 							),
 						),
 					),
@@ -290,8 +451,8 @@ export function DocsSearch(): Mountable {
 							{ class: "flex min-w-0 items-center gap-2" },
 							Span(
 								{ class: "truncate" },
-								selected.bind((entry) =>
-									entry === null ? "Go to page" : `Go to ${entry.page.title}`,
+								selected.bind((hit) =>
+									hit === null ? "Go to page" : `Go to ${hit.result.page.title}`,
 								),
 							),
 							Kbd({ class: kbdClass }, "⏎"),
@@ -313,14 +474,14 @@ export function DocsSearch(): Mountable {
 								DropdownMenuItem(
 									{
 										onSelect: () => {
-											const entry = selected.get();
-											if (entry) goTo(entry.page);
+											const hit = selected.get();
+											if (hit) goTo(hit.result);
 										},
 									},
 									Span(
 										{ class: "truncate" },
-										selected.bind((entry) =>
-											entry === null ? "Go to page" : `Go to ${entry.page.title}`,
+										selected.bind((hit) =>
+											hit === null ? "Go to page" : `Go to ${hit.result.page.title}`,
 										),
 									),
 									ArrowRightIcon({
@@ -329,12 +490,12 @@ export function DocsSearch(): Mountable {
 									}),
 								),
 								// lessons have no markdown twin, so the action drops out for them
-								If(derived([selected], (entry) => entry?.markdown === true)).Then(
+								If(derived([selected], (hit) => hit?.area.markdown === true)).Then(
 									DropdownMenuItem(
 										{
 											onSelect: () => {
-												const entry = selected.get();
-												if (entry) void copyMarkdown(entry.page);
+												const hit = selected.get();
+												if (hit) void copyMarkdown(hit.result.page);
 											},
 										},
 										"Copy Markdown",

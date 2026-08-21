@@ -24,16 +24,12 @@ const fruits = [
 
 Select(
 	{ items: fruits },
-	SelectTrigger({}, SelectValue({ placeholder: "Select a fruit" })),
-	SelectContent(
-		{},
-		SelectItem({ value: "apple" }, "Apple"),
-		SelectItem({ value: "banana" }, "Banana"),
-	),
+	SelectTrigger(SelectValue({ placeholder: "Select a fruit" })),
+	SelectContent(SelectItem({ value: "apple" }, "Apple"), SelectItem({ value: "banana" }, "Banana")),
 );
 ```
 
-Each part takes a props object first (even if it is empty) and then children, the same shape as the [element factories](/docs/elements). Extra props on the trigger, content, and items are forwarded onto the underlying `Button` or `Div`.
+Each part accepts optional props and children — pass a props object when you need attributes, or pass children directly. See [createComponent](/primitives/docs/create-component). Extra props on the trigger, content, and items are forwarded onto the underlying `Button` or `Div`.
 
 ## Open state
 
@@ -44,8 +40,8 @@ const open = signal(false);
 
 Select(
 	{ open },
-	SelectTrigger({}, SelectValue({ placeholder: "Select" })),
-	SelectContent({}, SelectItem({ value: "a" }, "A")),
+	SelectTrigger(SelectValue({ placeholder: "Select" })),
+	SelectContent(SelectItem({ value: "a" }, "A")),
 );
 
 Button({ onClick: () => open.set(false) }, "Close");
@@ -62,8 +58,8 @@ const fruit = signal<string | null>(null);
 
 Select(
 	{ value: fruit, items: [{ value: "apple", label: "Apple" }] },
-	SelectTrigger({}, SelectValue({ placeholder: "Select a fruit" })),
-	SelectContent({}, SelectItem({ value: "apple" }, "Apple")),
+	SelectTrigger(SelectValue({ placeholder: "Select a fruit" })),
+	SelectContent(SelectItem({ value: "apple" }, "Apple")),
 );
 ```
 
@@ -72,8 +68,8 @@ const toppings = signal<string[]>([]);
 
 Select(
 	{ type: "multiple", value: toppings, items: [{ value: "olives", label: "Olives" }] },
-	SelectTrigger({}, SelectValue({ placeholder: "Select toppings" })),
-	SelectContent({}, SelectItem({ value: "olives" }, "Olives")),
+	SelectTrigger(SelectValue({ placeholder: "Select toppings" })),
+	SelectContent(SelectItem({ value: "olives" }, "Olives")),
 );
 ```
 
@@ -95,12 +91,8 @@ Select(
 			{ value: "banana", label: "Banana" },
 		],
 	},
-	SelectTrigger({}, SelectValue({ placeholder: "Select a fruit" })),
-	SelectContent(
-		{},
-		SelectItem({ value: "apple" }, "Apple"),
-		SelectItem({ value: "banana" }, "Banana"),
-	),
+	SelectTrigger(SelectValue({ placeholder: "Select a fruit" })),
+	SelectContent(SelectItem({ value: "apple" }, "Apple"), SelectItem({ value: "banana" }, "Banana")),
 );
 ```
 
@@ -130,18 +122,12 @@ SelectValue({
 
 ```ts
 SelectContent(
-	{},
 	SelectGroup(
-		{},
-		SelectGroupHeading({}, "Citrus"),
+		SelectGroupHeading("Citrus"),
 		SelectItem({ value: "orange" }, "Orange"),
 		SelectItem({ value: "lemon" }, "Lemon"),
 	),
-	SelectGroup(
-		{},
-		SelectGroupHeading({}, "Berries"),
-		SelectItem({ value: "blueberry" }, "Blueberry"),
-	),
+	SelectGroup(SelectGroupHeading("Berries"), SelectItem({ value: "blueberry" }, "Blueberry")),
 );
 ```
 
