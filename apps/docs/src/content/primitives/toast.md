@@ -34,8 +34,14 @@ ToastProvider(
 				(toast) =>
 					Toast(
 						{ toast },
-						ToastTitle({}, toast.bind((t) => t.title ?? "")),
-						ToastDescription({}, toast.bind((t) => t.description ?? "")),
+						ToastTitle(
+							{},
+							toast.bind((t) => t.title ?? ""),
+						),
+						ToastDescription(
+							{},
+							toast.bind((t) => t.description ?? ""),
+						),
 						ToastClose({}, "Close"),
 					),
 			),

@@ -215,14 +215,18 @@ export class MenuState {
 	}
 
 	onContentKeydown(e: KeyboardEvent) {
+		// keys the menu consumes stop here: an ancestor that navigates with the
+		// same keys (a Command list, say) must not move alongside the menu
 		switch (e.key) {
 			case "ArrowDown":
 			case "ArrowUp":
 				this.handleArrowKey(e);
+				e.stopPropagation();
 				break;
 			case "Home":
 			case "End":
 				e.preventDefault();
+				e.stopPropagation();
 				this.getItems()
 					.at(e.key === "Home" ? 0 : -1)
 					?.focus();
@@ -234,6 +238,7 @@ export class MenuState {
 			default:
 				if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
 					this.handleTypeahead(e.key);
+					e.stopPropagation();
 				} else {
 					this.onContentNavigationKeydown(e);
 				}
@@ -466,6 +471,8 @@ function menuItemProps(
 		onKeydown: (e: KeyboardEvent) => {
 			if (e.key === "Enter" || e.key === " ") {
 				e.preventDefault();
+				// the selection belongs to this item, not to any ancestor widget
+				e.stopPropagation();
 				select();
 			}
 		},

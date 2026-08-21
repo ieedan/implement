@@ -82,7 +82,10 @@ describe("browser mounting", () => {
 		const seen: (HTMLElement | null)[] = [];
 
 		const unmount = app.render(
-			Div({ this: el }, Implement.Lifecycle({ onUnmount: () => seen.push(el.get()) }, Span("child"))),
+			Div(
+				{ this: el },
+				Implement.Lifecycle({ onUnmount: () => seen.push(el.get()) }, Span("child")),
+			),
 		);
 
 		const root = target.querySelector("div");
