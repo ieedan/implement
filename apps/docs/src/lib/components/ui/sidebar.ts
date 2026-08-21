@@ -26,7 +26,7 @@ import { tv, type VariantProps } from "tailwind-variants";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
 import { Input } from "./input";
 import { Separator } from "./separator";
-import { Sheet, SheetContent, SheetDescription, SheetOverlay, SheetTitle } from "./sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "./sheet";
 import { Skeleton } from "./skeleton";
 import { TooltipContent } from "./tooltip";
 import { cn } from "@/lib/utils";
@@ -185,7 +185,6 @@ export const Sidebar = createComponent(function Sidebar(
 			.Then(
 				Sheet(
 					{ open: sidebar.openMobile },
-					SheetOverlay(),
 					SheetContent(
 						{
 							side,

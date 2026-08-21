@@ -19,8 +19,11 @@ export type AlertDialogTriggerProps = ComponentProps<typeof AlertDialogTriggerPr
 	variant?: ButtonVariant;
 	size?: ButtonSize;
 };
-export type AlertDialogContentProps = ComponentProps<typeof AlertDialogContentPrimitive>;
 export type AlertDialogOverlayProps = ComponentProps<typeof AlertDialogOverlayPrimitive>;
+export type AlertDialogContentProps = ComponentProps<typeof AlertDialogContentPrimitive> & {
+	/** Props for the overlay the content renders behind itself. */
+	overlay?: AlertDialogOverlayProps;
+};
 export type AlertDialogCancelProps = ComponentProps<typeof AlertDialogCancelPrimitive> & {
 	variant?: ButtonVariant;
 	size?: ButtonSize;
@@ -87,24 +90,27 @@ export const AlertDialogOverlay = createComponent(function AlertDialogOverlay(
 });
 
 export const AlertDialogContent = createComponent(function AlertDialogContent(
-	{ class: className, ...props }: AlertDialogContentProps,
+	{ class: className, overlay = {}, ...props }: AlertDialogContentProps,
 	...children: Child[]
 ) {
-	return AlertDialogContentPrimitive(
-		{
-			...props,
-			"data-slot": "alert-dialog-content",
-			class: cn(
-				"fixed top-1/2 left-1/2 z-[calc(50+var(--ip-nested-level,0))] grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 text-foreground shadow-lg outline-none sm:max-w-lg",
-				"transition-[opacity,scale,translate,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
-				"data-[state=open]:grid data-[state=open]:scale-[calc(1-0.05*var(--ip-nested-count,0))] data-[state=open]:opacity-100",
-				"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:scale-95 data-[state=closed]:opacity-0",
-				"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
-				"data-[nested-open]:-translate-y-[calc(50%+(0.5rem*var(--ip-nested-count,0)))]",
-				className,
-			),
-		},
-		...children,
+	return AlertDialogPortal(
+		AlertDialogOverlay(overlay),
+		AlertDialogContentPrimitive(
+			{
+				...props,
+				"data-slot": "alert-dialog-content",
+				class: cn(
+					"fixed top-1/2 left-1/2 z-[calc(50+var(--ip-nested-level,0))] grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 text-foreground shadow-lg outline-none sm:max-w-lg",
+					"transition-[opacity,scale,translate,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
+					"data-[state=open]:grid data-[state=open]:scale-[calc(1-0.05*var(--ip-nested-count,0))] data-[state=open]:opacity-100",
+					"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:scale-95 data-[state=closed]:opacity-0",
+					"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
+					"data-[nested-open]:-translate-y-[calc(50%+(0.5rem*var(--ip-nested-count,0)))]",
+					className,
+				),
+			},
+			...children,
+		),
 	);
 });
 

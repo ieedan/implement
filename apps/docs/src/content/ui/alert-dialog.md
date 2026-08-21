@@ -28,7 +28,7 @@ Copy the file below to `src/lib/components/ui/alert-dialog.ts`. It imports `cn` 
 
 An alert dialog is the [dialog](/ui/dialog) with the escape hatches removed: no close button in the corner, and no dismissing by clicking the overlay. The only ways out are `AlertDialogCancel` and `AlertDialogAction`, which is the point — the user has to answer.
 
-All three buttons take `variant` and `size` from the button styles, so a destructive confirmation is one prop.
+`AlertDialogContent` renders its own `AlertDialogOverlay` inside an `AlertDialogPortal`, so the scrim is never yours to place. All three buttons take `variant` and `size` from the button styles, so a destructive confirmation is one prop.
 
 ```ts
 import {
@@ -37,14 +37,12 @@ import {
 	AlertDialogCancel,
 	AlertDialogContent,
 	AlertDialogDescription,
-	AlertDialogOverlay,
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/lib/components/ui/alert-dialog";
 
 AlertDialog(
 	AlertDialogTrigger({ variant: "destructive" }, "Delete account"),
-	AlertDialogOverlay(),
 	AlertDialogContent(
 		AlertDialogTitle("Are you absolutely sure?"),
 		AlertDialogDescription("This permanently deletes your account."),

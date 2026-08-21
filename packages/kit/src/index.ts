@@ -264,6 +264,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				hasLoads: treeHasLoads(scanned.root),
 				serverRoutes: serverRoutes(scanned),
 				logger: console,
+				source: { root, routes },
 			});
 		},
 	};
@@ -443,6 +444,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 						res,
 						entry: ENTRY_SERVER,
 						shell: shell?.path ?? null,
+						routes,
 					}).then((handled) => {
 						if (!handled) next();
 					}, next);

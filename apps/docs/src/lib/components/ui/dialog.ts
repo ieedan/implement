@@ -21,6 +21,8 @@ export type DialogTriggerProps = ComponentProps<typeof DialogTriggerPrimitive> &
 };
 export type DialogContentProps = ComponentProps<typeof DialogContentPrimitive> & {
 	showCloseButton?: boolean;
+	/** Props for the overlay the content renders behind itself. */
+	overlay?: DialogOverlayProps;
 };
 export type DialogOverlayProps = ComponentProps<typeof DialogOverlayPrimitive>;
 export type DialogCloseProps = ComponentProps<typeof DialogClosePrimitive> & {
@@ -82,35 +84,38 @@ export const DialogOverlay = createComponent(function DialogOverlay(
 });
 
 export const DialogContent = createComponent(function DialogContent(
-	{ class: className, showCloseButton = true, ...props }: DialogContentProps,
+	{ class: className, showCloseButton = true, overlay = {}, ...props }: DialogContentProps,
 	...children: Child[]
 ) {
-	return DialogContentPrimitive(
-		{
-			...props,
-			"data-slot": "dialog-content",
-			class: cn(
-				"fixed top-1/2 left-1/2 z-[calc(50+var(--ip-nested-level,0))] grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 text-foreground shadow-lg outline-none sm:max-w-lg",
-				"transition-[opacity,scale,translate,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
-				"data-[state=open]:grid data-[state=open]:scale-[calc(1-0.05*var(--ip-nested-count,0))] data-[state=open]:opacity-100",
-				"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:scale-95 data-[state=closed]:opacity-0",
-				"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
-				"data-[nested-open]:-translate-y-[calc(50%+(0.5rem*var(--ip-nested-count,0)))]",
-				className,
-			),
-		},
-		...children,
-		showCloseButton
-			? DialogClose(
-					{
-						variant: "ghost",
-						size: "icon-sm",
-						class: "absolute top-3 right-3",
-					},
-					XIcon({ class: "size-4", "aria-hidden": true }),
-					Span({ class: "sr-only" }, "Close"),
-				)
-			: null,
+	return DialogPortal(
+		DialogOverlay(overlay),
+		DialogContentPrimitive(
+			{
+				...props,
+				"data-slot": "dialog-content",
+				class: cn(
+					"fixed top-1/2 left-1/2 z-[calc(50+var(--ip-nested-level,0))] grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 text-foreground shadow-lg outline-none sm:max-w-lg",
+					"transition-[opacity,scale,translate,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
+					"data-[state=open]:grid data-[state=open]:scale-[calc(1-0.05*var(--ip-nested-count,0))] data-[state=open]:opacity-100",
+					"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:scale-95 data-[state=closed]:opacity-0",
+					"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
+					"data-[nested-open]:-translate-y-[calc(50%+(0.5rem*var(--ip-nested-count,0)))]",
+					className,
+				),
+			},
+			...children,
+			showCloseButton
+				? DialogClose(
+						{
+							variant: "ghost",
+							size: "icon-sm",
+							class: "absolute top-3 right-3",
+						},
+						XIcon({ class: "size-4", "aria-hidden": true }),
+						Span({ class: "sr-only" }, "Close"),
+					)
+				: null,
+		),
 	);
 });
 

@@ -1,11 +1,12 @@
-import { readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer as createHttpServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import type { RenderToStringResult } from "@implementjs/core/server";
-import { createServer, type ViteDevServer } from "vite";
+import { createLogger, createServer, type ViteDevServer } from "vite";
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and dynamic module loading require intentional narrowing. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { prerenderServerFiles } from "../src/dev.ts";
 import { kit } from "../src/index.ts";
 
 const fixture = join(import.meta.dirname, "fixtures/basic");
@@ -15,12 +16,17 @@ type RenderResult = RenderToStringResult & { data?: Record<string, unknown> };
 describe("kit plugin (dev SSR through the generated entries)", () => {
 	let server: ViteDevServer;
 	let render: (url: string) => Promise<RenderResult>;
+	/** What the dev server printed — the terminal a developer would be watching. */
+	const logged: string[] = [];
 
 	beforeAll(async () => {
+		const logger = createLogger("error");
+		logger.error = (message) => logged.push(message);
 		server = await createServer({
 			root: fixture,
 			configFile: false,
 			logLevel: "error",
+			customLogger: logger,
 			server: { middlewareMode: true, watch: null },
 			plugins: [kit({ alias: { $lib: "src/lib" } })],
 		});
@@ -212,6 +218,68 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			expect(response.status).toBe(404);
 			expect(await response.text()).toContain("<p>not found</p>");
 		});
+	});
+
+	it("prints a server error to the dev log, with the file it came from", async () => {
+		await withListener(async (origin) => {
+			logged.length = 0;
+			const page = await fetch(`${origin}/boom`, { headers: { accept: "text/html" } });
+			expect(page.status).toBe(500);
+			// the browser only gets the app's error page, so the terminal has to say it all
+			expect(await page.text()).toContain("<p>not found</p>");
+			expect(logged).toHaveLength(1);
+			// kit's own line, not the dev server's — vite tags the ones it writes
+			expect(logged[0]).toContain("[implement] GET /boom → 500");
+			expect(logged[0]).not.toContain("[vite]");
+			expect(logged[0]).toContain("GET /boom → 500 — load in src/routes/boom/page.server.ts");
+			expect(logged[0]).toContain("Error: load blew up");
+			// the app's own frames, relative to the root, without kit's pipeline
+			expect(logged[0]).toContain("at readThing (src/routes/boom/page.server.ts:");
+			expect(logged[0]).not.toContain("/packages/kit/src/");
+
+			logged.length = 0;
+			const data = await fetch(`${origin}/boom/__data.json`);
+			expect(data.status).toBe(500);
+			expect(logged[0]).toContain(
+				"GET /boom (__data.json) → 500 — load in src/routes/boom/page.server.ts",
+			);
+
+			logged.length = 0;
+			const endpoint = await fetch(`${origin}/boom-endpoint`);
+			expect(endpoint.status).toBe(500);
+			expect(logged[0]).toContain(
+				"GET /boom-endpoint → 500 — GET handler in src/routes/boom-endpoint/server.ts",
+			);
+			expect(logged[0]).toContain("Error: endpoint blew up");
+		});
+	});
+
+	it("prints a server error the build hits while writing route data", async () => {
+		const errors: string[] = [];
+		const outDir = join(fixture, "dist-test");
+		try {
+			await prerenderServerFiles({
+				routes: ["/data-page", "/boom"],
+				outDir,
+				load: (id) => server.ssrLoadModule(id) as Promise<Record<string, unknown>>,
+				entry: "/.implement/entry-server.ts",
+				hasLoads: true,
+				serverRoutes: [],
+				logger: { info: () => {}, warn: () => {}, error: (message) => errors.push(message) },
+				source: { root: fixture, routes: "src/routes" },
+			});
+			// the healthy route is written; the broken one says why instead of
+			// leaving one payload fewer behind
+			expect(readFileSync(join(outDir, "data-page/__data.json"), "utf8")).toContain("layout-data");
+			expect(existsSync(join(outDir, "boom/__data.json"))).toBe(false);
+			expect(errors).toHaveLength(1);
+			expect(errors[0]).toContain("[implement] GET /boom");
+			expect(errors[0]).toContain(
+				"GET /boom (__data.json) → 500 — load in src/routes/boom/page.server.ts",
+			);
+		} finally {
+			rmSync(outDir, { recursive: true, force: true });
+		}
 	});
 
 	it("serves static files from static/ by default", async () => {

@@ -30,7 +30,7 @@ npm install @implementjs/lucide
 
 ## Usage
 
-`DialogContent` is a centered panel that scales in; `DialogOverlay` is the scrim behind it. Both are `fixed`, so where you put them in the tree does not matter — though `DialogPortal` is there for when it does.
+`DialogContent` is a centered panel that scales in. It brings the scrim and the portal with it: `DialogOverlay` renders behind the panel and `DialogPortal` mounts the pair on `document.body`, so neither is yours to place. Both stay exported for a layout that composes the panel itself out of the [primitives](/primitives/docs/dialog) — pairing them with the styled `DialogContent` only gets you two overlays.
 
 A close button in the top right corner is included. `showCloseButton: false` removes it, for a dialog that has to be answered through its own buttons — or use an [alert dialog](/ui/alert-dialog), which has no escape hatches at all.
 
@@ -40,14 +40,12 @@ import {
 	DialogClose,
 	DialogContent,
 	DialogDescription,
-	DialogOverlay,
 	DialogTitle,
 	DialogTrigger,
 } from "@/lib/components/ui/dialog";
 
 Dialog(
 	DialogTrigger({ variant: "outline" }, "Edit profile"),
-	DialogOverlay(),
 	DialogContent(
 		DialogTitle("Edit profile"),
 		DialogDescription("Make changes to your profile here."),
@@ -71,7 +69,7 @@ Pass `open` as a signal to drive the dialog from outside, with or without a trig
 ```ts
 const open = signal(false);
 
-Dialog({ open }, DialogOverlay(), DialogContent(DialogTitle("Saved")));
+Dialog({ open }, DialogContent(DialogTitle("Saved")));
 ```
 
 ## API Reference

@@ -67,7 +67,6 @@ A palette is usually a modal. Put the command inside a [dialog](/ui/dialog) and 
 ```ts
 Dialog(
 	{ open },
-	DialogOverlay(),
 	DialogContent(
 		{ class: "p-0", showCloseButton: false },
 		Command({ label: "Command palette" }, CommandInput(), CommandList(/* ... */)),

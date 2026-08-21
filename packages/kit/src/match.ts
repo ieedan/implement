@@ -6,6 +6,8 @@
  * half runs inside `vite.config.ts` under plain node.
  */
 
+import { markErrorSource } from "./errors.ts";
+
 /** Load results keyed by the server file that produced them (`docs/page.server.ts`). */
 export type RouteData = Record<string, unknown>;
 
@@ -144,7 +146,13 @@ export async function runLoads(route: PageRoute, event: LoadEvent): Promise<Rout
 	if (route.files.length === 0) return null;
 	const data: RouteData = {};
 	for (const { id, load } of route.files) {
-		data[id] = (await load(event)) ?? {};
+		try {
+			data[id] = (await load(event)) ?? {};
+		} catch (thrown) {
+			// which load of the chain was running is the one thing the trace
+			// cannot say once the failure is a few awaits deep in a helper
+			throw markErrorSource(thrown, { kind: "load", file: id });
+		}
 	}
 	return data;
 }

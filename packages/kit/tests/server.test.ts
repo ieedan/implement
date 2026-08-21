@@ -7,6 +7,7 @@ import {
 	sequence,
 	type Handle,
 	type KitServerOptions,
+	type ServerErrorReport,
 	type ServerHooks,
 } from "../src/server.ts";
 
@@ -307,6 +308,159 @@ describe("error, redirect, and handleError", () => {
 		expect(response.status).toBe(418);
 		expect(response.headers.get("content-type")).toContain("text/plain");
 		expect(await response.text()).toBe("Teapot");
+	});
+});
+
+/** Runs a request through a server with a reporter attached, the way the dev server does. */
+const reported = async (
+	kit: ReturnType<typeof server>,
+	path: string,
+	init?: RequestInit,
+): Promise<{ response: Response; reports: ServerErrorReport[] }> => {
+	const reports: ServerErrorReport[] = [];
+	const response = await kit.respond(new Request(`http://localhost${path}`, init), {
+		document: ({ render }) => `<body>${render.html}</body>`,
+		onError: (report) => reports.push(report),
+	});
+	return { response, reports };
+};
+
+describe("reporting errors to the host", () => {
+	it("reports an unexpected error with the load that threw", async () => {
+		const boom = new Error("boom");
+		const kit = server(
+			{},
+			{
+				pages: [
+					page("/loaded", [
+						{
+							id: "loaded/page.server.ts",
+							load: () => {
+								throw boom;
+							},
+						},
+					]),
+				],
+			},
+		);
+		const { response, reports } = await reported(kit, "/loaded");
+		expect(response.status).toBe(500);
+		expect(reports).toHaveLength(1);
+		expect(reports[0]).toMatchObject({
+			error: boom,
+			status: 500,
+			source: { kind: "load", file: "loaded/page.server.ts" },
+		});
+		expect(reports[0]?.event.url.pathname).toBe("/loaded");
+
+		// and the same load reached through a client navigation's data request
+		const data = await reported(kit, "/loaded/__data.json");
+		expect(data.reports[0]?.source).toEqual({ kind: "load", file: "loaded/page.server.ts" });
+	});
+
+	it("reports an endpoint handler with its file and method", async () => {
+		const kit = server(
+			{},
+			{
+				endpoints: [
+					endpoint("/api", {
+						POST: () => {
+							throw new Error("boom");
+						},
+					}),
+				],
+			},
+		);
+		const { reports } = await reported(kit, "/api", { method: "POST" });
+		expect(reports[0]?.source).toEqual({
+			kind: "endpoint",
+			file: "/api/server.ts",
+			method: "POST",
+		});
+	});
+
+	it("reports a render that throws, and the error page that throws over it", async () => {
+		const kit = server(
+			{},
+			{
+				renderPage: () => {
+					throw new Error("component blew up");
+				},
+			},
+		);
+		const { reports } = await reported(kit, "/");
+		expect(reports.map((entry) => entry.source)).toEqual([
+			{ kind: "render" },
+			{ kind: "error-page" },
+		]);
+	});
+
+	it("reports an error the hooks threw, with nothing else to attribute it to", async () => {
+		const kit = server({
+			handle: () => {
+				throw new Error("boom");
+			},
+		});
+		const { reports } = await reported(kit, "/users/7");
+		expect(reports[0]?.source).toBeNull();
+		expect(reports[0]?.event.route.id).toBe("/users/:id");
+	});
+
+	it("reports even when the app's handleError answers the request itself", async () => {
+		const handleError = vi.fn(() => ({ message: "Something broke" }));
+		const kit = server({
+			handleError,
+			handle: () => {
+				throw new Error("boom");
+			},
+		});
+		const { response, reports } = await reported(kit, "/");
+		expect(reports).toHaveLength(1);
+		expect(handleError).toHaveBeenCalledOnce();
+		expect(await response.text()).toContain("<p>Something broke</p>");
+	});
+
+	it("reports before handleError, so a handleError that throws is not the last word", async () => {
+		const boom = new Error("boom");
+		const kit = server({
+			handleError: () => {
+				throw new Error("the reporter is down");
+			},
+			handle: () => {
+				throw boom;
+			},
+		});
+		const reports: ServerErrorReport[] = [];
+		await expect(
+			kit.respond(new Request("http://localhost/"), { onError: (report) => reports.push(report) }),
+		).rejects.toThrow("the reporter is down");
+		expect(reports[0]?.error).toBe(boom);
+	});
+
+	it("leaves expected errors and redirects alone", async () => {
+		const kit = server({ handle: () => error(403, "Nope") });
+		expect((await reported(kit, "/")).reports).toEqual([]);
+
+		const away = server({ handle: () => redirect(303, "/login") });
+		expect((await reported(away, "/")).reports).toEqual([]);
+	});
+
+	it("logs the error itself only when nothing is reporting", async () => {
+		const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+		try {
+			const kit = server({
+				handle: () => {
+					throw new Error("boom");
+				},
+			});
+			await reported(kit, "/");
+			expect(logged).not.toHaveBeenCalled();
+
+			await get(kit, "/");
+			expect(logged).toHaveBeenCalledOnce();
+		} finally {
+			logged.mockRestore();
+		}
 	});
 });
 
