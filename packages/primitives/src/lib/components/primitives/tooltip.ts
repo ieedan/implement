@@ -659,7 +659,7 @@ export const TooltipContent = createComponent(function TooltipContent(
 ) {
 	return TooltipContext.Use((rootState) => {
 		const contentRef = ref<HTMLDivElement>();
-		const _contentState = new TooltipContentState(rootState, {
+		void new TooltipContentState(rootState, {
 			id,
 			ref: contentRef,
 			side,

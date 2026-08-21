@@ -295,7 +295,7 @@ export const PopoverContent = createComponent(function PopoverContent(
 ) {
 	return PopoverContext.Use((rootState) => {
 		const contentRef = ref<HTMLDivElement>();
-		const _contentState = new PopoverContentState(rootState, {
+		void new PopoverContentState(rootState, {
 			id,
 			ref: contentRef,
 			side,

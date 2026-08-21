@@ -330,7 +330,7 @@ export const LinkPreviewContent = createComponent(function LinkPreviewContent(
 ) {
 	return LinkPreviewCtx.Use((state) => {
 		const contentRef = ref<HTMLDivElement>();
-		const _contentState = new LinkPreviewContentState(state, {
+		void new LinkPreviewContentState(state, {
 			id,
 			ref: contentRef,
 			side,
