@@ -6,6 +6,7 @@ import {
 	gitignore,
 	indexHtml,
 	packageJson,
+	signUpFormComponent,
 	styles,
 	tsconfig,
 	vitePlugins,
@@ -46,6 +47,9 @@ export const kit: Template = {
 		{ path: "src/routes/about/index.ts", contents: aboutPage(ctx) },
 		{ path: "src/routes/error.ts", contents: errorPage(ctx) },
 		{ path: "src/lib/counter.ts", contents: counter(ctx) },
+		...(hasAddon(ctx, "forms")
+			? [{ path: "src/lib/sign-up-form.ts", contents: signUpFormComponent(ctx) }]
+			: []),
 		{ path: "static/favicon.svg", contents: favicon() },
 		{ path: ".gitignore", contents: gitignore() },
 		{ path: "README.md", contents: readme(ctx) },
@@ -56,6 +60,7 @@ function pkg(ctx: TemplateContext): string {
 	const deps: Dependency[] = ["@implementjs/core"];
 	if (hasAddon(ctx, "primitives")) deps.push("@implementjs/primitives");
 	if (hasAddon(ctx, "icons")) deps.push("@implementjs/lucide");
+	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
 
 	const devDeps: Dependency[] = ["@implementjs/kit", "@types/node", "typescript", "vite"];
 	if (hasAddon(ctx, "tailwind")) devDeps.push("@tailwindcss/vite", "tailwindcss");
@@ -183,8 +188,15 @@ function counter(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "primitives")) {
 		links.push({ label: "Primitives", href: `${DOCS_URL}/tree/main/packages/primitives` });
 	}
+	if (hasAddon(ctx, "forms")) {
+		links.push({ label: "Forms", href: `${DOCS_URL}/tree/main/packages/formish` });
+	}
 
-	return counterComponent(ctx, { editPath: "src/lib/counter.ts", links });
+	return counterComponent(ctx, {
+		editPath: "src/lib/counter.ts",
+		links,
+		formImport: "@/lib/sign-up-form",
+	});
 }
 
 function favicon(): string {

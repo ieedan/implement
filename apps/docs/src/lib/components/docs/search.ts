@@ -24,7 +24,15 @@ import {
 	DialogTitle as DialogTitlePrimitive,
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
-import { kitPages, lucidePages, pages, primitivePages, tutorials, uiPages } from "@/lib/content";
+import {
+	formishPages,
+	kitPages,
+	lucidePages,
+	pages,
+	primitivePages,
+	tutorials,
+	uiPages,
+} from "@/lib/content";
 import { copyText } from "@/lib/copy-text";
 import {
 	searchPages,
@@ -52,7 +60,7 @@ import {
 } from "../ui/dropdown-menu";
 import { MarkdownIcon } from "./brand-icons";
 
-type AreaKey = "lib" | "kit" | "primitives" | "ui" | "lucide" | "tutorial";
+type AreaKey = "lib" | "kit" | "primitives" | "ui" | "formish" | "lucide" | "tutorial";
 
 type Area = {
 	key: AreaKey;
@@ -72,6 +80,7 @@ const areas: Area[] = [
 		markdown: true,
 	},
 	{ key: "ui", label: "@implementjs/ui", pages: uiPages, markdown: true },
+	{ key: "formish", label: "@implementjs/formish", pages: formishPages, markdown: true },
 	{ key: "lucide", label: "@implementjs/lucide", pages: lucidePages, markdown: true },
 	{ key: "tutorial", label: "Tutorial", pages: tutorials, markdown: false },
 ];

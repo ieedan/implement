@@ -1,11 +1,17 @@
 import * as implement from "@implementjs/core";
+import * as formish from "@implementjs/formish";
 import * as lucide from "@implementjs/lucide";
 import * as primitives from "@implementjs/primitives";
 import { transform } from "sucrase";
+import * as valibot from "valibot";
 
 const IMPLEMENT = "@implementjs/core";
+const FORMISH = "@implementjs/formish";
 const LUCIDE = "@implementjs/lucide";
 const PRIMITIVES = "@implementjs/primitives";
+// formish validates with any Standard Schema library; valibot is the one the
+// docs use, so an edited demo can import it too
+const VALIBOT = "valibot";
 
 export type ShimModule = Record<string, unknown>;
 
@@ -120,8 +126,10 @@ export async function importLessonModule(
 ): Promise<{ mod: Record<string, unknown>; revoke: () => void }> {
 	const modules: Record<string, ShimModule> = {
 		[IMPLEMENT]: implement as unknown as ShimModule,
+		[FORMISH]: formish as unknown as ShimModule,
 		[LUCIDE]: lucide as unknown as ShimModule,
 		[PRIMITIVES]: primitives as unknown as ShimModule,
+		[VALIBOT]: valibot as unknown as ShimModule,
 		...extraModules,
 	};
 	const rewritten = rewriteImports(transpile(code), modules);
@@ -181,8 +189,10 @@ export async function importLessonProject(
 ): Promise<{ modules: Map<string, Record<string, unknown>>; revoke: () => void }> {
 	const shimModules: Record<string, ShimModule> = {
 		[IMPLEMENT]: implement as unknown as ShimModule,
+		[FORMISH]: formish as unknown as ShimModule,
 		[LUCIDE]: lucide as unknown as ShimModule,
 		[PRIMITIVES]: primitives as unknown as ShimModule,
+		[VALIBOT]: valibot as unknown as ShimModule,
 		...extraModules,
 	};
 	for (const [specifier, moduleObject] of Object.entries(shimModules)) {

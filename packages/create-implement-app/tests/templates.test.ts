@@ -128,6 +128,37 @@ describe("templates", () => {
 		).toBeDefined();
 	});
 
+	it.each(TEMPLATES)("%s only pulls in formish when the addon is selected", (id) => {
+		const formPath = id === "kit" ? "src/lib/sign-up-form.ts" : "src/sign-up-form.ts";
+		const counterPath = id === "kit" ? "src/lib/counter.ts" : "src/counter.ts";
+
+		const without = fileMap(id, ctx());
+		expect(without.has(formPath)).toBe(false);
+		expect(without.get(counterPath)).not.toContain("SignUpForm");
+		expect(pkg(without).dependencies["@implementjs/formish"]).toBeUndefined();
+
+		const withForms = fileMap(id, ctx({ addons: ["forms"] }));
+		expect(withForms.get(formPath)).toContain('from "@implementjs/formish"');
+		expect(withForms.get(formPath)).toContain("createForm({ schema: SignUpSchema })");
+		// the counter page renders it, so a new app opens on a working form
+		expect(withForms.get(counterPath)).toContain("SignUpForm()");
+		expect(pkg(withForms).dependencies["@implementjs/formish"]).toBeDefined();
+		expect(pkg(withForms).dependencies.valibot).toBeDefined();
+	});
+
+	it("the form's class names follow the tailwind addon", () => {
+		const plain = fileMap("csr", ctx({ addons: ["forms"] })).get("src/sign-up-form.ts") ?? "";
+		expect(plain).toContain('input: "input"');
+		expect(fileMap("csr", ctx({ addons: ["tailwind"] })).get("src/app.css")).not.toContain(
+			".input {",
+		);
+		expect(fileMap("csr", ctx({ addons: ["forms"] })).get("src/app.css")).toContain(".input {");
+
+		const tailwind =
+			fileMap("csr", ctx({ addons: ["tailwind", "forms"] })).get("src/sign-up-form.ts") ?? "";
+		expect(tailwind).toContain("rounded-md border border-zinc-800");
+	});
+
 	it("every template and addon combination writes the same files twice", () => {
 		for (const id of TEMPLATES) {
 			const context = ctx({ addons: [...ADDONS] });
