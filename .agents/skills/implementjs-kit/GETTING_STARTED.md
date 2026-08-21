@@ -1,6 +1,6 @@
 # How to create and structure an `@implementjs/kit` app
 
-`@implementjs/kit` is the fastest way to build an implement app. You write pages and layouts as files under `src/routes`, and kit turns them into a fully wired [router](./ROUTER.md) with typed params, server side rendering in dev, and a prerendered static site on build.
+`@implementjs/kit` is the fastest way to build an implement app. You write pages and layouts as files under `src/routes`, and kit turns them into a fully wired [router](./ROUTER.md) with typed params, server side rendering in dev, and a prerendered static site on build — or, with an [adapter](./ADAPTERS.md), a server that renders and answers endpoints per request.
 
 If you have used SvelteKit this will feel familiar. The conventions were borrowed on purpose.
 
@@ -278,15 +278,18 @@ kit({
 
 `entries` is a list of paths or a function returning one (async is fine). If you have a root `error.ts`, the build also renders it into a `404.html`, which most static hosts serve for unknown URLs automatically.
 
-`kit({ prerender: false })` turns prerendering off. You still get the SSR dev server, the build just stops at the client bundle, and you'll need to serve it with an SPA fallback so deep links resolve to `index.html`.
+`kit({ prerender: false })` turns prerendering off. You still get the SSR dev server, the build just stops at the client bundle, and you'll need to serve it with an SPA fallback so deep links resolve to `index.html`. `kit({ prerender: { default: false } })` is the softer version: the prerender runs, but only for routes that export `prerender = true`.
+
+**With an adapter** the build also produces a server, and the app can answer requests the way it does in dev — `POST` endpoints, webhooks, uploads, loads that read the session. See [Adapters](./ADAPTERS.md).
 
 ## Options
 
-`kit()` takes five options:
+`kit()` takes six options:
 
 - `routes` is the routes directory relative to your Vite root. Defaults to `"src/routes"`.
 - `hooks` is the server hooks file relative to your Vite root. Defaults to `"src/hooks.server.ts"`.
-- `prerender` is `false` to skip prerendering on build, or `{ entries }` to add dynamic routes to it.
+- `prerender` is `false` to skip prerendering on build, or `{ entries, default }` to add dynamic routes to it and set what a route prerenders when it doesn't say for itself.
+- `adapter` is what to do with the finished build. Without one, `vite build` writes a static site and anything that needs a server at request time has nowhere to run. See [Adapters](./ADAPTERS.md).
 - `env` is where the two environment variable files live, relative to your Vite root. Defaults to `src/lib/env.public.ts` and `src/lib/env.server.ts`, and a file that isn't there turns that half off. See [Environment Variables](./ENVIRONMENT_VARIABLES.md).
 - `alias` is extra import aliases on top of the automatic `@/lib`, mapped to paths relative to your Vite root. Like `@/lib`, each one is wired into both Vite and the generated tsconfig, so the bundler and the typechecker always agree:
 

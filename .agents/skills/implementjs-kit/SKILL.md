@@ -15,3 +15,4 @@ All the resource you need to use `@implementjs/kit`:
 - [Loading Data](./LOADING_DATA.md) - How to load data from the server
 - [Server Routes](./SERVER_ROUTES.md) - How to serve raw responses with `server.ts` endpoints
 - [Environment Variables](./ENVIRONMENT_VARIABLES.md) - How to use environment variables
+- [Adapters](./ADAPTERS.md) - How to build the app for where it runs: a static host, a Node server, Vercel, Cloudflare
