@@ -112,6 +112,19 @@ export function dataChains(tree: RouteTree): Map<RouteNode, DataChain> {
 	return chains;
 }
 
+/**
+ * Every page pattern with the server files feeding its `data`, root first —
+ * the chain the prerender asks about a route's `prerender` flag, and the same
+ * one the router module builds its data manifest from.
+ */
+export function pageDataChains(tree: RouteTree): { pattern: string; files: string[] }[] {
+	const chains = dataChains(tree);
+	return [...pagePatterns(tree).entries()].map(([node, pattern]) => ({
+		pattern,
+		files: chains.get(node)!.pageFiles,
+	}));
+}
+
 export type RouteModules = {
 	/** Full path pattern, `:param`/`:...rest` style (`/docs/:...slug`). */
 	pattern: string;

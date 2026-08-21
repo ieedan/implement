@@ -19,6 +19,7 @@ function event(path = "/docs/install", routeId: string | null = "/docs/[...slug]
 		route: { id: routeId },
 		locals: {},
 		isDataRequest: false,
+		platform: undefined,
 		setHeaders: () => {},
 		getClientAddress: () => "",
 	};

@@ -10,27 +10,41 @@ export {
 	crawlRoutes,
 	normalizeRoute,
 	prerenderRoutes,
+	type CrawlOptions,
 	type RenderFn,
 	type TransformHtml,
 } from "./prerender.ts";
 export { collectDevStyles, devStyleTags, type DevStyle } from "./styles.ts";
 
-export type PrerenderContext = {
-	/** Every route that was prerendered. */
-	routes: string[];
-	/** Absolute path of the build output directory. */
-	outDir: string;
+/** What a build-time hook gets to reach the app's modules with. */
+export type BuildContext = {
 	render: RenderFn;
 	/** Load a module (real or virtual id) through the build-time SSR module runner. */
 	load: (id: string) => Promise<Record<string, unknown>>;
 };
 
+export type PrerenderContext = BuildContext & {
+	/** Every route that was prerendered. */
+	routes: string[];
+	/** Absolute path of the build output directory. */
+	outDir: string;
+};
+
+/** What runs once the client build (and any prerender) is done. */
+export type FinishContext = {
+	/** Every route that was prerendered — empty when prerendering is off. */
+	routes: string[];
+	/** Absolute path of the build output directory. */
+	outDir: string;
+};
+
 export type PrerenderOptions = {
 	/**
 	 * Routes to prerender. Defaults to crawling internal links from `/`.
-	 * A function receives the render so it can crawl and add to the result.
+	 * A function receives the build context so it can crawl for routes and
+	 * consult the app's own modules about which of them to keep.
 	 */
-	routes?: string[] | ((render: RenderFn) => string[] | Promise<string[]>);
+	routes?: string[] | ((context: BuildContext) => string[] | Promise<string[]>);
 	/**
 	 * A path matching no route, rendered into `404.html` so static hosts
 	 * serve the app's not-found fallback for unknown URLs.
@@ -55,6 +69,13 @@ export type ImplementOptions = {
 	entry?: string;
 	/** Prerender the built site into the output directory. @default true */
 	prerender?: boolean | PrerenderOptions;
+	/**
+	 * Runs once the client build is done and anything prerendered has been
+	 * written — the hook a host hangs its own output stage off, whether or not
+	 * prerendering is on. `@implementjs/kit` builds its server bundle and runs
+	 * the app's adapter here.
+	 */
+	finish?: (context: FinishContext) => void | Promise<void>;
 	/**
 	 * Server-render dev pages by injecting the entry's render into the html
 	 * shell as Vite transforms it. Turn this off when the host serves pages
@@ -118,28 +139,41 @@ export function implement(options: ImplementOptions = {}): Plugin {
 			},
 		},
 		async closeBundle() {
-			if (config.command !== "build" || config.build.ssr || prerender === false) return;
+			if (config.command !== "build" || config.build.ssr) return;
 			const outDir = isAbsolute(config.build.outDir)
 				? config.build.outDir
 				: join(config.root, config.build.outDir);
+			const finish = options.finish;
+			if (prerender === false) {
+				await finish?.({ routes: [], outDir });
+				return;
+			}
 			const template = readFileSync(join(outDir, "index.html"), "utf8");
 			// the sources render through a dev-mode module runner; the built
-			// client bundle has no render entry to import
+			// client bundle has no render entry to import. It runs on the config
+			// the build itself was given — plugins passed inline rather than
+			// through a config file are still the app's plugins, and a prerender
+			// that resolved modules differently from the build would be rendering
+			// a different app
+			const { build: _build, ...inline } = config.inlineConfig;
 			const dev = await createServer({
+				...inline,
 				root: config.root,
 				server: { middlewareMode: true },
 				appType: "custom",
 				logLevel: "error",
 			});
+			let routes: string[] = [];
 			try {
 				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SSR entry module exports the app render function.
 				const { render } = (await dev.ssrLoadModule(entry)) as { render: RenderFn };
+				const load = (id: string) => dev.ssrLoadModule(id) as Promise<Record<string, unknown>>;
 				const routesOption = typeof prerender === "object" ? prerender.routes : undefined;
-				const routes =
+				routes =
 					routesOption == null
 						? await crawlRoutes(render)
 						: typeof routesOption === "function"
-							? await routesOption(render)
+							? await routesOption({ render, load })
 							: routesOption;
 				const transformHtml = typeof prerender === "object" ? prerender.transformHtml : undefined;
 				const { written, failed } = await prerenderRoutes({
@@ -166,15 +200,13 @@ export function implement(options: ImplementOptions = {}): Plugin {
 					);
 				}
 				const after = typeof prerender === "object" ? prerender.after : undefined;
-				await after?.({
-					routes,
-					outDir,
-					render,
-					load: (id) => dev.ssrLoadModule(id) as Promise<Record<string, unknown>>,
-				});
+				await after?.({ routes, outDir, render, load });
 			} finally {
 				await dev.close();
 			}
+			// outside the module runner's lifetime: an adapter's own build runs
+			// here, and nothing it does should keep a dev server open
+			await finish?.({ routes, outDir });
 		},
 	};
 }
