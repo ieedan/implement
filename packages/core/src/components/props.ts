@@ -17,10 +17,41 @@ import type { Child } from "./types";
 export type BindableReadable<T> = ReadableSource<T>;
 
 /**
+ * A static value or a readable. The prop updates when the readable changes
+ * (signal → DOM). A readable may yield `undefined` to leave the prop unset —
+ * the same as omitting it.
+ */
+export type OneWayBindable<T> = T | BindableReadable<T | undefined>;
+
+/**
+ * A readable that is also writable. Use this in your own component props when
+ * write-back is required. Element props that can write back use
+ * {@link MaybeTwoWayBindable} instead, where `set` is optional.
+ */
+export type TwoWayBindable<T> = BindableReadable<T> & {
+	set(value: T): void;
+};
+
+/**
+ * A {@link OneWayBindable} whose readable may also be writable. `set` is
+ * optional: two-way props (`value`, `checked`, `open`) write the DOM back
+ * when it is present, and stay one-way when it is not.
+ */
+export type MaybeTwoWayBindable<T> =
+	| T
+	| (BindableReadable<T | undefined> & {
+			set?(value: T): void;
+	  });
+
+/**
  * A static value or a signal. Every element prop accepts this. A readable may
  * yield `undefined` to leave the prop unset — the same as omitting it.
+ *
+ * Two-way props (`value`, `checked`, `open`) are {@link MaybeTwoWayBindable}:
+ * the same shape, with `set` optional so hover shows write-back without
+ * requiring it. Force write-back in your own APIs with {@link TwoWayBindable}.
  */
-export type Bindable<T> = T | BindableReadable<T | undefined>;
+export type Bindable<T> = OneWayBindable<T>;
 
 type ClassPrimitive = string | number | bigint | boolean | null | undefined;
 
@@ -426,10 +457,10 @@ type TagAttributeMap = {
 	};
 	details: {
 		name?: Bindable<string>;
-		open?: Bindable<boolean>;
+		open?: MaybeTwoWayBindable<boolean>;
 	};
 	dialog: {
-		open?: Bindable<boolean>;
+		open?: MaybeTwoWayBindable<boolean>;
 	};
 	embed: {
 		height?: Bindable<number | string>;
@@ -485,7 +516,7 @@ type TagAttributeMap = {
 		alt?: Bindable<string>;
 		autocomplete?: Bindable<AutoComplete>;
 		capture?: Bindable<boolean | "user" | "environment">;
-		checked?: Bindable<boolean>;
+		checked?: MaybeTwoWayBindable<boolean>;
 		dirname?: Bindable<string>;
 		disabled?: Bindable<boolean>;
 		form?: Bindable<string>;
@@ -512,7 +543,7 @@ type TagAttributeMap = {
 		src?: Bindable<string>;
 		step?: Bindable<string | number>;
 		type?: Bindable<InputType>;
-		value?: Bindable<string | number>;
+		value?: MaybeTwoWayBindable<string | number>;
 		width?: Bindable<number | string>;
 	};
 	ins: {
@@ -615,7 +646,7 @@ type TagAttributeMap = {
 		name?: Bindable<string>;
 		required?: Bindable<boolean>;
 		size?: Bindable<number>;
-		value?: Bindable<string>;
+		value?: MaybeTwoWayBindable<string>;
 	};
 	slot: {
 		name?: Bindable<string>;
@@ -651,7 +682,7 @@ type TagAttributeMap = {
 		readOnly?: Bindable<boolean>;
 		required?: Bindable<boolean>;
 		rows?: Bindable<number>;
-		value?: Bindable<string>;
+		value?: MaybeTwoWayBindable<string>;
 		wrap?: Bindable<"hard" | "soft" | "off">;
 	};
 	th: {
