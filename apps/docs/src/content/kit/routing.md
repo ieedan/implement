@@ -7,26 +7,26 @@ order: 10
 
 Routes are directories under `src/routes`. A handful of file names mean something to kit, everything else in there is yours:
 
-- `index.ts` is a page. It renders when the URL matches its directory.
+- `page.ts` is a page. It renders when the URL matches its directory.
 - `layout.ts` wraps every page beneath it (including its own directory's page).
 - `error.ts` at the routes root renders when nothing matches or a render throws.
-- `index.server.ts` and `layout.server.ts` are [load functions](/kit/loading-data), and `server.ts` is a [server route](/kit/server-routes) — they run only on the server.
+- `page.server.ts` and `layout.server.ts` are [load functions](/kit/loading-data), and `server.ts` is a [server route](/kit/server-routes) — they run only on the server.
 
 So a routes directory like this:
 
 ```
 src/routes
-	index.ts          → /
+	page.ts           → /
 	layout.ts         → wraps everything
 	error.ts          → the 404 page
 	docs
-		index.ts        → /docs
+		page.ts         → /docs
 		layout.ts       → wraps /docs and /docs/*
 		[...slug]
-			index.ts      → /docs/anything/below
+			page.ts       → /docs/anything/below
 	users
 		[id]
-			index.ts      → /users/:id
+			page.ts       → /users/:id
 ```
 
 Any other file is colocated code and kit ignores it, so keep your components, helpers, and tests right next to the routes that use them. Dot-directories are skipped too.
@@ -36,7 +36,7 @@ Any other file is colocated code and kit ignores it, so keep your components, he
 A page default-exports a function that receives `params` and `url`:
 
 ```ts
-// src/routes/users/[id]/index.ts
+// src/routes/users/[id]/page.ts
 import { H1 } from "@implementjs/core";
 import type { PageProps } from "./$types";
 
@@ -72,7 +72,7 @@ Layouts are persistent. Navigating between two pages under the same layout doesn
 Wrap a directory name in brackets to bind a param, just like SvelteKit:
 
 - `[id]` matches one segment and binds it as `id`.
-- `[...slug]` is a catch-all. It matches one or more remaining segments joined with `/`, so `docs/[...slug]` matches `/docs/a` and `/docs/a/b` (but not `/docs` itself, give the `docs` directory its own `index.ts` for that). Nothing can nest below a catch-all.
+- `[...slug]` is a catch-all. It matches one or more remaining segments joined with `/`, so `docs/[...slug]` matches `/docs/a` and `/docs/a/b` (but not `/docs` itself, give the `docs` directory its own `page.ts` for that). Nothing can nest below a catch-all.
 
 Static segments always beat params at the same position, so `/users/new` wins over `/users/[id]` no matter what order the directories sort in. The same param name can't be bound twice on one path.
 

@@ -145,11 +145,11 @@ const treeHasLoads = (node: RouteNode): boolean =>
 	node.pageServer !== null || node.layoutServer !== null || node.children.some(treeHasLoads);
 
 /**
- * File-based routing for implement apps. Scans `src/routes` — `index.ts` is a
+ * File-based routing for implement apps. Scans `src/routes` — `page.ts` is a
  * page, `layout.ts` wraps everything beneath it, `[param]` and `[...rest]`
  * directories bind params, `(group)` directories scope a layout without
- * adding a URL segment, `index@<segment>.ts` / `layout@<segment>.ts` reset
- * the layout chain to an ancestor segment (`index@.ts` resets to the root),
+ * adding a URL segment, `page@<segment>.ts` / `layout@<segment>.ts` reset
+ * the layout chain to an ancestor segment (`page@.ts` resets to the root),
  * and a root `error.ts` renders unmatched paths and render errors —
  * and serves the app through `@implementjs/vite`'s SSR dev server and
  * prerenderer. The router itself is exposed as the `$implement/router`
@@ -157,7 +157,7 @@ const treeHasLoads = (node: RouteNode): boolean =>
  * tsconfig apps extend land in `.implement/`.
  *
  * Server files run only on the server (dev requests and the prerender):
- * `index.server.ts` / `layout.server.ts` export a load function whose result
+ * `page.server.ts` / `layout.server.ts` export a load function whose result
  * reaches the page or layout as its `data` readable — serialized into the
  * prerendered page, and fetched from `__data.json` on client navigation.
  * A `server.ts` exports request handlers (`GET`, `POST`, …) serving its

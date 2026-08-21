@@ -71,7 +71,7 @@ export const tutorials: Tutorial[] = generated.map(({ lessonDir, ...lesson }) =>
 /**
  * A lesson is either a single-file playground (`code.ts` / `solution.ts`
  * sidecars) or a multi-file app (`app/` / `solution/` directories mirroring a
- * project root, e.g. `app/src/routes/index.ts`). A lesson still being written
+ * project root, e.g. `app/src/routes/page.ts`). A lesson still being written
  * has neither yet, so in dev this reports the gap and yields no files — the
  * lesson page renders a placeholder instead of taking the site down.
  */

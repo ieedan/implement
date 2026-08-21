@@ -6,7 +6,7 @@
  * half runs inside `vite.config.ts` under plain node.
  */
 
-/** Load results keyed by the server file that produced them (`docs/index.server.ts`). */
+/** Load results keyed by the server file that produced them (`docs/page.server.ts`). */
 export type RouteData = Record<string, unknown>;
 
 /** Pathname with no trailing slash (the root is `"/"`). */

@@ -4,7 +4,7 @@ An initial spec document for a full stack framework for implement built on top o
 
 ## Routing File/Folder Structure (Phase 1)
 
-Pages will always be named `index.ts` and layouts will be named `layout.ts`.
+Pages will always be named `page.ts` and layouts will be named `layout.ts`.
 
 Parameters made by wrapping a name in `[]` you can use `...` as a catch all. (Just like in SvelteKit)
 
@@ -16,17 +16,17 @@ src/routes
         /[...slug]
             /.md
                 server.ts
-            index.ts
+            page.ts
             layout.ts
-        index.ts
+        page.ts
         layout.ts
-    index.ts
-    index.server.ts
+    page.ts
+    page.server.ts
     layout.ts
     layout.server.ts
 ```
 
-```ts src/routes/index.ts
+```ts src/routes/page.ts
 export default function Page() {}
 ```
 
@@ -36,7 +36,7 @@ export default function Layout({ children }) {
 }
 ```
 
-```ts src/routes/docs/[...slug]/index.ts
+```ts src/routes/docs/[...slug]/page.ts
 export default function Page({ params, url }) {
 	// these are not readable because Page will re-render whenever the URL changes (outside of like hash and search params)
 	params.slug; // string
@@ -56,12 +56,12 @@ src/routes
     /(authed)
         layout.ts            wraps everything in the group
         /dashboard
-            index.ts         -> /dashboard
+            page.ts          -> /dashboard
     /(marketing)
         layout.ts
         /about
-            index.ts         -> /about
-    index.ts                 -> /
+            page.ts          -> /about
+    page.ts                  -> /
 ```
 
 Two pages may not resolve to the same path through different groups — the scan
@@ -72,8 +72,8 @@ after `@` is the ancestor directory segment whose layout chain to keep; `@`
 alone resets to the root layout:
 
 ```
-index@.ts            page rendered with only the root layout
-index@(authed).ts    page keeps layouts up to and including (authed)
+page@.ts             page rendered with only the root layout
+page@(authed).ts     page keeps layouts up to and including (authed)
 layout@.ts           this layout inherits only the root layout
 layout@(authed).ts   this layout inherits up to and including (authed)
 ```
@@ -119,13 +119,13 @@ build's prerender — and never reach the browser bundle.
 
 ### `*.server.ts` load functions
 
-`index.server.ts` / `layout.server.ts` next to a page or layout default-export
+`page.server.ts` / `layout.server.ts` next to a page or layout default-export
 a load, SvelteKit-style. It receives the request event — `{ params, url,
 request, locals, … }`, `params` as plain strings — and returns a
 JSON-serializable object:
 
 ```ts
-// src/routes/blog/[slug]/index.server.ts
+// src/routes/blog/[slug]/page.server.ts
 export default async function load({ params, url }) {
 	return { post: await getPost(params.slug) };
 }
@@ -162,7 +162,7 @@ every page's markdown twin:
 src/routes/docs
 	.md/server.ts             → /docs.md
 	[...slug]
-		index.ts                → /docs/<slug>
+		page.ts                 → /docs/<slug>
 		.md/server.ts           → /docs/<slug>.md
 ```
 

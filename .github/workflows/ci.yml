@@ -66,6 +66,9 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # jsrepo resolves `@/lib` imports through `.implement/tsconfig.json`, so
+      # the registry needs syncing first or every aliased import is dropped.
+      - run: pnpm --filter @apps/docs sync
       # registry.json is committed so `fs://` and the git providers can read the
       # registry straight out of a checkout — rebuild it and fail if it drifted.
       - run: pnpm registry

@@ -60,9 +60,9 @@ describe("templates", () => {
 
 		expect([...files.keys()]).toEqual(
 			expect.arrayContaining([
-				"src/routes/index.ts",
+				"src/routes/page.ts",
 				"src/routes/layout.ts",
-				"src/routes/about/index.ts",
+				"src/routes/about/page.ts",
 				"src/routes/error.ts",
 				"src/lib/counter.ts",
 				"src/app.d.ts",
@@ -89,7 +89,7 @@ describe("templates", () => {
 		expect(files.get(".env.example")).toBe(files.get(".env"));
 		expect(files.get(".gitignore")).toContain(".env");
 		expect(files.get(".gitignore")).toContain("!.env.example");
-		expect(files.get("src/routes/about/index.ts")).toContain('from "@/lib/env.public"');
+		expect(files.get("src/routes/about/page.ts")).toContain('from "@/lib/env.public"');
 		// the schemas are evaluated at build time and inlined, so zod never ships
 		expect(pkg(files).devDependencies.zod).toBeDefined();
 		expect(pkg(files).dependencies.zod).toBeUndefined();

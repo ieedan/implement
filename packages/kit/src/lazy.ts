@@ -28,7 +28,7 @@ const handles = new Map<string, ModuleHandle<unknown>>();
 
 /**
  * Declares a lazily loaded route module. `id` is the module's root-relative
- * path (`src/routes/docs/index.ts`) — the key the route manifest below refers
+ * path (`src/routes/docs/page.ts`) — the key the route manifest below refers
  * to, and the same key Vite's build manifest uses, so the preload-hint pass
  * can look the two up against each other.
  */

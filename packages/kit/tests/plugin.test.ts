@@ -76,7 +76,7 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect(html).toContain("<p>dashboard</p>");
 	});
 
-	it("skips intermediate layouts for an index@ reset page", async () => {
+	it("skips intermediate layouts for a page@ reset page", async () => {
 		const { html } = await render("/dashboard/print");
 		expect(html).toContain('<main class="shell">');
 		expect(html).toContain("<p>print view</p>");
@@ -91,7 +91,7 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect(html).not.toContain('class="authed"');
 	});
 
-	it("resets an index@<segment> page to that ancestor's layout, keeping its params", async () => {
+	it("resets a page@<segment> page to that ancestor's layout, keeping its params", async () => {
 		const nested = await render("/shop/42");
 		expect(nested.html).toContain('<div class="shop">');
 		expect(nested.html).toContain('<div class="product">');
@@ -125,7 +125,7 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect(result.html).toContain("<p>layout-data / loaded /data-page</p>");
 		expect(result.data).toEqual({
 			"data-page/layout.server.ts": { shared: "layout-data" },
-			"data-page/index.server.ts": { message: "loaded /data-page" },
+			"data-page/page.server.ts": { message: "loaded /data-page" },
 		});
 	});
 
@@ -140,7 +140,7 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			expect(response.headers.get("content-type")).toBe("application/json");
 			expect(await response.json()).toEqual({
 				"data-page/layout.server.ts": { shared: "layout-data" },
-				"data-page/index.server.ts": { message: "loaded /data-page" },
+				"data-page/page.server.ts": { message: "loaded /data-page" },
 			});
 			const missing = await fetch(`${origin}/docs/__data.json`);
 			expect(missing.status).toBe(404);
@@ -186,7 +186,7 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			// the same locals reach the route's load through __data.json
 			const data = await fetch(`${origin}/locals/__data.json`, { headers: { "x-user": "grace" } });
 			expect(data.headers.get("x-data-request")).toBe("true");
-			expect(await data.json()).toEqual({ "locals/index.server.ts": { user: "grace" } });
+			expect(await data.json()).toEqual({ "locals/page.server.ts": { user: "grace" } });
 
 			// and an endpoint handler
 			const endpoint = await fetch(`${origin}/whoami`, { headers: { "x-user": "ada" } });

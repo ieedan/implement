@@ -81,7 +81,7 @@ function UrlBar(urlPath: Signal<string>): Mountable {
 	});
 }
 
-/** `about/index.ts` from ` /about/index.ts/ ` — or `null` when it can't be a file path. */
+/** `about/page.ts` from ` /about/page.ts/ ` — or `null` when it can't be a file path. */
 function normalizeNewPath(raw: string): string | null {
 	const trimmed = raw.trim().replace(/^\/+/, "").replace(/\/+$/, "");
 	if (trimmed === "") return null;

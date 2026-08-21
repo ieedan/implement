@@ -13,7 +13,7 @@ import {
 	type Mountable,
 	type Readable,
 } from "@implementjs/core";
-import type { PackageInfo } from "../../routes/packages/index.server";
+import type { PackageInfo } from "../../routes/packages/page.server";
 import { SiteHeader } from "../components/site-header";
 import { router } from "../router";
 
