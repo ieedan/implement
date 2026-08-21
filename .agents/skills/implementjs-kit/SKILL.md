@@ -13,4 +13,5 @@ All the resource you need to use `@implementjs/kit`:
 
 - [Router](./ROUTER.md) - How to use the router to navigate between pages
 - [Loading Data](./LOADING_DATA.md) - How to load data from the server
+- [Server Routes](./SERVER_ROUTES.md) - How to serve raw responses with `server.ts` endpoints
 - [Environment Variables](./ENVIRONMENT_VARIABLES.md) - How to use environment variables
