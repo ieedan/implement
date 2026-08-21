@@ -6,7 +6,7 @@ import {
 	type RenderFn,
 	type PrerenderOptions,
 } from "@implementjs/vite";
-import type { Plugin } from "vite";
+import type { Plugin, ViteDevServer } from "vite";
 import {
 	generateEndpointsModule,
 	generateLoadsModule,
@@ -15,11 +15,28 @@ import {
 	staticRoutePaths,
 } from "./codegen.ts";
 import { ENDPOINTS_ID, handleServerRequest, LOADS_ID, prerenderServerFiles } from "./dev.ts";
+import {
+	evaluateEnvFile,
+	exportNames,
+	loadRawEnv,
+	serializeEnvModule,
+	serverStubModule,
+	type EnvFileInfo,
+} from "./env.ts";
+import {
+	displayId,
+	importerChain,
+	isServerModule,
+	isServerSpecifier,
+	serverImportError,
+	type ImporterLookup,
+} from "./guard.ts";
 import { isRootShell, resolveShell, serveShell, shellOutputPlugin } from "./html.ts";
 import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
 import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
 export type { DataChain, PageRoute, ServerRoute } from "./codegen.ts";
+export { defineEnv, PUBLIC_PREFIX, type Env, type EnvKind, type EnvSchemas } from "./env.ts";
 export type { ExtensionEndpoint, RouteTree } from "./scan.ts";
 export { sync } from "./sync.ts";
 
@@ -29,6 +46,9 @@ const RESOLVED_LOADS_ID = `\0${LOADS_ID}`;
 const RESOLVED_ENDPOINTS_ID = `\0${ENDPOINTS_ID}`;
 /** Deliberately unmatched, so the fallback renders for the 404 page. */
 const NOT_FOUND_ROUTE = "/__implement__/not-found";
+
+const DEFAULT_ENV_PUBLIC = "src/lib/env.public.ts";
+const DEFAULT_ENV_SERVER = "src/lib/env.server.ts";
 
 export type KitPrerenderOptions = {
 	/**
@@ -53,7 +73,55 @@ export type KitOptions = {
 	 * ```
 	 */
 	alias?: Record<string, string>;
+	/**
+	 * Where the two environment-variable files live, relative to the Vite root.
+	 * A file that does not exist simply turns that half of the feature off.
+	 *
+	 * @default { public: "src/lib/env.public.ts", server: "src/lib/env.server.ts" }
+	 */
+	env?: { public?: string; server?: string };
 };
+
+/** One of the two env files, resolved against the Vite root. */
+type EnvFile = { path: string; info: EnvFileInfo };
+
+/**
+ * The two env files as absolute paths. Existence is not checked: the transform
+ * only ever sees an id Vite already loaded, so a file that is not there is a
+ * file nothing imports, and that half of the feature is simply off.
+ */
+function resolveEnvFiles(root: string, option: KitOptions["env"]): EnvFile[] {
+	const publicFile = normalizeFile(option?.public ?? DEFAULT_ENV_PUBLIC);
+	const serverFile = normalizeFile(option?.server ?? DEFAULT_ENV_SERVER);
+	return [
+		{
+			path: normalizeFile(join(root, publicFile)),
+			info: { kind: "public", file: publicFile, counterpart: serverFile },
+		},
+		{
+			path: normalizeFile(join(root, serverFile)),
+			info: { kind: "server", file: serverFile, counterpart: publicFile },
+		},
+	];
+}
+
+/** The environment a hook is running for — the client bundle, or a server graph. */
+type EnvironmentLike = { name: string; config?: { consumer?: string } };
+
+function isClientGraph(environment: EnvironmentLike | undefined, ssr?: boolean): boolean {
+	if (environment === undefined) return ssr !== true;
+	const consumer = environment.config?.consumer;
+	return consumer === undefined ? environment.name === "client" : consumer === "client";
+}
+
+function withoutQuery(id: string): string {
+	const cut = id.search(/[?#]/);
+	return cut === -1 ? id : id.slice(0, cut);
+}
+
+function normalizeFile(file: string): string {
+	return file.replaceAll("\\", "/");
+}
 
 const treeHasLoads = (node: RouteNode): boolean =>
 	node.pageServer !== null || node.layoutServer !== null || node.children.some(treeHasLoads);
@@ -111,6 +179,24 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	let routesDir = join(root, routes);
 	let tree: RouteTree | null = null;
 	let shell: { path: string; relative: string } | null = null;
+	let devServer: ViteDevServer | null = null;
+	/** Client-graph parents, recorded as rollup parses, for the importer chain. */
+	const clientParents = new Map<string, string>();
+	let envFiles: EnvFile[] = [];
+	let envValues: Record<string, string | undefined> = {};
+	let aliasTargets: Record<string, string> = {};
+
+	/** The evaluated exports of an env file, re-emitted as a module of literals. */
+	const inlineEnv = async (file: EnvFile): Promise<string> => {
+		const exports = await evaluateEnvFile({
+			path: file.path,
+			info: file.info,
+			values: envValues,
+			root,
+			alias: aliasTargets,
+		});
+		return serializeEnvModule(exports, file.info.file);
+	};
 
 	const scan = (): RouteTree => {
 		tree = scanRoutes(routesDir);
@@ -169,6 +255,14 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			root = config.root;
 			routesDir = join(root, routes);
 			shell = resolveShell(root);
+			envFiles = resolveEnvFiles(root, options.env);
+			// loadEnv does not populate process.env, so the env files cannot read it and expect
+			// .env to work — kit sources the raw values here and hands them to the evaluator.
+			// `envDir: false` turns .env files off entirely, leaving the environment itself.
+			envValues = config.envDir === false ? process.env : loadRawEnv(config.mode, config.envDir);
+			aliasTargets = Object.fromEntries(
+				Object.entries(aliases).map(([name, target]) => [name, resolve(root, target)]),
+			);
 			const scanned = scan();
 			writeGenerated(root, scanned, genOptions);
 			if (scanned.error !== null) prerenderConfig.notFound = NOT_FOUND_ROUTE;
@@ -194,7 +288,39 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			}
 			return null;
 		},
+		/**
+		 * Whole-module replacement, branching on the environment. The public file
+		 * becomes literals in both graphs; the server file becomes literals on the
+		 * server and, in the client graph, a throwing body holding no values at all
+		 * — so even a total guard bypass leaks nothing.
+		 *
+		 * Every export is inlined, not just the `defineEnv(...)` call: narrowing the
+		 * replacement to the call expression would leave `import { z } from "zod"`
+		 * and the schema expressions in the module, and "probably tree-shakes"
+		 * undercuts the whole reason for evaluating these files up front.
+		 */
+		async transform(code, id) {
+			const normalized = normalizeFile(id);
+			const file = withoutQuery(normalized);
+			const client = isClientGraph(this.environment);
+			for (const env of envFiles) {
+				if (env.path !== file) continue;
+				if (env.info.kind === "public" || !client) {
+					return { code: await inlineEnv(env), map: null };
+				}
+			}
+			// Layer 2: the client copy of any server file keeps its shape and throws. The full id
+			// goes in, not the stripped path — `?raw` asks for the file's text, not its bindings.
+			if (client && isServerModule(normalized)) {
+				return {
+					code: serverStubModule(await exportNames(file), displayId(file, root)),
+					map: null,
+				};
+			}
+			return null;
+		},
 		configureServer(server) {
+			devServer = server;
 			const isRouteFile = (file: string) =>
 				file.startsWith(routesDir + sep) && isRouteFileName(basename(file));
 			const regenerate = () => {
@@ -218,9 +344,26 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			const onDir = (dir: string) => {
 				if (dir.startsWith(routesDir + sep)) regenerate();
 			};
+			// Inlined literals do not hot-patch sensibly, so an edited env file invalidates its
+			// copy in every graph and forces a reload. Vite already restarts the server on a
+			// .env change, which re-reads the raw values from scratch.
+			const onEnvFile = (file: string) => {
+				const normalized = normalizeFile(file);
+				if (!envFiles.some((env) => env.path === normalized)) return;
+				for (const environment of Object.values(server.environments)) {
+					for (const mod of environment.moduleGraph.getModulesByFile(normalized) ?? []) {
+						environment.moduleGraph.invalidateModule(mod);
+					}
+				}
+				server.ws.send({ type: "full-reload" });
+			};
+
 			server.watcher.on("add", onFile);
 			server.watcher.on("unlink", onFile);
 			server.watcher.on("unlinkDir", onDir);
+			server.watcher.on("add", onEnvFile);
+			server.watcher.on("change", onEnvFile);
+			server.watcher.on("unlink", onEnvFile);
 
 			server.middlewares.use((req, res, next) => {
 				const scanned = tree ?? scan();
@@ -244,7 +387,71 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		},
 	};
 
+	/**
+	 * Layer 1, keyed on the importer: a client-graph module reaching for a server
+	 * file. Keying on the importer is what keeps it from firing while the client
+	 * copy of a server file resolves its own imports — that module is Layer 2's
+	 * job, and a guard that fired here would make it unreachable.
+	 *
+	 * `enforce: "pre"` because `vite:alias` resolves and short-circuits, so an
+	 * aliased `@/lib/env.server` never reaches a normally-ordered `resolveId`.
+	 */
+	const guardPlugin: Plugin = {
+		name: "implement-kit-guard",
+		enforce: "pre",
+		/**
+		 * Rollup fills `ModuleInfo.importers` in as it goes and Vite's dev container
+		 * does not implement it at all, so the chain is recorded here instead — a
+		 * module is parsed before rollup follows its imports, so every ancestor of a
+		 * violation is already known by the time the violation resolves.
+		 */
+		moduleParsed(info) {
+			if (!isClientGraph(this.environment)) return;
+			for (const imported of info.importedIds) {
+				if (!clientParents.has(imported)) clientParents.set(imported, info.id);
+			}
+		},
+		async resolveId(source, importer) {
+			if (
+				importer === undefined ||
+				importer.startsWith("\0") ||
+				// vite's plugin container attributes a bare request to the root index.html, so an
+				// html importer is usually no importer at all — and a shell that really does point
+				// a <script> at a server file is Layer 2's to answer, loudly, at evaluation
+				importer.endsWith(".html") ||
+				!isServerSpecifier(source) ||
+				isServerModule(importer) ||
+				!isClientGraph(this.environment)
+			) {
+				return null;
+			}
+			const resolved = await this.resolve(source, importer, { skipSelf: true });
+			if (resolved === null || !isServerModule(resolved.id)) return null;
+			// vite resolves a queried module against its own clean path (`x.server.ts?raw` asks to
+			// resolve `x.server.ts` with `x.server.ts?raw` as the importer). A module never imports
+			// itself, so that pairing is bookkeeping rather than a violation.
+			if (withoutQuery(resolved.id) === withoutQuery(importer)) return null;
+			const importers: ImporterLookup = (id) => {
+				const parent = clientParents.get(id);
+				if (parent !== undefined) return [parent];
+				const mod = devServer?.environments.client.moduleGraph.getModuleById(id);
+				if (mod == null) return [];
+				return [...mod.importers].map((node) => node.id ?? node.file ?? "").filter(Boolean);
+			};
+			return this.error(
+				serverImportError({
+					server: resolved.id,
+					importer,
+					source,
+					chain: importerChain(importer, importers),
+					root,
+				}),
+			);
+		},
+	};
+
 	return [
+		guardPlugin,
 		kitPlugin,
 		shellOutputPlugin(),
 		implement({

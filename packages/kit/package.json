@@ -25,7 +25,9 @@
 	},
 	"dependencies": {
 		"@implementjs/core": "workspace:*",
-		"@implementjs/vite": "workspace:*"
+		"@implementjs/vite": "workspace:*",
+		"@standard-schema/spec": "^1.1.0",
+		"esbuild": "^0.28.2"
 	},
 	"peerDependencies": {
 		"vite": "^7.0.0"
@@ -35,6 +37,7 @@
 		"tsdown": "^0.22.14",
 		"typescript": "^7.0.2",
 		"vite": "^7.3.0",
-		"vitest": "^4.0.18"
+		"vitest": "^4.0.18",
+		"zod": "^4.4.3"
 	}
 }

@@ -18,6 +18,7 @@ export const VERSIONS = {
 	tailwindcss: "^4.3.3",
 	typescript: "^7.0.2",
 	vite: "^7.3.0",
+	zod: "^4.4.3",
 } as const satisfies Record<string, string>;
 
 export type Dependency = keyof typeof VERSIONS;

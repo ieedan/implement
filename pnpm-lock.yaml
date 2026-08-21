@@ -175,6 +175,12 @@ importers:
       '@implementjs/vite':
         specifier: workspace:*
         version: link:../vite
+      '@standard-schema/spec':
+        specifier: ^1.1.0
+        version: 1.1.0
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -191,6 +197,9 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.1.11(@types/node@26.2.0)(happy-dom@20.11.2)(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
   packages/lucide:
     dependencies:
