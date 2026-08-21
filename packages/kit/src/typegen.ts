@@ -21,20 +21,49 @@ if (import.meta.hot) {
 app.render(router);
 `;
 
-const ENTRY_SERVER = `import { renderToString, type RenderToStringResult } from "@implementjs/core/server";
-import { resolveLoads, seedData, type RouteData } from "@implementjs/kit/runtime";
-import { loads } from "$implement/loads";
-import { router } from "$implement/router";
-
-export type RenderResult = RenderToStringResult & { data?: RouteData };
-
-export async function render(url: string): Promise<RenderResult> {
-	const data = await resolveLoads(loads, url);
-	if (data !== null) seedData(data);
-	const result = renderToString(router, { location: url });
-	return data === null ? result : { ...result, data };
+/**
+ * The generated server entry: the app's request pipeline. `render` is what the
+ * prerenderer calls; `respond` is what the dev server calls. Both run the
+ * app's `src/hooks.server.ts` around the page, endpoint, or route-data
+ * response.
+ */
+function entryServer(hasErrorPage: boolean): string {
+	const renderPage = hasErrorPage
+		? [
+				"		return renderToString(error === null ? router : errorPage(error), {",
+				"			location: url.pathname + url.search,",
+				"		});",
+			]
+		: [
+				"		// without a root error.ts there is no error page to render",
+				"		if (error !== null) return null;",
+				"		return renderToString(router, { location: url.pathname + url.search });",
+			];
+	return `${[
+		'import { renderToString } from "@implementjs/core/server";',
+		'import { seedData } from "@implementjs/kit/runtime";',
+		'import { createKitServer } from "@implementjs/kit/server";',
+		'import * as hooks from "$implement/hooks";',
+		'import { endpoints } from "$implement/endpoints";',
+		'import { pages } from "$implement/pages";',
+		`import { ${hasErrorPage ? "errorPage, router" : "router"} } from "$implement/router";`,
+		"",
+		'export type { RenderResult } from "@implementjs/kit/server";',
+		"",
+		"const server = createKitServer({",
+		"	hooks,",
+		"	pages,",
+		"	endpoints,",
+		"	renderPage: ({ url, data, error }) => {",
+		"		if (data !== null) seedData(data);",
+		...renderPage,
+		"	},",
+		"});",
+		"",
+		"export const render = server.render;",
+		"export const respond = server.respond;",
+	].join("\n")}\n`;
 }
-`;
 
 /** Aliases every kit app gets; \`KitOptions.alias\` entries merge over them. */
 export const DEFAULT_ALIASES: Record<string, string> = { "@/lib": "src/lib" };
@@ -101,11 +130,12 @@ type LoadData<T> = T extends (...args: never) => infer R
 	: {};
 `;
 	return `import type { Mountable, Readable, RouterError, RouterLocation } from "@implementjs/core";
+import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 ${helpers}
 export type RouteParams = ${paramsType(node.params)};
 export type ServerParams = ${serverParamsType(node.params)};
-export type LoadEvent = { params: ServerParams; url: URL };
-export type RequestEvent = { request: Request; params: ServerParams; url: URL };
+export type LoadEvent = KitRequestEvent<ServerParams>;
+export type RequestEvent = KitRequestEvent<ServerParams>;
 export type LayoutData = ${dataType(node.dir, chain.layoutFiles)};
 export type PageData = ${dataType(node.dir, chain.pageFiles)};
 export type PageProps = { params: RouteParams; url: Readable<RouterLocation>; data: Readable<PageData> };
@@ -116,38 +146,71 @@ export type ErrorProps = { error: RouterError; url: Readable<RouterLocation> };
 
 /** The \`./$types\` module for a \`.<ext>\` extension-endpoint directory. */
 export function generateExtensionTypes(node: RouteNode): string {
-	return `export type ServerParams = ${serverParamsType(node.params)};
-export type RequestEvent = { request: Request; params: ServerParams; url: URL };
+	return `import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
+
+export type ServerParams = ${serverParamsType(node.params)};
+export type RequestEvent = KitRequestEvent<ServerParams>;
 `;
 }
 
 /** The ambient declarations typing the \`$implement/*\` virtual modules. */
-export function generateRouterDeclaration(routes: PageRoute[]): string {
+export function generateRouterDeclaration(routes: PageRoute[], hasErrorPage: boolean): string {
 	const entries = routes
 		.map(
 			(route) =>
 				`\t\t${JSON.stringify(route.pattern)}: (params: ${paramsType(route.params)}) => Child;`,
 		)
 		.join("\n");
+	const errorPage = hasErrorPage
+		? `\n\n\texport function errorPage(error: RouterError): Child;`
+		: "";
 	return `declare module "$implement/router" {
-	import type { Child, Readable, RouterHelper } from "@implementjs/core";
+	import type { Child, Readable, RouterError, RouterHelper } from "@implementjs/core";
 
 	export const router: RouterHelper<{
 ${entries}
-	}>;
+	}>;${errorPage}
 }
 
-declare module "$implement/loads" {
-	import type { LoadRoute } from "@implementjs/kit/runtime";
+declare module "$implement/pages" {
+	import type { PageRoute } from "@implementjs/kit/server";
 
-	export const loads: LoadRoute[];
+	export const pages: PageRoute[];
 }
 
 declare module "$implement/endpoints" {
-	import type { EndpointRoute } from "@implementjs/kit/runtime";
+	import type { EndpointRoute } from "@implementjs/kit/server";
 
 	export const endpoints: EndpointRoute[];
 }
+
+declare module "$implement/hooks" {
+	import type { Handle, HandleServerError, ServerInit } from "@implementjs/kit/server";
+
+	export const handle: Handle | undefined;
+	export const handleError: HandleServerError | undefined;
+	export const init: ServerInit | undefined;
+}
+`;
+}
+
+/**
+ * The base \`App\` namespace, so \`App.Locals\` resolves in an app that has not
+ * written a \`src/app.d.ts\` yet. An app's own declarations merge into these.
+ */
+export function generateAppDeclaration(): string {
+	return `declare global {
+	namespace App {
+		/** Per-request state \`src/hooks.server.ts\` sets and routes read. */
+		interface Locals {}
+		/** The shape \`handleError\` returns and the error page receives. */
+		interface Error {
+			message: string;
+		}
+	}
+}
+
+export {};
 `;
 }
 
@@ -172,12 +235,16 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 
 	writeIfChanged(join(outDir, ".gitignore"), "*\n");
 	writeIfChanged(join(outDir, "entry-client.ts"), ENTRY_CLIENT);
-	writeIfChanged(join(outDir, "entry-server.ts"), ENTRY_SERVER);
+	writeIfChanged(join(outDir, "entry-server.ts"), entryServer(tree.error !== null));
 	writeIfChanged(
 		join(outDir, "tsconfig.json"),
 		generateTsconfig({ ...DEFAULT_ALIASES, ...options.alias }),
 	);
-	writeIfChanged(join(typesDir, "$implement.d.ts"), generateRouterDeclaration(pageRoutes(tree)));
+	writeIfChanged(
+		join(typesDir, "$implement.d.ts"),
+		generateRouterDeclaration(pageRoutes(tree), tree.error !== null),
+	);
+	writeIfChanged(join(typesDir, "app.d.ts"), generateAppDeclaration());
 
 	const chains = dataChains(tree);
 	const expected = new Set<string>();

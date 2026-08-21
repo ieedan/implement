@@ -64,6 +64,7 @@ describe("templates", () => {
 				"src/routes/about/index.ts",
 				"src/routes/error.ts",
 				"src/lib/counter.ts",
+				"src/app.d.ts",
 				"scripts/sync.ts",
 			]),
 		);
@@ -73,6 +74,8 @@ describe("templates", () => {
 		// the root layout is the only place the global stylesheet is imported
 		expect(files.get("src/routes/layout.ts")).toContain('import "../app.css";');
 		expect(pkg(files).devDependencies["@implementjs/kit"]).toBeDefined();
+		// App.Locals is declared for the app to fill in, hooks.server.ts or not
+		expect(files.get("src/app.d.ts")).toContain("namespace App");
 	});
 
 	it("the csr template mounts an app into the page", () => {
