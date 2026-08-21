@@ -161,6 +161,104 @@ Where it pays:
 Startup is a wash — 46 ms to mounted against 39 ms and 36 ms, on an app whose
 initial list is 200 rows.
 
+## What to fix in implement
+
+Ranked by how implement compares to whichever of React and Svelte was faster on
+each operation, the gaps are not spread across the board — they cluster on three
+pieces of framework code:
+
+|                                    | implement ÷ best of the other two |
+| ---------------------------------- | --------------------------------: |
+| swap two rows of 1k                |                             4.06× |
+| JS heap at 10k rows                |                             3.87× |
+| clear 10k rows                     |                             3.57× |
+| clear 2k rows                      |                             2.33× |
+| swap two rows of 10k               |                             2.05× |
+| filter 1k by text                  |                             1.64× |
+| create 1k rows                     |                             1.53× |
+| clear the filter / create 10k rows |                             1.51× |
+| append 1k to 1k                    |                             1.31× |
+| time to mounted                    |                             1.28× |
+| everything else                    |                     0.63× – 1.09× |
+
+A second measurement splits each operation into framework JavaScript and browser
+work, by sampling the synchronous portion separately. It says where the fixes are
+worth making: clearing 10k rows is 297 ms of JavaScript out of a 359 ms
+operation — almost none of it is the browser — while creating 10k rows is 595 ms
+of JavaScript inside 1,221 ms, the rest being layout and paint that every
+framework pays.
+
+Four changes follow from that. The first two are implemented and measured on the
+`perf-prototype` branch; the other two are located but not written.
+
+### 1. Take a subtree out in one call — measured
+
+`Component.unmount` unmounts children first and each child removes its own node,
+so discarding one row makes ten `removeChild` calls where one would do. A detach
+depth counter in `tree.ts` lets a node unmounting under an element that is
+already removing itself skip its own removal and only release its subscriptions.
+`Portal` resets the counter, because its children hang off a parent of its own.
+
+|                         |  before |  after | best of the other two |
+| ----------------------- | ------: | -----: | --------------------: |
+| clear 10k rows          |  359 ms | 237 ms |                104 ms |
+| filter 1k by text       |   32 ms |  25 ms |                 20 ms |
+| DOM removals, clear 10k | 100,000 | 10,000 |                10,000 |
+
+The call count reaches parity; the time falls by a third. What is left is real
+work — the browser detaching 10,000 subtrees — plus the per-element teardown fix
+3 goes after.
+
+### 2. Move only the rows that actually moved — measured
+
+`syncDomOrder` walks the list backwards inserting any node whose next sibling is
+not where it should be, so moving one row past 997 others shifts all 997. Keeping
+the longest already-ordered run of nodes in place and repositioning only the rest
+(a longest-increasing-subsequence pass, the same approach Vue and Svelte take)
+makes a two-row swap two moves. A guard in front returns immediately when nothing
+moved at all, which is what most updates do.
+
+|                         | before | after | best of the other two |
+| ----------------------- | -----: | ----: | --------------------: |
+| swap two rows of 1k     |  74 ms | 21 ms |                 18 ms |
+| swap two rows of 10k    | 132 ms | 77 ms |                 67 ms |
+| DOM moves, two-row swap |    997 |     2 |                     2 |
+
+### 3. Stop paying for props that never change — located
+
+With fix 1 in, about a fifth of what is left in a teardown is per-element prop
+bookkeeping: `applyElementProps` allocates an array of unsubscribers for every
+element even when every prop is static, `bindClassProp` allocates a `Map` beside
+it, and each subscription hands back its own closure. Every listener is also
+individually removed from a node that is about to be discarded.
+
+Three local changes: return a shared no-op instead of an array when no prop on an
+element is reactive, hold a single subscription in a field rather than a `Map`,
+and skip `removeEventListener` for an element being discarded. A first cut of the
+last one is in the prototype and took listener removal from 8.4% of teardown to
+4.3%.
+
+### 4. Build a row from a template — located
+
+Each row costs 6 `createElement` calls, 11 insertions and 7 attribute writes.
+Svelte clones a `<template>` once per row: 2 insertions, whatever the row
+contains. The same is available here, because an element factory's tag and static
+props are fixed at the call site — build the static skeleton once, clone it per
+row, and walk only the positions carrying a signal.
+
+This is the largest remaining win and the most invasive change, and it is
+probably also the memory story. implement holds 89.5 MB with 10,000 rows against
+23 MB, and the profile puts 13–18% of both creation and teardown in garbage
+collection; what is being collected is the per-node objects and closures a
+template clone would stop creating. A first pass at that — one shared subscriber
+store holding a single callback in a field instead of allocating a `Map` per
+signal — is in the prototype and moved the heap by only 5%, which is the evidence
+that the allocations are in node construction rather than in the signal graph.
+
+Fixes 1 and 2 are about 60 lines across four files, keep all 72 core tests green,
+and add roughly 300 bytes to the gzipped bundle. They leave creation timings
+unchanged, as expected.
+
 ## Reading this fairly
 
 - The sort steps are dominated by `localeCompare` on 1,000 strings, which is app
