@@ -38,7 +38,7 @@ Two starting points, covered in [Templates](/create/templates):
 - **implement-kit** — file-based routing, server rendering in dev, a prerendered static site on build.
 - **CSR with vite** — a client-rendered single page app on plain Vite.
 
-Both open on the same counter page, so the difference you see is the project shape, not the demo. On top of either you can layer [Tailwind](https://tailwindcss.com), [`@implementjs/primitives`](/primitives), and [`@implementjs/lucide`](/lucide).
+Both open on the same counter page, so the difference you see is the project shape, not the demo. On top of either you can layer [Tailwind](https://tailwindcss.com), [`@implementjs/primitives`](/primitives), [`@implementjs/lucide`](/lucide), and [`@implementjs/formish`](/formish).
 
 Everything the CLI generates is TypeScript, and nothing it writes is hidden behind a runtime — the generated app is yours to edit from the first commit.
 

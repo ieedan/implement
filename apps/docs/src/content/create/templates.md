@@ -67,12 +67,13 @@ The whole app lives under `src/`, including `index.html`, so the generated Vite 
 
 ## Addons
 
-Three optional extras, available on either template. Each has a pair of flags — `--tailwind` / `--no-tailwind` — so a non-interactive run can turn one on or off explicitly. Anything a flag doesn't answer falls back to the default, which is Tailwind on and the other two off.
+Four optional extras, available on either template. Each has a pair of flags — `--tailwind` / `--no-tailwind` — so a non-interactive run can turn one on or off explicitly. Anything a flag doesn't answer falls back to the default, which is Tailwind on and the rest off.
 
-| Addon        | Flag           | What it adds                                                                               |
-| ------------ | -------------- | ------------------------------------------------------------------------------------------ |
-| `tailwind`   | `--tailwind`   | `@tailwindcss/vite` in the Vite config, utilities in place of hand-written CSS             |
-| `primitives` | `--primitives` | [`@implementjs/primitives`](/primitives) — the counter's links move into a `Collapsible`   |
-| `icons`      | `--icons`      | [`@implementjs/lucide`](/lucide) — the counter's buttons become `PlusIcon` and `MinusIcon` |
+| Addon        | Flag           | What it adds                                                                                |
+| ------------ | -------------- | ------------------------------------------------------------------------------------------- |
+| `tailwind`   | `--tailwind`   | `@tailwindcss/vite` in the Vite config, utilities in place of hand-written CSS              |
+| `primitives` | `--primitives` | [`@implementjs/primitives`](/primitives) — the counter's links move into a `Collapsible`    |
+| `icons`      | `--icons`      | [`@implementjs/lucide`](/lucide) — the counter's buttons become `PlusIcon` and `MinusIcon`  |
+| `forms`      | `--forms`      | [`@implementjs/formish`](/formish) and valibot — a validated sign up form under the counter |
 
 Without Tailwind the generated `app.css` defines plain semantic classes (`.page`, `.counter`, `.button`) and the components reference them by the same names, so the two versions of the counter read identically.
