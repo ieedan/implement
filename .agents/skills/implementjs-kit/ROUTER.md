@@ -176,7 +176,7 @@ A few behaviors worth knowing:
 - The link sets `aria-current="page"` while its path is current. Style it with CSS (`aria-[current=page]:` in Tailwind).
 - Every other `A` prop (class, events, and the rest) passes through.
 
-Plain `A({ href: "/about" })` works too, the browser just does a full page load instead of a client side navigation.
+Plain `A({ href: "/about" })` works too, the browser just does a full page load instead of a client side navigation (Avoid using this when navigating within the app)
 
 ### Programmatic navigation
 
@@ -240,7 +240,3 @@ You don't do anything to get this. Prerendered pages also get a `<link rel="modu
 ## While you work
 
 The dev server watches the routes directory. Add or delete a route file and kit rescans, regenerates the types, and reloads the page. Editing the inside of a page is normal Vite HMR.
-
-## Current limitations
-
-No redirects, navigation guards, scroll restoration on back and forward, relative navigation, or hash and base path modes yet. `error.ts` is root only. See [`MISSING.md`](https://github.com/ieedan/implement/blob/main/MISSING.md) in the repo for the roadmap.

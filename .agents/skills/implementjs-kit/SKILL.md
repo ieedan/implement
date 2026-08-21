@@ -12,4 +12,5 @@ If you haven't yet started an app or need a better idea of the structure of an a
 All the resource you need to use `@implementjs/kit`:
 
 - [Router](./ROUTER.md) - How to use the router to navigate between pages
+- [Loading Data](./LOADING_DATA.md) - How to load data from the server
 - [Environment Variables](./ENVIRONMENT_VARIABLES.md) - How to use environment variables
