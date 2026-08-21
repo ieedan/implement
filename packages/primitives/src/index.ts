@@ -383,3 +383,17 @@ export {
 	type AlertDialogDescriptionProps,
 	type AlertDialogPortalProps,
 } from "./lib/components/primitives/alert-dialog";
+export {
+	ModeWatcher,
+	ModeManager,
+	createModeManager,
+	createInitialModeExpression,
+	isMode,
+	type Mode,
+	type ResolvedMode,
+	type ThemeColors,
+	type ModeManagerOptions,
+	type ResolvedModeManagerOptions,
+	type ModeWatcherProps,
+	type InitialModeConfig,
+} from "./lib/components/primitives/mode-watcher";

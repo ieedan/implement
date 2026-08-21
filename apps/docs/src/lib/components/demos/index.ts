@@ -65,6 +65,8 @@ import CommandDemo from "./command-demo.ts";
 import commandSource from "./command-demo.ts?raw";
 import CommandGridDemo from "./command-grid-demo.ts";
 import commandGridSource from "./command-grid-demo.ts?raw";
+import ModeWatcherDemo from "./mode-watcher-demo.ts";
+import modeWatcherSource from "./mode-watcher-demo.ts?raw";
 
 export type Demo = {
 	/** The demo's source text: shown in the editor and, once edited, compiled and run live. */
@@ -135,4 +137,5 @@ export const demos: Record<string, Demo> = {
 	toast: { source: toastSource, component: ToastDemo },
 	command: { source: commandSource, component: CommandDemo },
 	"command-grid": { source: commandGridSource, component: CommandGridDemo },
+	"mode-watcher": { source: modeWatcherSource, component: ModeWatcherDemo },
 };
