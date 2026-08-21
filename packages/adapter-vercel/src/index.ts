@@ -1,0 +1,141 @@
+import { join } from "node:path";
+import type { Adapter, Builder } from "@implementjs/kit/adapter";
+
+export type VercelAdapterOptions = {
+	/**
+	 * The Node runtime the function runs on, as Vercel names them.
+	 * @default "nodejs22.x"
+	 */
+	runtime?: string;
+	/** Regions to deploy the function to, as Vercel names them (`["iad1"]`). */
+	regions?: string[];
+	/** Memory in MB for the function. */
+	memory?: number;
+	/** How long a request may run, in seconds. */
+	maxDuration?: number;
+	/** Where the Build Output goes, relative to the app. @default ".vercel/output" */
+	out?: string;
+};
+
+/** The function's directory inside the Build Output, and the route that reaches it. */
+const FUNCTION = "fn";
+
+/**
+ * Builds the app into [Vercel's Build Output
+ * API](https://vercel.com/docs/build-output-api/v3): the client bundle and
+ * everything prerendered go to the CDN as static files, and every request that
+ * misses them runs the app in a Node function.
+ *
+ * ```ts
+ * // vite.config.ts
+ * import { kit } from "@implementjs/kit";
+ * import adapter from "@implementjs/adapter-vercel";
+ *
+ * export default defineConfig({ plugins: [kit({ adapter: adapter() })] });
+ * ```
+ *
+ * Vercel runs `vite build` and deploys `.vercel/output` — no project settings
+ * beyond the build command, and nothing about the app in `vercel.json`.
+ *
+ * The function is bundled with its dependencies, since only the function's own
+ * directory is uploaded.
+ */
+export default function adapter(options: VercelAdapterOptions = {}): Adapter {
+	const out = options.out ?? ".vercel/output";
+
+	return {
+		name: "@implementjs/adapter-vercel",
+		build: {
+			// only the .func directory is uploaded, so nothing may be left for a
+			// node_modules that will not be there
+			bundle: true,
+			entry: ENTRY,
+		},
+		adapt(builder) {
+			const target = join(builder.root, out);
+			builder.rimraf(target);
+
+			// the CDN serves these; the function never sees a request for one
+			builder.copy(builder.clientDir, join(target, "static"));
+
+			const fn = join(target, "functions", `${FUNCTION}.func`);
+			builder.copy(builder.serverDir!, fn);
+			builder.writeFile(
+				join(fn, ".vc-config.json"),
+				`${JSON.stringify(
+					{
+						runtime: options.runtime ?? "nodejs22.x",
+						handler: builder.serverEntry,
+						launcherType: "Nodejs",
+						// kit reads the body off the request itself, and the helpers
+						// would consume it first
+						shouldAddHelpers: false,
+						...(options.regions === undefined ? {} : { regions: options.regions }),
+						...(options.memory === undefined ? {} : { memory: options.memory }),
+						...(options.maxDuration === undefined ? {} : { maxDuration: options.maxDuration }),
+					},
+					null,
+					"\t",
+				)}\n`,
+			);
+
+			builder.writeFile(
+				join(target, "config.json"),
+				`${JSON.stringify(config(builder), null, "\t")}\n`,
+			);
+			builder.log.info(`wrote ${out} — deploy it with \`vercel deploy --prebuilt\``);
+		},
+	};
+}
+
+/**
+ * The routing table. Hashed assets are named to be cached forever; after that
+ * the filesystem answers whatever the build wrote — the prerendered pages
+ * included — and everything left goes to the function.
+ */
+function config(builder: Builder): unknown {
+	const assets = `${builder.base}${builder.assetsDir}`.replace("//", "/");
+	return {
+		version: 3,
+		routes: [
+			{
+				src: `^${assets}/(.*)$`,
+				headers: { "cache-control": "public, immutable, max-age=31536000" },
+				continue: true,
+			},
+			{ handle: "filesystem" },
+			{ src: "/.*", dest: `/${FUNCTION}` },
+		],
+	};
+}
+
+/**
+ * The function, as Vercel's Node launcher wants it: a default export taking
+ * `(req, res)`. Kit's own Node middleware does the translating, so the only
+ * thing here is where the client's address comes from — Vercel terminates TLS
+ * and forwards it, so the socket's address is the proxy's.
+ */
+const ENTRY = `import { handler as app } from "$implement/handler";
+import { serveApp } from "@implementjs/kit/node";
+
+const serve = serveApp(app, {
+	address: { header: "x-forwarded-for" },
+	onError: ({ error, event, status }) => {
+		console.error(\`[implement] \${event.request.method} \${event.url.pathname} -> \${status}\`);
+		console.error(error);
+	},
+});
+
+export default function (req, res) {
+	serve(req, res, (error) => {
+		if (error !== undefined) {
+			console.error(error);
+			res.statusCode = 500;
+			res.end("Internal Error");
+			return;
+		}
+		res.statusCode = 404;
+		res.end("Not Found");
+	});
+}
+`;

@@ -72,22 +72,21 @@ export type AdapterBuild = {
 	 * export default { fetch: (request, env, context) => handler(request, { platform: { env, context } }) };
 	 * `
 	 * ```
+	 *
+	 * As a function it is called with the finished client build, for glue that
+	 * has to carry a fact only the build knows — which paths prerendered, say.
 	 */
-	entry?: string;
+	entry?: string | ((build: BuildInfo) => string | Promise<string>);
 };
 
-/** What an adapter's `adapt` is handed: the finished build, and the tools to move it. */
-export type Builder = {
+/** What the finished client build knows, which both the server entry and the adapter read. */
+export type BuildInfo = {
 	/** Absolute path of the Vite root — the app's own directory. */
 	root: string;
 	/** Absolute path of `.implement/output`, which holds the staged build. */
 	outDir: string;
 	/** Absolute path of the client bundle, with everything prerendered into it. */
 	clientDir: string;
-	/** Absolute path of the server bundle, or `null` for an adapter that ships no server. */
-	serverDir: string | null;
-	/** The server bundle's entry filename within {@link serverDir}. */
-	serverEntry: string;
 	/** Vite's `base`. */
 	base: string;
 	/** Vite's `build.assetsDir` — where the hashed client chunks live under {@link clientDir}. */
@@ -96,6 +95,14 @@ export type Builder = {
 	template: string;
 	prerendered: Prerendered;
 	routes: BuiltRoutes;
+};
+
+/** What an adapter's `adapt` is handed: the finished build, and the tools to move it. */
+export type Builder = BuildInfo & {
+	/** Absolute path of the server bundle, or `null` for an adapter that ships no server. */
+	serverDir: string | null;
+	/** The server bundle's entry filename within {@link serverDir}. */
+	serverEntry: string;
 	log: BuildLogger;
 	/** Removes a file or directory, recursively, if it is there at all. */
 	rimraf(path: string): void;

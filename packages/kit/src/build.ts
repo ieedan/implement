@@ -27,7 +27,7 @@ import {
 } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { build, type ResolvedConfig, type Plugin } from "vite";
-import type { Adapter, Builder, BuiltRoutes } from "./adapter.ts";
+import type { Adapter, BuildInfo, Builder, BuiltRoutes } from "./adapter.ts";
 import { pageRoutes, serverRoutes } from "./codegen.ts";
 import { manifestPath, readManifest, routeAssets } from "./preload.ts";
 import type { RouteNode, RouteTree } from "./scan.ts";
@@ -71,25 +71,27 @@ export async function runAdapter(options: AdapterStageOptions): Promise<void> {
 	const { adapter, config, clientDir, entryServer, tree, pages, files } = options;
 	const outDir = resolve(config.root, OUTPUT_DIR);
 	const logger = config.logger;
-	const template = readFileSync(join(clientDir, "index.html"), "utf8");
+	const info: BuildInfo = {
+		root: config.root,
+		outDir,
+		clientDir,
+		base: config.base,
+		assetsDir: config.build.assetsDir,
+		template: readFileSync(join(clientDir, "index.html"), "utf8"),
+		prerendered: { pages, files },
+		routes: describeRoutes(tree),
+	};
 
 	let serverDir: string | null = null;
 	if (adapter.server !== false) {
 		serverDir = join(outDir, "server");
-		await buildServer({ ...options, outDir, serverDir, template, entryServer });
+		await buildServer({ ...options, info, serverDir, entryServer });
 	}
 
 	const builder: Builder = {
-		root: config.root,
-		outDir,
-		clientDir,
+		...info,
 		serverDir,
 		serverEntry: SERVER_ENTRY,
-		base: config.base,
-		assetsDir: config.build.assetsDir,
-		template,
-		prerendered: { pages, files },
-		routes: describeRoutes(tree),
 		log: {
 			info: (message) => {
 				logger.info(message);
@@ -136,32 +138,30 @@ function hasServerLoads(node: RouteNode): boolean {
 async function buildServer(options: {
 	adapter: Adapter;
 	config: ResolvedConfig;
-	clientDir: string;
-	outDir: string;
+	info: BuildInfo;
 	serverDir: string;
-	template: string;
 	entryServer: string;
 	tree: RouteTree;
 	routesBase: string;
 }): Promise<void> {
-	const { adapter, config, clientDir, outDir, serverDir, template, entryServer, tree, routesBase } =
-		options;
+	const { adapter, config, info, serverDir, entryServer, tree, routesBase } = options;
 	const settings = adapter.build ?? {};
 	const bundle = settings.bundle ?? false;
 	const singleFile = settings.singleFile ?? bundle;
 
 	const assets = routeAssets({
-		manifest: readManifest(manifestPath(clientDir, config.build.manifest)),
+		manifest: readManifest(manifestPath(info.clientDir, config.build.manifest)),
 		routesBase,
 		tree,
 	});
-	const manifest = { base: config.base, template, assets };
+	const manifest = { base: config.base, template: info.template, assets };
 
 	// the entry is a real file rather than a virtual module so that Rollup has
 	// something to name the bundle after, and so an adapter's glue shows up in
 	// a stack trace as a file you can open
-	const entryFile = join(outDir, `entry-${sanitize(adapter.name)}.js`);
-	writeFile(entryFile, settings.entry ?? DEFAULT_ENTRY);
+	const entryFile = join(info.outDir, `entry-${sanitize(adapter.name)}.js`);
+	const entry = settings.entry;
+	writeFile(entryFile, (typeof entry === "function" ? await entry(info) : entry) ?? DEFAULT_ENTRY);
 
 	const virtuals: Plugin = {
 		name: "implement-kit:adapter-modules",
@@ -260,10 +260,12 @@ export function copy(
 	const filter = options.filter ?? (() => true);
 	const written: string[] = [];
 
+	// directories are made on the way to a file, never up front — an adapter
+	// that copies only the documents out of a tree should not be left with the
+	// empty shape of everything it skipped
 	const walk = (source: string, target: string) => {
 		if (!filter(source)) return;
 		if (statSync(source).isDirectory()) {
-			mkdirp(target);
 			for (const entry of readdirSync(source)) walk(join(source, entry), join(target, entry));
 			return;
 		}

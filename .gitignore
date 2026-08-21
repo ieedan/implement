@@ -27,6 +27,10 @@ apps/docs/static/velite/
 dist/
 build/
 out/
+# kit's generated directory, and where a build is staged for an adapter
+.implement/
+# adapter build output
+.vercel/
 .next/
 .nuxt/
 .svelte-kit/

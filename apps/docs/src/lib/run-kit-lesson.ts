@@ -104,6 +104,7 @@ function previewEvent(url: URL, params: Record<string, string>, id: string | nul
 		route: { id },
 		locals: {},
 		isDataRequest: false,
+		platform: undefined,
 		setHeaders: () => {},
 		getClientAddress: () => "127.0.0.1",
 	};

@@ -193,11 +193,16 @@ function resolveFile(dir: string, path: string): string | null {
 
 export type StaticOptions = {
 	/**
-	 * Serve the files with an immutable, year-long cache — right for hashed
-	 * build output and wrong for anything else. @default false
+	 * Path prefixes to serve with an immutable, year-long cache — right for
+	 * hashed build output and wrong for everything else, which is why it is a
+	 * list of prefixes rather than a flag over the whole directory. `true`
+	 * applies it to every file. @default false
 	 */
-	immutable?: boolean;
+	immutable?: boolean | string[];
 };
+
+const IMMUTABLE = "public, max-age=31536000, immutable";
+const REVALIDATE = "public, max-age=0, must-revalidate";
 
 /**
  * Serves the files under `dir` by path. Nothing here rewrites a path to a
@@ -205,9 +210,12 @@ export type StaticOptions = {
  * prerendered pages and then to the app.
  */
 export function serveStatic(dir: string, options: StaticOptions = {}): Middleware {
-	const cacheControl = options.immutable
-		? "public, max-age=31536000, immutable"
-		: "public, max-age=0, must-revalidate";
+	const immutable = options.immutable ?? false;
+	const cacheFor = (path: string): string => {
+		if (immutable === true) return IMMUTABLE;
+		if (immutable === false) return REVALIDATE;
+		return immutable.some((prefix) => path.startsWith(prefix)) ? IMMUTABLE : REVALIDATE;
+	};
 
 	return (req, res, next) => {
 		if (res.writableEnded) return next();
@@ -216,36 +224,54 @@ export function serveStatic(dir: string, options: StaticOptions = {}): Middlewar
 		if (path === null) return next();
 		const file = resolveFile(dir, path);
 		if (file === null) return next();
-		sendFile(res, file, cacheControl, req.method === "HEAD").catch(next);
+		sendFile(res, file, cacheFor(path), req.method === "HEAD").catch(next);
 	};
 }
 
+export type PrerenderedOptions = {
+	/**
+	 * The paths the build prerendered. It is a list rather than a look on disk
+	 * because `index.html` is there either way — it is the shell the server
+	 * renders into — and serving the unrendered shell for a page the app was
+	 * about to render is the one failure this middleware must not have.
+	 */
+	pages: string[];
+	/** A document to answer unknown paths with, relative to `dir` (`404.html`). */
+	fallback?: string;
+};
+
 /**
- * Serves the prerendered documents under `dir`: `/docs` is `docs/index.html`,
- * and a path with no page of its own gets `404.html` when the build wrote one.
- * This is what a static host does with the same directory, which is the point
- * — a page that prerendered must never reach the app's renderer as well, or
- * the two answers can drift.
+ * Serves the prerendered documents under `dir`: `/docs` is `docs/index.html`.
+ * A page that prerendered must never reach the app's renderer as well, or the
+ * two answers can drift.
  */
-export function servePrerendered(dir: string, options: { fallback?: string } = {}): Middleware {
+export function servePrerendered(dir: string, options: PrerenderedOptions): Middleware {
+	const pages = new Set(options.pages.map(normalizePath));
 	const fallbackFile = options.fallback === undefined ? null : join(dir, options.fallback);
 
 	return (req, res, next) => {
 		if (res.writableEnded) return next();
 		if (req.method !== "GET" && req.method !== "HEAD") return next();
-		if (!(req.headers.accept ?? "").includes("text/html")) return next();
 		const path = decodedPath(req.url ?? "/");
 		if (path === null) return next();
 		const head = req.method === "HEAD";
-		const page = resolveFile(dir, join(path, "index.html"));
-		if (page !== null) {
-			sendFile(res, page, "public, max-age=0, must-revalidate", head).catch(next);
-			return;
+		if (pages.has(normalizePath(path))) {
+			const page = resolveFile(dir, join(path, "index.html"));
+			if (page !== null) {
+				sendFile(res, page, REVALIDATE, head).catch(next);
+				return;
+			}
 		}
 		if (fallbackFile === null || !existsSync(fallbackFile)) return next();
-		res.statusCode = 404;
-		sendFile(res, fallbackFile, "public, max-age=0, must-revalidate", head, 404).catch(next);
+		sendFile(res, fallbackFile, REVALIDATE, head, 404).catch(next);
 	};
+}
+
+/** Pathname with no trailing slash, so `/docs` and `/docs/` are the same page. */
+function normalizePath(path: string): string {
+	let normalized = path.startsWith("/") ? path : `/${path}`;
+	while (normalized.length > 1 && normalized.endsWith("/")) normalized = normalized.slice(0, -1);
+	return normalized;
 }
 
 async function sendFile(
