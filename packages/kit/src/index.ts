@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { basename, join, resolve, sep } from "node:path";
 import {
 	crawlRoutes,
@@ -9,13 +10,20 @@ import {
 import type { Plugin } from "vite";
 import {
 	generateEndpointsModule,
-	generateLoadsModule,
+	generateHooksModule,
+	generatePagesModule,
 	generateRouterModule,
 	serverRoutes,
 	staticRoutePaths,
 } from "./codegen.ts";
-import { ENDPOINTS_ID, handleServerRequest, LOADS_ID, prerenderServerFiles } from "./dev.ts";
-import { isRootShell, resolveShell, serveShell, shellOutputPlugin } from "./html.ts";
+import {
+	ENDPOINTS_ID,
+	handleServerRequest,
+	HOOKS_ID,
+	PAGES_ID,
+	prerenderServerFiles,
+} from "./dev.ts";
+import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
 import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
 import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
@@ -25,8 +33,12 @@ export { sync } from "./sync.ts";
 
 const ROUTER_ID = "$implement/router";
 const RESOLVED_ROUTER_ID = "\0$implement/router";
-const RESOLVED_LOADS_ID = `\0${LOADS_ID}`;
+const RESOLVED_PAGES_ID = `\0${PAGES_ID}`;
 const RESOLVED_ENDPOINTS_ID = `\0${ENDPOINTS_ID}`;
+const RESOLVED_HOOKS_ID = `\0${HOOKS_ID}`;
+/** Server-only virtual modules, which must never reach the browser bundle. */
+const SERVER_IDS = [RESOLVED_PAGES_ID, RESOLVED_ENDPOINTS_ID, RESOLVED_HOOKS_ID];
+const ENTRY_SERVER = `/${IMPLEMENT_DIR}/entry-server.ts`;
 /** Deliberately unmatched, so the fallback renders for the 404 page. */
 const NOT_FOUND_ROUTE = "/__implement__/not-found";
 
@@ -41,6 +53,11 @@ export type KitPrerenderOptions = {
 export type KitOptions = {
 	/** Routes directory relative to the Vite root. @default "src/routes" */
 	routes?: string;
+	/**
+	 * Server hooks file relative to the Vite root, run around every server
+	 * request. @default "src/hooks.server.ts"
+	 */
+	hooks?: string;
 	/** Prerender the built site. @default true */
 	prerender?: boolean | KitPrerenderOptions;
 	/**
@@ -79,6 +96,12 @@ const treeHasLoads = (node: RouteNode): boolean =>
  * with the extension appended (`docs/.md/server.ts` → `/docs.md`), and GET
  * endpoints are prerendered into static files.
  *
+ * `src/hooks.server.ts` wraps all of that: its `handle` hook runs for every
+ * server request — pages, endpoints, and the `__data.json` payload behind a
+ * client navigation — and produces the response by calling `resolve(event)`,
+ * with `event.locals` carrying whatever it wants the route's loads and
+ * handlers to see. See `@implementjs/kit/server` for the hook types.
+ *
  * Kit also sets up the app conventions: static assets in `static/` are
  * served at the site root and copied into the build (unless the app sets
  * its own Vite `publicDir`), and `@/lib` resolves to `src/lib` — in Vite
@@ -105,12 +128,18 @@ const treeHasLoads = (node: RouteNode): boolean =>
 export function kit(options: KitOptions = {}): Plugin[] {
 	const routes = options.routes ?? "src/routes";
 	const routesBase = `/${routes.replaceAll("\\", "/")}`;
+	const hooksPath = (options.hooks ?? "src/hooks.server.ts").replaceAll("\\", "/");
 	const aliases = { ...DEFAULT_ALIASES, ...options.alias };
 	const genOptions = { routes, alias: options.alias };
 	let root = process.cwd();
 	let routesDir = join(root, routes);
+	let hooksFile = join(root, hooksPath);
 	let tree: RouteTree | null = null;
 	let shell: { path: string; relative: string } | null = null;
+	let outDir = join(root, "dist");
+
+	/** The app's hooks module as an import specifier, or `null` when it has none. */
+	const hooksSpecifier = (): string | null => (existsSync(hooksFile) ? `/${hooksPath}` : null);
 
 	const scan = (): RouteTree => {
 		tree = scanRoutes(routesDir);
@@ -137,6 +166,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				routes: prerendered,
 				outDir,
 				load,
+				entry: ENTRY_SERVER,
 				hasLoads: treeHasLoads(scanned.root),
 				serverRoutes: serverRoutes(scanned),
 				logger: console,
@@ -160,6 +190,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				!isRootShell(shellPath.relative) &&
 				userConfig.build?.rollupOptions?.input === undefined;
 			return {
+				// kit answers page requests itself, so Vite's html fallback and
+				// index.html middlewares must stay out of the way — the request
+				// has to reach the pipeline with its headers intact for hooks
+				appType: "custom",
 				publicDir: userConfig.publicDir ?? "static",
 				resolve: { alias },
 				...(overrideInput ? { build: { rollupOptions: { input: shellPath.path } } } : {}),
@@ -168,6 +202,8 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		configResolved(config) {
 			root = config.root;
 			routesDir = join(root, routes);
+			hooksFile = join(root, hooksPath);
+			outDir = resolve(root, config.build.outDir);
 			shell = resolveShell(root);
 			const scanned = scan();
 			writeGenerated(root, scanned, genOptions);
@@ -175,28 +211,36 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		},
 		resolveId(id) {
 			if (id === ROUTER_ID) return RESOLVED_ROUTER_ID;
-			if (id === LOADS_ID) return RESOLVED_LOADS_ID;
+			if (id === PAGES_ID) return RESOLVED_PAGES_ID;
 			if (id === ENDPOINTS_ID) return RESOLVED_ENDPOINTS_ID;
+			if (id === HOOKS_ID) return RESOLVED_HOOKS_ID;
 			return null;
 		},
 		load(id, loadOptions) {
 			if (id === RESOLVED_ROUTER_ID) {
 				return generateRouterModule(tree ?? scan(), routesBase);
 			}
-			if (id === RESOLVED_LOADS_ID || id === RESOLVED_ENDPOINTS_ID) {
+			if (SERVER_IDS.includes(id)) {
 				// server files must never reach the browser bundle
 				if (loadOptions?.ssr !== true) {
 					throw new Error(`${id.slice(1)} is server-only and cannot be imported by client code`);
 				}
-				return id === RESOLVED_LOADS_ID
-					? generateLoadsModule(tree ?? scan(), routesBase)
-					: generateEndpointsModule(tree ?? scan(), routesBase);
+				if (id === RESOLVED_PAGES_ID) return generatePagesModule(tree ?? scan(), routesBase);
+				if (id === RESOLVED_ENDPOINTS_ID)
+					return generateEndpointsModule(tree ?? scan(), routesBase);
+				return generateHooksModule(hooksSpecifier());
 			}
 			return null;
 		},
+		configurePreviewServer(server) {
+			// after preview's own static middleware, so it only sees what missed
+			return () => {
+				server.middlewares.use(previewPages(outDir));
+			};
+		},
 		configureServer(server) {
 			const isRouteFile = (file: string) =>
-				file.startsWith(routesDir + sep) && isRouteFileName(basename(file));
+				(file.startsWith(routesDir + sep) && isRouteFileName(basename(file))) || file === hooksFile;
 			const regenerate = () => {
 				try {
 					writeGenerated(root, scan(), genOptions);
@@ -206,7 +250,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 					);
 					return;
 				}
-				for (const id of [RESOLVED_ROUTER_ID, RESOLVED_LOADS_ID, RESOLVED_ENDPOINTS_ID]) {
+				for (const id of [RESOLVED_ROUTER_ID, ...SERVER_IDS]) {
 					const mod = server.moduleGraph.getModuleById(id);
 					if (mod) server.moduleGraph.invalidateModule(mod);
 				}
@@ -222,24 +266,22 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			server.watcher.on("unlink", onFile);
 			server.watcher.on("unlinkDir", onDir);
 
-			server.middlewares.use((req, res, next) => {
-				const scanned = tree ?? scan();
-				handleServerRequest({
-					server,
-					req,
-					res,
-					hasLoads: treeHasLoads(scanned.root),
-					hasEndpoints: serverRoutes(scanned).length > 0,
-				}).then((handled) => {
-					if (!handled) next();
-				}, next);
-			});
-
-			// returned hooks run after Vite's own middlewares are installed, which is where a shell
-			// outside the root has to be served from — see `serveShell`
+			// a returned hook runs after Vite's own middlewares are installed, so
+			// assets, source modules, and `static/` are served before the app's
+			// pipeline sees a request — the order a deployed kit app has too
 			return () => {
-				if (shell === null || isRootShell(shell.relative)) return;
-				server.middlewares.use(serveShell(server, shell.path));
+				server.middlewares.use((req, res, next) => {
+					if (res.writableEnded) return next();
+					handleServerRequest({
+						server,
+						req,
+						res,
+						entry: ENTRY_SERVER,
+						shell: shell?.path ?? null,
+					}).then((handled) => {
+						if (!handled) next();
+					}, next);
+				});
 			};
 		},
 	};
@@ -248,7 +290,9 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		kitPlugin,
 		shellOutputPlugin(),
 		implement({
-			entry: `/${IMPLEMENT_DIR}/entry-server.ts`,
+			entry: ENTRY_SERVER,
+			// kit serves dev pages itself, through the request pipeline
+			devSsr: false,
 			prerender: options.prerender === false ? false : prerenderConfig,
 		}),
 	];

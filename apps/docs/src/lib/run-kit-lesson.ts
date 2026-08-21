@@ -19,9 +19,12 @@ import {
 } from "@implementjs/core";
 import {
 	matchEndpoint,
-	resolveLoads,
+	matchPage,
+	routeId,
+	runLoads,
 	type EndpointRoute,
-	type LoadRoute,
+	type PageRoute,
+	type RequestEvent,
 	type RequestHandler,
 	type RouteData,
 	type ServerLoad,
@@ -154,15 +157,48 @@ export async function runKitApp(
 		return exported as ServerLoad;
 	};
 
-	const loads: LoadRoute[] = loadRouteFiles(tree).map((route) => ({
+	const pages: PageRoute[] = loadRouteFiles(tree).map((route) => ({
 		pattern: route.pattern,
+		id: routeId(route.pattern),
 		files: route.files.map((file) => ({ id: file, load: loadFor(file) })),
 	}));
 
 	const endpoints: EndpointRoute[] = endpointFiles(tree).map((route) => ({
 		...route,
+		id: routeId(route.pattern),
 		module: modules.get(`${ROUTES_DIR}/${route.file}`) ?? {},
 	}));
+
+	/**
+	 * The preview has no server, so loads and endpoints get a stand-in event:
+	 * a real URL and params, empty locals, and the no-op response controls a
+	 * `hooks.server.ts` would otherwise drive.
+	 */
+	const previewEvent = (
+		url: URL,
+		params: Record<string, string>,
+		id: string | null,
+	): RequestEvent => ({
+		request: new Request(url),
+		url,
+		params,
+		route: { id },
+		locals: {} as App.Locals,
+		isDataRequest: false,
+		setHeaders: () => {},
+		getClientAddress: () => "127.0.0.1",
+	});
+
+	const previewUrl = (target: RouterLocation): URL =>
+		new URL(target.path + target.search, "http://preview.local");
+
+	/** Runs the loads of the route serving `target`, or `null` when it has none. */
+	const loadData = (target: RouterLocation): Promise<RouteData | null> => {
+		const match = matchPage(pages, target.path);
+		if (match === null) return Promise.resolve(null);
+		const url = previewUrl(target);
+		return runLoads(match.route, previewEvent(url, match.params, match.route.id));
+	};
 
 	// The preview's stand-in for kit's runtime data store, scoped per app.
 	const store = new Map<string, Signal<unknown>>();
@@ -189,11 +225,11 @@ export async function runKitApp(
 		target: RouterLocation,
 	): Promise<string> => {
 		const handler = route.module.GET as RequestHandler | undefined;
-		const url = new URL(target.path + target.search, "http://preview.local");
+		const url = previewUrl(target);
 		if (handler === undefined) {
 			return `405 Method Not Allowed — ${ROUTES_DIR}/${route.file} exports no GET handler.`;
 		}
-		const response = await handler({ request: new Request(url), params, url });
+		const response = await handler(previewEvent(url, params, route.id));
 		const body = await response.text();
 		return response.ok ? body : `HTTP ${response.status}\n\n${body}`;
 	};
@@ -208,7 +244,7 @@ export async function runKitApp(
 				location.set(destination);
 			};
 		}
-		const data = await resolveLoads(loads, destination.path + destination.search);
+		const data = await loadData(destination);
 		return () => {
 			if (data !== null) seed(data);
 			responseView.set(null);
@@ -229,7 +265,7 @@ export async function runKitApp(
 	};
 
 	// the initial location's loads must resolve before the first render
-	const initialData = await resolveLoads(loads, location.get().path + location.get().search);
+	const initialData = await loadData(location.get());
 	if (initialData !== null) seed(initialData);
 
 	let app: ReturnType<Mountable>;

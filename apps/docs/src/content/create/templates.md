@@ -25,6 +25,7 @@ my-app/
 │  │  ├ index.ts     → /
 │  │  └ layout.ts    wraps every page
 │  ├ app.css         global styles, imported from the root layout
+│  ├ app.d.ts        App.Locals — what src/hooks.server.ts hands your routes
 │  └ index.html      the shell, pointed at the generated client entry
 ├ static/            served from the site root
 ├ tsconfig.json

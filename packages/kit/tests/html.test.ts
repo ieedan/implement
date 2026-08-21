@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { createServer, type ResolvedConfig, type ViteDevServer } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveShell, shellOutputPlugin } from "../src/html.ts";
+import { previewPages, resolveShell, shellOutputPlugin } from "../src/html.ts";
 import { kit } from "../src/index.ts";
 
 const SHELL = `<!doctype html>
@@ -110,9 +110,9 @@ describe("the dev server with a shell under src/", () => {
 				// the shell went through transformIndexHtml, so the SSR render landed in it
 				expect(html).toContain("<h1>home</h1>");
 
-				// deep links resolve to the shell too, rendered by the error route
+				// an unmatched path renders the error route into the shell, as a 404
 				const deep = await page(origin, "/nope");
-				expect(deep.status).toBe(200);
+				expect(deep.status).toBe(404);
 				expect(await deep.text()).toContain("<p>not found</p>");
 			});
 		},
@@ -142,6 +142,69 @@ describe("the dev server with a shell under src/", () => {
 		},
 		TIMEOUT,
 	);
+});
+
+describe("previewPages", () => {
+	/** A prerendered build: a page at the root, one nested, and the 404 fallback. */
+	function makeDist(): string {
+		root = mkdtempSync(join(import.meta.dirname, "fixtures/preview-"));
+		const dist = join(root, "dist");
+		mkdirSync(join(dist, "about"), { recursive: true });
+		writeFileSync(join(dist, "index.html"), "<h1>home</h1>");
+		writeFileSync(join(dist, "about/index.html"), "<h1>about</h1>");
+		writeFileSync(join(dist, "404.html"), "<h1>not found</h1>");
+		return dist;
+	}
+
+	async function withPreview(dist: string, fn: (origin: string) => Promise<void>): Promise<void> {
+		const middleware = previewPages(dist);
+		const listener: Server = createHttpServer((req, res) => {
+			middleware(req, res, () => {
+				res.statusCode = 418;
+				res.end("passed through");
+			});
+		});
+		await new Promise<void>((done) => listener.listen(0, done));
+		try {
+			await fn(`http://localhost:${(listener.address() as AddressInfo).port}`);
+		} finally {
+			listener.closeAllConnections();
+			await new Promise((done) => listener.close(done));
+		}
+	}
+
+	it("serves the prerendered page for a path, and 404.html for one without", async () => {
+		await withPreview(makeDist(), async (origin) => {
+			const home = await page(origin, "/");
+			expect(home.status).toBe(200);
+			expect(await home.text()).toBe("<h1>home</h1>");
+
+			expect(await (await page(origin, "/about")).text()).toBe("<h1>about</h1>");
+
+			const missing = await page(origin, "/nope");
+			expect(missing.status).toBe(404);
+			expect(await missing.text()).toBe("<h1>not found</h1>");
+		});
+	});
+
+	it("leaves assets and non-page requests to vite's own static serving", async () => {
+		await withPreview(makeDist(), async (origin) => {
+			const asset = await fetch(`${origin}/assets/app.js`);
+			expect(asset.status).toBe(418);
+			const posted = await fetch(`${origin}/`, {
+				method: "POST",
+				headers: { accept: "text/html" },
+			});
+			expect(posted.status).toBe(418);
+		});
+	});
+
+	it("does not serve pages from outside the output directory", async () => {
+		await withPreview(makeDist(), async (origin) => {
+			const escaped = await fetch(`${origin}/..%2f..%2fetc`, { headers: { accept: "text/html" } });
+			expect(escaped.status).toBe(404);
+		});
+	});
 });
 
 describe("shellOutputPlugin", () => {

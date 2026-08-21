@@ -47,10 +47,8 @@ describe("generateRouteTypes", () => {
 		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] });
 		expect(types).toContain('export type RouteParams = { "slug": Readable<string> };');
 		expect(types).toContain('export type ServerParams = { "slug": string };');
-		expect(types).toContain("export type LoadEvent = { params: ServerParams; url: URL };");
-		expect(types).toContain(
-			"export type RequestEvent = { request: Request; params: ServerParams; url: URL };",
-		);
+		expect(types).toContain("export type LoadEvent = KitRequestEvent<ServerParams>;");
+		expect(types).toContain("export type RequestEvent = KitRequestEvent<ServerParams>;");
 		expect(types).toContain("export type PageProps = { params: RouteParams;");
 		expect(types).toContain("data: Readable<PageData>");
 		expect(types).toContain("children: Mountable");
@@ -72,14 +70,27 @@ describe("generateRouteTypes", () => {
 
 describe("generateRouterDeclaration", () => {
 	it("declares the virtual router module with every page pattern", () => {
-		const declaration = generateRouterDeclaration([
-			{ pattern: "/", params: [] },
-			{ pattern: "/docs/:...slug", params: ["slug"] },
-		]);
+		const declaration = generateRouterDeclaration(
+			[
+				{ pattern: "/", params: [] },
+				{ pattern: "/docs/:...slug", params: ["slug"] },
+			],
+			false,
+		);
 		expect(declaration).toContain('declare module "$implement/router"');
 		expect(declaration).toContain('"/": (params: {}) => Child;');
 		expect(declaration).toContain(
 			'"/docs/:...slug": (params: { "slug": Readable<string> }) => Child;',
+		);
+		expect(declaration).toContain('declare module "$implement/pages"');
+		expect(declaration).toContain('declare module "$implement/hooks"');
+	});
+
+	it("declares the error page export only for an app that has one", () => {
+		const routes = [{ pattern: "/", params: [] }];
+		expect(generateRouterDeclaration(routes, false)).not.toContain("errorPage");
+		expect(generateRouterDeclaration(routes, true)).toContain(
+			"export function errorPage(error: RouterError): Child;",
 		);
 	});
 });
@@ -151,7 +162,7 @@ describe("writeGenerated", () => {
 		const app = makeApp(["index.ts"]);
 		writeGenerated(app, scanRoutes(join(app, "src/routes")));
 		const declaration = readFileSync(join(app, ".implement/types/$implement.d.ts"), "utf8");
-		expect(declaration).toContain('declare module "$implement/loads"');
+		expect(declaration).toContain('declare module "$implement/pages"');
 		expect(declaration).toContain('declare module "$implement/endpoints"');
 	});
 

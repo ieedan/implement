@@ -40,6 +40,7 @@ export const kit: Template = {
 			contents: indexHtml({ title: ctx.name, entry: "/.implement/entry-client.ts" }),
 		},
 		{ path: "src/app.css", contents: appCss(ctx) },
+		{ path: "src/app.d.ts", contents: appTypes() },
 		{ path: "scripts/sync.ts", contents: syncScript() },
 		{ path: "src/routes/layout.ts", contents: layout(ctx) },
 		{ path: "src/routes/index.ts", contents: page() },
@@ -87,6 +88,25 @@ function viteConfig(ctx: TemplateContext): string {
 		`\tplugins: [${plugins.join(", ")}],`,
 		`});`,
 	].join("\n")}\n`;
+}
+
+/**
+ * The app's server types. `App.Locals` is what `src/hooks.server.ts` hands the
+ * app's loads and endpoints, so this is where it gets typed.
+ */
+function appTypes(): string {
+	return (
+		dedent`
+		declare global {
+			namespace App {
+				// what src/hooks.server.ts puts on event.locals, and routes read
+				interface Locals {}
+			}
+		}
+
+		export {};
+	` + "\n"
+	);
 }
 
 function syncScript(): string {

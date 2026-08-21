@@ -1,11 +1,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { createServer, type Plugin, type ResolvedConfig, type ViteDevServer } from "vite";
-import { injectSsr } from "./inject.ts";
+import { injectSsr, renderDocument } from "./inject.ts";
 import { crawlRoutes, prerenderRoutes, type RenderFn } from "./prerender.ts";
 import { collectDevStyles } from "./styles.ts";
 
-export { injectSsr, type SsrResult } from "./inject.ts";
+export { injectSsr, renderDocument, type SsrResult } from "./inject.ts";
 export { crawlRoutes, normalizeRoute, prerenderRoutes, type RenderFn } from "./prerender.ts";
 export { collectDevStyles, devStyleTags, type DevStyle } from "./styles.ts";
 
@@ -43,6 +43,14 @@ export type ImplementOptions = {
 	entry?: string;
 	/** Prerender the built site into the output directory. @default true */
 	prerender?: boolean | PrerenderOptions;
+	/**
+	 * Server-render dev pages by injecting the entry's render into the html
+	 * shell as Vite transforms it. Turn this off when the host serves pages
+	 * itself — `@implementjs/kit` does, so its request hooks see the real
+	 * request — and the plugin is left doing only the build's prerender.
+	 * @default true
+	 */
+	devSsr?: boolean;
 };
 
 /**
@@ -65,6 +73,7 @@ export type ImplementOptions = {
 export function implement(options: ImplementOptions = {}): Plugin {
 	const entry = options.entry ?? "/src/entry-server.ts";
 	const prerender = options.prerender ?? true;
+	const devSsr = options.devSsr ?? true;
 	let config: ResolvedConfig;
 	let server: ViteDevServer | undefined;
 
@@ -79,7 +88,7 @@ export function implement(options: ImplementOptions = {}): Plugin {
 		transformIndexHtml: {
 			order: "post",
 			async handler(html, ctx) {
-				if (!server) return html;
+				if (!server || !devSsr) return html;
 				try {
 					const { render } = (await server.ssrLoadModule(entry)) as { render: RenderFn };
 					const result = await render(ctx.originalUrl ?? "/");
@@ -125,7 +134,10 @@ export function implement(options: ImplementOptions = {}): Plugin {
 				}
 				const notFound = typeof prerender === "object" ? prerender.notFound : undefined;
 				if (notFound !== undefined) {
-					writeFileSync(join(outDir, "404.html"), injectSsr(template, await render(notFound)));
+					writeFileSync(
+						join(outDir, "404.html"),
+						await renderDocument(template, await render(notFound)),
+					);
 				}
 				const after = typeof prerender === "object" ? prerender.after : undefined;
 				await after?.({
