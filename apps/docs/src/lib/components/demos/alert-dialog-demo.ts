@@ -13,23 +13,20 @@ import {
 
 export default function AlertDialogDemo() {
 	return AlertDialog(
-		{},
 		AlertDialogTrigger({ variant: "outline" }, "Delete account"),
 		AlertDialogPortal(
-			AlertDialogOverlay({}),
+			AlertDialogOverlay(),
 			AlertDialogContent(
-				{},
 				Div(
 					{ class: "grid gap-1.5" },
-					AlertDialogTitle({}, "Are you absolutely sure?"),
+					AlertDialogTitle("Are you absolutely sure?"),
 					AlertDialogDescription(
-						{},
 						"This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
 					),
 				),
 				Div(
 					{ class: "flex justify-end gap-2" },
-					AlertDialogCancel({}, "Cancel"),
+					AlertDialogCancel("Cancel"),
 					AlertDialogAction({ variant: "destructive" }, "Delete account"),
 				),
 			),

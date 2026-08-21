@@ -138,9 +138,7 @@ export function EditableDemo(demo: Demo): Mountable {
 		copiedTimer = setTimeout(() => copied.set(false), 1500);
 	};
 
-	return Div(
-		{},
-		Div(
+	return Div(Div(
 			{
 				class:
 					"flex min-h-48 w-full items-center justify-center rounded-t-lg border border-border bg-background p-10",

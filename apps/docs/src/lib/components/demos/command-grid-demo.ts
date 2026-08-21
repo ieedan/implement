@@ -57,15 +57,11 @@ export default function CommandGridDemo() {
 		Command(
 			{ label: "Emoji picker", columns: COLUMNS, class: "rounded-lg border shadow-md" },
 			CommandInput({ placeholder: "Search emoji..." }),
-			CommandList(
-				{},
-				CommandViewport(
-					{},
-					CommandEmpty({}, "No emoji found."),
+			CommandList(CommandViewport(CommandEmpty("No emoji found."),
 					...sections.map((section) =>
 						CommandGroup(
 							{ value: section.name },
-							CommandGroupHeading({}, section.name),
+							CommandGroupHeading(section.name),
 							CommandGroupItems(
 								// keep the CSS columns in step with the `columns` prop on the root
 								{ class: "grid grid-cols-5" },
