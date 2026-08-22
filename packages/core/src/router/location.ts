@@ -1,4 +1,14 @@
 import { derived, signal, type Readable, type Signal } from "../signal";
+import {
+	adoptPoppedEntry,
+	captureScroll,
+	commitEntry,
+	currentEntryState,
+	installScrollRestoration,
+	newEntryState,
+	restoreScroll,
+	scrollToTop,
+} from "./scroll";
 
 export type RouterLocation = {
 	/** Pathname with no trailing slash (the root is `"/"`). */
@@ -65,18 +75,40 @@ export function locationSignal(): Signal<RouterLocation> {
 	if (serverSignal) return serverSignal;
 	if (!current) {
 		current = signal(readLocation());
+		installScrollRestoration();
 		window.addEventListener("popstate", () => {
 			const target = readLocation();
 			if (!guardsAllow(target)) {
 				// the history entry already moved — put the kept location back on top
 				const kept = current!.get();
-				history.pushState(null, "", kept.path + kept.search + kept.hash);
+				history.pushState(newEntryState(), "", kept.path + kept.search + kept.hash);
+				// the page never moved, so the entry that took its place owns
+				// whatever the kept one was showing
+				commitEntry();
+				captureScroll();
 				return;
 			}
-			resolveNavigation(target, () => current!.set(target));
+			captureScroll();
+			adoptPoppedEntry(history.state);
+			resolveNavigation(target, () => {
+				current!.set(target);
+				commitEntry();
+				// after the commit: the destination has to be in the DOM before
+				// the page is tall enough to scroll back down it
+				restoreScroll();
+			});
 		});
 	}
 	return current;
+}
+
+/**
+ * True while routing drives the real page URL, rather than a server render or
+ * a {@link withLocationSignal} scope — the two cases that must not touch the
+ * document's history or scroll position.
+ */
+export function isPageLocation(): boolean {
+	return scopeSignal === null && serverSignal === null;
 }
 
 /**
@@ -151,6 +183,15 @@ function resolveNavigation(target: RouterLocation, commit: () => void): void {
 export type NavigateOptions = {
 	/** Replace the current history entry instead of pushing a new one. */
 	replace?: boolean;
+	/**
+	 * Scroll to the top of the page once the navigation commits. Defaults to
+	 * `true` for a push and `false` for a `replace`, which usually rewrites the
+	 * URL of the page the user is already reading. Set it either way to opt in
+	 * or out — `scroll: false` keeps a filter link from jumping a long list
+	 * back to the top, `scroll: true` sends a replacing navigation to the top
+	 * anyway. Back and forward ignore it and restore the recorded position.
+	 */
+	scroll?: boolean;
 };
 
 /** Push (or replace) a history entry and update the location signal. */
@@ -160,6 +201,10 @@ export function navigateTo(href: string, options: NavigateOptions = {}): void {
 			"navigateTo is not available during server rendering — render the target location instead",
 		);
 	}
+	// resolved up front: it installs scroll restoration before the first entry
+	// this pushes, and a resolver that awaits must not commit into whatever
+	// scope happens to be installed by the time it comes back
+	const location = locationSignal();
 	const url = new URL(href, window.location.href);
 	if (url.href === window.location.href) return;
 	const target: RouterLocation = {
@@ -172,12 +217,14 @@ export function navigateTo(href: string, options: NavigateOptions = {}): void {
 	// destination whose data has not resolved yet
 	resolveNavigation(target, () => {
 		if (options.replace) {
-			history.replaceState(null, "", url);
+			history.replaceState(currentEntryState(), "", url);
 		} else {
-			history.pushState(null, "", url);
-			window.scrollTo(0, 0);
+			captureScroll();
+			history.pushState(newEntryState(), "", url);
 		}
-		locationSignal().set(target);
+		location.set(target);
+		commitEntry();
+		if (options.scroll ?? !options.replace) scrollToTop();
 	});
 }
 

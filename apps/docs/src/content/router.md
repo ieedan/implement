@@ -75,6 +75,7 @@ A few behaviors worth knowing:
 
 - Modifier keys (cmd/ctrl/shift/alt), non-left clicks, and a `target` other than `_self` fall through to the browser, so open-in-new-tab works.
 - `replace: true` replaces the history entry instead of pushing.
+- `scroll: false` follows the link without jumping to the top. See [scroll restoration](#scroll-restoration).
 - The link sets `aria-current="page"` while its path is current. Style it with CSS (`aria-[current=page]:` in Tailwind).
 - All other `A` props (class, events, ...) pass through.
 
@@ -84,11 +85,30 @@ A few behaviors worth knowing:
 router.navigate("/issues");
 router.navigate("/issues/:id", { id: created.id });
 router.navigate("/login", { replace: true });
+router.navigate("/issues", { scroll: false });
 
 const url = router.href("/issues/:id", { id: 42 }); // "/issues/42"
 ```
 
-Both are typed against the tree like `Link`. For untyped navigation (external state, redirects by string) the standalone `navigateTo(href, { replace? })` is exported from the package root. Pushing a new entry scrolls to the top, `replace` does not.
+Both are typed against the tree like `Link`. `href` only builds the string — it never navigates, so it has nothing to scroll. For untyped navigation (external state, redirects by string) the standalone `navigateTo(href, { replace?, scroll? })` is exported from the package root.
+
+## Scroll restoration
+
+The router records a scroll position per history entry, so back and forward land where you left off — including on a reload, which the positions outlive by riding in `sessionStorage`. That means the router takes restoration over from the browser (`history.scrollRestoration = "manual"`), which it can only do correctly: when a `popstate` fires the page being left is still in the DOM, so a browser restoring on its own measures against the wrong document.
+
+A new navigation starts at the top instead, and `scroll` opts either way in or out — Svelte's `goto(url, { noScroll })`, spelled positively:
+
+```ts
+router.Link({ to: "/issues", scroll: false }, "Issues"); // stay put
+router.navigate("/issues", { scroll: false });
+navigateTo("/issues?state=open", { scroll: false });
+
+router.navigate("/issues", { replace: true, scroll: true }); // replace, but go to the top
+```
+
+It defaults to `true` for a push and `false` for a `replace`, which usually rewrites the URL of the page you are already reading — so `searchParam.set`, which replaces, never moves the page. Back and forward ignore `scroll` and restore the recorded position.
+
+A position is recorded per entry, not per URL: the same page visited twice in one session is two entries with two positions. Entries the router never created — pushed by something else on the page — have no recorded position and land at the top.
 
 ## Location
 
@@ -114,6 +134,6 @@ Setting `null`, `""`, or the fallback removes the parameter from the URL. Withou
 
 ## Current limitations
 
-No redirects, route-level code splitting, navigation guards, scroll restoration on back/forward, relative navigation, or hash/base-path modes yet. See [`MISSING.md`](https://github.com/ieedan/implement/blob/main/MISSING.md) in the repo for the roadmap of sharp edges.
+No redirects, route-level code splitting, relative navigation, or hash/base-path modes yet. A navigation to a `#hash` restores or resets scroll like any other — it does not scroll the fragment's element into view for you. See [`MISSING.md`](https://github.com/ieedan/implement/blob/main/MISSING.md) in the repo for the roadmap of sharp edges.
 
 With routing in place, all that's left is running and shipping the thing, which is where [Vite](/docs/vite) comes in.

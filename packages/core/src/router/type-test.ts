@@ -38,8 +38,11 @@ router.href("/nope");
 router.href("/users");
 router.navigate("/", { replace: true });
 router.navigate("/about");
+router.navigate("/about", { scroll: false });
 router.navigate("/issues/:id", { id: "1" }, { replace: true });
+router.navigate("/issues/:id", { id: "1" }, { replace: true, scroll: true });
 router.Link({ to: "/about" }, "About");
+router.Link({ to: "/about", scroll: false }, "About");
 router.Link({ to: "/issues/:id", params: { id: "42" } }, "Open");
 router.Link({ to: "/users/:id", params: { id: "42" } }, "Open");
 // @ts-expect-error params are required for parameterized links
