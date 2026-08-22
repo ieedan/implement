@@ -1,5 +1,6 @@
 import { A, Div, H1, ImplementHead, P, type Mountable } from "@implementjs/core";
 import { Logo } from "../components/logo";
+import { ogTags } from "../og-tags";
 import { Link } from "../router";
 
 export function Home(): Mountable {
@@ -10,6 +11,11 @@ export function Home(): Mountable {
 			ImplementHead.Meta({
 				name: "description",
 				content: "A simple ergonomic ui framework without a compiler.",
+			}),
+			...ogTags({
+				title: "implement",
+				description: "A simple ergonomic ui framework without a compiler.",
+				url: "/",
 			}),
 		),
 

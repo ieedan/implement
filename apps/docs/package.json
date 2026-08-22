@@ -10,7 +10,7 @@
 		"skills": "node scripts/skills.ts",
 		"sync": "implement-kit sync",
 		"build": "pnpm generate && vite build",
-		"test": "vitest run",
+		"test": "pnpm generate && vitest run",
 		"preview": "vite preview",
 		"check": "pnpm generate && pnpm sync && tsc --noEmit"
 	},
@@ -35,6 +35,7 @@
 	"devDependencies": {
 		"@implementjs/adapter-vercel": "workspace:*",
 		"@implementjs/kit": "workspace:*",
+		"@fontsource/inter": "^5.3.0",
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",

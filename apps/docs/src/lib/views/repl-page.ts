@@ -3,6 +3,7 @@ import { SiteHeader } from "../components/site-header";
 import { Playground, type PlaygroundFile } from "../components/tutorials/playground";
 import replExample from "@/content/repl-example.ts?raw";
 import { stripLessonSource } from "@/lib/lesson-source";
+import { ogTags } from "@/lib/og-tags";
 import { UnsavedChangesGuard } from "@/lib/unsaved-changes";
 
 export function ReplPage(): Mountable {
@@ -18,6 +19,11 @@ export function ReplPage(): Mountable {
 			ImplementHead.Meta({
 				name: "description",
 				content: "Play with implement in the browser — live preview and console included.",
+			}),
+			...ogTags({
+				title: "repl ~ implement",
+				description: "Play with implement in the browser — live preview and console included.",
+				url: "/repl",
 			}),
 		),
 		UnsavedChangesGuard(tainted, "You have unsaved code in the REPL — leave anyway?"),

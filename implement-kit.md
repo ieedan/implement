@@ -318,3 +318,54 @@ default follows the adapter: everything without one, and with a server, only
 what has no server load behind it. The crawl that discovers routes filters as
 it walks, so a page that will be rendered per request never has its loads run
 during the build.
+
+## Open Graph Images (Phase 6)
+
+Implemented. `@implementjs/kit/og` renders an image from implement components
+and returns it as a `Response`:
+
+```ts
+// src/routes/blog/[slug]/.png/server.ts
+import { Div, ImageResponse } from "@implementjs/kit/og";
+import type { RequestEvent } from "./$types";
+
+export function GET({ params }: RequestEvent): Response {
+	return new ImageResponse(Div({ style: { display: "flex", fontSize: 64 } }, params.slug), {
+		width: 1200,
+		height: 630,
+	});
+}
+```
+
+The api is `@vercel/og`'s — same constructor, same options object, same
+defaults, same `Response` semantics — with components in place of JSX. Satori,
+which does the layout, documents a plain `{ type, props }` tree as an input
+alongside React elements, and that is what a render already produces: core's
+`renderToTree` stops one step short of the html string and hands the tree over,
+so nothing is serialized and re-parsed, and no jsx runtime is involved.
+
+The route needs nothing new either. A `.png` extension route is the same
+mechanism as the docs site's `.md` twins, so an image route beside a page
+prerenders one file per page, and the prerenderer already wrote endpoint
+bodies as bytes.
+
+What the module adds on top of satori is the part that is not a rendering
+concern: css values (core stringifies a style prop, so bare numbers get their
+`px` back, following React's unitless list), raw markup (`Svg` and
+`Implement.Html` keep their content unparsed, which is every lucide icon, so
+those subtrees are parsed into nodes), a vendored font (satori has no system
+fonts and no fallback, so an image with no `fonts` would be an image with no
+text), and satori's `tw` prop, typed by re-exporting core's element factories
+with `tw` and a numeric `style` rather than putting either in core.
+
+### The rasterizer is native, for now
+
+Satori emits svg; the png comes from `@resvg/resvg-js`, a native addon. Both
+are imported lazily, so a route that never renders an image never loads them,
+and the server build leaves the addon external because a `.node` binary has no
+bundled form. The consequence is that per-request images work on a host with
+its own `node_modules` and not inside a bundled function or a worker.
+Prerendered images are unaffected — the build renders them.
+
+Moving to `@resvg/resvg-wasm` lifts that restriction and is the obvious next
+piece: same api, same output, additive on top of this.

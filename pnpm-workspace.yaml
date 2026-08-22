@@ -5,3 +5,5 @@ allowBuilds:
   "@parcel/watcher": true
   esbuild: true
   sharp: true
+minimumReleaseAgeExclude:
+  - satori@0.33.3

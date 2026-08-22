@@ -38,6 +38,12 @@ function toKebab(property: string): string {
 	return property.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
 }
 
+function toCamel(property: string): string {
+	// custom properties are keys in their own right — `--brand` is not `Brand`
+	if (property.startsWith("--")) return property;
+	return property.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
 const styleDeclarations = Symbol("style-declarations");
 
 /**
@@ -70,6 +76,32 @@ function serializeStyle(style: ServerStyle): string {
 		parts.push(`${toKebab(name)}: ${value}`);
 	}
 	return parts.join("; ");
+}
+
+/**
+ * The same declarations {@link serializeStyle} writes as css text, as an
+ * object keyed the way a style prop is written. The three sources a style can
+ * arrive from are read in the order they override each other: `cssText` (a
+ * `style` prop given as a string), `setProperty` (dashed and custom
+ * properties), then the camelCase own keys plain assignment leaves behind.
+ */
+function styleObject(style: ServerStyle): Record<string, string> {
+	const result: Record<string, string> = {};
+	for (const declaration of style.cssText.split(";")) {
+		const separator = declaration.indexOf(":");
+		if (separator === -1) continue;
+		const name = declaration.slice(0, separator).trim();
+		const value = declaration.slice(separator + 1).trim();
+		if (name !== "" && value !== "") result[toCamel(name)] = value;
+	}
+	for (const [name, value] of style[styleDeclarations]) {
+		if (value !== "") result[toCamel(name)] = value;
+	}
+	for (const [name, value] of Object.entries(style)) {
+		if (name === "cssText" || typeof value !== "string" || value === "") continue;
+		result[toCamel(name)] = value;
+	}
+	return result;
 }
 
 export type ServerChildNode = ServerElement | ServerText | ServerComment | ServerRaw;
@@ -282,6 +314,11 @@ export class ServerElement extends ServerContainer {
 
 	serializedStyle(): string {
 		return this.#style ? serializeStyle(this.#style) : "";
+	}
+
+	/** The element's style declarations as an object, for consumers that are not html. */
+	styleObject(): Record<string, string> {
+		return this.#style ? styleObject(this.#style) : {};
 	}
 }
 

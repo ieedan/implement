@@ -25,6 +25,7 @@ import { Sheet, SheetTrigger } from "../components/ui/sheet";
 import type { Tutorial } from "@/lib/tutorials";
 import { checkKitLesson, checkLesson } from "@/lib/lesson-test";
 import { isKitLesson } from "@/lib/run-kit-lesson";
+import { ogTags } from "@/lib/og-tags";
 import { tutorialNeighbors } from "@/lib/tutorials";
 import { UnsavedChangesGuard, withoutUnsavedChangesPrompt } from "@/lib/unsaved-changes";
 
@@ -179,6 +180,12 @@ export function TutorialPage(lesson: Tutorial): Mountable {
 			ImplementHead(
 				ImplementHead.Title(`${lesson.title} ~ tutorial ~ implement`),
 				ImplementHead.Meta({ name: "description", content: lesson.description }),
+				...ogTags({
+					title: lesson.title,
+					description: lesson.description,
+					url: lesson.permalink,
+					image: `${lesson.permalink}.png`,
+				}),
 			),
 			UnsavedChangesGuard(tainted, "You have unsaved edits in this lesson — leave anyway?"),
 			ImplementLifecycle({ onMount: () => watchLessonFiles(files, refresh) }),

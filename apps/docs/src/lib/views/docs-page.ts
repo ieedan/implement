@@ -13,6 +13,7 @@ import { CopyPage } from "../components/docs/copy-page";
 import { TocDisclosure, TocSidebar } from "../components/docs/toc";
 import { Typeset } from "../components/docs/typeset";
 import type { Page } from "@/lib/content";
+import { ogTags } from "@/lib/og-tags";
 import { pageToc } from "@/lib/toc";
 
 function PageLink(page: Page, direction: "prev" | "next"): Mountable {
@@ -53,6 +54,14 @@ export function DocsPage(page: Page, collection: Page[]): Mountable {
 			ImplementHead(
 				ImplementHead.Title(`${page.title} ~ implement`),
 				ImplementHead.Meta({ name: "description", content: page.description }),
+				// every docs page has an image twin at `<permalink>.png`, rendered
+				// by the `.png` route beside the `.md` one
+				...ogTags({
+					title: page.title,
+					description: page.description,
+					url: page.permalink,
+					image: `${page.permalink}.png`,
+				}),
 			),
 
 			Div(

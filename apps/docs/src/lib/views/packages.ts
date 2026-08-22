@@ -15,6 +15,7 @@ import {
 } from "@implementjs/core";
 import type { PackageInfo } from "../../routes/packages/page.server";
 import { SiteHeader } from "../components/site-header";
+import { ogTags } from "../og-tags";
 import { router } from "../router";
 
 /** The packages route's server-load data: workspace manifests read off disk. */
@@ -192,6 +193,11 @@ export function PackagesPage(data: Readable<PackagesData>): Mountable {
 			ImplementHead.Meta({
 				name: "description",
 				content: "The packages that make up implement, grouped by what they do.",
+			}),
+			...ogTags({
+				title: "Packages ~ implement",
+				description: "The packages that make up implement, grouped by what they do.",
+				url: "/packages",
 			}),
 		),
 		SiteHeader(),
