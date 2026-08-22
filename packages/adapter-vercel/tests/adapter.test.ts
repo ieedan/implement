@@ -97,6 +97,15 @@ describe("@implementjs/adapter-vercel", () => {
 		expect(await posted.json()).toEqual({ echoed: { hello: "world" }, user: "ada" });
 	});
 
+	it("leaves a lazily imported module unevaluated until a request asks for it", async () => {
+		// the function must not inline its dynamic imports: `@implementjs/kit/og`
+		// reaches for satori that way, and satori's harfbuzz build reads
+		// `__dirname` as it evaluates — which an ESM bundle does not have, so an
+		// inlined one throws at load and every request gets a 500 instead
+		const response = await fetch(`${origin}/lazy`);
+		expect(await response.json()).toEqual({ before: false, after: true });
+	});
+
 	it("takes the client address from the proxy, not the socket", async () => {
 		const response = await fetch(`${origin}/api`, {
 			headers: { "x-forwarded-for": "203.0.113.7, 10.0.0.1" },
