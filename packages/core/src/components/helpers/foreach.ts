@@ -8,9 +8,9 @@ import {
 	type Readable,
 	type Writable,
 } from "../../signal";
-import { asParent, guarded, mountChild, isDetaching } from "../../tree";
+import { asParent, beginDetach, endDetach, guarded, mountChild, isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";
-import { syncDomOrder } from "../../utils";
+import { precedes, removeRange, syncDomOrder } from "../../utils";
 import type { IMountable, Mountable } from "../types";
 
 function stackFrames(stack: string): string {
@@ -216,12 +216,34 @@ export function ForEach<T>(
 					ordered.push(instance);
 				}
 
-				for (const [key, { instance }] of rendered.entries()) {
-					if (!mountedKeys.has(key)) {
-						instance.unmount();
-						rendered.delete(key);
+				// Clearing the whole list is the common bulk case, and it does not
+				// need one `removeChild` per row: every node between the first row
+				// and the end marker is going, so one range deletion takes them all.
+				// `beginDetach` is what lets each row skip its own removal — without
+				// it they would each pay for a removal this pass then undoes.
+				const clearingAll = mountedKeys.size === 0 && rendered.size > 0;
+				let bulkStart: Node | null = null;
+				if (clearingAll) {
+					for (const { instance } of rendered.values()) {
+						const first = instance.getFirstDomNode();
+						if (first !== null && (bulkStart === null || precedes(first, bulkStart))) {
+							bulkStart = first;
+						}
 					}
 				}
+
+				if (bulkStart !== null) beginDetach();
+				try {
+					for (const [key, { instance }] of rendered.entries()) {
+						if (!mountedKeys.has(key)) {
+							instance.unmount();
+							rendered.delete(key);
+						}
+					}
+				} finally {
+					if (bulkStart !== null) endDetach();
+				}
+				if (bulkStart !== null) removeRange(bulkStart, endMarker);
 
 				syncDomOrder(
 					parent!,
