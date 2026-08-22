@@ -40,11 +40,18 @@ Two starting points, covered in [Templates](/create/templates):
 
 Both open on the same counter page, so the difference you see is the project shape, not the demo. On top of either you can layer [Tailwind](https://tailwindcss.com), [`@implementjs/primitives`](/primitives), [`@implementjs/ui`](/ui), [`@implementjs/lucide`](/lucide), [`@implementjs/formish`](/formish), and [`@implementjs/mode-watcher`](/mode-watcher).
 
+Linting and formatting come as an [adder](/create/adders), which is the same setup written whether you ask for it while scaffolding or long after:
+
+```sh
+npx create-implement-app add oxlint
+```
+
 Everything the CLI generates is TypeScript, and nothing it writes is hidden behind a runtime — the generated app is yours to edit from the first commit.
 
 ## Where to next
 
 - [Templates](/create/templates) — what each template writes, and what the addons add.
+- [Adders](/create/adders) — oxlint and oxfmt, and the `add` command that applies them later.
 - [Options](/create/options) — every flag, for scripting the CLI or skipping the prompts.
 
 <!-- w1 -->

@@ -62,6 +62,21 @@ describe("runCreate (interactive)", () => {
 		expect(value.addons).toEqual(["tailwind", "icons"]);
 	});
 
+	it("offers the adders in the same question as the addons", async () => {
+		prompts.multiselect.mockResolvedValue(["oxlint", "tailwind"]);
+
+		const result = await runCreate("my-app", options());
+
+		const value = unwrap(result);
+		expect(value.addons).toEqual(["tailwind"]);
+		expect(value.adders).toEqual(["oxlint"]);
+		expect(prompts.multiselect).toHaveBeenCalledWith(
+			expect.objectContaining({
+				options: expect.arrayContaining([expect.objectContaining({ value: "oxlint" })]),
+			}),
+		);
+	});
+
 	it("doesn't ask for anything a flag already answered", async () => {
 		await runCreate("my-app", options({ template: "kit" }));
 
