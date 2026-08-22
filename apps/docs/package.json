@@ -10,7 +10,7 @@
 		"skills": "node scripts/skills.ts",
 		"sync": "implement-kit sync",
 		"build": "pnpm generate && vite build",
-		"test": "vitest run",
+		"test": "pnpm generate && vitest run",
 		"preview": "vite preview",
 		"check": "pnpm generate && pnpm sync && tsc --noEmit"
 	},
