@@ -247,7 +247,15 @@ describe("the illegal-import guard", () => {
 		} catch (error) {
 			message = (error as Error).message;
 		}
-		expect(message).toContain("is a server file and cannot be imported by client code");
+		// The fixture has three illegal client imports — `leaky` and `inline-type`
+		// reach a `*.server.ts`, `endpoint-import` reaches a route `server.ts` —
+		// and the build fails on whichever Rollup resolves first, so the kind in
+		// the message is a race. Which kind it is has its own cases above; what
+		// this one is for is that the guard fails the build at all and traces the
+		// chain back through the router.
+		expect(message).toMatch(
+			/is (a server file|a route endpoint) and cannot be imported by client code/,
+		);
 		expect(message).toContain("$implement/router");
 	}, 60_000);
 });
