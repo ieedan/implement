@@ -66,6 +66,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The extension's analyzer tests resolve the docs app's `@/*` alias, which
+      # lives in a generated tsconfig that is not committed. Typecheck already
+      # gets this because `docs check` syncs first; `docs test` does not.
+      - run: pnpm --filter docs sync
       - run: pnpm test
 
   extension:
