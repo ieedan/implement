@@ -6,6 +6,7 @@ import {
 	Button,
 	Div,
 	If,
+	ImplementEffect,
 	ImplementLifecycle,
 	navigateTo,
 	ref,
@@ -119,6 +120,70 @@ describe("browser mounting", () => {
 		unmount();
 		expect(seen).toEqual([root]);
 		expect(el.get()).toBeNull();
+		target.remove();
+	});
+});
+
+describe("ImplementEffect", () => {
+	it("runs on mount by default and skips that run with `immediate: false`", () => {
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const app = App({ target });
+		const query = signal("a");
+		const eager: string[] = [];
+		const lazy: string[] = [];
+
+		const unmount = app.render(
+			Div(
+				ImplementEffect([query], (q) => eager.push(q)),
+				ImplementEffect([query], (q) => lazy.push(q), { immediate: false }),
+			),
+		);
+
+		expect(eager).toEqual(["a"]);
+		expect(lazy).toEqual([]);
+
+		query.set("b");
+		expect(eager).toEqual(["a", "b"]);
+		expect(lazy).toEqual(["b"]);
+
+		// both stop with the tree
+		unmount();
+		query.set("c");
+		expect(eager).toEqual(["a", "b"]);
+		expect(lazy).toEqual(["b"]);
+		target.remove();
+	});
+
+	it("skips the values a remount subscribes with, not the changes after it", () => {
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const app = App({ target });
+		const shown = signal(true);
+		const query = signal("a");
+		const seen: string[] = [];
+
+		const unmount = app.render(
+			Div(
+				If(
+					shown,
+					ImplementEffect([query], (q) => seen.push(q), { immediate: false }),
+				),
+			),
+		);
+
+		expect(seen).toEqual([]);
+
+		// changes while the branch is hidden are not replayed when it comes back
+		shown.set(false);
+		query.set("b");
+		shown.set(true);
+		expect(seen).toEqual([]);
+
+		query.set("c");
+		expect(seen).toEqual(["c"]);
+
+		unmount();
 		target.remove();
 	});
 });

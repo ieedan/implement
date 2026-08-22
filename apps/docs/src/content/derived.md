@@ -64,6 +64,16 @@ Div(
 
 Like `ImplementWindow` it renders nothing and follows its position in the tree. If you place it inside an [`If`](/docs/if) branch the effect runs while the branch is shown and stops when it hides.
 
+### Skipping the run on mount
+
+For something like a refetch you usually only care about the _change_, not the value you already have. Pass `{ immediate: false }` and the effect skips the run on mount and fires on later changes only:
+
+```ts
+ImplementEffect([id], (id) => refetch(id), { immediate: false });
+```
+
+The values a mount subscribes with are always the skipped ones, so an effect inside an `If` branch does not replay when the branch comes back — it waits for the next change.
+
 If you need to watch signals outside of the tree (stores, tests, etc.) you can use the `watch()` function. It works the same way but returns an unsubscribe function that you will need to call yourself:
 
 ```ts
@@ -76,6 +86,6 @@ const stop = watch([theme], (t) => {
 stop();
 ```
 
-If you want to skip the initial run and react only to changes, use `onChange` (available on any readable) instead. It also provides the previous value.
+`watch()` has no `immediate` option. Outside the tree, skip the initial run with `onChange` (available on any readable) instead — it also hands you the previous value.
 
 Deriving a whole new value is one way to get a focused view of your state. The other is [bindings](/docs/bindings), which let you zoom into a piece of an existing signal.
