@@ -75,14 +75,14 @@ Route params arrive as `Readable<string>`, not strings. Navigating from `/users/
 Render `params.id` directly and it stays up to date. When a change should reload data or reset state, wrap the part that needs rebuilding in `Key`, which remounts its children whenever the value changes:
 
 ```ts
-import { Key } from "@implementjs/core";
+import { Div, H1, Key } from "@implementjs/core";
 
 export default function Page({ params }: PageProps) {
 	return Div(H1(params.id), Key(params.id, UserCard(params.id)));
 }
 ```
 
-`Implement.Watch([params.id], refetch)` is the other option when you want to run something on a change rather than remount, and it unsubscribes with the component.
+`ImplementEffect([params.id], refetch)` is the other option when you want to run something on a change rather than remount, and it unsubscribes with the component. Pass `{ immediate: false }` if it should skip the run on mount.
 
 Params in a load function are the opposite: plain strings, because a load runs once per request for one concrete URL.
 
@@ -124,7 +124,7 @@ page@(authed).ts     keeps layouts up to and including (authed)
 layout@.ts           this layout inherits only the root layout
 ```
 
-Resets never change the URL, only which layouts wrap the page. The target has to be an ancestor segment of the file, and a layout can't reset to its own directory, since a layout resets what it inherits.
+Resets never change the URL, only which layouts wrap the page. The target has to name a directory segment on the file's own path — a page may name its own directory (keeping that directory's layout), while a layout may not, since a layout resets what it inherits.
 
 ## The error page
 
@@ -132,13 +132,15 @@ A root `error.ts` renders whenever no route matches, or a page or layout throws 
 
 ```ts
 // src/routes/error.ts
-import { H1, P } from "@implementjs/core";
+import { Div, H1, P } from "@implementjs/core";
 import type { ErrorProps } from "./$types";
 
 export default function ErrorPage({ error }: ErrorProps) {
-	return [H1(`${error.code}`), P(error.message)];
+	return Div(H1(`${error.code}`), P(error.message));
 }
 ```
+
+It returns a single `Child`, so wrap several elements in a `Div` or a `Fragment` — an array is not a child.
 
 `error.code` is an HTTP style status: `404` when no route matched, `500` when a render threw. Throw a `{ code, message }` object from a page to surface a custom status:
 

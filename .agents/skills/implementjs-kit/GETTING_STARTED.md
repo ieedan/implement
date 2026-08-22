@@ -264,7 +264,7 @@ sync("/path/to/app", { routes: "src/routes", alias: { "@/content": "src/content"
 
 Kit apps are server rendered and you don't turn it on, it's how kit serves your app.
 
-**In dev** every page the dev server sends is rendered on the server first, so content paints before any JavaScript loads. When the client bundle arrives, `App.render` swaps the server markup for its own mount and the app takes over. The practical consequence is that your route modules run in Node during dev, so a page that touches `window` or `document` at module scope will break the server render. Do DOM work inside components or behind lifecycle hooks.
+**In dev** every page the dev server sends is rendered on the server first, so content paints before any JavaScript loads. When the client bundle arrives it **hydrates** that markup: the generated client entry calls `installHydration()`, so the mount adopts the existing nodes in place and attaches listeners and subscriptions without rebuilding the DOM. On a structural mismatch it logs a warning, discards the markup, and mounts fresh in the same task. The practical consequence is that your route modules run in Node during dev, so a page that touches `window` or `document` at module scope will break the server render. Do DOM work inside components or behind lifecycle hooks.
 
 **On build** `vite build` produces a static site. Kit renders your routes to HTML and writes one `index.html` per route into `dist/`, so any static host can serve the app with real content in every page. The routes it prerenders come from three places: every page without params (known from the file tree), a crawl of the internal links reachable from `/`, and any entries you list yourself for dynamic pages nothing links to:
 
@@ -284,13 +284,14 @@ kit({
 
 ## Options
 
-`kit()` takes six options:
+`kit()` takes seven options:
 
 - `routes` is the routes directory relative to your Vite root. Defaults to `"src/routes"`.
 - `hooks` is the server hooks file relative to your Vite root. Defaults to `"src/hooks.server.ts"`.
 - `prerender` is `false` to skip prerendering on build, or `{ entries, default }` to add dynamic routes to it and set what a route prerenders when it doesn't say for itself.
 - `adapter` is what to do with the finished build. Without one, `vite build` writes a static site and anything that needs a server at request time has nowhere to run. See [Adapters](./ADAPTERS.md).
 - `env` is where the two environment variable files live, relative to your Vite root. Defaults to `src/lib/env.public.ts` and `src/lib/env.server.ts`, and a file that isn't there turns that half off. See [Environment Variables](./ENVIRONMENT_VARIABLES.md).
+- `api` is the typed-endpoint options: `api.client` picks the generated client's `style` and `errors`, and `api.openapi` opts into an OpenAPI document. See [API Routes](./API_ROUTES.md).
 - `alias` is extra import aliases on top of the automatic `@/lib`, mapped to paths relative to your Vite root. Like `@/lib`, each one is wired into both Vite and the generated tsconfig, so the bundler and the typechecker always agree:
 
 ```ts

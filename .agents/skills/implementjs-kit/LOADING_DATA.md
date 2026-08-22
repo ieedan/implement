@@ -29,16 +29,19 @@ Returning nothing is the same as returning `{}`.
 
 ### The event
 
-| Field                | What it is                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| `params`             | The route's params as plain strings, typed by `./$types`                             |
-| `url`                | The request `URL`, so `url.searchParams` is where query strings come from            |
-| `request`            | The web standard `Request`                                                           |
-| `locals`             | Whatever `src/hooks.server.ts` put on this request, typed by your `src/app.d.ts`     |
-| `route`              | `{ id }`, the matched route's directory-style id (`/docs/[...slug]`)                 |
-| `isDataRequest`      | `true` when this is a client navigation's `__data.json` fetch rather than a document |
-| `setHeaders`         | Adds headers to the response. Each header may only be set once                       |
-| `getClientAddress()` | The client's address                                                                 |
+| Field                | What it is                                                                                                  |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `params`             | The route's params as plain strings, typed by `./$types`                                                    |
+| `url`                | The request `URL`, so `url.searchParams` is where query strings come from                                   |
+| `request`            | The web standard `Request`                                                                                  |
+| `locals`             | Whatever `src/hooks.server.ts` put on this request, typed by your `src/app.d.ts`                            |
+| `route`              | `{ id }`, the matched route's directory-style id (`/docs/[...slug]`)                                        |
+| `fetch`              | `fetch` bound to this request — see [API Routes](./API_ROUTES.md#eventfetch-and-eventapi)                   |
+| `api`                | The generated API client bound to `event.fetch`, typed through `App.Api`                                    |
+| `platform`           | Whatever the adapter hands its requests, typed by `App.Platform`. `undefined` in dev and while prerendering |
+| `isDataRequest`      | `true` when this is a client navigation's `__data.json` fetch rather than a document                        |
+| `setHeaders`         | Adds headers to the response. Each header may only be set once                                              |
+| `getClientAddress()` | The client's address                                                                                        |
 
 `locals` is the usual way a load learns who is asking:
 

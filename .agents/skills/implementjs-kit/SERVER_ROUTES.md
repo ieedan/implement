@@ -31,7 +31,7 @@ To type the _edges_ too — a validated body and query, a typed result, and a ge
 
 ### The event
 
-The event is the same one a load gets — see [Loading Data](./LOADING_DATA.md#the-event) for the full table. In short: `request`, `params` (plain strings, not signals), `url`, `locals`, `route`, `isDataRequest`, `setHeaders`, and `getClientAddress()`.
+The event is the same one a load gets — see [Loading Data](./LOADING_DATA.md#the-event) for the full table. In short: `request`, `params` (plain strings, not signals), `url`, `locals`, `route`, `fetch`, `api`, `platform`, `isDataRequest`, `setHeaders`, and `getClientAddress()`.
 
 `locals` is how an endpoint learns who is asking, and it comes from `src/hooks.server.ts` like everywhere else:
 
