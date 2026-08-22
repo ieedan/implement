@@ -14,6 +14,21 @@ That rebuilds `apps/docs/registry.json`, which is committed: it is the manifest 
 
 `create-implement-app --ui --link .` scaffolds an app that reads this checkout's registry directly.
 
+## Deploying the docs
+
+`apps/docs` builds for Vercel through [`@implementjs/adapter-vercel`](packages/adapter-vercel) — the docs are its dogfood. `vite build` writes [Build Output API v3](https://vercel.com/docs/build-output-api/v3) into `apps/docs/.vercel/output`: everything prerendered as static files on the CDN, and the app as a bundled Node function behind them for whatever the filesystem misses.
+
+The Vercel project needs one setting — **Root Directory: `apps/docs`** — and takes the rest from `apps/docs/vercel.json`. The build command generates the Lucide icon modules before building, since `packages/lucide/src/` is generated and not committed.
+
+The site stays fully prerendered (`prerender: { default: true }` in `apps/docs/vite.config.ts`). A server adapter otherwise defaults to `"auto"`, which leaves every page with a server load to render per request — and `/packages` reads the workspace manifests off disk, a path that does not exist inside the uploaded function.
+
+One consequence worth knowing: Vercel serves the prerendered documents straight off the filesystem, so the `Accept: text/markdown` redirect in `hooks.server.ts` only fires for paths the CDN has no file for. The `.md` twins are still there to link and fetch directly.
+
+```sh
+pnpm --filter @apps/docs build
+cd apps/docs && vercel deploy --prebuilt
+```
+
 ## TODOS
 
 - rewrite all docs

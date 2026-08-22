@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import vercel from "@implementjs/adapter-vercel";
 import { kit } from "@implementjs/kit";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
@@ -40,7 +41,15 @@ export default defineConfig({
 		tailwindcss(),
 		velite(),
 		kit({
-			prerender: { entries },
+			// The docs are a Vercel deployment: the CDN serves everything the
+			// prerender wrote, and the function behind it answers whatever is
+			// left — an unknown path, and `hooks.server.ts` on the way past.
+			adapter: vercel(),
+			// A server adapter would otherwise default to `"auto"`, which leaves
+			// every page with a server load to render per request. `/packages`
+			// reads the workspace manifests off disk, and only the function's own
+			// directory is uploaded — so the docs stay fully prerendered.
+			prerender: { entries, default: true },
 			alias: { "@": "src", "@tutorial/test": "src/lib/tutorial-test.ts" },
 		}),
 	],

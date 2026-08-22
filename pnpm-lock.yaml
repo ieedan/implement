@@ -81,6 +81,9 @@ importers:
         specifier: ^1.4.1
         version: 1.4.2(typescript@7.0.2)
     devDependencies:
+      '@implementjs/adapter-vercel':
+        specifier: workspace:*
+        version: link:../../packages/adapter-vercel
       '@implementjs/kit':
         specifier: workspace:*
         version: link:../../packages/kit
