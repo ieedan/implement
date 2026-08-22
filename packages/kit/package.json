@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/kit",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "File based routing, server rendering and prerendering for implement apps, on top of Vite.",
 	"keywords": [
 		"implement",
