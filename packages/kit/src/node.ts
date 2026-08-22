@@ -66,8 +66,16 @@ export async function sendResponse(
 	}
 	// streamed rather than buffered: an endpoint answering with a file, a proxy,
 	// or an event stream should not have to fit in memory first
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Node's Readable.fromWeb takes the platform ReadableStream.
-	await pipeline(Readable.fromWeb(response.body as never), res);
+	try {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Node's Readable.fromWeb takes the platform ReadableStream.
+		await pipeline(Readable.fromWeb(response.body as never), res);
+	} catch (error) {
+		// A client that goes away mid-stream aborts the socket, and `pipeline`
+		// reports that as a failure. It is how a browser ends an event stream it
+		// no longer needs, or cancels a download — routine, and nothing the app
+		// can act on, so it must not surface as a request error.
+		if ((error as NodeJS.ErrnoException).code !== "ERR_STREAM_PREMATURE_CLOSE") throw error;
+	}
 }
 
 export type OriginOptions = {
