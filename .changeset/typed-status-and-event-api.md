@@ -4,7 +4,7 @@
 
 Fix two holes in the generated client's types: `event.api` had no methods at all, and returning JSON with a custom status typed `data` as `never`.
 
-**`event.api` was an empty `App.Api`.** The generated declaration wrote `interface Api extends import("@implementjs/kit/client").TypedClient<…> {}`, and an interface may only extend a *name* — extending an inline `import(…)` type is `TS2499`. Apps compile their generated types with `skipLibCheck`, so nobody ever saw the error: `App.Api` merged as empty, `keyof` was `never`, and `api.GET(…)` in a load was `Property 'GET' does not exist`. The client is now named before it is extended, so `event.api` in loads, handlers, and hooks is the same client `$implement/client` exports — same style, same routes, same `data`.
+**`event.api` was an empty `App.Api`.** The generated declaration wrote `interface Api extends import("@implementjs/kit/client").TypedClient<…> {}`, and an interface may only extend a _name_ — extending an inline `import(…)` type is `TS2499`. Apps compile their generated types with `skipLibCheck`, so nobody ever saw the error: `App.Api` merged as empty, `keyof` was `never`, and `api.GET(…)` in a load was `Property 'GET' does not exist`. The client is now named before it is extended, so `event.api` in loads, handlers, and hooks is the same client `$implement/client` exports — same style, same routes, same `data`.
 
 A server assembled without `createApiClient` used to get `{}` for `event.api`, which only typechecked while `App.Api` was empty. It now gets a stand-in whose every method throws a message naming the missing option, instead of failing as `undefined is not a function`.
 
