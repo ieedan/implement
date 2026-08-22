@@ -1026,44 +1026,75 @@ function setDomValue(el: HTMLElement, key: string, value: unknown) {
 function noop() {}
 
 /**
- * What a prop hands back to be undone: a plain unsubscribe, or a binding that
+ * What a prop hands back to be undone: a plain unsubscribe, or an object that
  * cancels itself. Keeping the union internal means a bound prop costs one
  * object and no closure, while the exported surface stays a function.
  */
-export type Teardown = Unsubscribe | Binding<unknown>;
+export type Teardown = Unsubscribe | { stop(): void };
 
 export function runTeardown(teardown: Teardown): void {
 	if (typeof teardown === "function") teardown();
 	else teardown.stop();
 }
 
-function bindEvent(el: Element, event: string, value: unknown): Unsubscribe {
-	const attach = (handler: unknown): Unsubscribe => {
-		if (typeof handler !== "function") return noop;
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Event props accept any listener after a function check.
-		const listener = handler as EventListener;
+/**
+ * One `addEventListener` and the state to undo it, on a single object. The
+ * closure form cost a scope to capture the element and event name plus a
+ * closure to remove with, on every handler of every element — four a row in a
+ * list, so the object is the cheaper shape by a wide margin.
+ */
+class EventBinding {
+	constructor(
+		private readonly el: Element,
+		private readonly event: string,
+		private readonly listener: EventListener,
+	) {
 		el.addEventListener(event, listener);
-		return () => {
-			// A listener on a node being discarded dies with it. This runs once per
-			// handler per element, which is tens of thousands of calls to tear down
-			// a list, and every one of them is on a node nothing can reach again.
-			if (!isDiscarding()) el.removeEventListener(event, listener);
-		};
-	};
-
-	if (isReadable(value)) {
-		let current: Unsubscribe = noop;
-		const unsub = subscribe([value], (handler) => {
-			current();
-			current = attach(handler);
-		});
-		return () => {
-			unsub();
-			current();
-		};
 	}
 
-	return attach(value);
+	stop(): void {
+		// A listener on a node being discarded dies with it. This runs once per
+		// handler per element, which is tens of thousands of calls to tear down
+		// a list, and every one of them is on a node nothing can reach again.
+		if (!isDiscarding()) this.el.removeEventListener(this.event, this.listener);
+	}
+}
+
+function attachEvent(el: Element, event: string, handler: unknown): EventBinding | null {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Event props accept any listener after a function check.
+	return typeof handler === "function"
+		? new EventBinding(el, event, handler as EventListener)
+		: null;
+}
+
+/** A handler that can be swapped out, for the rare case of a reactive one. */
+class LiveEventBinding extends Binding<unknown> {
+	private attached: EventBinding | null = null;
+
+	constructor(
+		private readonly el: Element,
+		private readonly event: string,
+		source: ReadableSource,
+	) {
+		super();
+		this.start(source);
+	}
+
+	protected apply(handler: unknown): void {
+		this.attached?.stop();
+		this.attached = attachEvent(this.el, this.event, handler);
+	}
+
+	override stop(): void {
+		super.stop();
+		this.attached?.stop();
+		this.attached = null;
+	}
+}
+
+function bindEvent(el: Element, event: string, value: unknown): Teardown {
+	if (isReadable(value)) return new LiveEventBinding(el, event, value);
+	return attachEvent(el, event, value) ?? noop;
 }
 
 function resolveClassValue(value: unknown, found: Set<Readable<unknown>>, out: string[]) {

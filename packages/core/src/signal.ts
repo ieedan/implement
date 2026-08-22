@@ -881,77 +881,78 @@ export class Derived<T, Signals extends readonly Readable<any>[]> extends LazyRe
  * A selector result that is itself a readable is followed and unwrapped, the
  * same as before, but nothing for following is allocated unless one turns up.
  */
-class SelectorView<T, U> implements Readable<Unwrapped<U>> {
+/**
+ * `bind(selector)` without a write-back. Lazy like any other derived: it
+ * watches its source once, for as long as something is listening, and
+ * notifies its own subscribers — so a selector read by several bindings holds
+ * one subscription rather than one per reader, and bound props can register
+ * directly instead of through a callback.
+ */
+class SelectorView<T, U> extends LazyReadable<Unwrapped<U>> {
+	/** Subscriptions to readables the selector returned, allocated only if the
+	 * selector ever returns one. */
+	private inner: Unsubscribe[] | null = null;
+
 	constructor(
 		private readonly source: ReadableSource<T>,
 		private readonly selector: (value: T) => U,
-	) {}
+	) {
+		super();
+	}
 
-	get(): Unwrapped<U> {
+	protected read(): Unwrapped<U> {
 		let value: unknown = this.selector(this.source.get());
 		while (isReadable(value)) value = value.get();
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Unwrapping stops at the innermost plain value.
 		return value as Unwrapped<U>;
 	}
 
-	subscribe(callback: Callback<Unwrapped<U>>): Unsubscribe {
-		// Subscriptions to readables the selector returned, allocated only if the
-		// selector ever returns one.
-		let inner: Unsubscribe[] | null = null;
-		let current: unknown = this.get();
+	private clearFrom(depth: number): void {
+		const list = this.inner;
+		if (list === null) return;
+		while (list.length > depth) list.pop()!();
+	}
 
-		const clearFrom = (depth: number) => {
-			if (inner === null) return;
-			while (inner.length > depth) inner.pop()!();
-		};
+	/**
+	 * `value` came from the readable at `depth - 1` (or the selector when depth
+	 * is 0), so every subscription at or below `depth` is stale.
+	 */
+	private follow(value: unknown, depth: number, onValue: (value: Unwrapped<U>) => void): unknown {
+		this.clearFrom(depth);
+		while (isReadable(value)) {
+			const readable = value;
+			const list = (this.inner ??= []);
+			const nextDepth = list.length + 1;
+			list.push(
+				readable.subscribe((next) => {
+					const settled = this.follow(next, nextDepth, onValue);
+					// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- follow() terminates at a plain value.
+					onValue(settled as Unwrapped<U>);
+				}),
+			);
+			value = readable.get();
+		}
+		return value;
+	}
 
-		// `value` came from the readable at `depth - 1` (or the selector when depth
-		// is 0), so every subscription at or below `depth` is stale.
-		const follow = (value: unknown, depth: number): unknown => {
-			clearFrom(depth);
-			while (isReadable(value)) {
-				const readable = value;
-				const list = (inner ??= []);
-				const nextDepth = list.length + 1;
-				list.push(
-					readable.subscribe((next) => {
-						const settled = follow(next, nextDepth);
-						if (!hasChanged(current, settled)) return;
-						current = settled;
-						// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- follow() terminates at a plain value.
-						callback(settled as Unwrapped<U>);
-					}),
-				);
-				value = readable.get();
-			}
-			return value;
-		};
-
-		follow(this.selector(this.source.get()), 0);
+	protected watch(onValue: (value: Unwrapped<U>) => void): Unsubscribe {
+		const raw: unknown = this.selector(this.source.get());
+		// A selector returning a plain value — nearly all of them — needs none of
+		// the nesting bookkeeping, so it never allocates the list.
+		if (isReadable(raw)) this.follow(raw, 0, onValue);
 
 		const unsubscribe = this.source.subscribe(() => {
-			const raw: unknown = this.selector(this.source.get());
-			const next = inner === null && !isReadable(raw) ? raw : follow(raw, 0);
-			if (!hasChanged(current, next)) return;
-			current = next;
+			const next: unknown = this.selector(this.source.get());
+			const settled =
+				this.inner === null && !isReadable(next) ? next : this.follow(next, 0, onValue);
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- follow() terminates at a plain value.
-			callback(next as Unwrapped<U>);
+			onValue(settled as Unwrapped<U>);
 		});
 
 		return () => {
 			unsubscribe();
-			clearFrom(0);
+			this.clearFrom(0);
 		};
-	}
-
-	onChange(callback: ChangeCallback<Unwrapped<U>>): Unsubscribe {
-		return bindOnChange(this.get(), (cb) => this.subscribe(cb), callback);
-	}
-
-	bind<P extends BindableKeys<Unwrapped<U>>>(path: P): Readable<BindPathValue<Unwrapped<U>, P>>;
-	bind<V>(selector: (value: Unwrapped<U>) => V): Readable<Unwrapped<V>>;
-	bind(keyOrSelector: PropertyKey | ((value: Unwrapped<U>) => unknown)): Readable<unknown> {
-		return createBinding(this, keyOrSelector);
 	}
 }
 
