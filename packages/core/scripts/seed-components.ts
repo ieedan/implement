@@ -123,7 +123,7 @@ import { element } from "./index";
 
 for (const tag of HTML_TAGS) {
 	const name = `${tag.slice(0, 1).toUpperCase()}${tag.slice(1)}`;
-	content += `export const ${name} = element("${tag}");\n`;
+	content += `export const ${name} = /* @__PURE__ */ element("${tag}");\n`;
 }
 
 fs.writeFileSync(new URL("../src/components/elements.ts", import.meta.url), content);

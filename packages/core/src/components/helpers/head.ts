@@ -9,7 +9,7 @@ import type { IMountable, Mountable, PrimitiveChild, ReadableChild } from "../ty
 declare const HEAD_CHILD: unique symbol;
 
 /**
- * A component that may only slot into `Implement.Head`. The brand is opaque in
+ * A component that may only slot into `ImplementHead`. The brand is opaque in
  * both directions: regular children (elements, text, signals) do not satisfy
  * it, and it does not satisfy `Child`, so head elements cannot render into the
  * body and body elements cannot render into the head.
@@ -27,10 +27,10 @@ export type MetaProps = ElementProps<"meta">;
 /** `HeadLink` because the router already owns `LinkProps`. */
 export type HeadLinkProps = ElementProps<"link">;
 
-/** Content is passed as `Implement.Head.Script`'s second argument, not a prop. */
+/** Content is passed as `ImplementHead.Script`'s second argument, not a prop. */
 export type ScriptProps = Omit<ElementProps<"script">, "children">;
 
-/** Content is passed as `Implement.Head.Style`'s first argument, not a prop. */
+/** Content is passed as `ImplementHead.Style`'s first argument, not a prop. */
 export type StyleProps = Omit<ElementProps<"style">, "children">;
 
 export type HeadHelper = {
@@ -81,27 +81,27 @@ function Title(text: Bindable<string>): HeadChild {
 
 /**
  * Renders its children into `document.head` — the counterpart of Svelte's
- * `<svelte:head>`. Only accepts the branded components under `Implement.Head`
+ * `<svelte:head>`. Only accepts the branded components under `ImplementHead`
  * (`Title`, `Meta`, `Link`, `Script`, `Style`), and those components fit
  * nowhere else, so head-only elements stay in the head.
  *
  * Elements live in the head for as long as this node is mounted, so lifetime
- * follows tree position: a per-route `Implement.Head` swaps its tags on
+ * follows tree position: a per-route `ImplementHead` swaps its tags on
  * navigation, and one inside `If(open).Then(...)` adds them while the branch
  * is mounted.
  *
  * ```ts
- * Implement.Head(
- * 	Implement.Head.Title(issue.bind((i) => `${i.name} — Tracker`)),
- * 	Implement.Head.Meta({ name: "description", content: description }),
- * 	Implement.Head.Script(
+ * ImplementHead(
+ * 	ImplementHead.Title(issue.bind((i) => `${i.name} — Tracker`)),
+ * 	ImplementHead.Meta({ name: "description", content: description }),
+ * 	ImplementHead.Script(
  * 		{ type: "application/ld+json" },
  * 		description.bind(toJsonLd),
  * 	),
  * );
  * ```
  */
-export const Head: HeadHelper = Object.assign(
+export const ImplementHead: HeadHelper = /* @__PURE__ */ Object.assign(
 	(...children: HeadChild[]): Mountable => {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- HeadChild brand is stripped at runtime to mountable factories.
 		const mountables = children as unknown as Mountable[];

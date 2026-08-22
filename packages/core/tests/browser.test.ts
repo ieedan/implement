@@ -6,7 +6,7 @@ import {
 	Button,
 	Div,
 	If,
-	Implement,
+	ImplementLifecycle,
 	navigateTo,
 	ref,
 	registerNavigationGuard,
@@ -85,7 +85,7 @@ describe("browser mounting", () => {
 		const unmount = app.render(
 			Div(
 				{ this: el },
-				Implement.Lifecycle({ onUnmount: () => seen.push(el.get()) }, Span("child")),
+				ImplementLifecycle({ onUnmount: () => seen.push(el.get()) }, Span("child")),
 			),
 		);
 

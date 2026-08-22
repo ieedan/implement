@@ -9,9 +9,12 @@ import {
 	Fragment,
 	Html,
 	If,
-	Implement,
+	ImplementDocument,
+	ImplementHead,
+	ImplementWindow,
 	Input,
 	Li,
+	navigateTo,
 	Option,
 	P,
 	Portal,
@@ -23,7 +26,6 @@ import {
 	Switch,
 	Textarea,
 	Ul,
-	navigateTo,
 	type Mountable,
 } from "../src/index";
 import { renderToString } from "../src/server/index";
@@ -167,13 +169,13 @@ describe("helpers", () => {
 		);
 	});
 
-	it("collects Implement.Head output separately", () => {
+	it("collects ImplementHead output separately", () => {
 		const { html, head } = renderToString(
 			Div(
-				Implement.Head(
-					Implement.Head.Title("My Page & Co"),
-					Implement.Head.Meta({ name: "description", content: "words" }),
-					Implement.Head.Style("body { margin: 0; }"),
+				ImplementHead(
+					ImplementHead.Title("My Page & Co"),
+					ImplementHead.Meta({ name: "description", content: "words" }),
+					ImplementHead.Style("body { margin: 0; }"),
 				),
 				P("content"),
 			),
@@ -189,9 +191,9 @@ describe("helpers", () => {
 		expect(html).toBe('<p>modal</p><div id="root"><!----></div>');
 	});
 
-	it("no-ops Implement.Window and Implement.Document", () => {
+	it("no-ops ImplementWindow and ImplementDocument", () => {
 		const { html } = renderToString(
-			Div(Implement.Window({ onResize: () => {} }), Implement.Document({ onKeydown: () => {} })),
+			Div(ImplementWindow({ onResize: () => {} }), ImplementDocument({ onKeydown: () => {} })),
 		);
 		expect(html).toBe("<div></div>");
 	});

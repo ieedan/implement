@@ -19,8 +19,8 @@ export type RenderToStringResult = {
 	 */
 	html: string;
 	/**
-	 * Serialized `Implement.Head` output for the document shell, with a
-	 * `<title>` first when one was set via `Implement.Head.Title`.
+	 * Serialized `ImplementHead` output for the document shell, with a
+	 * `<title>` first when one was set via `ImplementHead.Title`.
 	 */
 	head: string;
 };
@@ -46,8 +46,8 @@ function toRouterLocation(input: ServerLocation | undefined): RouterLocation {
  *
  * The render is synchronous: signals hold their initial values, `Await`
  * renders its `WhileLoading` branch, and `Lifecycle.onMount` never fires
- * (it is deferred past the render). Event handlers and `Implement.Window` /
- * `Implement.Document` listeners are no-ops. `navigateTo` and
+ * (it is deferred past the render). Event handlers and `ImplementWindow` /
+ * `ImplementDocument` listeners are no-ops. `navigateTo` and
  * `searchParam.set` throw — pass the request URL via `options.location`
  * instead. Everything mounted is unmounted before returning, so signal
  * subscriptions created during the render are torn down.

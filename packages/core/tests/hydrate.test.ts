@@ -9,7 +9,8 @@ import {
 	ForEach,
 	Html,
 	If,
-	Implement,
+	ImplementBoundary,
+	ImplementHead,
 	Key,
 	Li,
 	P,
@@ -94,9 +95,9 @@ const buildPortalTree = () => Div(Span("in place"), Portal(P("floating")));
 
 const buildHeadTree = () =>
 	Div(
-		Implement.Head(
-			Implement.Head.Title("Page"),
-			Implement.Head.Meta({ name: "description", content: "d" }),
+		ImplementHead(
+			ImplementHead.Title("Page"),
+			ImplementHead.Meta({ name: "description", content: "d" }),
 		),
 		P("body"),
 	);
@@ -184,7 +185,7 @@ describe("hydration", () => {
 				),
 			() => Div(Switch(signal("b")).Case("a", P("a")).Case("b", P("b")).Default(P("d"))),
 			() => Div(Key(signal(1), Span("keyed"))),
-			() => Div(Implement.Boundary(Span("safe")).Catch(() => P("caught"))),
+			() => Div(ImplementBoundary(Span("safe")).Catch(() => P("caught"))),
 			() => [Div(Span("multi")), P("roots")],
 			() => Div(Html("<b>bold</b> raw"), Span("after")),
 			() => Div(Svg('<svg viewBox="0 0 4 4"><path d="M0 0"/></svg>'), Span("s")),

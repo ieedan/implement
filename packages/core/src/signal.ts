@@ -468,14 +468,14 @@ export function ref<T>(): Ref<T> {
 
 /**
  * A `Set` that is also a `Readable<ReadonlySet<T>>`, created via
- * `Implement.Set(...)`. Mutators (`add`, `delete`, `clear`, `toggle`) notify
+ * `ImplementSet(...)`. Mutators (`add`, `delete`, `clear`, `toggle`) notify
  * subscribers with an immutable snapshot, so it plugs into `derived`, `watch`,
  * bindings, and props like any other readable. Reads on the set itself
  * (`has`, `size`, iteration) are plain non-reactive reads; reactive reads go
  * through `get()` or `bind`.
  *
  * ```ts
- * const selected = Implement.Set<string>();
+ * const selected = ImplementSet<string>();
  * Button({ onClick: () => selected.toggle(id) });
  * If(selected.bind((s) => s.has(id))).Then(...);
  * ```
@@ -559,13 +559,13 @@ export class ReactiveSet<T> extends Set<T> implements Readable<ReadonlySet<T>> {
 
 /**
  * A `Map` that is also a `Readable<ReadonlyMap<K, V>>`, created via
- * `Implement.Map(...)`. Mutators (`set`, `delete`, `clear`) notify subscribers
+ * `ImplementMap(...)`. Mutators (`set`, `delete`, `clear`) notify subscribers
  * with an immutable snapshot, so it plugs into `derived`, `watch`, bindings,
  * and props like any other readable. `get(key)` is the plain non-reactive
  * `Map` read; `get()` with no arguments is the readable's snapshot read.
  *
  * ```ts
- * const drafts = Implement.Map<string, string>();
+ * const drafts = ImplementMap<string, string>();
  * Input({ onInput: (ev) => drafts.set(id, ev.currentTarget.value) });
  * Span(drafts.bind((d) => d.get(id) ?? ""));
  * ```
