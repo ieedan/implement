@@ -60,6 +60,15 @@ export default function adapter(options: VercelAdapterOptions = {}): Adapter {
 
 			const fn = join(target, "functions", `${FUNCTION}.func`);
 			builder.copy(builder.serverDir!, fn);
+
+			// only the .func directory is uploaded, so the app's own package.json
+			// is not there to say the bundle is ESM — and the Node launcher reads
+			// an unmarked .js as CommonJS and dies on the first `import`
+			builder.writeFile(
+				join(fn, "package.json"),
+				`${JSON.stringify({ private: true, type: "module" }, null, "\t")}\n`,
+			);
+
 			builder.writeFile(
 				join(fn, ".vc-config.json"),
 				`${JSON.stringify(
