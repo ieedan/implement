@@ -175,6 +175,7 @@ A few behaviors worth knowing:
 
 - Modifier keys (cmd/ctrl/shift/alt), non-left clicks, and a `target` other than `_self` fall through to the browser, so open in new tab works.
 - `replace: true` replaces the history entry instead of pushing one.
+- `noScroll: true` follows the link without jumping to the top of the page.
 - The link sets `aria-current="page"` while its path is current. Style it with CSS (`aria-[current=page]:` in Tailwind).
 - Every other `A` prop (class, events, and the rest) passes through.
 
@@ -186,11 +187,25 @@ Plain `A({ href: "/about" })` works too, the browser just does a full page load 
 router.navigate("/users");
 router.navigate("/users/:id", { id: created.id });
 router.navigate("/login", { replace: true });
+router.navigate("/users", { noScroll: true });
 
 const url = router.href("/users/:id", { id: 42 }); // "/users/42"
 ```
 
-Both are typed against the tree like `Link` is. For untyped navigation (external state, a redirect built from a string) `navigateTo(href, { replace? })` is exported from `@implementjs/core`. Pushing a new entry scrolls to the top, `replace` does not.
+Both are typed against the tree like `Link` is. For untyped navigation (external state, a redirect built from a string) `navigateTo(href, { replace?, noScroll? })` is exported from `@implementjs/core`. `href` only builds a string, so it has nothing to scroll.
+
+### Scroll restoration
+
+The router records a scroll position per history entry, so back and forward land where the user left off — a reload too, since the positions live in `sessionStorage`. A new navigation starts at the top instead.
+
+`noScroll` skips that, the same as Svelte's `goto(url, { noScroll })`:
+
+```ts
+router.Link({ to: "/users?sort=name", noScroll: true }, "By name");
+router.navigate("/users", { noScroll: true });
+```
+
+A `replace` never scrolls with or without the flag, which is why `searchParam.set` leaves the page where it is. Back and forward ignore `noScroll` and restore the recorded position. A `#hash` is left to you — the router does not scroll the fragment's element into view.
 
 ### Location
 
