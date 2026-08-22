@@ -286,12 +286,12 @@ export type ClientOptions = {
 	/** How a call's outcome reaches the caller. @default "result" */
 	errors?: "result" | "throw";
 	/**
-	 * Nest the client by route segment — `api.api.posts["[id]"].GET(…)` rather
-	 * than `api.GET("/api/posts/[id]", …)`.
+	 * `"method"` for `api.GET(path, …)`, `"nested"` for the route's own segments
+	 * — `api.api.posts["[id]"].GET(…)`.
 	 *
-	 * @default false
+	 * @default "method"
 	 */
-	nested?: boolean;
+	style?: "method" | "nested";
 };
 
 /** The loosely-typed shape of one call's options, as the runtime sees it. */
@@ -317,7 +317,7 @@ export type CallInput = RequestOptions & {
 export function createClient<C>(options: ClientOptions = {}): C {
 	const send = (method: Method, path: string, input?: CallInput) =>
 		dispatch(method, path, input, options);
-	if (options.nested === true) return createNested<C>(send);
+	if (options.style === "nested") return createNested<C>(send);
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The shape is fixed; the types come from the generated table.
 	return methodsFor(
 		(method) => (path: string, input?: CallInput) => send(method, path, input),

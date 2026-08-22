@@ -218,13 +218,13 @@ describe('the "throw" style', () => {
 	});
 });
 
-describe("the nested client", () => {
+describe('the "nested" style', () => {
 	it("calls through the route's segments", async () => {
 		const stubbed = stub(() => Response.json({ id: "7", title: "hello" }));
 		const api = createClient<NestedClient<Api>>({
 			baseUrl: ORIGIN,
 			fetch: stubbed.fetch,
-			nested: true,
+			style: "nested",
 		});
 		const { data } = await api.api.posts["[id]"].GET({ params: { id: "7" } });
 		expect(data).toEqual({ id: "7", title: "hello" });
@@ -236,7 +236,7 @@ describe("the nested client", () => {
 		const api = createClient<NestedClient<Api>>({
 			baseUrl: ORIGIN,
 			fetch: stubbed.fetch,
-			nested: true,
+			style: "nested",
 		});
 		await api.docs["[...slug].md"].GET({ params: { slug: "guide/install" } });
 		expect(stubbed.seen[0]!.url).toBe(`${ORIGIN}/docs/guide/install.md`);
@@ -254,7 +254,7 @@ describe("the nested client", () => {
 		const api = createClient<NestedClient<{ "/": { params: {}; operations: RootOperations } }>>({
 			baseUrl: ORIGIN,
 			fetch: stubbed.fetch,
-			nested: true,
+			style: "nested",
 		});
 		await api.GET();
 		expect(stubbed.seen[0]!.url).toBe(`${ORIGIN}/`);
@@ -285,7 +285,7 @@ describe('the "neverthrow" style', () => {
 		const api = createResultClient<ResultNestedClient<Api>>({
 			baseUrl: ORIGIN,
 			fetch: stubbed.fetch,
-			nested: true,
+			style: "nested",
 		});
 		const post = await api.api.posts["[id]"].GET({ params: { id: "7" } }).unwrapOr(null);
 		expect(post).toEqual({ id: "7", title: "hello" });

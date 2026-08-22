@@ -349,10 +349,10 @@ describe("generateClientModule", () => {
 
 		const result = generateClientModule(loaded, "/src/routes", {
 			errors: "neverthrow",
-			nested: true,
+			style: "nested",
 		});
 		expect(result).toContain('} from "@implementjs/kit/client/neverthrow";');
-		expect(result).toContain("return create({ ...options, nested: true });");
+		expect(result).toContain('return create({ ...options, style: "nested" });');
 		expect(result).toContain("export const api: ResultNestedClient<Api> = createClient();");
 	});
 });

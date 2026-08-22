@@ -158,7 +158,7 @@ export type KitOptions = {
 	 * ```ts
 	 * kit({
 	 * 	api: {
-	 * 		client: { nested: true, errors: "result" },
+	 * 		client: { style: "nested", errors: "result" },
 	 * 		openapi: { info: { title: "Docs API", version: "1.0.0" }, output: "static/openapi.json" },
 	 * 	},
 	 * });

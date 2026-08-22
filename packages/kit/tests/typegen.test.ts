@@ -135,7 +135,9 @@ describe("App.Api", () => {
 		expect(generateRouterDeclaration(routes, false, { errors: "neverthrow" })).toContain(
 			'import("@implementjs/kit/client/neverthrow").ResultClient<import("../client.ts").Api>',
 		);
-		expect(generateRouterDeclaration(routes, false, { errors: "throw", nested: true })).toContain(
+		expect(
+			generateRouterDeclaration(routes, false, { errors: "throw", style: "nested" }),
+		).toContain(
 			'import("@implementjs/kit/client").NestedClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
 		);
 	});

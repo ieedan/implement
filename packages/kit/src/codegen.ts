@@ -541,8 +541,8 @@ export function apiRoutes(tree: RouteTree): ApiRoute[] {
 
 /** How the generated `createClient` is called and what it hands back. */
 export type ClientStyle = {
-	/** Nest the client by route segment — `api.api.posts["[id]"].GET(…)`. @default false */
-	nested?: boolean;
+	/** `"method"` for `api.GET(path, …)`, `"nested"` for `api.api.posts["[id]"].GET(…)`. @default "method" */
+	style?: "method" | "nested";
 	/** How a call's outcome reaches the caller. @default "result" */
 	errors?: "result" | "throw" | "neverthrow";
 };
@@ -559,7 +559,7 @@ export type ClientType = {
 
 /** Which of the six client types an app's options select. */
 export function clientType(options: ClientStyle): ClientType {
-	const nested = options.nested === true;
+	const nested = options.style === "nested";
 	if (options.errors === "neverthrow") {
 		return {
 			module: "@implementjs/kit/client/neverthrow",
@@ -633,7 +633,7 @@ export function generateClientModule(
 	// too — the type says `throw`/nested, so the call has to actually be that
 	const fixed = [
 		options.errors === "throw" ? `errors: "throw"` : null,
-		options.nested === true ? "nested: true" : null,
+		options.style === "nested" ? `style: "nested"` : null,
 	].filter((entry) => entry !== null);
 	const call =
 		fixed.length === 0 ? "create(options)" : `create({ ...options, ${fixed.join(", ")} })`;

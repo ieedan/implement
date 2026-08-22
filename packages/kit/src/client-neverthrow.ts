@@ -67,11 +67,11 @@ export function createClient<C>(options: Omit<ClientOptions, "errors"> = {}): C 
 	const client = createResultClient<Record<Method, (path: string, input?: CallInput) => unknown>>({
 		...options,
 		errors: "result",
-		nested: false,
+		style: "method",
 	});
-	// the nested tree hands back a fresh call per leaf, so the wrap has to
+	// the nested style hands back a fresh call per leaf, so the wrap has to
 	// happen on the way out of the proxy rather than once up front
-	if (options.nested === true) {
+	if (options.style === "nested") {
 		return createNested<C>((method, path, input) =>
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `createClient` above is the method client, so every call answers with an `Outcome`.
 			wrap(client[method](path, input) as Promise<Outcome<unknown>>),
