@@ -8,7 +8,7 @@
 		"dev": "pnpm --filter @apps/docs dev",
 		"build": "pnpm -r build",
 		"check": "pnpm -r check",
-		"test": "pnpm -r test",
+		"test": "NO_COLOR=1 pnpm -r test",
 		"generate": "pnpm -r generate",
 		"registry": "pnpm -r registry",
 		"create:app": "pnpm --filter create-implement-app build && node packages/create-implement-app/dist/bin.mjs",
