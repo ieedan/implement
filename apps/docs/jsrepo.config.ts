@@ -24,25 +24,34 @@ const DEFAULT_PATHS = { ui: UI_DIR, lib: "src/lib" };
 const IMPLEMENT_VERSION = "latest";
 
 /**
- * The registry's version, read from the version line changesets owns for this app.
+ * `packages/ui`, which holds no code — only the version line and changelog changesets keeps for
+ * this registry, so that `pnpm changeset` lists `@implementjs/ui` under its own name rather than
+ * the app that happens to build it.
+ */
+const VERSION_PACKAGE = "../../packages/ui/package.json";
+
+/**
+ * The registry's version, read from {@link VERSION_PACKAGE}.
  *
  * jsrepo.com holds a published version forever, so this is also what decides whether a release has
  * anything to publish: the `Registry` job in `release.yml` publishes when there is no tag for the
  * version found here.
  *
- * jsrepo has a `version: "package"` shorthand for exactly this, but it resolves at publish time and
- * lands in the built `registry.json` verbatim — the manifest a checkout is read through would carry
- * the literal string `package` as its version. Reading it here keeps both honest.
+ * jsrepo has a `version: "package"` shorthand for reading a package.json, but it resolves at publish
+ * time and lands in the built `registry.json` verbatim — the manifest a checkout is read through
+ * would carry the literal string `package` as its version. Reading it here keeps both honest, and
+ * it is the wrong package.json anyway: the nearest one is the docs app's.
  */
 function registryVersion(cwd: string): string {
-	const parsed: unknown = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf8"));
+	const manifest = path.resolve(cwd, VERSION_PACKAGE);
+	const parsed: unknown = JSON.parse(fs.readFileSync(manifest, "utf8"));
 	const { version } = (typeof parsed === "object" && parsed !== null ? parsed : {}) as {
 		version?: unknown;
 	};
 	// a registry without one cannot be published at all, and a build that quietly produced a
 	// versionless manifest would only say so on the next release
 	if (typeof version !== "string") {
-		throw new Error(`No version in ${path.join(cwd, "package.json")} to publish the registry as.`);
+		throw new Error(`No version in ${manifest} to publish the registry as.`);
 	}
 	return version;
 }

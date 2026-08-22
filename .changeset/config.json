@@ -9,7 +9,7 @@
 		}
 	],
 	"commit": false,
-	"ignore": [],
+	"ignore": ["@apps/docs"],
 	"privatePackages": { "version": true, "tag": false },
 	"fixed": [],
 	"linked": [],

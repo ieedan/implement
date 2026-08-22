@@ -18,7 +18,7 @@ That rebuilds `apps/docs/registry.json`, which is committed: it is the manifest 
 
 The registry is also published to [jsrepo.com](https://www.jsrepo.com), which is what makes the `npx jsrepo add @implementjs/ui/button` in every component's docs resolve for someone who has never seen this repository. `apps/docs/README.md` goes up with it as the registry's page.
 
-A published version is immutable, so the registry needs a version line that moves. It is the docs app's own, in `apps/docs/package.json`, which changesets owns like any other — `@apps/docs` is private and never reaches npm, but `privatePackages.version` means a changeset naming it still bumps it and writes its changelog. `jsrepo.config.ts` reads that version, and `pnpm changeset:version` rebuilds `registry.json` right after the bump, so the committed manifest and the published one never disagree.
+A published version is immutable, so the registry needs a version line that moves, and [changesets](#releasing) owns it like everything else here. [`packages/ui`](packages/ui) is what it owns: a package holding no code, only the `version` and `CHANGELOG.md` for the registry the docs app builds. It is `private`, so it never reaches npm — but it is in the workspace, which is what makes `pnpm changeset` list `@implementjs/ui` under its own name and bump it only when a changeset says so. `jsrepo.config.ts` reads that version, and `pnpm changeset:version` rebuilds `registry.json` right after the bump, so the committed manifest and the published one never disagree.
 
 The `Registry` job in [`release.yml`](.github/workflows/release.yml) does the publishing, on every push to `main`. It looks for a `@implementjs/ui@<version>` tag and stops if it finds one, so the question it answers is "has this version gone out" rather than "did anything change" — a re-run, a version pull request, and a commit that touched nothing all do nothing. The tag is written after the publish succeeds, never before, so a publish that failed is one the next push tries again.
 
@@ -48,9 +48,9 @@ cd apps/docs && vercel deploy --prebuilt
 ## Releasing
 
 Versions and changelogs are managed by [changesets](https://changesets.dev). A branch that
-changes a package — or the docs app, whose version is the
-[registry's](#publishing-to-jsrepocom) — carries a changeset describing the change, committed
-alongside the code:
+changes a package — or the components the [registry](#publishing-to-jsrepocom) ships, which is
+what `@implementjs/ui` names — carries a changeset describing the change, committed alongside
+the code:
 
 ```sh
 pnpm changeset

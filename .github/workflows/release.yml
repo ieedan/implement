@@ -83,7 +83,7 @@ jobs:
       - name: Find the version to publish
         id: version
         run: |
-          version="$(node -p "require('./apps/docs/package.json').version")"
+          version="$(node -p "require('./packages/ui/package.json').version")"
           tag="@implementjs/ui@$version"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           if git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
