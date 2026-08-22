@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+	apiRoutes,
 	dataChains,
+	generateClientModule,
 	generateEndpointsModule,
 	generatePagesModule,
 	generateRouterModule,
@@ -313,6 +315,44 @@ describe("serverRoutes", () => {
 			},
 			{ pattern: "/api", extension: null, params: [], file: "api/server.ts" },
 		]);
+	});
+});
+
+describe("apiRoutes", () => {
+	it("keys every endpoint by the URL it serves, extension appended", () => {
+		expect(apiRoutes(loaded)).toEqual([
+			{ key: "/docs.md", params: [], file: "docs/.md/server.ts" },
+			{ key: "/docs/[...slug].md", params: ["slug"], file: "docs/[...slug]/.md/server.ts" },
+			{ key: "/api", params: [], file: "api/server.ts" },
+		]);
+	});
+});
+
+describe("generateClientModule", () => {
+	it("reads each route's methods off the module type rather than the scan", () => {
+		const code = generateClientModule(loaded, "/src/routes");
+		expect(code).toContain('"/docs/[...slug].md": {');
+		expect(code).toContain('params: { "slug": string };');
+		expect(code).toContain(
+			'operations: Operations<typeof import("../src/routes/docs/[...slug]/.md/server.ts")>;',
+		);
+		expect(code).toContain("import {\n\tcreateClient as create,");
+		expect(code).toContain('} from "@implementjs/kit/client";');
+		expect(code).toContain("export const api: TypedClient<Api> = createClient();");
+	});
+
+	it("builds on the entry the app's error style selects", () => {
+		const thrown = generateClientModule(loaded, "/src/routes", { errors: "throw" });
+		expect(thrown).toContain("type MethodClient");
+		expect(thrown).toContain('return create({ ...options, errors: "throw" });');
+		expect(thrown).toContain("export const api: MethodClient<Api, ThrowWrapper> = createClient();");
+
+		const result = generateClientModule(loaded, "/src/routes", {
+			errors: "neverthrow",
+			style: "path",
+		});
+		expect(result).toContain('} from "@implementjs/kit/client/neverthrow";');
+		expect(result).toContain("export const api: ResultPathClient<Api> = createClient();");
 	});
 });
 

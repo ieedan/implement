@@ -1,0 +1,354 @@
+/**
+ * The OpenAPI 3.1 document for an app's `server.ts` endpoints — built from the
+ * schemas a route declared, and only when an app asks for one.
+ *
+ * ```ts
+ * kit({
+ * 	api: {
+ * 		openapi: {
+ * 			info: { title: "Docs API", version: "1.0.0" },
+ * 			output: "static/openapi.json",
+ * 			path: "/openapi.json", // optional: also mount a live route
+ * 		},
+ * 	},
+ * });
+ * ```
+ *
+ * With `api.openapi` absent — the default — no document is produced, no file
+ * is written, and no route is mounted. A route table is not something to
+ * publish by accident.
+ *
+ * Unlike everything else in the API layer, this needs the schema *objects*, so
+ * the route modules have to be evaluated: in dev through
+ * `server.ssrLoadModule`, at build time through the prerender's module runner.
+ * Both run in Node, so the schema library and its JSON-Schema converter never
+ * reach the production server bundle — unless the app mounts the live `path`,
+ * which is exactly why that is a separate option.
+ *
+ * Standard Schema has no JSON-Schema introspection of its own, so the
+ * conversion is per-vendor and detected from `~standard.vendor`. Anything kit
+ * does not recognize documents as an unconstrained schema and says so.
+ */
+
+import type { StandardSchemaV1 } from "@standard-schema/spec";
+import { handlerDefinition, type HandlerDefinition, type Method } from "./endpoint.ts";
+import type { EndpointRoute, RequestHandler } from "./match.ts";
+
+const METHODS: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"];
+
+/** Which shape of a schema a conversion wants: what a caller sends, or what it gets back. */
+export type SchemaIo = "input" | "output";
+
+/** Turns a Standard Schema into JSON Schema. `null` when the vendor is not one kit knows. */
+export type ToJsonSchema = (
+	schema: StandardSchemaV1,
+	io: SchemaIo,
+) => JsonSchema | Promise<JsonSchema>;
+
+/** Whatever the vendor's converter produced — kit only ever passes it through. */
+export type JsonSchema = Record<string, unknown>;
+
+export type OpenApiOptions = {
+	/** The document's `info` block. Required: a document without one is not a document. */
+	info: { title: string; version: string; description?: string } & Record<string, unknown>;
+	/**
+	 * Where the build writes the document, relative to the Vite root. A path
+	 * under the public dir (`static/openapi.json`) ships it as a plain file the
+	 * host serves; kit serves the same URL in dev.
+	 */
+	output?: string;
+	/**
+	 * Also mount a live route serving the document. This is the one path that
+	 * pulls the schema library and its converter into the production server
+	 * bundle, which is why it is separate from {@link OpenApiOptions.output}.
+	 */
+	path?: string;
+	servers?: { url: string; description?: string }[];
+	/**
+	 * Converts a Standard Schema to JSON Schema, when kit's own vendor
+	 * detection is not what you want. Ignored by the live `path` route, which
+	 * is generated code and cannot carry a function.
+	 */
+	toJsonSchema?: ToJsonSchema;
+};
+
+/** One endpoint as the document builder sees it: its key, its params, and its evaluated module. */
+export type OpenApiEndpoint = {
+	/** The route key — `/api/posts/[id]`, `/docs/[...slug].md`. */
+	key: string;
+	/** Param names the key binds, root first. */
+	params: string[];
+	/** Relative path of the `server.ts`, for warnings. */
+	file: string;
+	/** The evaluated module namespace. */
+	module: Record<string, unknown>;
+};
+
+export type OpenApiDocument = {
+	openapi: "3.1.0";
+	info: OpenApiOptions["info"];
+	servers?: { url: string; description?: string }[];
+	paths: Record<string, Record<string, unknown>>;
+};
+
+export type OpenApiResult = {
+	document: OpenApiDocument;
+	/** What could not be documented, each naming the route it came from. */
+	warnings: string[];
+};
+
+/**
+ * The document for a set of endpoints. Routes opting out with
+ * `export const openapi = false;` are skipped; a method with no schemas at all
+ * is still listed, as a path and a method with an undocumented body — a route
+ * that exists is worth saying so, and inference is for the client.
+ */
+export async function buildOpenApiDocument(
+	endpoints: OpenApiEndpoint[],
+	options: OpenApiOptions,
+): Promise<OpenApiResult> {
+	const warnings: string[] = [];
+	const convert = converter(options.toJsonSchema, warnings);
+	const paths: Record<string, Record<string, unknown>> = {};
+
+	for (const endpoint of endpoints) {
+		if (endpoint.module["openapi"] === false) continue;
+		const path = openApiPath(endpoint.key);
+		for (const method of METHODS) {
+			const value = endpoint.module[method];
+			if (typeof value !== "function") continue;
+			const operation = await describeOperation({
+				endpoint,
+				method,
+				definition: handlerDefinition(value),
+				convert,
+			});
+			paths[path] = { ...paths[path], [method.toLowerCase()]: operation };
+		}
+	}
+
+	const document: OpenApiDocument = {
+		openapi: "3.1.0",
+		info: options.info,
+		...(options.servers === undefined ? {} : { servers: options.servers }),
+		paths,
+	};
+	return { document, warnings };
+}
+
+/** `/api/posts/[id]` → `/api/posts/{id}`; `/docs/[...slug].md` → `/docs/{slug}.md`. */
+export function openApiPath(key: string): string {
+	return key.replaceAll(/\[(?:\.\.\.)?([^\]]+)\]/g, "{$1}");
+}
+
+/** `GET /api/posts/[id]` → `getApiPostsById` — stable, and unique per method and route. */
+export function operationId(method: string, key: string): string {
+	const parts = key
+		.replaceAll(/\[\.\.\.([^\]]+)\]/g, "by-$1")
+		.replaceAll(/\[([^\]]+)\]/g, "by-$1")
+		.split(/[^A-Za-z0-9]+/)
+		.filter(Boolean);
+	return [
+		method.toLowerCase(),
+		...parts.map((part) => part[0]!.toUpperCase() + part.slice(1)),
+	].join("");
+}
+
+type Converter = (
+	schema: StandardSchemaV1,
+	io: SchemaIo,
+	where: string,
+) => Promise<JsonSchema | null>;
+
+async function describeOperation(input: {
+	endpoint: OpenApiEndpoint;
+	method: Method;
+	definition: HandlerDefinition | null;
+	convert: Converter;
+}): Promise<Record<string, unknown>> {
+	const { endpoint, method, definition, convert } = input;
+	const where = `${method} ${endpoint.file}`;
+	const operation: Record<string, unknown> = {
+		operationId: operationId(method, endpoint.key),
+		parameters: await parameters(endpoint, definition, convert, where),
+	};
+
+	if (definition?.body !== undefined) {
+		const schema = await convert(definition.body, "input", `${where} body`);
+		operation["requestBody"] = {
+			required: true,
+			content: { "application/json": { schema: schema ?? {} } },
+		};
+	}
+
+	const response =
+		definition?.response === undefined
+			? null
+			: await convert(definition.response, "output", `${where} response`);
+	operation["responses"] = {
+		"200": {
+			description: "OK",
+			content: { "application/json": { schema: response ?? {} } },
+		},
+		...(hasValidation(definition)
+			? { "400": { description: "the request failed validation" } }
+			: {}),
+	};
+	return operation;
+}
+
+function hasValidation(definition: HandlerDefinition | null): boolean {
+	if (definition === null) return false;
+	return (
+		definition.params !== undefined ||
+		definition.query !== undefined ||
+		definition.body !== undefined
+	);
+}
+
+/** Path params come from the route key; query params from the `query` schema, when there is one. */
+async function parameters(
+	endpoint: OpenApiEndpoint,
+	definition: HandlerDefinition | null,
+	convert: Converter,
+	where: string,
+): Promise<Record<string, unknown>[]> {
+	const list: Record<string, unknown>[] = [];
+	const pathSchemas =
+		definition?.params === undefined
+			? {}
+			: properties(await convert(definition.params, "input", `${where} params`));
+	for (const name of endpoint.params) {
+		list.push({
+			name,
+			in: "path",
+			required: true,
+			// a path param is a string on the wire whatever the schema coerces it to
+			schema: pathSchemas[name] ?? { type: "string" },
+		});
+	}
+
+	if (definition?.query === undefined) return list;
+	const query = await convert(definition.query, "input", `${where} query`);
+	const required = new Set(requiredNames(query));
+	for (const [name, schema] of Object.entries(properties(query))) {
+		list.push({ name, in: "query", required: required.has(name), schema });
+	}
+	return list;
+}
+
+function properties(schema: JsonSchema | null): Record<string, unknown> {
+	const value = schema?.["properties"];
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Whatever the vendor produced under `properties` is a record of schemas or nothing.
+	return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+function requiredNames(schema: JsonSchema | null): string[] {
+	const value = schema?.["required"];
+	return Array.isArray(value) ? value.filter((name) => typeof name === "string") : [];
+}
+
+// ---------------------------------------------------------------------------
+// Vendor detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Wraps the conversion so one unrecognized vendor documents as `{}` and warns
+ * rather than failing the build — a route table with an unconstrained schema in
+ * it is still a useful document.
+ */
+function converter(custom: ToJsonSchema | undefined, warnings: string[]): Converter {
+	return async (schema, io, where) => {
+		try {
+			if (custom !== undefined) return await custom(schema, io);
+			const vendor = schema["~standard"].vendor;
+			const convert = await vendorConverter(vendor);
+			if (convert === null) {
+				warnings.push(
+					`${where}: kit cannot convert a "${vendor}" schema to JSON Schema — documenting it as unconstrained. Pass api.openapi.toJsonSchema to do it yourself.`,
+				);
+				return null;
+			}
+			return await convert(schema, io);
+		} catch (error) {
+			warnings.push(
+				`${where}: converting the schema to JSON Schema failed — ${error instanceof Error ? error.message : String(error)}`,
+			);
+			return null;
+		}
+	};
+}
+
+/**
+ * The import specifier is a variable, so nothing tries to resolve these at
+ * bundle time — they are only ever reachable for an app that actually uses
+ * that library.
+ */
+async function loadModule(name: string): Promise<Record<string, unknown>> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- A dynamic import's namespace is only ever a record of exports.
+	return (await import(/* @vite-ignore */ name)) as Record<string, unknown>;
+}
+
+/** The JSON-Schema converter for a Standard Schema vendor, or `null` for one kit does not know. */
+async function vendorConverter(vendor: string): Promise<ToJsonSchema | null> {
+	if (vendor === "zod") {
+		const zod = await loadModule("zod");
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- zod's own converter, reached through a dynamic import.
+		const toJSONSchema = zod["toJSONSchema"] as (schema: unknown, options: unknown) => JsonSchema;
+		// `unrepresentable: "any"` because a transform or a `Date` is a perfectly
+		// good schema that simply has no JSON-Schema spelling — documenting it as
+		// unconstrained beats refusing to document the route
+		return (schema, io) => toJSONSchema(schema, { io, unrepresentable: "any" });
+	}
+	if (vendor === "arktype") {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- arktype types carry their own converter.
+		return (schema) => (schema as unknown as { toJsonSchema: () => JsonSchema }).toJsonSchema();
+	}
+	if (vendor === "valibot") {
+		const valibot = await loadModule("@valibot/to-json-schema");
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- valibot's converter ships in its own package.
+		const toJsonSchema = valibot["toJsonSchema"] as (schema: unknown) => JsonSchema;
+		return (schema) => toJsonSchema(schema);
+	}
+	return null;
+}
+
+// ---------------------------------------------------------------------------
+// The live route
+// ---------------------------------------------------------------------------
+
+/** The serializable half of the options — what generated code can carry. */
+export type OpenApiRouteOptions = Omit<OpenApiOptions, "toJsonSchema">;
+
+/**
+ * The endpoint behind `api.openapi.path`, built by the generated
+ * `$implement/endpoints` module. The document is assembled on the first
+ * request and held, since the modules it reads cannot change under a running
+ * server.
+ */
+export function openApiEndpoint(input: {
+	path: string;
+	options: OpenApiRouteOptions;
+	endpoints: OpenApiEndpoint[];
+}): EndpointRoute {
+	let document: Promise<string> | undefined;
+	const GET: RequestHandler = async () => {
+		document ??= buildOpenApiDocument(input.endpoints, input.options).then((result) => {
+			for (const warning of result.warnings) console.warn(`[implement] openapi — ${warning}`);
+			return JSON.stringify(result.document);
+		});
+		return new Response(await document, {
+			headers: { "content-type": "application/json; charset=utf-8" },
+		});
+	};
+	return {
+		pattern: input.path,
+		id: input.path,
+		extension: null,
+		file: OPENAPI_FILE,
+		module: { GET },
+	};
+}
+
+/** Stands in for a routes-relative file the openapi endpoint does not have. */
+export const OPENAPI_FILE = "(openapi)";

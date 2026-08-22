@@ -2,7 +2,7 @@
 title: Server Hooks
 description: hooks.server.ts runs on every server request — middleware, locals, and error handling.
 section: Guides
-order: 14
+order: 15
 ---
 
 Some work belongs in front of every route: reading a session cookie, timing a request, adding a header, turning an unauthenticated visitor around. Kit's answer is the same as SvelteKit's — a `src/hooks.server.ts` that wraps every server request.

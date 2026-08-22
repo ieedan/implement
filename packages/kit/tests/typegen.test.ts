@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { scanRoutes } from "../src/scan.ts";
 import {
+	generateAppDeclaration,
+	generateExtensionTypes,
 	generateRouteTypes,
 	generateRouterDeclaration,
 	generateTsconfig,
@@ -69,6 +71,28 @@ describe("generateRouteTypes", () => {
 	});
 });
 
+describe("the handler export", () => {
+	const endpointNode = { ...slugNode, page: null, endpoint: "docs/[...slug]/server.ts" };
+
+	it("is on an endpoint directory's $types, bound to that route's params", () => {
+		const types = generateRouteTypes(endpointNode, { layoutFiles: [], pageFiles: [] });
+		expect(types).toContain('import type { HandlerBuilder } from "@implementjs/kit/endpoint";');
+		expect(types).toContain("export const handler: HandlerBuilder<ServerParams>;");
+	});
+
+	it("is absent from a page's $types, so nothing can import it from there", () => {
+		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] });
+		expect(types).not.toContain("handler");
+		expect(types).not.toContain("@implementjs/kit/endpoint");
+	});
+
+	it("is on every extension endpoint's $types", () => {
+		const types = generateExtensionTypes(slugNode);
+		expect(types).toContain("export const handler: HandlerBuilder<ServerParams>;");
+		expect(types).toContain('export type ServerParams = { "slug": string };');
+	});
+});
+
 describe("generateRouterDeclaration", () => {
 	it("declares the virtual router module with every page pattern", () => {
 		const declaration = generateRouterDeclaration(
@@ -96,12 +120,38 @@ describe("generateRouterDeclaration", () => {
 	});
 });
 
+describe("App.Api", () => {
+	const routes = [{ pattern: "/", params: [] }];
+
+	it("merges the generated client in, keyed off the app's own route table", () => {
+		const declaration = generateRouterDeclaration(routes, false);
+		expect(declaration).toContain("declare namespace App {");
+		expect(declaration).toContain(
+			'interface Api extends import("@implementjs/kit/client").TypedClient<import("../client.ts").Api> {}',
+		);
+	});
+
+	it("follows the app's chosen error style", () => {
+		expect(generateRouterDeclaration(routes, false, { errors: "neverthrow" })).toContain(
+			'import("@implementjs/kit/client/neverthrow").ResultClient<import("../client.ts").Api>',
+		);
+		expect(generateRouterDeclaration(routes, false, { errors: "throw", style: "path" })).toContain(
+			'import("@implementjs/kit/client").PathClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
+		);
+	});
+
+	it("declares an empty base, so App.Api resolves before anything generates", () => {
+		expect(generateAppDeclaration()).toContain("interface Api {}");
+	});
+});
+
 describe("generateTsconfig", () => {
 	it("maps each alias to root-relative exact and glob paths", () => {
 		const tsconfig = JSON.parse(
 			generateTsconfig({ "@/lib": "src/lib", "@/content": "src/content/" }),
 		) as { compilerOptions: { paths: Record<string, string[]> } };
 		expect(tsconfig.compilerOptions.paths).toEqual({
+			"$implement/client": ["./client.ts"],
 			"@/lib": ["../src/lib"],
 			"@/lib/*": ["../src/lib/*"],
 			"@/content": ["../src/content"],
@@ -113,7 +163,10 @@ describe("generateTsconfig", () => {
 		const tsconfig = JSON.parse(generateTsconfig({ "@utils": "src/lib/utils.ts" })) as {
 			compilerOptions: { paths: Record<string, string[]> };
 		};
-		expect(tsconfig.compilerOptions.paths).toEqual({ "@utils": ["../src/lib/utils.ts"] });
+		expect(tsconfig.compilerOptions.paths).toEqual({
+			"$implement/client": ["./client.ts"],
+			"@utils": ["../src/lib/utils.ts"],
+		});
 	});
 });
 
@@ -130,6 +183,10 @@ describe("writeGenerated", () => {
 		);
 		expect(readFileSync(join(app, ".implement/tsconfig.json"), "utf8")).toContain("rootDirs");
 		expect(readFileSync(join(app, ".implement/.gitignore"), "utf8")).toBe("*\n");
+		// the client always generates, even for an app with no endpoints at all
+		expect(readFileSync(join(app, ".implement/client.ts"), "utf8")).toContain(
+			"export const api: TypedClient<Api> = createClient();",
+		);
 		expect(existsSync(join(app, ".implement/types/src/routes/$types.d.ts"))).toBe(true);
 		expect(existsSync(join(app, ".implement/types/src/routes/docs/[...slug]/$types.d.ts"))).toBe(
 			true,

@@ -291,6 +291,143 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		});
 	});
 
+	it("resolves ./$types to a real module, so `handler` is importable", async () => {
+		const types = (await server.ssrLoadModule("/src/routes/posts/[id]/server.ts")) as {
+			GET: unknown;
+			PATCH: unknown;
+			HEAD: unknown;
+		};
+		expect(typeof types.GET).toBe("function");
+		expect(typeof types.PATCH).toBe("function");
+		// a plain handler in the same file is untouched
+		expect(typeof types.HEAD).toBe("function");
+	});
+
+	it("validates a wrapped endpoint's query and body through the real pipeline", async () => {
+		await withListener(async (origin) => {
+			const ok = await fetch(`${origin}/posts/7?draft=true`);
+			expect(ok.status).toBe(200);
+			expect(await ok.json()).toEqual({ id: "7", draft: true });
+
+			const bad = await fetch(`${origin}/posts/7?draft=maybe`);
+			expect(bad.status).toBe(400);
+			expect(((await bad.json()) as { message: string }).message).toContain("invalid query");
+
+			const patched = await fetch(`${origin}/posts/7`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ title: "hi" }),
+			});
+			expect(await patched.json()).toEqual({ id: 7, title: "hi" });
+
+			const rejected = await fetch(`${origin}/posts/7`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ title: 3 }),
+			});
+			expect(rejected.status).toBe(400);
+
+			// the 405/Allow computation still sees every method the file exports
+			const wrong = await fetch(`${origin}/posts/7`, { method: "DELETE" });
+			expect(wrong.status).toBe(405);
+			expect(wrong.headers.get("allow")).toBe("GET, PATCH, HEAD");
+		});
+	});
+
+	it("runs event.api in-process — a load reaches its own endpoint with no socket", async () => {
+		// nothing is listening here: `render` goes straight through the pipeline,
+		// so a client that opened a connection would fail rather than answer
+		const { data } = await render("/api-load");
+		expect(data?.["api-load/page.server.ts"]).toEqual({
+			post: { id: "7", draft: true },
+			failure: null,
+		});
+	});
+
+	it("generates a client module keyed by the URLs the endpoints serve", async () => {
+		const generated = readFileSync(join(fixture, ".implement/client.ts"), "utf8");
+		expect(generated).toContain('"/posts/[id]": {');
+		expect(generated).toContain('params: { "id": string };');
+		expect(generated).toContain(
+			'operations: Operations<typeof import("../src/routes/posts/[id]/server.ts")>;',
+		);
+		// type-only, so nothing here reaches a bundle at runtime
+		const client = (await server.ssrLoadModule("/.implement/client.ts")) as {
+			api: unknown;
+			createClient: (options: { baseUrl: string }) => Record<string, unknown>;
+		};
+		expect(typeof client.createClient).toBe("function");
+		await withListener(async (origin) => {
+			const api = client.createClient({ baseUrl: origin }) as {
+				GET: (
+					path: string,
+					options: Record<string, unknown>,
+				) => Promise<{ data: unknown; error: unknown }>;
+			};
+			const { data, error } = await api.GET("/posts/[id]", {
+				params: { id: "3" },
+				query: { draft: false },
+			});
+			expect(error).toBeUndefined();
+			expect(data).toEqual({ id: "3", draft: false });
+		});
+	});
+
+	it("mounts no OpenAPI document by default", async () => {
+		const endpoints = (await server.ssrLoadModule("$implement/endpoints")) as {
+			endpoints: { pattern: string }[];
+		};
+		expect(endpoints.endpoints.map((route) => route.pattern)).not.toContain("/openapi.json");
+		await withListener(async (origin) => {
+			expect((await fetch(`${origin}/openapi.json`)).status).toBe(404);
+		});
+	});
+
+	it("serves the OpenAPI document once an app configures one", async () => {
+		const documented = await createServer({
+			root: fixture,
+			configFile: false,
+			logLevel: "error",
+			server: { middlewareMode: true, watch: null },
+			plugins: [
+				kit({
+					alias: { $lib: "src/lib" },
+					api: {
+						openapi: {
+							info: { title: "Fixture API", version: "1.0.0" },
+							output: "static/spec/api.json",
+							path: "/openapi.json",
+						},
+					},
+				}),
+			],
+		});
+		const listener: Server = createHttpServer(documented.middlewares);
+		await new Promise<void>((done) => listener.listen(0, done));
+		try {
+			const { port } = listener.address() as AddressInfo;
+			const origin = `http://localhost:${port}`;
+			// the live route, mounted through the endpoints table
+			const live = (await (await fetch(`${origin}/openapi.json`)).json()) as {
+				openapi: string;
+				paths: Record<string, Record<string, { parameters: unknown[] }>>;
+			};
+			expect(live.openapi).toBe("3.1.0");
+			expect(live.paths["/posts/{id}"]?.["get"]?.parameters).toEqual([
+				{ name: "id", in: "path", required: true, schema: { type: "string" } },
+				{ name: "draft", in: "query", required: false, schema: { type: "string" } },
+			]);
+			// `output` lands under static/, so its URL answers in dev too — built
+			// from the routes as they are now, not from a file a build left behind
+			const fromOutput = await fetch(`${origin}/spec/api.json`);
+			expect(fromOutput.headers.get("content-type")).toContain("application/json");
+			expect(await fromOutput.json()).toEqual(live);
+		} finally {
+			await new Promise((done) => listener.close(done));
+			await documented.close();
+		}
+	});
+
 	it("leaves a user-configured publicDir alone", async () => {
 		const custom = await createServer({
 			root: fixture,

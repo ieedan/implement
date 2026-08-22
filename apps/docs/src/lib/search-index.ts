@@ -113,7 +113,7 @@ function indexPage(page: ContentPage): IndexedPage {
  * render. Defined here rather than in the palette so the areas and their
  * pages cannot drift apart — the client renders whatever the index names.
  */
-const areas: { key: string; label: string; markdown: boolean; collection: ContentPage[] }[] = [
+const areas = [
 	{ key: "lib", label: "@implementjs/core", markdown: true, collection: pages },
 	{ key: "kit", label: "@implementjs/kit", markdown: true, collection: kitPages },
 	{
@@ -133,11 +133,34 @@ const areas: { key: string; label: string; markdown: boolean; collection: Conten
 	},
 	// lessons are an editor rather than a document, so they have no `.md` twin
 	{ key: "tutorial", label: "Tutorial", markdown: false, collection: tutorials },
-];
+	// `as const satisfies` rather than an annotation, so the keys stay literal
+	// while still being checked — that is what lets the `/search.json` schema
+	// accept exactly these areas and no others, with nothing listed twice
+] as const satisfies readonly {
+	key: string;
+	label: string;
+	markdown: boolean;
+	collection: readonly ContentPage[];
+}[];
 
-export function buildSearchIndex(): SearchIndex {
-	return areas.map(({ collection, ...area }): IndexedArea => ({
-		...area,
-		pages: collection.map(indexPage),
-	}));
+/** One of the parts of the docs the palette offers as a filter. */
+export type AreaKey = (typeof areas)[number]["key"];
+
+/**
+ * The area keys `/search.json` accepts as a filter, in the order the chips
+ * render. A tuple rather than an array because that is what a schema library
+ * needs to keep the keys as literals — `areas` is a literal and never empty,
+ * so the narrowing is sound, and there is nothing to keep in sync.
+ */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Narrowing a mapped literal array to the non-empty tuple a picklist wants.
+export const areaKeys = areas.map((area) => area.key) as [AreaKey, ...AreaKey[]];
+
+/** The index, or just one area of it when the caller named one. */
+export function buildSearchIndex(area?: AreaKey): SearchIndex {
+	return areas
+		.filter((entry) => area === undefined || entry.key === area)
+		.map(({ collection, ...entry }): IndexedArea => ({
+			...entry,
+			pages: collection.map(indexPage),
+		}));
 }

@@ -2,7 +2,7 @@
 title: Environment Variables
 description: Typed environment variables that cannot leak — two files, one validated at build time.
 section: Guides
-order: 15
+order: 16
 ---
 
 Environment variables are where secrets get spilled. A build tool that inlines the wrong string into a JavaScript bundle publishes it permanently, and a prerendered site has no server to patch afterwards. Kit's answer is two files, distinguished by name and enforced by the compiler:

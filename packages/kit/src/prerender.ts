@@ -65,7 +65,10 @@ export function prerenderPolicy(options: {
 	const flagOf = (file: string): Promise<boolean | undefined> => {
 		let flag = flags.get(file);
 		if (flag === undefined) {
-			flag = load(`${routesBase}/${file}`).then(declaredFlag);
+			// a synthetic endpoint (the OpenAPI route) has no file to read a flag
+			// from, and a route that cannot be loaded is the build's problem to
+			// report, not this policy's
+			flag = load(`${routesBase}/${file}`).then(declaredFlag, () => undefined);
 			flags.set(file, flag);
 		}
 		return flag;

@@ -1,4 +1,10 @@
-import { errorSource, markErrorSource, type ServerErrorReport } from "./errors.ts";
+import {
+	errorSource,
+	isHttpError,
+	isRedirect,
+	markErrorSource,
+	type ServerErrorReport,
+} from "./errors.ts";
 import {
 	matchEndpoint,
 	matchPage,
@@ -45,6 +51,13 @@ declare global {
 	namespace App {
 		/** Per-request state `hooks.server.ts` sets and routes read — empty until the app fills it in. */
 		interface Locals {}
+		/**
+		 * What `event.api` is — empty until the generated `.implement/` types
+		 * merge in the client for the app's own routes. Declared here, like
+		 * `Locals` and `Platform`, so `./match.ts` can name it without reaching
+		 * for generated code.
+		 */
+		interface Api {}
 		/** The shape `handleError` returns and the error page receives. */
 		interface Error {
 			message: string;
@@ -60,6 +73,17 @@ declare global {
 
 export type { ErrorSource, ServerErrorReport } from "./errors.ts";
 export { formatServerError } from "./errors.ts";
+
+// the wrapper routes reach through their `./$types`, re-exported so a
+// `server.ts` that would rather name the package can
+export { handler } from "./endpoint.ts";
+export type {
+	EndpointSpec,
+	Handler,
+	HandlerBuilder,
+	HandlerEvent,
+	QueryRecord,
+} from "./endpoint.ts";
 
 export type {
 	EndpointRoute,
@@ -186,68 +210,9 @@ export function sequence(...handlers: Handle[]): Handle {
 // error() / redirect()
 // ---------------------------------------------------------------------------
 
-/** Thrown by {@link error}: an expected failure with a status and a body. */
-export class HttpError {
-	readonly status: number;
-	readonly body: App.Error;
-
-	constructor(status: number, body: App.Error) {
-		this.status = status;
-		this.body = body;
-	}
-
-	toString(): string {
-		return JSON.stringify(this.body);
-	}
-}
-
-/** Thrown by {@link redirect}. */
-export class Redirect {
-	readonly status: number;
-	readonly location: string;
-
-	constructor(status: number, location: string) {
-		this.status = status;
-		this.location = location;
-	}
-}
-
-/**
- * Throws an expected error: the request ends with `status` and `body`, the
- * error page renders it, and `handleError` is not called.
- *
- * ```ts
- * if (event.locals.user === null) error(401, "Not logged in");
- * ```
- */
-export function error(status: number, body: App.Error | string): never {
-	if (status < 400 || status > 599) {
-		throw new Error(`error() status must be between 400 and 599, got ${status}`);
-	}
-	throw new HttpError(status, typeof body === "string" ? { message: body } : body);
-}
-
-/**
- * Throws a redirect: the request ends with `status` and a `location` header.
- *
- * ```ts
- * if (event.locals.user === null) redirect(303, "/login");
- * ```
- */
-export function redirect(status: number, location: string | URL): never {
-	if (status < 300 || status > 308) {
-		throw new Error(`redirect() status must be between 300 and 308, got ${status}`);
-	}
-	throw new Redirect(status, location.toString());
-}
-
-export function isHttpError(thrown: unknown): thrown is HttpError {
-	return thrown instanceof HttpError;
-}
-
-export function isRedirect(thrown: unknown): thrown is Redirect {
-	return thrown instanceof Redirect;
-}
+// Defined in `./errors.ts` so `./endpoint.ts` can throw an `HttpError` without
+// importing this module back; this is the entry apps import them from.
+export { error, HttpError, isHttpError, isRedirect, redirect, Redirect } from "./errors.ts";
 
 // ---------------------------------------------------------------------------
 // The server
@@ -296,7 +261,24 @@ export type RespondOptions = {
 	 * to logging the error itself, and only when the app has no `handleError`.
 	 */
 	onError?: (report: ServerErrorReport) => void;
+	/**
+	 * How many `event.fetch` hops deep this request already is. Set by the
+	 * pipeline itself when it dispatches a same-origin fetch in-process —
+	 * callers never pass it.
+	 */
+	depth?: number;
 };
+
+/**
+ * How far `event.fetch` may call back into the pipeline before kit calls it a
+ * loop. Deep enough that a load → endpoint → endpoint chain is fine, shallow
+ * enough that a handler fetching itself says so rather than exhausting the
+ * stack.
+ */
+const MAX_INTERNAL_DEPTH = 8;
+
+/** Headers `event.fetch` carries over from the incoming request, on same-origin calls only. */
+const FORWARDED_HEADERS = ["cookie", "authorization"];
 
 /** What the prerenderer consumes — `@implementjs/vite`'s `SsrResult`. */
 export type RenderResult = PageRender & {
@@ -311,6 +293,14 @@ export type KitServerOptions = {
 	/** Every `server.ts` endpoint in the app. */
 	endpoints: EndpointRoute[];
 	renderPage: RenderPage;
+	/**
+	 * Builds `event.api`. The generated `.implement/entry-server.ts` passes
+	 * `createClient` from `$implement/client`, so the client an app configured
+	 * — its style, its error handling — is the one bound to `event.fetch`.
+	 * Without it `event.api` is an empty object, which is exactly what `App.Api`
+	 * says it is until an app generates its own.
+	 */
+	createApiClient?: (options: { fetch: typeof fetch; baseUrl: string }) => App.Api;
 };
 
 export type KitServer = {
@@ -327,7 +317,7 @@ export type KitServer = {
  * should need to.
  */
 export function createKitServer(options: KitServerOptions): KitServer {
-	const { hooks, pages, endpoints, renderPage } = options;
+	const { hooks, pages, endpoints, renderPage, createApiClient } = options;
 	let started: Promise<void> | undefined;
 
 	async function respond(request: Request, respondOptions: RespondOptions = {}): Promise<Response> {
@@ -355,10 +345,44 @@ export function createKitServer(options: KitServerOptions): KitServer {
 		const endpoint = isDataRequest ? null : matchEndpoint(endpoints, routePath);
 		const page = endpoint === null ? matchPage(pages, routePath) : null;
 
+		const depth = respondOptions.depth ?? 0;
+		/**
+		 * `fetch` for this request. A cross-origin call goes out over the network
+		 * like any other; a same-origin one goes straight back through `respond`,
+		 * which is already in scope here — so no socket, no serialization, and
+		 * the app's `handle` hook runs for it like it would for a real request.
+		 */
+		const internalFetch: typeof fetch = async (input, init) => {
+			const target = input instanceof Request ? new URL(input.url) : new URL(String(input), url);
+			if (target.origin !== url.origin) return await globalThis.fetch(input, init);
+			if (depth >= MAX_INTERNAL_DEPTH) {
+				throw new Error(
+					`event.fetch called itself ${MAX_INTERNAL_DEPTH} times without leaving the process — ${target.pathname} is fetching a route that fetches it back`,
+				);
+			}
+			// built with the forwarded headers already in place: a Headers built
+			// from scratch is unguarded, while one hanging off a Request may refuse
+			// `cookie` outright
+			const headers = new Headers(
+				init?.headers ?? (input instanceof Request ? input.headers : undefined),
+			);
+			for (const name of FORWARDED_HEADERS) {
+				const value = request.headers.get(name);
+				if (value !== null && !headers.has(name)) headers.set(name, value);
+			}
+			const nested =
+				input instanceof Request
+					? new Request(input, { ...init, headers })
+					: new Request(target, { ...init, headers });
+			return await respond(nested, { ...respondOptions, depth: depth + 1 });
+		};
+
 		const headers = new Map<string, string>();
 		const event: RequestEvent = {
 			request,
 			url,
+			fetch: internalFetch,
+			api: createApiClient?.({ fetch: internalFetch, baseUrl: url.origin }) ?? {},
 			params: endpoint?.params ?? page?.params ?? {},
 			route: { id: endpoint?.route.id ?? page?.route.id ?? null },
 			locals: {},

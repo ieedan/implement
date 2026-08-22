@@ -1,3 +1,4 @@
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Reading back JSON bodies and stubbing globals requires intentional narrowing. */
 import { describe, expect, it, vi } from "vitest";
 import type { EndpointRoute, PageRoute, RequestEvent } from "../src/match.ts";
 import {
@@ -483,5 +484,129 @@ describe("render", () => {
 	it("explains itself when a hook answers a prerendered page with its own response", async () => {
 		const kit = server({ handle: () => redirect(307, "/elsewhere") });
 		await expect(kit.render("/")).rejects.toThrow(/did not render a page/);
+	});
+});
+
+describe("event.fetch", () => {
+	/** The event a server builds for a request, grabbed on the way through `handle`. */
+	function capturing(overrides: Partial<KitServerOptions> = {}) {
+		const events: RequestEvent[] = [];
+		const kit = createKitServer({
+			hooks: {
+				handle: ({ event, resolve }) => {
+					events.push(event);
+					return resolve(event);
+				},
+			},
+			pages: [],
+			endpoints: [
+				endpoint("/echo", {
+					GET: (event: RequestEvent) =>
+						Response.json({
+							url: event.url.toString(),
+							cookie: event.request.headers.get("cookie"),
+							authorization: event.request.headers.get("authorization"),
+							custom: event.request.headers.get("x-custom"),
+						}),
+					POST: async (event: RequestEvent) => Response.json({ body: await event.request.text() }),
+				}),
+				endpoint("/relay", { GET: (event: RequestEvent) => event.fetch("/echo") }),
+				endpoint("/loop", { GET: (event: RequestEvent) => event.fetch("/loop") }),
+			],
+			renderPage: () => null,
+			...overrides,
+		});
+		const call = (path: string, init?: RequestInit) =>
+			kit.respond(new Request(`http://localhost${path}`, init));
+		/** The event for one request, so a test can drive `event.fetch` directly. */
+		const eventFor = async (init?: RequestInit): Promise<RequestEvent> => {
+			await call("/echo", init);
+			return events.at(-1)!;
+		};
+		return { kit, call, eventFor, events };
+	}
+
+	it("dispatches a same-origin request in-process, with no listener anywhere", async () => {
+		const { call, events } = capturing();
+		const response = await call("/relay");
+		expect(response.status).toBe(200);
+		expect((await response.json()) as { url: string }).toMatchObject({
+			url: "http://localhost/echo",
+		});
+		// the nested request went through the whole pipeline, hooks included
+		expect(events.map((event) => event.url.pathname)).toEqual(["/relay", "/echo"]);
+	});
+
+	it("resolves a relative URL against event.url", async () => {
+		const event = await capturing().eventFor();
+		const response = await event.fetch("echo?q=1");
+		expect(((await response.json()) as { url: string }).url).toBe("http://localhost/echo?q=1");
+	});
+
+	it("forwards cookie and authorization, and leaves other headers to the caller", async () => {
+		const event = await capturing().eventFor({
+			headers: { cookie: "session=1", authorization: "Bearer t", "x-custom": "no" },
+		});
+		const body = (await (await event.fetch("/echo")).json()) as Record<string, string | null>;
+		expect(body["cookie"]).toBe("session=1");
+		expect(body["authorization"]).toBe("Bearer t");
+		expect(body["custom"]).toBeNull();
+	});
+
+	it("lets an explicit header win over the forwarded one", async () => {
+		const event = await capturing().eventFor({ headers: { cookie: "session=1" } });
+		const response = await event.fetch("/echo", { headers: { cookie: "session=2" } });
+		expect(((await response.json()) as Record<string, string>)["cookie"]).toBe("session=2");
+	});
+
+	it("carries a request body through", async () => {
+		const event = await capturing().eventFor();
+		const response = await event.fetch("/echo", { method: "POST", body: "hello" });
+		expect((await response.json()) as { body: string }).toEqual({ body: "hello" });
+	});
+
+	it("goes out over the network for a cross-origin URL", async () => {
+		const calls: string[] = [];
+		const real = globalThis.fetch;
+		globalThis.fetch = (input: RequestInfo | URL) => {
+			calls.push(input instanceof Request ? input.url : String(input));
+			return Promise.resolve(new Response("outside"));
+		};
+		try {
+			const event = await capturing().eventFor();
+			expect(await (await event.fetch("https://example.com/x")).text()).toBe("outside");
+			expect(calls).toEqual(["https://example.com/x"]);
+		} finally {
+			globalThis.fetch = real;
+		}
+	});
+
+	it("stops a handler that fetches itself rather than exhausting the stack", async () => {
+		const reports: ServerErrorReport[] = [];
+		const kit = capturing();
+		const response = await kit.kit.respond(new Request("http://localhost/loop"), {
+			onError: (report) => reports.push(report),
+		});
+		expect(response.status).toBe(500);
+		const thrown = reports.at(-1)?.error;
+		expect(thrown).toBeInstanceOf(Error);
+		expect((thrown as Error | undefined)?.message).toContain("fetching a route");
+	});
+
+	it("leaves event.api empty until an app generates a client", async () => {
+		expect((await capturing().eventFor()).api).toEqual({});
+	});
+
+	it("binds event.api to the in-process fetch, at the request's own origin", async () => {
+		const seen: { fetch?: typeof fetch; baseUrl?: string } = {};
+		const event = await capturing({
+			createApiClient: (options) => {
+				seen.fetch = options.fetch;
+				seen.baseUrl = options.baseUrl;
+				return {};
+			},
+		}).eventFor();
+		expect(seen.baseUrl).toBe("http://localhost");
+		expect(seen.fetch).toBe(event.fetch);
 	});
 });

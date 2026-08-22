@@ -1,0 +1,193 @@
+---
+title: API Routes
+description: Validated handlers, a generated typed client, and an optional OpenAPI document — off one definition.
+section: Guides
+order: 14
+---
+
+A [`server.ts` endpoint](/kit/server-routes) is a function that takes a `Request` and returns a `Response`. That is the whole contract, and it is untyped at both edges: nothing describes the body coming in, nothing describes what goes out, and nothing connects the endpoint to the code that calls it.
+
+`handler()` closes that gap. Wrap a handler in it, and one definition gives you validated inputs, a typed result, a generated client for every caller, and — if you ask for one — an OpenAPI document.
+
+```ts
+// src/routes/api/posts/[id]/server.ts
+import { error } from "@implementjs/kit/server";
+import * as z from "zod";
+import { db } from "@/lib/db";
+import { handler } from "./$types";
+
+export const GET = handler({
+	query: z.object({ draft: z.stringbool().default(false) }),
+	async handle({ params, query }) {
+		//          ^? { id: string }    ^? { draft: boolean }
+		const post = await db.post(params.id, { draft: query.draft });
+		if (post === undefined) error(404, `no post ${params.id}`);
+		return post;
+	},
+});
+```
+
+Note what is not there: no `await request.json()`, no cast, no manual `Response.json`. And no response schema — the client's `data` type for this route is whatever `handle` returns.
+
+`handler` comes from the route's own `./$types`, so `params` is typed from the route's pattern without you repeating it.
+
+## What gets validated
+
+Every field is optional. Declare one and kit validates that part of the request; leave it out and it comes through as-is.
+
+|          | What `handle` receives | Without a schema                                                     |
+| -------- | ---------------------- | -------------------------------------------------------------------- |
+| `params` | the schema's output    | the route's params, as strings                                       |
+| `query`  | the schema's output    | `url.searchParams`, one value per key (an array where a key repeats) |
+| `body`   | the schema's output    | `undefined` — an undeclared body is never read                       |
+
+Schemas are anything implementing [Standard Schema](https://standardschema.dev) — zod, valibot, arktype. Kit does not bundle one; you bring the library you already use, exactly as with [`defineEnv`](/kit/environment-variables).
+
+```ts
+export const PATCH = handler({
+	params: z.object({ id: z.coerce.number() }), // overrides the route's string, coerced
+	body: Post.pick({ title: true }).partial(),
+	response: Post,
+	handle: ({ params, body }) => db.update(params.id, body),
+});
+```
+
+A body is parsed by content type: `application/json` is parsed as JSON, form content types are parsed as `FormData` and flattened to an object (one value per field, an array where a field repeats).
+
+A validation failure throws through [`error(400, …)`](/kit/hooks), so it is the same `HttpError` a load's `error(404)` is — `handleError` and `hooks.server.ts` cannot tell them apart. The message names the part and lists every issue:
+
+```
+invalid query — area: Invalid type: Expected ("lib" | "kit" | …) but received "nope"
+```
+
+## What comes back
+
+Return anything and kit serializes it as JSON. Return `undefined` and the response is a `204`. Return a `Response` and it goes through untouched — which is how you set a content type, stream, or answer with something that is not JSON:
+
+```ts
+export const GET = handler({
+	params: z.object({ slug: z.string() }),
+	handle: ({ params }) =>
+		new Response(markdownFor(params.slug), {
+			headers: { "content-type": "text/markdown; charset=utf-8" },
+		}),
+});
+```
+
+`response` is optional, and the two choices differ in what they buy:
+
+- **Declared.** What `handle` returns is checked against the schema at compile time, validated at runtime outside production (`validateResponse: false` turns that off, `true` turns it on everywhere), and documented in the OpenAPI output.
+- **Omitted.** Nothing is validated and the type flows straight through from `handle` to the client. A typed client costs zero schemas.
+
+Only schemas can become OpenAPI. Inference serves the client; the document describes whatever schemas you chose to write.
+
+## Plain handlers still work
+
+`handler()` returns a plain request handler. Nothing downstream knows it exists — the `405`/`Allow` computation, `export const prerender`, the prerenderer, and every adapter behave exactly as before, and a wrapped and an unwrapped handler sit happily in one file:
+
+```ts
+export const GET = handler({ handle: () => ({ ok: true }) });
+
+export function HEAD(): Response {
+	return new Response(null, { status: 200 });
+}
+```
+
+A plain handler simply has nothing to tell the client, so its `data` type is `unknown`.
+
+## The generated client
+
+Kit generates a client for the app's endpoints and exports it ready to use. There is no setup and no configuration — it exists for every kit app.
+
+```ts
+import { api } from "$implement/client";
+
+const { data, error } = await api.GET("/api/posts/[id]", {
+	params: { id: "1" },
+	query: { draft: true },
+});
+if (error !== undefined) return notFound(error.message);
+render(data); // typed from the route's `response` schema, or from what `handle` returned
+```
+
+Routes are named by the URL they serve, params still in place — `/api/posts/[id]`, `/docs/[...slug].md`, the same ids [routing](/kit/routing) uses. An unknown route key, a method the route does not serve, a missing `params`, and a wrong `body` shape are all type errors.
+
+The default `api` uses a relative base URL, which is what a browser wants. `createClient` is there for anything else:
+
+```ts
+import { createClient } from "$implement/client";
+
+export const admin = createClient({
+	baseUrl: "https://admin.example.com",
+	headers: () => ({ authorization: `Bearer ${token()}` }),
+});
+```
+
+### Error styles
+
+`{ data, error, response }` is the default. Two others ship, selected once in `vite.config.ts`:
+
+```ts
+const { data, error } = await api.GET(...);  // "result" (default)
+const post = await api.GET(...);              // "throw" — throws an ApiError
+api.GET(...).match(render, handleError);      // "neverthrow" — returns a ResultAsync
+```
+
+```ts
+kit({ api: { client: { errors: "throw" } } });
+```
+
+An `ApiError` carries the `status`, the parsed `body`, and the `response`. A request that never reached a server — offline, DNS, an aborted signal — is an `ApiError` with status `0`, so `error` is the only branch a caller has to handle.
+
+The `neverthrow` style returns a `ResultAsync<Data, ApiError>`, which is already a `PromiseLike`: `.map`, `.andThen`, and `.match` chain straight off the call, and `await` is only for when you want the plain `Result`. It is the one style with a runtime dependency, so it ships as its own entry and `neverthrow` is an optional peer — apps on the other two styles never install it.
+
+`client.style` picks how a call reads: `"method"` (`api.GET(path, …)`, the default) or `"path"` (`api["/api/posts/[id]"].GET(…)`).
+
+## `event.fetch` and `event.api`
+
+Every load and every handler gets a `fetch` of its own on the request event. It resolves relative URLs against `event.url`, forwards `cookie` and `authorization` on same-origin requests, and — the part that matters — **dispatches a same-origin request in-process**: straight back through the request pipeline, hooks and all, with no socket in between.
+
+`event.api` is the generated client bound to that fetch. So a load calling its own app's endpoint never leaves the process:
+
+```ts
+// src/routes/dashboard/page.server.ts
+import type { LoadEvent } from "./$types";
+
+export default async function load({ api }: LoadEvent) {
+	const { data, error } = await api.GET("/api/posts/[id]", { params: { id: "1" } });
+	if (error !== undefined) return { post: null };
+	return { post: data };
+}
+```
+
+That call runs the endpoint's handler as a function call. It costs no HTTP round trip out of the process and back, and it works during the prerender, where there is no server listening at all.
+
+A handler that fetches itself is caught rather than left to exhaust the stack: kit caps the depth and says which route is looping.
+
+> [!NOTE]
+> `event.api` is typed through `App.Api`, which the generated `.implement/` types fill in from your own route tree — the same way `App.Locals` works. Nothing you write declares it.
+
+## OpenAPI
+
+An OpenAPI 3.1 document is **never** generated unless you ask for one. A route table is not something to publish by accident.
+
+```ts
+// vite.config.ts
+kit({
+	api: {
+		openapi: {
+			info: { title: "Docs API", version: "1.0.0" },
+			output: "static/openapi.json", // written on build, served in dev
+			path: "/openapi.json", // optional: also mount a live route
+		},
+	},
+});
+```
+
+With `api.openapi` absent — the default — no document is produced, no file is written, and no route is mounted. Individual routes opt out with `export const openapi = false;`.
+
+`output` writes the document as a file. Point it inside `static/` and it ships as a plain static asset the host serves; kit answers the same URL in dev, built from the routes as they are right now rather than from whatever the last build left behind.
+
+`path` additionally mounts a live route that builds the document per server. That is the one option with a cost: generating the document needs the schema _objects_, so it pulls your schema library and its JSON-Schema converter into the production server bundle. `output` alone does the work in Node at build time, and neither ever reaches what you deploy.
+
+Standard Schema has no JSON-Schema introspection of its own, so conversion is per-vendor. Kit detects it from the schema's vendor tag — arktype's `.toJsonSchema()`, zod's `z.toJSONSchema`, valibot's `@valibot/to-json-schema` — each imported lazily, in Node only. Anything else is documented as an unconstrained schema with a build warning naming the route, or you can pass `toJsonSchema` yourself. An operation with no schemas is still listed, as a path and a method with an undocumented body.

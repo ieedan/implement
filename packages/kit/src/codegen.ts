@@ -1,4 +1,5 @@
 import { routeId } from "./match.ts";
+import type { OpenApiRouteOptions } from "./openapi.ts";
 import { segmentKey, type RouteNode, type RouteSegment, type RouteTree } from "./scan.ts";
 
 export type DataChain = {
@@ -467,8 +468,13 @@ export function generatePagesModule(tree: RouteTree, routesBase: string): string
  * `server.ts` endpoint with its pattern, extension, and module namespace — the
  * shape the dev middleware and the endpoint prerenderer consume.
  */
-export function generateEndpointsModule(tree: RouteTree, routesBase: string): string {
+export function generateEndpointsModule(
+	tree: RouteTree,
+	routesBase: string,
+	openapi?: OpenApiRouteOptions,
+): string {
 	const routes = serverRoutes(tree);
+	const keys = apiRoutes(tree);
 	const imports: string[] = [];
 	const entries: string[] = [];
 	for (const [index, route] of routes.entries()) {
@@ -482,6 +488,21 @@ export function generateEndpointsModule(tree: RouteTree, routesBase: string): st
 			`\t{ pattern: ${JSON.stringify(route.pattern)}, id: ${JSON.stringify(id)}, extension: ${JSON.stringify(route.extension)}, file: ${JSON.stringify(route.file)}, module: ${name} },`,
 		);
 	}
+	// the live OpenAPI route, when an app asked for one. It reads the same
+	// module namespaces the table already imports, so mounting it costs the
+	// document builder and the app's schema library — and nothing else
+	if (openapi?.path !== undefined) {
+		imports.unshift('import { openApiEndpoint } from "@implementjs/kit/openapi";');
+		const documented = keys.map(
+			(route, index) =>
+				`\t\t{ key: ${JSON.stringify(route.key)}, params: ${JSON.stringify(route.params)}, file: ${JSON.stringify(route.file)}, module: endpoint_${index} }`,
+		);
+		const list = documented.length === 0 ? "[]" : `[\n${documented.join(",\n")},\n\t]`;
+		entries.push(
+			`\topenApiEndpoint({ path: ${JSON.stringify(openapi.path)}, options: ${JSON.stringify(openapi)}, endpoints: ${list} }),`,
+		);
+	}
+
 	const header = imports.length === 0 ? "" : `${imports.join("\n")}\n\n`;
 	const body = entries.length === 0 ? "[]" : `[\n${entries.join("\n")}\n]`;
 	return `${header}export const endpoints = ${body};\n`;
@@ -493,4 +514,136 @@ export function generateEndpointsModule(tree: RouteTree, routesBase: string): st
  */
 export function generateHooksModule(hooksFile: string | null): string {
 	return hooksFile === null ? "export {};\n" : `export * from ${JSON.stringify(hooksFile)};\n`;
+}
+
+export type ApiRoute = {
+	/**
+	 * The URL the endpoint serves, params still in place:
+	 * `routeId(pattern)` with any extension appended — `/api/posts/[id]`,
+	 * `/docs/[...slug].md`. This is the key the generated client is called
+	 * with, so it doubles as the URL template the client substitutes into.
+	 */
+	key: string;
+	/** Param names the key binds, root first. */
+	params: string[];
+	/** Relative path of the `server.ts` file. */
+	file: string;
+};
+
+/** Every `server.ts` endpoint as the generated client keys it. */
+export function apiRoutes(tree: RouteTree): ApiRoute[] {
+	return serverRoutes(tree).map((route) => ({
+		key: `${routeId(route.pattern)}${route.extension ?? ""}`,
+		params: route.params,
+		file: route.file,
+	}));
+}
+
+/** How the generated `createClient` is called and what it hands back. */
+export type ClientStyle = {
+	/** `"method"` for `api.GET(path, …)`, `"path"` for `api[path].GET(…)`. @default "method" */
+	style?: "method" | "path";
+	/** How a call's outcome reaches the caller. @default "result" */
+	errors?: "result" | "throw" | "neverthrow";
+};
+
+/** The client type an app's `api.client` options select, and where it comes from. */
+export type ClientType = {
+	/** The entry to import from — the `neverthrow` style has one of its own. */
+	module: string;
+	/** The client type's name, taking the route table as its first argument. */
+	name: string;
+	/** A second type argument naming the return shape, when the name does not imply one. */
+	wrapper: string | null;
+};
+
+/** Which of the six client types an app's options select. */
+export function clientType(options: ClientStyle): ClientType {
+	const path = options.style === "path";
+	if (options.errors === "neverthrow") {
+		return {
+			module: "@implementjs/kit/client/neverthrow",
+			name: path ? "ResultPathClient" : "ResultClient",
+			wrapper: null,
+		};
+	}
+	if (options.errors === "throw") {
+		return {
+			module: "@implementjs/kit/client",
+			name: path ? "PathClient" : "MethodClient",
+			wrapper: "ThrowWrapper",
+		};
+	}
+	return {
+		module: "@implementjs/kit/client",
+		name: path ? "PathClient" : "TypedClient",
+		wrapper: null,
+	};
+}
+
+/** The client's type as a `.d.ts` writes it: fully qualified, importing nothing. */
+export function clientTypeReference(options: ClientStyle, api: string): string {
+	const client = clientType(options);
+	const of = (name: string) => `import(${JSON.stringify(client.module)}).${name}`;
+	const wrapper = client.wrapper === null ? "" : `, ${of(client.wrapper)}`;
+	return `${of(client.name)}<${api}${wrapper}>`;
+}
+
+/** `{}` or `{ "id": string; "slug": string }` — the params a route key binds. */
+function clientParamsType(params: string[]): string {
+	if (params.length === 0) return "{}";
+	return `{ ${params.map((name) => `${JSON.stringify(name)}: string`).join("; ")} }`;
+}
+
+/**
+ * The generated `.implement/client.ts`: the app's route table and the
+ * ready-made `api` built over it.
+ *
+ * The table names each route's key and params and reads its methods off the
+ * module's *type* — `Operations<typeof import("../src/routes/…/server.ts")>` —
+ * so which methods a `server.ts` exports never has to be known here. That is
+ * what keeps this file a function of the route tree alone: the same `add` /
+ * `unlink` watcher that regenerates the router covers it, with no `change`
+ * handler and nothing evaluated. `typeof import(...)` is type-only, so the
+ * emitted module carries no runtime reference to any `server.ts` either.
+ */
+export function generateClientModule(
+	tree: RouteTree,
+	routesBase: string,
+	options: ClientStyle = {},
+): string {
+	const client = clientType(options);
+	const type =
+		client.wrapper === null ? `${client.name}<Api>` : `${client.name}<Api, ${client.wrapper}>`;
+	const routes = apiRoutes(tree);
+	const entries = routes.map((route) => {
+		const specifier = JSON.stringify(`..${routesBase}/${route.file}`);
+		return [
+			`\t${JSON.stringify(route.key)}: {`,
+			`\t\tparams: ${clientParamsType(route.params)};`,
+			`\t\toperations: Operations<typeof import(${specifier})>;`,
+			"\t};",
+		].join("\n");
+	});
+	const names = client.wrapper === null ? [client.name] : [client.name, client.wrapper];
+	const imported = ["createClient as create", "type ClientOptions", "type Operations"]
+		.concat(names.map((name) => `type ${name}`))
+		.join(",\n\t");
+	const call =
+		options.errors === "throw" ? `create({ ...options, errors: "throw" })` : "create(options)";
+	const table = entries.length === 0 ? "{}" : `{\n${entries.join("\n")}\n}`;
+	return `${[
+		`import {\n\t${imported},\n} from ${JSON.stringify(client.module)};`,
+		"",
+		"/** Every `server.ts` endpoint in this app, keyed by the URL it serves. */",
+		`export type Api = ${table};`,
+		"",
+		"/** A client pointing somewhere other than this app — a different base URL, headers of its own. */",
+		`export function createClient(options?: ClientOptions): ${type} {`,
+		`\treturn ${call};`,
+		"}",
+		"",
+		"/** The app's own API, ready to use. Relative URLs, which is what a browser wants; on the server use `event.api`. */",
+		`export const api: ${type} = createClient();`,
+	].join("\n")}\n`;
 }

@@ -69,6 +69,23 @@ src/routes
 
 An `@` [layout reset](/kit/routing) resets data the same way it resets layouts: a page that skips a layout also skips that layout's load.
 
+## Calling your own API from a load
+
+A load's event carries a `fetch` of its own, and an `api` — the [generated client](/kit/api-routes) bound to it. A same-origin request through either is dispatched **in-process**, back through the request pipeline with no socket in between, so a load reading its own app's endpoint costs a function call rather than a round trip out of the process and back:
+
+```ts
+// src/routes/dashboard/page.server.ts
+import type { LoadEvent } from "./$types";
+
+export default async function load({ api }: LoadEvent) {
+	const { data, error } = await api.GET("/api/posts/[id]", { params: { id: "1" } });
+	if (error !== undefined) return { post: null };
+	return { post: data };
+}
+```
+
+`event.fetch` also resolves relative URLs against `event.url` and forwards the request's `cookie` and `authorization` headers on same-origin calls, so an endpoint behind a session sees the same session the page does.
+
 ## Where the data actually comes from
 
 You never fetch it yourself, but it helps to know the plumbing:
