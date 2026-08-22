@@ -2,9 +2,9 @@
 
 # @implementjs/core
 
-Signals, element helpers and a router for [implement](https://implementjs.dev). Plain
-TypeScript that builds real DOM nodes, so there is no compiler and no virtual DOM between
-your code and the page.
+Signals, element helpers and the pieces nodes are built out of, for
+[implement](https://implementjs.dev). Plain TypeScript that builds real DOM nodes, so there
+is no compiler and no virtual DOM between your code and the page.
 
 ```sh
 npm install @implementjs/core
@@ -32,8 +32,12 @@ a value it also takes a signal, so the DOM stays in sync on its own.
 | ---------------------------- | ---------------------------------------------------- |
 | `@implementjs/core`          | Signals, control flow, element helpers, the app root |
 | `@implementjs/core/elements` | Just the element helpers                             |
-| `@implementjs/core/router`   | The client router                                    |
 | `@implementjs/core/hydrate`  | Hydration for a server rendered document             |
 | `@implementjs/core/server`   | Rendering a tree to HTML                             |
+
+The client router is a package of its own,
+[`@implementjs/router`](https://www.npmjs.com/package/@implementjs/router), written against
+the same public API as any node you write yourself. Navigation itself — `location`,
+`navigateTo`, `searchParam`, the navigation guards — stays here.
 
 Full documentation: [implementjs.dev/docs](https://implementjs.dev/docs)
