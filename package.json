@@ -11,6 +11,7 @@
 		"test": "NO_COLOR=1 pnpm -r test",
 		"generate": "pnpm -r generate",
 		"registry": "pnpm -r registry",
+		"skills": "pnpm --filter @apps/docs skills",
 		"create:app": "pnpm --filter create-implement-app build && node packages/create-implement-app/dist/bin.mjs",
 		"jscpd": "jscpd --no-tips",
 		"lint": "oxlint --disable-nested-config --deny-warnings",

@@ -1,4 +1,5 @@
 import {
+	eslintPages,
 	formishPages,
 	kitPages,
 	lucidePages,
@@ -131,6 +132,7 @@ const areas = [
 		markdown: true,
 		collection: modeWatcherPages,
 	},
+	{ key: "eslint", label: "@implementjs/eslint", markdown: true, collection: eslintPages },
 	// lessons are an editor rather than a document, so they have no `.md` twin
 	{ key: "tutorial", label: "Tutorial", markdown: false, collection: tutorials },
 	// `as const satisfies` rather than an annotation, so the keys stay literal

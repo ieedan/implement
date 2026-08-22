@@ -10,6 +10,7 @@
  */
 export {
 	create as createPages,
+	eslint as eslintPages,
 	formish as formishPages,
 	kit as kitPages,
 	lucide as lucidePages,
@@ -18,6 +19,7 @@ export {
 	primitives as primitivePages,
 	ui as uiPages,
 	type CreatePage,
+	type EslintPage,
 	type FormishPage,
 	type KitPage,
 	type LucidePage,

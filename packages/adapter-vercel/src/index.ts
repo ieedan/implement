@@ -127,7 +127,11 @@ function config(builder: Builder): unknown {
 const ENTRY = `import { handler as app } from "$implement/handler";
 import { serveApp } from "@implementjs/kit/node";
 
+// Vercel terminates TLS and overwrites Host and X-Forwarded-Proto before the
+// function sees them, so trusting those headers here is safe on this platform.
 const serve = serveApp(app, {
+	protocolHeader: "x-forwarded-proto",
+	hostHeader: "host",
 	address: { header: "x-forwarded-for" },
 	onError: ({ error, event, status }) => {
 		console.error(\`[implement] \${event.request.method} \${event.url.pathname} -> \${status}\`);

@@ -1,5 +1,7 @@
 import { apiReference, type ApiPart } from "./api-reference";
 import { demoSources } from "./components/demos/sources";
+import { markdownTwin } from "./markdown-pages";
+import { SITE_ORIGIN } from "./site";
 import { uiSourcePath, uiSources } from "./ui-sources";
 
 /**
@@ -14,6 +16,30 @@ const placeholderPattern = /<div data-(demo|api|source)="([^"]+)"([^>]*)><\/div>
 /** Tab markers, which delimit content rather than standing in for it. */
 const tabPattern = /<div data-tab="([^"]*)"[^>]*><\/div>\n*/g;
 const tabsEndPattern = /<div data-tabs-end[^>]*><\/div>\n*/g;
+
+/** A site-relative link target in the source markdown, fragment and all. */
+const internalLinkPattern = /\]\((\/[^)\s]*)\)/g;
+
+/**
+ * Rewrites the site-relative links the pages are written with into absolute
+ * URLs, pointing at the `.md` twin wherever the target has one. Two problems,
+ * one fix: markdown that has left the site keeps working when it is pasted
+ * into a chat or a file, and a reader following a cross-reference gets the
+ * next page's markdown instead of ~90kb of app shell — the prerendered HTML
+ * is served straight off the CDN, so the `Accept` negotiation in
+ * `hooks.server.ts` never runs for it.
+ *
+ * Targets with no twin (`/primitives`, `/tutorial/...`, an asset) are made
+ * absolute and otherwise left alone.
+ */
+function absoluteLinks(markdown: string): string {
+	return markdown.replace(internalLinkPattern, (_link, href: string) => {
+		const cut = href.search(/[#?]/);
+		const path = cut === -1 ? href : href.slice(0, cut);
+		const suffix = cut === -1 ? "" : href.slice(cut);
+		return `](${SITE_ORIGIN}${markdownTwin(path) ?? path}${suffix})`;
+	});
+}
 
 /** Table cells cannot hold raw pipes (`"single" | "multiple"`). */
 function cell(value: string): string {
@@ -78,7 +104,7 @@ function resolveTabs(markdown: string): string {
  * describing what the demo renders — the markdown reader can't see it.
  */
 function resolvePlaceholders(markdown: string): string {
-	return resolveTabs(markdown).replace(
+	return absoluteLinks(resolveTabs(markdown)).replace(
 		placeholderPattern,
 		(placeholder, kind: string, name: string, rest: string) => {
 			if (kind === "demo") {

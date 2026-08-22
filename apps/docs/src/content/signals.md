@@ -76,6 +76,76 @@ Two interfaces describe what you can do with a signal:
 
 `signal()` returns a `Signal<T>` (writable). [`derived`](/docs/derived) returns a read-only value. Accepting `Readable<T>` in your component signatures lets callers pass either.
 
+In full, as `@implementjs/core` declares them:
+
+```ts
+export interface Readable<T> {
+	get(): T;
+	subscribe(callback: Callback<T>): Unsubscribe;
+	/** Subscribe to later updates. Unlike `watch`, this does not run with the current value. */
+	onChange(callback: ChangeCallback<T>): Unsubscribe;
+	/**
+	 * One-way binding of a (possibly dotted) path.
+	 * @example
+	 * todo.bind("author.name")
+	 * // same as: todo.bind((value) => value.author.name)
+	 */
+	bind<P extends BindableKeys<T>>(path: P): Readable<BindPathValue<T, P>>;
+	/**
+	 * One-way derived value. A selector result that is itself a readable is
+	 * followed and unwrapped, so selecting a nested signal surfaces its value.
+	 * @example
+	 * todo.bind((value) => value.title.toUpperCase())
+	 */
+	bind<U>(selector: (value: T) => U): Readable<Unwrapped<U>>;
+}
+
+export interface Writable<T> extends Readable<T> {
+	set(value: T): void;
+	/** Notify subscribers of the current value. Used after in-place mutation. */
+	flush(): void;
+	/**
+	 * Two-way binding of a (possibly dotted) path.
+	 * @example
+	 * todo.bind("author.name")
+	 * // same as:
+	 * todo.bind(
+	 *   (value) => value.author.name,
+	 *   (prev, next) => ({ ...prev, author: { ...prev.author, name: next } }),
+	 * )
+	 */
+	bind<P extends BindableKeys<T>>(path: P): Signal<BindPathValue<T, P>>;
+	/**
+	 * One-way derived value. A selector result that is itself a readable is
+	 * followed and unwrapped, so selecting a nested signal surfaces its value.
+	 * @example
+	 * todo.bind((value) => value.title.toUpperCase())
+	 */
+	bind<U>(selector: (value: T) => U): Readable<Unwrapped<U>>;
+	/**
+	 * Two-way derived value. `update` writes `next` back into `prev`.
+	 * Return a new parent, or mutate `prev` in place and return nothing.
+	 * @example
+	 * todo.bind((value) => value.title, (prev, next) => ({ ...prev, title: next }))
+	 * @example
+	 * todo.bind((value) => value.title, (prev, next) => { prev.title = next })
+	 */
+	bind<U>(selector: (value: T) => U, update: BindUpdate<T, U>): Signal<U>;
+}
+```
+
+The `bind` overloads are what separate the two: binding a path on a `Readable` gives you a `Readable`, binding one on a `Writable` gives you a `Signal` you can write back through. [Bindings](/docs/bindings) covers both, along with the supporting types:
+
+| Type                  | What it is                                                                                                                                                                                     |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Callback<T>`         | `(value: T) => void` — a subscriber.                                                                                                                                                           |
+| `ChangeCallback<T>`   | `(value: T, previous: T) => void` — an `onChange` subscriber, handed the previous value too.                                                                                                   |
+| `Unsubscribe`         | `() => void` — returned by `subscribe` and `onChange`.                                                                                                                                         |
+| `BindableKeys<T>`     | The dotted paths you can bind into `T`, e.g. `"title"` or `"author.name"`. Arrays, `Map`s, `Set`s, `Date`s, functions, and DOM types are leaves, so you bind _to_ them but not _through_ them. |
+| `BindPathValue<T, P>` | The value sitting at a `BindableKeys` path.                                                                                                                                                    |
+| `Unwrapped<U>`        | A selector's result with nested readables unwrapped — `Readable<T>` becomes `T`, plain values pass through.                                                                                    |
+| `BindUpdate<T, U>`    | `(prev: T, next: U) => T \| void` — the write-back for a two-way selector bind. Return a new parent, or mutate `prev` and return nothing.                                                      |
+
 If you want to write your own "plain value or signal" APIs the guards `isReadable(value)` and `isWritable(value)` are exported for exactly that:
 
 ```ts

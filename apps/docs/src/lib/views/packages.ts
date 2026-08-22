@@ -113,7 +113,7 @@ const groups: PackageGroup[] = [
 				name: "@implementjs/eslint",
 				description:
 					"Lint rules for the mistakes types cannot catch: a subscription whose unsubscribe went missing, a misspelled aria attribute, a Lifecycle that wanted to be a Watch. An ESLint plugin, and oxlint runs it too.",
-				docs: { label: "Read the docs", to: "/docs" },
+				docs: { label: "Read the docs", to: "/eslint" },
 				sourceDir: "eslint",
 			},
 		],
