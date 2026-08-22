@@ -1,12 +1,44 @@
 {
 	"name": "@implementjs/primitives",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.1.0-alpha.0",
+	"description": "Unstyled, accessible building blocks for implement. They own the behavior and the accessibility, you own the look.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"primitives",
+		"headless",
+		"accessibility",
+		"components",
+		"ui"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/primitives",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/primitives"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
 	"type": "module",
+	"files": [
+		"dist"
+	],
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			}
 		}
 	},
 	"scripts": {

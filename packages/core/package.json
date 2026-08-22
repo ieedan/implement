@@ -1,12 +1,32 @@
 {
 	"name": "@implementjs/core",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.1.0-alpha.0",
+	"description": "Signals, element helpers and a router for implement. Plain TypeScript that builds real DOM nodes, no compiler.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"signals",
+		"reactivity",
+		"dom",
+		"router",
+		"ui",
+		"frontend"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/docs",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/core"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
 	"type": "module",
 	"sideEffects": false,
 	"files": [
-		"src",
-		"!src/**/type-test.ts"
+		"dist"
 	],
 	"exports": {
 		".": {
@@ -28,6 +48,31 @@
 		"./server": {
 			"types": "./src/server/index.ts",
 			"default": "./src/server/index.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			},
+			"./hydrate": {
+				"types": "./dist/hydrate.d.mts",
+				"default": "./dist/hydrate.mjs"
+			},
+			"./elements": {
+				"types": "./dist/components/elements.d.mts",
+				"default": "./dist/components/elements.mjs"
+			},
+			"./router": {
+				"types": "./dist/router/index.d.mts",
+				"default": "./dist/router/index.mjs"
+			},
+			"./server": {
+				"types": "./dist/server/index.d.mts",
+				"default": "./dist/server/index.mjs"
+			}
 		}
 	},
 	"scripts": {

@@ -1,13 +1,44 @@
 {
 	"name": "@implementjs/adapter-vercel",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.1.0-alpha.0",
+	"description": "Builds an implement kit app for Vercel, through the Build Output API.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"kit",
+		"adapter",
+		"vercel",
+		"deploy"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/kit/adapters",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/adapter-vercel"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
 	"type": "module",
 	"sideEffects": false,
+	"files": [
+		"dist"
+	],
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			}
 		}
 	},
 	"scripts": {

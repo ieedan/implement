@@ -2,8 +2,8 @@ import { MissingLinkedPackageError } from "@/utils/errors";
 import type { TemplateContext } from "@/templates/types";
 
 /**
- * implement isn't published to a registry yet, so scaffolded apps ask for the latest tag and get it
- * the moment the packages land. Inside the monorepo `--workspace` swaps these for `workspace:*`.
+ * Scaffolded apps ask for the latest tag of each implement package, so a new app starts on the
+ * current release. Inside the monorepo `--workspace` swaps these for `workspace:*`.
  */
 export const IMPLEMENT_VERSION = "latest";
 

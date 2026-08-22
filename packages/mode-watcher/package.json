@@ -1,13 +1,43 @@
 {
 	"name": "@implementjs/mode-watcher",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.1.0-alpha.0",
+	"description": "Dark mode for implement, applied before the first paint: the visitor's choice, the system preference and the class on <html>.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"dark-mode",
+		"theme",
+		"color-scheme"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/mode-watcher",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/mode-watcher"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
 	"type": "module",
 	"sideEffects": false,
+	"files": [
+		"dist"
+	],
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			}
 		}
 	},
 	"scripts": {

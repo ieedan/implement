@@ -1,14 +1,48 @@
 {
 	"name": "create-implement-app",
-	"description": "Create a new implement app.",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.1.0-alpha.0",
+	"description": "Scaffolds a new implement app: kit or plain Vite, with Tailwind, primitives, icons, forms and dark mode as optional addons.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"create",
+		"scaffold",
+		"cli",
+		"starter",
+		"template"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/create",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/create-implement-app"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
 	"type": "module",
 	"bin": "./dist/bin.mjs",
 	"files": [
 		"dist/**/*",
 		"!dist/**/*.map"
 	],
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			}
+		}
+	},
 	"scripts": {
 		"start": "node ./dist/bin.mjs",
 		"dev": "tsdown --watch",

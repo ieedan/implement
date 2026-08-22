@@ -29,6 +29,36 @@ pnpm --filter @apps/docs build
 cd apps/docs && vercel deploy --prebuilt
 ```
 
+## Releasing
+
+Versions and changelogs are managed by [changesets](https://changesets.dev). A branch that
+changes a package carries a changeset describing the change, committed alongside the code:
+
+```sh
+pnpm changeset
+```
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) picks those up on merge. With
+changesets pending it opens a `chore: version packages` pull request that applies the bumps,
+writes the `CHANGELOG.md` files and deletes the changesets; merging that pull request publishes
+whatever the registry has not seen yet. Each changelog entry links back to the pull request its
+changeset arrived in, which is why the workflow checks out the full history: the link is found
+by tracing the changeset file to the commit that added it.
+
+The packages are in prerelease for `0.1.0`, under the `alpha` tag:
+
+```sh
+npm install @implementjs/core@alpha
+```
+
+`.changeset/pre.json` is what puts them there, and everything published while it exists goes to
+the `alpha` dist tag instead of `latest`. Leaving the prerelease is a command and one more
+version pull request:
+
+```sh
+pnpm changeset pre exit
+```
+
 ## TODOS
 
 - rewrite all docs

@@ -17,13 +17,18 @@
 		"lint": "oxlint --disable-nested-config --deny-warnings",
 		"lint:fix": "oxlint --disable-nested-config --fix --deny-warnings",
 		"format": "oxfmt",
-		"format:check": "oxfmt --check"
+		"format:check": "oxfmt --check",
+		"changeset": "changeset",
+		"changeset:version": "changeset version",
+		"changeset:publish": "pnpm build && changeset publish"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"packageManager": "pnpm@11.22.0",
 	"devDependencies": {
+		"@changesets/changelog-github": "^1.0.0",
+		"@changesets/cli": "^3.0.1",
 		"@implementjs/eslint": "workspace:*",
 		"@types/node": "^26.2.0",
 		"jscpd": "^5.0.15",
