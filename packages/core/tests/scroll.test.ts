@@ -58,20 +58,21 @@ describe("scroll restoration", () => {
 		expect(window.scrollY).toBe(300);
 	});
 
-	it("lets navigateTo opt out of the scroll to the top, and a replace opt in", () => {
+	it("lets navigateTo opt out of the scroll to the top", () => {
 		navigateTo("/opt-a");
 		window.scrollTo(0, 250);
-		navigateTo("/opt-b", { scroll: false });
+		navigateTo("/opt-b", { noScroll: true });
 		expect(window.scrollY).toBe(250);
 
-		navigateTo("/opt-c", { replace: true, scroll: true });
-		expect(window.scrollY).toBe(0);
+		// a replace never scrolls, so the flag has nothing to skip there
+		navigateTo("/opt-c", { replace: true, noScroll: true });
+		expect(window.scrollY).toBe(250);
 	});
 
 	it("restores a position opted out of on the way in", () => {
 		navigateTo("/keep");
 		window.scrollTo(0, 360);
-		navigateTo("/keep?filter=open", { scroll: false });
+		navigateTo("/keep?filter=open", { noScroll: true });
 		expect(window.scrollY).toBe(360);
 
 		navigateTo("/elsewhere");
@@ -124,14 +125,14 @@ describe("Link and navigate scroll options", () => {
 		"/link-b": () => Div("b"),
 	};
 
-	it("scrolls to the top by default and honors scroll: false", () => {
+	it("scrolls to the top by default and honors noScroll", () => {
 		navigateTo("/link-a");
 		const router = Router(routes);
 		const { target, app } = mount();
 		const unmount = app.render(
 			Div(
 				router.Link({ to: "/link-b", id: "plain" }, "b"),
-				router.Link({ to: "/link-b", id: "quiet", scroll: false }, "b"),
+				router.Link({ to: "/link-b", id: "quiet", noScroll: true }, "b"),
 			),
 		);
 
@@ -150,11 +151,11 @@ describe("Link and navigate scroll options", () => {
 		target.remove();
 	});
 
-	it("passes scroll through router.navigate", () => {
+	it("passes noScroll through router.navigate", () => {
 		navigateTo("/link-a");
 		const router = Router(routes);
 		window.scrollTo(0, 220);
-		router.navigate("/link-b", { scroll: false });
+		router.navigate("/link-b", { noScroll: true });
 		expect(window.scrollY).toBe(220);
 		router.navigate("/link-a");
 		expect(window.scrollY).toBe(0);

@@ -184,14 +184,13 @@ export type NavigateOptions = {
 	/** Replace the current history entry instead of pushing a new one. */
 	replace?: boolean;
 	/**
-	 * Scroll to the top of the page once the navigation commits. Defaults to
-	 * `true` for a push and `false` for a `replace`, which usually rewrites the
-	 * URL of the page the user is already reading. Set it either way to opt in
-	 * or out — `scroll: false` keeps a filter link from jumping a long list
-	 * back to the top, `scroll: true` sends a replacing navigation to the top
-	 * anyway. Back and forward ignore it and restore the recorded position.
+	 * Skip the scroll to the top that a push does, staying where the page is —
+	 * what a filter link wants, rather than jumping a long list back to the
+	 * top. A `replace` rewrites the URL of the page the user is already
+	 * reading and never scrolls, so this changes nothing there; back and
+	 * forward restore the position they recorded.
 	 */
-	scroll?: boolean;
+	noScroll?: boolean;
 };
 
 /** Push (or replace) a history entry and update the location signal. */
@@ -224,7 +223,7 @@ export function navigateTo(href: string, options: NavigateOptions = {}): void {
 		}
 		location.set(target);
 		commitEntry();
-		if (options.scroll ?? !options.replace) scrollToTop();
+		if (!options.replace && !options.noScroll) scrollToTop();
 	});
 }
 

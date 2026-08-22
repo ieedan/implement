@@ -117,10 +117,10 @@ export type LinkProps<P extends string> = Omit<ElementProps<"a">, "href"> & {
 	/** Replace the current history entry instead of pushing a new one. */
 	replace?: boolean;
 	/**
-	 * Scroll to the top of the page after following the link. Defaults to
-	 * `true`, or `false` alongside `replace`. See {@link NavigateOptions.scroll}.
+	 * Follow the link without scrolling to the top of the page. See
+	 * {@link NavigateOptions.noScroll}.
 	 */
-	scroll?: boolean;
+	noScroll?: boolean;
 } & ([PathParamNames<P>] extends [never] ? { params?: undefined } : { params: LinkParams<P> });
 
 export type RouterError = {
@@ -154,7 +154,7 @@ export type RouterHelper<T> = Mountable & {
 	 * An `A` that navigates through the router. Modifier keys, non-left
 	 * clicks, and `target` are respected. Sets `aria-current="page"` while
 	 * the link's path is the current one (style with `aria-[current=page]:`).
-	 * Following one scrolls to the top unless `scroll: false` says otherwise.
+	 * Following one scrolls to the top unless `noScroll` says otherwise.
 	 */
 	Link<P extends RoutePaths<T> & string>(props: LinkProps<P>, ...children: Child[]): Mountable;
 	/** URL-synced query-string value. See {@link searchParam}. */
@@ -581,7 +581,7 @@ export function Router<T extends Routes<T>>(
 	};
 
 	const Link = (props: LinkProps<string>, ...children: Child[]): Mountable => {
-		const { to, params, replace, scroll, onClick, ...rest } = props;
+		const { to, params, replace, noScroll, onClick, ...rest } = props;
 
 		const record: Record<string, LinkParamValue> = params ?? {};
 		const entries = Object.entries(record);
@@ -618,7 +618,7 @@ export function Router<T extends Routes<T>>(
 					const target = isReadable(rest.target) ? rest.target.get() : rest.target;
 					if (target && target !== "_self") return;
 					event.preventDefault();
-					navigateTo(currentHref(), { replace, scroll });
+					navigateTo(currentHref(), { replace, noScroll });
 				},
 			},
 			...children,
