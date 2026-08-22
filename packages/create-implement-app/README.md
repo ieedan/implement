@@ -34,6 +34,51 @@ Each addon changes the generated app: tailwind swaps the stylesheet and adds the
 
 `ui` turns on `tailwind` and `primitives` whatever the flags said — the styled components are Tailwind classes over the primitives, so an app without them would scaffold with a first component that doesn't render.
 
+## Adders
+
+| Adder    | What it adds                                                                               |
+| -------- | ------------------------------------------------------------------------------------------ |
+| `oxlint` | [oxlint](https://oxc.rs) and [oxfmt](https://oxc.rs), with the `@implementjs/eslint` rules |
+
+An addon changes the app the templates write — tailwind swaps the stylesheet, icons change what the counter renders — so it only means something while the app is being created. An adder is self contained: config files of its own, dependencies, and scripts. That is what lets it be added later, to an app that already exists:
+
+```sh
+pnpm create implement-app my-app --oxlint   # while scaffolding
+pnpm dlx create-implement-app add oxlint    # any time after
+```
+
+Both write the same thing. `add` runs in the current directory unless `--cwd` points somewhere else, asks which adders to apply when none are named, and leaves alone anything the app already has — a config file that has been edited since, a script under a name it wanted, a dependency it already depends on. Each of those is reported, and `--overwrite` replaces them instead. Running it twice changes nothing the second time.
+
+| Flag                     | Default         | What it does                                                |
+| ------------------------ | --------------- | ----------------------------------------------------------- |
+| `[adders...]`            | prompted        | The adders to add                                           |
+| `--install`              | off             | Install dependencies after adding                           |
+| `--overwrite`            | off             | Replace config files and scripts the app already has        |
+| `--package-manager <pm>` | detected        | `npm`, `pnpm`, `yarn`, `bun`, or `deno`                     |
+| `--link <path>`          | off             | Link the implement packages to a local clone                |
+| `--workspace`            | off             | Depend on the implement packages with `workspace:*`         |
+| `-y, --yes`              | off             | Skip every prompt                                           |
+| `--cwd <path>`           | `process.cwd()` | The app to add to                                           |
+| `--verbose`              | off             | Log every file as it's written instead of showing a spinner |
+
+### oxlint
+
+The adder writes an `oxlint.config.ts` and an `oxfmt.config.ts`, adds `oxlint`, `oxfmt`, and [`@implementjs/eslint`](../eslint) as dev dependencies, and gives the app four scripts:
+
+```jsonc
+// my-app/package.json
+{
+	"scripts": {
+		"lint": "oxlint",
+		"lint:fix": "oxlint --fix",
+		"format": "oxfmt",
+		"format:check": "oxfmt --check",
+	},
+}
+```
+
+The lint config runs the framework's own rules — the ones that catch a dropped unsubscribe, a signal tested for truth, or a `.get().map()` that renders a list once and never again — through oxlint's ESLint-compatible plugin API. `oxfmt` is set to tabs at 100 columns, which is what the templates write; `create --oxlint --install` runs `format` once on the way out, so a freshly scaffolded app passes `format:check` before anything has been edited.
+
 ## Styled components
 
 The `ui` addon sets the app up as a consumer of the `@implementjs/ui` [jsrepo](https://jsrepo.dev) registry rather than adding a dependency: a `jsrepo.config.ts` naming the registry and where its items land, `jsrepo` and `tailwind-variants` in `package.json`, a `ui` script, and an `app.css` carrying the tokens every component reads.
@@ -85,6 +130,7 @@ Anything a flag didn't answer falls back to the defaults: the `kit` template, ta
 | `--icons`                | off                | Add `@implementjs/lucide` (`--no-icons` to skip)              |
 | `--forms`                | off                | Add `@implementjs/formish` (`--no-forms` to skip)             |
 | `--mode-watcher`         | off                | Add `@implementjs/mode-watcher` (`--no-mode-watcher` to skip) |
+| `--oxlint`               | off                | Set up oxlint and oxfmt (`--no-oxlint` to skip)               |
 | `--package-manager <pm>` | detected           | `npm`, `pnpm`, `yarn`, `bun`, or `deno`                       |
 | `--install`              | off                | Install dependencies after scaffolding                        |
 | `--git`                  | off                | Run `git init` in the new app                                 |
@@ -165,6 +211,24 @@ await runCreate("my-app", {
 	template: "csr",
 	install: false,
 	git: false,
+	workspace: false,
+	overwrite: false,
+	yes: true,
+	verbose: false,
+});
+```
+
+The adders are importable too — `applyAdders` is what both commands run, and it takes a `package.json` and hands back the one the adder needs, along with the files it writes:
+
+```ts
+import { applyAdders, runAdd } from "create-implement-app";
+
+const changes = applyAdders(["oxlint"], { workspace: false, packageManager: "pnpm" }, contents);
+
+// or apply them to an app on disk, the same way the CLI does
+await runAdd(["oxlint"], {
+	cwd: process.cwd() as never,
+	install: false,
 	workspace: false,
 	overwrite: false,
 	yes: true,

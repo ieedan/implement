@@ -1,9 +1,59 @@
 import fs from "node:fs";
 import { err, ok, type Result } from "nevereverthrow";
-import { NoLinkedPackagesError } from "@/utils/errors";
+import type { CLIError } from "@/utils/errors";
+import { ConflictingLinkOptionsError, NoLinkedPackagesError } from "@/utils/errors";
 import { exists, readdirSync } from "@/utils/fs";
-import { joinAbsolute, shortestPath } from "@/utils/path";
+import { joinAbsolute, resolveAbsolute, shortestPath } from "@/utils/path";
 import type { AbsolutePath } from "@/utils/types";
+
+/** A local clone of the implement repo, as the app about to be written should spell it. */
+export type ResolvedLink = {
+	root: AbsolutePath;
+	/** How the app spells the clone — also what the jsrepo `fs://` registry points at. */
+	path: string;
+	/** The specifiers for every implement package in the clone, keyed by package name. */
+	specifiers: Record<string, string>;
+};
+
+/**
+ * Resolves `--link` into the specifiers a `package.json` should carry, or `undefined` when the app
+ * is not linked to a local repo. Shared by every command that writes implement dependencies.
+ */
+export function resolveLink({
+	cwd,
+	directory,
+	link,
+	workspace,
+	packageManager,
+	verbose,
+}: {
+	cwd: AbsolutePath;
+	/** The app the specifiers are written relative to. */
+	directory: AbsolutePath;
+	link: string | undefined;
+	workspace: boolean;
+	packageManager: string;
+	verbose: (msg: string) => void;
+}): Result<ResolvedLink | undefined, CLIError> {
+	if (link === undefined) return ok(undefined);
+	if (workspace) return err(new ConflictingLinkOptionsError());
+
+	const root = resolveAbsolute(cwd, link);
+	const packages = findLinkablePackages(root);
+	if (packages.isErr()) return err(packages.error);
+
+	verbose(`Linking ${[...packages.value.keys()].join(", ")} from ${root}`);
+
+	return ok({
+		root,
+		path: shortestPath(directory, root),
+		specifiers: linkSpecifiers({
+			packages: packages.value,
+			appDirectory: directory,
+			packageManager,
+		}),
+	});
+}
 
 /** The scope every linkable implement package lives under. */
 const IMPLEMENT_SCOPE = "@implementjs/";

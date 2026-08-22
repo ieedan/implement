@@ -3,6 +3,8 @@ import { type Command, Option } from "commander";
 import { err, ok, type Result } from "nevereverthrow";
 import pc from "picocolors";
 import { z } from "zod";
+import { adders as ADDER_REGISTRY, applyAdders } from "@/adders";
+import { type AdderContext, ADDERS, type AdderId } from "@/adders/types";
 import {
 	commonOptions,
 	defaultCommandOptionsSchema,
@@ -22,12 +24,11 @@ import {
 } from "@/templates/types";
 import type { CLIError } from "@/utils/errors";
 import {
-	ConflictingLinkOptionsError,
 	CreateImplementAppError,
 	DirectoryNotEmptyError,
 	MissingLinkedRegistryError,
 } from "@/utils/errors";
-import { findLinkablePackages, linkSpecifiers } from "@/utils/link";
+import { resolveLink } from "@/utils/link";
 import { exists, meaningfulEntries, writeFileSync } from "@/utils/fs";
 import {
 	detectPackageManager,
@@ -43,6 +44,9 @@ import { basename, joinAbsolute, relativeToCwd, resolveAbsolute, shortestPath } 
 import { initLogging, intro, isTTY, outro, runCommands, unwrapPrompt } from "@/utils/prompts";
 import type { AbsolutePath } from "@/utils/types";
 
+/** The file the adders fold their dependencies and scripts into. */
+const PACKAGE_JSON = "package.json";
+
 /** Used when nothing else says where the app goes. */
 export const DEFAULT_DIRECTORY = "implement-app";
 
@@ -50,6 +54,9 @@ export const DEFAULT_TEMPLATE: TemplateId = "kit";
 
 /** The addons `--yes` (and any other non-interactive run) turns on. */
 export const DEFAULT_ADDONS: Addon[] = ["tailwind"];
+
+/** The adders `--yes` (and any other non-interactive run) turns on. */
+export const DEFAULT_ADDERS: AdderId[] = [];
 
 /**
  * The addons an addon cannot work without. The styled components are tailwind classes over the
@@ -68,6 +75,7 @@ export const schema = defaultCommandOptionsSchema.extend({
 	icons: z.boolean().optional(),
 	forms: z.boolean().optional(),
 	modeWatcher: z.boolean().optional(),
+	oxlint: z.boolean().optional(),
 	packageManager: z.enum(PACKAGE_MANAGERS).optional(),
 	link: z.string().optional(),
 	install: z.boolean(),
@@ -85,6 +93,7 @@ export type CreateCommandResult = {
 	name: string;
 	template: TemplateId;
 	addons: Addon[];
+	adders: AdderId[];
 	files: string[];
 	packageManager: PackageManager;
 	installed: boolean;
@@ -119,6 +128,8 @@ export function addCreateCommand(cmd: Command): Command {
 		.option("--no-forms", "Don't add @implementjs/formish.")
 		.option("--mode-watcher", "Add dark mode from @implementjs/mode-watcher.")
 		.option("--no-mode-watcher", "Don't add @implementjs/mode-watcher.")
+		.option("--oxlint", "Set up linting and formatting with oxlint and oxfmt.")
+		.option("--no-oxlint", "Don't set up oxlint and oxfmt.")
 		.addOption(
 			new Option("--package-manager <pm>", "The package manager to install with.").choices(
 				PACKAGE_MANAGERS,
@@ -194,7 +205,7 @@ export async function runCreate(
 				)
 			: DEFAULT_TEMPLATE);
 
-	const addons = await resolveAddons(options, { interactive });
+	const { addons, adders } = await resolveExtras(options, { interactive });
 
 	const emptyResult = meaningfulEntries(directory);
 	if (emptyResult.isErr()) return err(emptyResult.error);
@@ -215,7 +226,14 @@ export async function runCreate(
 	// package.json is written
 	const packageManager = options.packageManager ?? (await detectPackageManager(options.cwd));
 
-	const linkResult = resolveLink(options, { directory, packageManager, verbose });
+	const linkResult = resolveLink({
+		cwd: options.cwd,
+		directory,
+		link: options.link,
+		workspace: options.workspace,
+		packageManager,
+		verbose,
+	});
 	if (linkResult.isErr()) return err(linkResult.error);
 	const link = linkResult.value;
 
@@ -240,7 +258,18 @@ export async function runCreate(
 		spinner.stop(pc.red(`Failed to create ${pc.cyan(name)}`));
 		return err(filesResult.error);
 	}
-	const files = filesResult.value;
+	// the adders layer onto what the template wrote: their own config files, and the dependencies
+	// and scripts they need folded into the generated package.json
+	const withAdders = addAdders(filesResult.value, adders, {
+		workspace: options.workspace,
+		link: link?.specifiers,
+		packageManager,
+	});
+	if (withAdders.isErr()) {
+		spinner.stop(pc.red(`Failed to create ${pc.cyan(name)}`));
+		return err(withAdders.error);
+	}
+	const files = withAdders.value;
 
 	for (const file of files) {
 		verbose(`Writing ${file.path}`);
@@ -316,6 +345,24 @@ export async function runCreate(
 		});
 	}
 
+	// an adder's dependencies only exist once the install has run, so anything it wants to run over
+	// the app it was just added to waits for it the same way the sync above does
+	if (options.install) {
+		for (const id of adders) {
+			const script = ADDER_REGISTRY[id].postInstallScript;
+			if (script === undefined) continue;
+			await runCommands({
+				title: `Running ${runCommandString(packageManager, script)}`,
+				commands: [runCommand(packageManager, script)],
+				cwd: directory,
+				messages: {
+					success: () => `Ran ${runCommandString(packageManager, script)}`,
+					error: (e) => `Failed to run ${runCommandString(packageManager, script)}: ${String(e)}`,
+				},
+			});
+		}
+	}
+
 	logNextSteps({
 		cwd: options.cwd,
 		directory,
@@ -330,48 +377,13 @@ export async function runCreate(
 		name,
 		template,
 		addons,
+		adders,
 		files: files.map((file) => file.path),
 		packageManager,
 		installed: options.install,
 		synced,
 		components,
 		linked: link?.specifiers,
-	});
-}
-
-/**
- * Resolves `--link` into the specifiers the generated `package.json` should carry, or `undefined`
- * when the app is not linked to a local repo.
- */
-function resolveLink(
-	options: CreateOptions,
-	{
-		directory,
-		packageManager,
-		verbose,
-	}: { directory: AbsolutePath; packageManager: PackageManager; verbose: (msg: string) => void },
-): Result<
-	{ root: AbsolutePath; path: string; specifiers: Record<string, string> } | undefined,
-	CLIError
-> {
-	if (options.link === undefined) return ok(undefined);
-	if (options.workspace) return err(new ConflictingLinkOptionsError());
-
-	const root = resolveAbsolute(options.cwd, options.link);
-	const packages = findLinkablePackages(root);
-	if (packages.isErr()) return err(packages.error);
-
-	verbose(`Linking ${[...packages.value.keys()].join(", ")} from ${root}`);
-
-	return ok({
-		root,
-		// how the app spells the clone, which is also what the jsrepo `fs://` registry points at
-		path: shortestPath(directory, root),
-		specifiers: linkSpecifiers({
-			packages: packages.value,
-			appDirectory: directory,
-			packageManager,
-		}),
 	});
 }
 
@@ -392,36 +404,80 @@ function templateFiles(
 }
 
 /**
+ * The addons and the adders come out of one question, because from the outside they are the same
+ * choice — what else the app should have. They part ways after this: an addon changes what the
+ * template writes, an adder layers config onto whatever it wrote.
+ *
  * Flags win over prompts, and in a non-interactive run anything the flags didn't answer falls back
- * to {@link DEFAULT_ADDONS}.
+ * to {@link DEFAULT_ADDONS} and {@link DEFAULT_ADDERS}.
  */
-async function resolveAddons(
+async function resolveExtras(
 	options: CreateOptions,
 	{ interactive }: { interactive: boolean },
-): Promise<Addon[]> {
-	const fromFlags = (addon: Addon): boolean | undefined => options[addon];
+): Promise<{ addons: Addon[]; adders: AdderId[] }> {
+	const wantsAddon = (addon: Addon): boolean => options[addon] ?? DEFAULT_ADDONS.includes(addon);
+	// every adder answers to a flag of its own — an adder without one doesn't type check here
+	const wantsAdder = (adder: AdderId): boolean => options[adder] ?? DEFAULT_ADDERS.includes(adder);
+
+	const defaultAddons = ADDONS.filter(wantsAddon);
+	const defaultAdders = ADDERS.filter(wantsAdder);
 
 	if (!interactive) {
-		return withRequired(
-			ADDONS.filter((addon) => fromFlags(addon) ?? DEFAULT_ADDONS.includes(addon)),
-		);
+		return { addons: withRequired(defaultAddons), adders: defaultAdders };
 	}
 
 	const selected = unwrapPrompt(
-		await multiselect<Addon>({
+		await multiselect<Addon | AdderId>({
 			message: "What else would you like to set up?",
 			required: false,
-			initialValues: ADDONS.filter((addon) => fromFlags(addon) ?? DEFAULT_ADDONS.includes(addon)),
-			options: ADDONS.map((addon) => ({
-				value: addon,
-				label: ADDON_META[addon].label,
-				hint: ADDON_META[addon].hint,
-			})),
+			initialValues: [...defaultAddons, ...defaultAdders],
+			options: [
+				...ADDONS.map((addon) => ({
+					value: addon,
+					label: ADDON_META[addon].label,
+					hint: ADDON_META[addon].hint,
+				})),
+				...ADDERS.map((adder) => ({
+					value: adder,
+					label: ADDER_REGISTRY[adder].label,
+					hint: ADDER_REGISTRY[adder].hint,
+				})),
+			],
 		}),
 	);
 
 	// keep the canonical order so the generated files don't depend on click order
-	return withRequired(ADDONS.filter((addon) => selected.includes(addon)));
+	return {
+		addons: withRequired(ADDONS.filter((addon) => selected.includes(addon))),
+		adders: ADDERS.filter((adder) => selected.includes(adder)),
+	};
+}
+
+/**
+ * The template's files with the adders applied: their config files appended, and the generated
+ * `package.json` carrying the dependencies and scripts they need. Same code path `add` runs against
+ * an app that already exists, so an app scaffolded with `--oxlint` and one that added it later end
+ * up with the same files.
+ */
+function addAdders(
+	files: TemplateFile[],
+	ids: AdderId[],
+	ctx: AdderContext,
+): Result<TemplateFile[], CLIError> {
+	if (ids.length === 0) return ok(files);
+
+	const packageJson = files.find((file) => file.path === PACKAGE_JSON);
+	if (packageJson === undefined) return ok(files);
+
+	const changes = applyAdders(ids, ctx, packageJson.contents);
+	if (changes.isErr()) return err(changes.error);
+
+	return ok([
+		...files.map((file) =>
+			file.path === PACKAGE_JSON ? { ...file, contents: changes.value.packageJson } : file,
+		),
+		...changes.value.files,
+	]);
 }
 
 /** Turns on whatever {@link REQUIRES} says the chosen addons need, even against a `--no-` flag. */
