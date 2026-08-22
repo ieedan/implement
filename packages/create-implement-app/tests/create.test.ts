@@ -17,6 +17,13 @@ afterEach(() => {
 	rmSync(cwd, { recursive: true, force: true });
 });
 
+function packageJson(app: string): {
+	scripts: Record<string, string>;
+	devDependencies: Record<string, string>;
+} {
+	return JSON.parse(readFileSync(join(cwd, app, "package.json"), "utf8"));
+}
+
 function options(overrides: Partial<CreateOptions> = {}): CreateOptions {
 	return {
 		cwd,
@@ -38,6 +45,7 @@ describe("runCreate", () => {
 		const value = unwrap(result);
 		expect(value.template).toBe("kit");
 		expect(value.addons).toEqual(["tailwind"]);
+		expect(value.adders).toEqual([]);
 		expect(value.name).toBe("my-app");
 		expect(value.installed).toBe(false);
 		expect(readFileSync(join(cwd, "my-app/package.json"), "utf8")).toContain('"name": "my-app"');
@@ -85,6 +93,29 @@ describe("runCreate", () => {
 		);
 		// nothing was installed, so jsrepo never ran — the next steps say to run it
 		expect(unwrap(result).components).toEqual([]);
+	});
+
+	it("sets the app up for oxlint and oxfmt from the flag", async () => {
+		const result = await runCreate("my-app", options({ oxlint: true }));
+
+		const value = unwrap(result);
+		expect(value.adders).toEqual(["oxlint"]);
+		expect(value.files).toContain("oxlint.config.ts");
+		expect(value.files).toContain("oxfmt.config.ts");
+
+		const pkg = packageJson("my-app");
+		expect(pkg.scripts.lint).toBe("oxlint");
+		expect(pkg.scripts.format).toBe("oxfmt");
+		expect(pkg.devDependencies.oxlint).toBeDefined();
+		expect(pkg.devDependencies.oxfmt).toBeDefined();
+		expect(pkg.devDependencies["@implementjs/eslint"]).toBeDefined();
+	});
+
+	it("writes nothing for the adder when it wasn't asked for", async () => {
+		const result = await runCreate("my-app", options());
+
+		expect(unwrap(result).files).not.toContain("oxlint.config.ts");
+		expect(readFileSync(join(cwd, "my-app/package.json"), "utf8")).not.toContain("oxlint");
 	});
 
 	it("derives a valid package name from the directory", async () => {

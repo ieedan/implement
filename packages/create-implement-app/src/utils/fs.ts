@@ -44,6 +44,19 @@ export function mkdirSync(p: AbsolutePath): Result<void, CreateImplementAppError
 	}
 }
 
+export function readFileSync(p: AbsolutePath): Result<string, CreateImplementAppError> {
+	try {
+		return ok(fs.readFileSync(p, "utf8"));
+	} catch (e) {
+		return err(
+			new CreateImplementAppError(
+				`Failed to read file ${p}: ${e instanceof Error ? e.message : String(e)}`,
+				{ suggestion: "Please try again." },
+			),
+		);
+	}
+}
+
 export function readdirSync(p: AbsolutePath): Result<string[], CreateImplementAppError> {
 	try {
 		return ok(fs.readdirSync(p));

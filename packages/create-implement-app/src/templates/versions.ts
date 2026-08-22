@@ -10,6 +10,7 @@ export const IMPLEMENT_VERSION = "latest";
 /** Everything a template can put in a generated `package.json`, pinned in one place. */
 export const VERSIONS = {
 	"@implementjs/core": IMPLEMENT_VERSION,
+	"@implementjs/eslint": IMPLEMENT_VERSION,
 	"@implementjs/formish": IMPLEMENT_VERSION,
 	"@implementjs/kit": IMPLEMENT_VERSION,
 	"@implementjs/lucide": IMPLEMENT_VERSION,
@@ -19,6 +20,8 @@ export const VERSIONS = {
 	"@tailwindcss/vite": "^4.3.3",
 	"@types/node": "^26.2.0",
 	jsrepo: "^3.8.1",
+	oxfmt: "^0.63.0",
+	oxlint: "^1.78.0",
 	"tailwind-merge": "^3.6.0",
 	"tailwind-variants": "^3.3.1",
 	tailwindcss: "^4.3.3",
@@ -33,12 +36,19 @@ export type Dependency = keyof typeof VERSIONS;
 const IMPLEMENT_SCOPE = "@implementjs/";
 
 /**
+ * What {@link version} needs to answer. A {@link TemplateContext} is one, and so is the context an
+ * adder is applied with — `add` into an existing app knows nothing about the template it was
+ * scaffolded from, but it still has to spell the implement packages the same way.
+ */
+export type VersionContext = Pick<TemplateContext, "workspace" | "link">;
+
+/**
  * The specifier a template should ask for. The implement packages answer to `--link` first (a path
  * into a local clone) and then to `--workspace`, everything else is a pinned version.
  *
  * @throws {MissingLinkedPackageError} when `--link` points at a repo missing a package the app needs.
  */
-export function version(ctx: TemplateContext, dependency: Dependency): string {
+export function version(ctx: VersionContext, dependency: Dependency): string {
 	if (!dependency.startsWith(IMPLEMENT_SCOPE)) return VERSIONS[dependency];
 	if (ctx.link) {
 		const linked = ctx.link[dependency];
@@ -49,7 +59,7 @@ export function version(ctx: TemplateContext, dependency: Dependency): string {
 	return VERSIONS[dependency];
 }
 
-export function dependencies(ctx: TemplateContext, deps: Dependency[]): Record<string, string> {
+export function dependencies(ctx: VersionContext, deps: Dependency[]): Record<string, string> {
 	// sorted so the generated package.json doesn't depend on the order a template listed its deps
 	// eslint-disable-next-line unicorn/no-array-sort -- the spread above already made a copy
 	const sorted = [...deps].sort();
