@@ -1,0 +1,11 @@
+# Everything the marketplace package does not need. `dist` is bundled and
+# `noExternal`, so no node_modules are shipped.
+.vscode/**
+node_modules/**
+src/**
+tests/**
+scripts/**
+*.config.ts
+tsconfig.json
+vitest.config.ts
+*.vsix

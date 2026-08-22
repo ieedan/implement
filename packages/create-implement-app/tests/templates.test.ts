@@ -34,10 +34,32 @@ describe("templates", () => {
 			"src/index.html",
 			"src/app.css",
 			".gitignore",
+			".vscode/extensions.json",
 			"README.md",
 		]) {
 			expect(files.has(path), path).toBe(true);
 		}
+	});
+
+	it.each(TEMPLATES)("%s recommends the implement extension", (id) => {
+		const recommended = JSON.parse(fileMap(id, ctx()).get(".vscode/extensions.json") as string) as {
+			recommendations: string[];
+		};
+
+		expect(recommended.recommendations).toContain("implementjs.implement-vscode");
+		// Nothing tailwind-specific without the addon.
+		expect(recommended.recommendations).not.toContain("bradlc.vscode-tailwindcss");
+	});
+
+	it.each(TEMPLATES)("%s adds the tailwind extension with the addon", (id) => {
+		const recommended = JSON.parse(
+			fileMap(id, ctx({ addons: ["tailwind"] })).get(".vscode/extensions.json") as string,
+		) as { recommendations: string[] };
+
+		expect(recommended.recommendations).toEqual([
+			"implementjs.implement-vscode",
+			"bradlc.vscode-tailwindcss",
+		]);
 	});
 
 	it.each(TEMPLATES)("%s names the package and titles the page", (id) => {

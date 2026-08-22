@@ -1,0 +1,9 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"types": ["node", "vscode"],
+		// Relative imports spell out `.ts`, matching the rest of the repo.
+		"allowImportingTsExtensions": true
+	},
+	"include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.mts", "*.config.ts"]
+}

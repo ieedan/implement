@@ -119,6 +119,22 @@ export function needsPnpmWorkspace(ctx: TemplateContext): boolean {
 	return ctx.packageManager === "pnpm" && !ctx.workspace;
 }
 
+/** The extension that knows implement's call shapes. */
+export const VSCODE_EXTENSION = "implementjs.implement-vscode";
+
+/**
+ * `.vscode/extensions.json`, which VS Code and Cursor read to prompt for the
+ * extensions a project expects. Recommendations only — nothing installs itself,
+ * and an editor that has never heard of the file ignores it.
+ */
+export function vscodeExtensions(ctx: TemplateContext): string {
+	const recommendations = [VSCODE_EXTENSION];
+	// Tailwind's class completion is only useful where the app has tailwind.
+	if (hasAddon(ctx, "tailwind")) recommendations.push("bradlc.vscode-tailwindcss");
+
+	return `${JSON.stringify({ recommendations }, null, "\t")}\n`;
+}
+
 export function gitignore(): string {
 	return (
 		dedent`

@@ -1,0 +1,136 @@
+{
+	"name": "implement-vscode",
+	"displayName": "implement",
+	"version": "0.0.0",
+	"description": "Editor support for implement. Completes Div( to Div({}, ), closes nested calls with a comma, and writes out If and ForEach.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"snippets",
+		"typescript",
+		"completion"
+	],
+	"categories": [
+		"Programming Languages",
+		"Snippets"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"publisher": "implementjs",
+	"private": true,
+	"icon": "icon.png",
+	"galleryBanner": {
+		"color": "#000000",
+		"theme": "dark"
+	},
+	"homepage": "https://implementjs.dev",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/vscode"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
+	"engines": {
+		"vscode": "^1.90.0"
+	},
+	"main": "./dist/extension.js",
+	"activationEvents": [
+		"onLanguage:typescript",
+		"onLanguage:javascript",
+		"onLanguage:typescriptreact",
+		"onLanguage:javascriptreact"
+	],
+	"contributes": {
+		"configuration": {
+			"title": "implement",
+			"properties": {
+				"implement.snippets.mode": {
+					"type": "string",
+					"enum": [
+						"completion",
+						"auto",
+						"off"
+					],
+					"default": "completion",
+					"enumDescriptions": [
+						"Offer the snippet as a preselected suggestion; Tab accepts it.",
+						"Experimental. Rewrite as you type the paren, with no keypress.",
+						"Disabled."
+					],
+					"description": "How snippets are delivered.",
+					"scope": "language-overridable"
+				},
+				"implement.snippets.cursor": {
+					"type": "string",
+					"enum": [
+						"children",
+						"props"
+					],
+					"default": "children",
+					"enumDescriptions": [
+						"Land in the children position: Div({}, |).",
+						"Land inside the props braces: Div({|}, )."
+					],
+					"description": "Where the cursor lands after a props snippet is inserted.",
+					"scope": "language-overridable"
+				},
+				"implement.snippets.trailingComma": {
+					"type": "boolean",
+					"default": true,
+					"description": "Close a call nested in another call or an array with a comma. Uses a bracket scan rather than a parser, so brackets inside a regex literal can fool it.",
+					"scope": "language-overridable"
+				},
+				"implement.snippets.requireImport": {
+					"type": "boolean",
+					"default": false,
+					"description": "Only match names already imported in this file. When false, the HTML element names also match before the import exists, unless the name is declared in this file.",
+					"scope": "language-overridable"
+				},
+				"implement.snippets.resolveLocalComponents": {
+					"type": "boolean",
+					"default": true,
+					"description": "Read the declaration of components imported from this project, through relative paths and tsconfig path aliases, to find out whether they take props. Never reads node_modules.",
+					"scope": "language-overridable"
+				},
+				"implement.snippets.constructs": {
+					"type": "boolean",
+					"default": true,
+					"description": "Offer If and ForEach as whole shapes while typing the name, adding the import when it is missing.",
+					"scope": "language-overridable"
+				},
+				"implement.snippets.extraSources": {
+					"type": "object",
+					"default": {},
+					"additionalProperties": {
+						"type": "string",
+						"enum": [
+							"propsChildren",
+							"propsOnly"
+						]
+					},
+					"markdownDescription": "Module specifiers whose capitalized exports follow a component convention, for barrels that `resolveLocalComponents` cannot see through. `{ \"@/lib/ui\": \"propsChildren\" }`. Matched exactly or by path suffix.",
+					"scope": "language-overridable"
+				}
+			}
+		}
+	},
+	"scripts": {
+		"dev": "tsdown --watch",
+		"build": "tsdown",
+		"check": "tsc --noEmit",
+		"test": "vitest run",
+		"generate": "node --experimental-strip-types scripts/sync-elements.mts",
+		"package": "pnpm build && vsce package --no-dependencies --out implement-vscode.vsix",
+		"release": "pnpm build && vsce publish --no-dependencies"
+	},
+	"devDependencies": {
+		"@types/node": "^26.2.0",
+		"@types/vscode": "^1.90.0",
+		"@vscode/vsce": "^3.9.2",
+		"tsdown": "^0.22.14",
+		"typescript": "^7.0.2",
+		"vitest": "^4.0.18"
+	}
+}
