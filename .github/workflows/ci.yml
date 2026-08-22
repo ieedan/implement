@@ -143,6 +143,10 @@ jobs:
       # the pre-commit hook runs this too, but a hook only exists in a clone
       # that installed, and git will not run one out of a fresh checkout at all
       - run: pnpm check:changesets --all
+      # `create-implement-app` writes the implement versions it scaffolds with
+      # from a literal it ships, which `changeset version` knows nothing about —
+      # so a release that bumped a package without syncing it fails here.
+      - run: pnpm check:versions
 
   jscpd:
     name: Duplication

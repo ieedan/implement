@@ -2,21 +2,34 @@ import { MissingLinkedPackageError } from "@/utils/errors";
 import type { TemplateContext } from "@/templates/types";
 
 /**
- * Scaffolded apps ask for the latest tag of each implement package, so a new app starts on the
- * current release. Inside the monorepo `--workspace` swaps these for `workspace:*`.
+ * The implement packages, at the release a new app should start on. A caret range rather than
+ * `latest`, so the specifier written into a generated `package.json` still means the same thing
+ * a month later — `latest` resolves at install time, which makes two runs of the same CLI
+ * version produce apps built against different releases.
+ *
+ * Everything here is on the `0.0.x` line, where a caret range allows nothing but the version it
+ * names. That is the point for now: a release is a patch, and an app that pins one gets what the
+ * CLI that scaffolded it was tested against. The ranges widen on their own once the packages
+ * reach `0.1.0`.
+ *
+ * Kept in step with the versions the repo publishes by `pnpm sync:versions` — which
+ * `changeset:version` runs, and CI checks. Inside the monorepo `--workspace` swaps these for
+ * `workspace:*` and `--link` for a path, so neither reads a version at all.
  */
-export const IMPLEMENT_VERSION = "latest";
+export const IMPLEMENT_VERSIONS = {
+	"@implementjs/core": "^0.0.3",
+	"@implementjs/eslint": "^0.0.1",
+	"@implementjs/formish": "^0.0.3",
+	"@implementjs/kit": "^0.0.4",
+	"@implementjs/lucide": "^0.0.3",
+	"@implementjs/mode-watcher": "^0.0.3",
+	"@implementjs/primitives": "^0.0.3",
+	"@implementjs/router": "^0.0.4",
+} as const satisfies Record<string, string>;
 
 /** Everything a template can put in a generated `package.json`, pinned in one place. */
 export const VERSIONS = {
-	"@implementjs/core": IMPLEMENT_VERSION,
-	"@implementjs/eslint": IMPLEMENT_VERSION,
-	"@implementjs/formish": IMPLEMENT_VERSION,
-	"@implementjs/kit": IMPLEMENT_VERSION,
-	"@implementjs/lucide": IMPLEMENT_VERSION,
-	"@implementjs/mode-watcher": IMPLEMENT_VERSION,
-	"@implementjs/primitives": IMPLEMENT_VERSION,
-	"@implementjs/router": IMPLEMENT_VERSION,
+	...IMPLEMENT_VERSIONS,
 	"@tailwindcss/vite": "^4.3.3",
 	"@types/node": "^26.2.0",
 	jsrepo: "^3.8.1",

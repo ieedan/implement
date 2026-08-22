@@ -15,7 +15,7 @@ function packageJson(overrides: Record<string, unknown> = {}): string {
 			version: "0.0.0",
 			type: "module",
 			scripts: { dev: "vite" },
-			dependencies: { "@implementjs/core": "latest" },
+			dependencies: { "@implementjs/core": "^0.0.3" },
 			devDependencies: { vite: "^7.3.0" },
 			...overrides,
 		},
