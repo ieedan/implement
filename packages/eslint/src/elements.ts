@@ -10,6 +10,9 @@ import { CORE_MODULE, importedName } from "./ast.ts";
  * `ForEach`.
  *
  * Falling behind core only costs a rule its reach; it cannot invent a report.
+ *
+ * `html`, `head`, `body`, `base` and `noscript` are absent here because they
+ * are absent from core — see the note on `HTML_TAGS` in its seed script.
  */
 const ELEMENT_TAGS: ReadonlySet<string> = new Set([
 	"a",
@@ -20,11 +23,9 @@ const ELEMENT_TAGS: ReadonlySet<string> = new Set([
 	"aside",
 	"audio",
 	"b",
-	"base",
 	"bdi",
 	"bdo",
 	"blockquote",
-	"body",
 	"br",
 	"button",
 	"canvas",
@@ -56,11 +57,9 @@ const ELEMENT_TAGS: ReadonlySet<string> = new Set([
 	"h4",
 	"h5",
 	"h6",
-	"head",
 	"header",
 	"hgroup",
 	"hr",
-	"html",
 	"i",
 	"iframe",
 	"img",
@@ -78,7 +77,6 @@ const ELEMENT_TAGS: ReadonlySet<string> = new Set([
 	"meta",
 	"meter",
 	"nav",
-	"noscript",
 	"object",
 	"ol",
 	"optgroup",

@@ -1,5 +1,18 @@
 import fs from "node:fs";
 
+/**
+ * The tags that get an element helper.
+ *
+ * Not quite every HTML tag: `html`, `head`, `body`, `base` and `noscript` are
+ * deliberately absent, so do not add them back from a spec list. An app never
+ * builds those — the document shell is a static `index.html`, `App({ target })`
+ * mounts into an element that already exists, `ImplementHead` owns head content
+ * through its own `Title`/`Meta`/`Link`/`Script`/`Style`, and the server DOM
+ * constructs `head` and `body` itself. Exporting them bought nothing and cost
+ * something concrete: `Html` collided with the `Html(markup)` helper, which the
+ * index re-exports over the top of this module, so the same name meant two
+ * different functions depending on which path you imported it from.
+ */
 export const HTML_TAGS = [
 	"a",
 	"abbr",
@@ -9,11 +22,9 @@ export const HTML_TAGS = [
 	"aside",
 	"audio",
 	"b",
-	"base",
 	"bdi",
 	"bdo",
 	"blockquote",
-	"body",
 	"br",
 	"button",
 	"canvas",
@@ -45,11 +56,9 @@ export const HTML_TAGS = [
 	"h4",
 	"h5",
 	"h6",
-	"head",
 	"header",
 	"hgroup",
 	"hr",
-	"html",
 	"i",
 	"iframe",
 	"img",
@@ -67,7 +76,6 @@ export const HTML_TAGS = [
 	"meta",
 	"meter",
 	"nav",
-	"noscript",
 	"object",
 	"ol",
 	"optgroup",
