@@ -49,20 +49,20 @@ const count = open.bind((list) => list.length);
 
 ## watch
 
-Sometimes you will want a signal change to run a side effect instead of computing a value. For example saving to `localStorage` or setting an attribute on `document`. For this you can use the `Implement.Watch` component.
+Sometimes you will want a signal change to run a side effect instead of computing a value. For example saving to `localStorage` or setting an attribute on `document`. For this you can use the `ImplementEffect` component.
 
-`Implement.Watch(signals, effect)` runs the effect **immediately** with the current values, then again whenever any of the sources change. It subscribes when it mounts and unsubscribes when it unmounts so you don't have to clean anything up yourself:
+`ImplementEffect(signals, effect)` runs the effect **immediately** with the current values, then again whenever any of the sources change. It subscribes when it mounts and unsubscribes when it unmounts so you don't have to clean anything up yourself:
 
 ```ts
-import { Implement } from "@implementjs/core";
+import { ImplementEffect, ImplementWindow } from "@implementjs/core";
 
 Div(
-	Implement.Watch([query], (q) => localStorage.setItem("q", q)),
+	ImplementEffect([query], (q) => localStorage.setItem("q", q)),
 	SearchPanel(),
 );
 ```
 
-Like `Implement.Window` it renders nothing and follows its position in the tree. If you place it inside an [`If`](/docs/if) branch the effect runs while the branch is shown and stops when it hides.
+Like `ImplementWindow` it renders nothing and follows its position in the tree. If you place it inside an [`If`](/docs/if) branch the effect runs while the branch is shown and stops when it hides.
 
 If you need to watch signals outside of the tree (stores, tests, etc.) you can use the `watch()` function. It works the same way but returns an unsubscribe function that you will need to call yourself:
 

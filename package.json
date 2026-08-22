@@ -23,6 +23,7 @@
 	"license": "ISC",
 	"packageManager": "pnpm@11.22.0",
 	"devDependencies": {
+		"@implementjs/eslint": "workspace:*",
 		"@types/node": "^26.2.0",
 		"jscpd": "^5.0.15",
 		"oxfmt": "^0.63.0",

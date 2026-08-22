@@ -1,13 +1,14 @@
 import {
 	A,
+	derived,
 	Div,
-	Implement,
+	ImplementLifecycle,
+	ImplementWindow,
 	Li,
 	Nav,
 	signal,
 	Span,
 	Ul,
-	derived,
 	type Mountable,
 	type Readable,
 } from "@implementjs/core";
@@ -65,8 +66,8 @@ function activeEntry(entries: TocEntry[]): { active: Readable<string | null>; sp
 	};
 
 	const spy = Div(
-		Implement.Window({ onScroll: update, onResize: update }),
-		Implement.Lifecycle({ onMount: () => update() }),
+		ImplementWindow({ onScroll: update, onResize: update }),
+		ImplementLifecycle({ onMount: () => update() }),
 	);
 
 	return { active, spy };

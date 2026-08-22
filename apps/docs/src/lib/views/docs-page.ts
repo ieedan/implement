@@ -3,7 +3,7 @@ import {
 	Article,
 	Div,
 	H1,
-	Implement,
+	ImplementHead,
 	navigateTo,
 	P,
 	Span,
@@ -50,9 +50,9 @@ export function DocsPage(page: Page, collection: Page[]): Mountable {
 		{ class: "mx-auto flex w-full max-w-3xl justify-center gap-10 xl:max-w-none" },
 		Article(
 			{ class: "w-full min-w-0 max-w-3xl space-y-4" },
-			Implement.Head(
-				Implement.Head.Title(`${page.title} ~ implement`),
-				Implement.Head.Meta({ name: "description", content: page.description }),
+			ImplementHead(
+				ImplementHead.Title(`${page.title} ~ implement`),
+				ImplementHead.Meta({ name: "description", content: page.description }),
 			),
 
 			Div(

@@ -3,7 +3,8 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementLifecycle,
+	ImplementMap,
 	isReadable,
 	ref,
 	Ref,
@@ -78,7 +79,7 @@ const SelectCtx = context<SelectState>("SelectCtx");
 abstract class SelectState {
 	open: Signal<boolean>;
 	items: Readable<SelectItemData[]>;
-	itemLabels = Implement.Map<string, string>();
+	itemLabels = ImplementMap<string, string>();
 	trigger = ref<HTMLButtonElement>();
 	content = signal<SelectContentState | null>(null);
 	autoUpdateDispose: (() => void) | null = null;
@@ -315,7 +316,7 @@ export const Select = createComponent(function Select(
 		},
 		ScrollLock({ open: state.open, enabled: state.opts.preventScroll === true }),
 		SelectCtx.Provide(state).To(
-			Implement.Lifecycle(
+			ImplementLifecycle(
 				{
 					onUnmount: () => state.dispose(),
 				},
@@ -505,7 +506,7 @@ export const SelectItem = createComponent(function SelectItem(
 			rootState.items.get().find((item) => item.value === value)?.label;
 		if (immediateLabel !== undefined) rootState.registerItemLabel(value, immediateLabel);
 
-		return Implement.Lifecycle(
+		return ImplementLifecycle(
 			{
 				onMount: () => {
 					if (immediateLabel !== undefined) return;

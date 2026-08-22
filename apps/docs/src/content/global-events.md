@@ -5,14 +5,14 @@ section: The document
 order: 19
 ---
 
-Some events don't belong to any element in your tree, they belong to the page. `Implement.Window` and `Implement.Document` attach event listeners to the global objects for as long as they are mounted (the counterpart of Svelte's `<svelte:window>`/`<svelte:document>`). They render nothing.
+Some events don't belong to any element in your tree, they belong to the page. `ImplementWindow` and `ImplementDocument` attach event listeners to the global objects for as long as they are mounted (the counterpart of Svelte's `<svelte:window>`/`<svelte:document>`). They render nothing.
 
 ```ts
-import { Implement } from "@implementjs/core";
+import { ImplementDocument, ImplementWindow } from "@implementjs/core";
 
-Implement.Window({ onResize: relayout, onHashchange: onRoute });
+ImplementWindow({ onResize: relayout, onHashchange: onRoute });
 
-Implement.Document({ onKeydown: handleShortcuts });
+ImplementDocument({ onKeydown: handleShortcuts });
 ```
 
 ## Lifetime follows tree position
@@ -22,7 +22,7 @@ Because listeners attach on mount and detach on unmount, placing one inside a br
 ```ts
 If(menuOpen).Then(
 	MenuPanel(),
-	Implement.Document({
+	ImplementDocument({
 		onMousedown: (event) => {
 			if (!panel.get()?.contains(event.target as Node)) menuOpen.set(false);
 		},

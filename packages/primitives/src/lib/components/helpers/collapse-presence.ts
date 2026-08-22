@@ -16,7 +16,7 @@ export type CollapsePresenceOptions = {
 export type CollapsePresence = {
 	/** Bind to the `hidden` attribute: stays unset until close animations finish. */
 	hidden: Readable<"" | "until-found" | undefined>;
-	/** Pass to `Implement.Lifecycle`'s `onMount`; returns its cleanup. */
+	/** Pass to `ImplementLifecycle`'s `onMount`; returns its cleanup. */
 	onMount: () => () => void;
 };
 

@@ -2,7 +2,7 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementLifecycle,
 	isReadable,
 	signal,
 	Td,
@@ -351,7 +351,7 @@ export function RangeCalendar(
 	const invalid = state.isInvalid();
 
 	return CalendarBaseCtx.Provide(state).To(
-		Implement.Lifecycle(
+		ImplementLifecycle(
 			{
 				onMount: () => state.ensureNonDisabledPlaceholder(),
 				onUnmount: () => state.dispose(),

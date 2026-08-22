@@ -3,7 +3,7 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementLifecycle,
 	ref,
 	signal,
 	type Child,
@@ -285,7 +285,7 @@ export const AccordionContent = createComponent(function AccordionContent(
 			hiddenUntilFound,
 		});
 
-		return Implement.Lifecycle(
+		return ImplementLifecycle(
 			{ onMount },
 			Div(
 				mergeProps(

@@ -3,7 +3,7 @@ import {
 	Div,
 	H1,
 	H2,
-	Implement,
+	ImplementHead,
 	Label,
 	Main,
 	navigateTo,
@@ -747,9 +747,9 @@ export function PrimitivesHome(): Mountable {
 
 	return Div(
 		{ class: "flex min-h-dvh flex-col" },
-		Implement.Head(
-			Implement.Head.Title("Primitives ~ implement"),
-			Implement.Head.Meta({
+		ImplementHead(
+			ImplementHead.Title("Primitives ~ implement"),
+			ImplementHead.Meta({
 				name: "description",
 				content: "Unstyled, composable building blocks for common UI patterns.",
 			}),

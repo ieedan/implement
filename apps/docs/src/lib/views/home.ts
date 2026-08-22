@@ -1,13 +1,13 @@
-import { A, Div, H1, Implement, P, type Mountable } from "@implementjs/core";
+import { A, Div, H1, ImplementHead, P, type Mountable } from "@implementjs/core";
 import { Logo } from "../components/logo";
 import { Link } from "../router";
 
 export function Home(): Mountable {
 	return Div(
 		{ class: "mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-4 px-6" },
-		Implement.Head(
-			Implement.Head.Title("implement ~ A dead simple ui framework"),
-			Implement.Head.Meta({
+		ImplementHead(
+			ImplementHead.Title("implement ~ A dead simple ui framework"),
+			ImplementHead.Meta({
 				name: "description",
 				content: "A simple ergonomic ui framework without a compiler.",
 			}),

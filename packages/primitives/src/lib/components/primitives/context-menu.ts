@@ -1,6 +1,6 @@
 import {
 	Div,
-	Implement,
+	ImplementLifecycle,
 	Portal,
 	signal,
 	type Child,
@@ -102,7 +102,7 @@ export const ContextMenuTrigger = createComponent(function ContextMenuTrigger(
 			longPressTimer = null;
 		};
 
-		return Implement.Lifecycle(
+		return ImplementLifecycle(
 			{ onUnmount: clearLongPressTimer },
 			Div(
 				mergeProps(

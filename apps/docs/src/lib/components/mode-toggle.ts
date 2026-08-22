@@ -1,4 +1,4 @@
-import { Implement, signal, Span, type Mountable } from "@implementjs/core";
+import { ImplementLifecycle, signal, Span, type Mountable } from "@implementjs/core";
 import { CheckIcon, MonitorIcon, MoonIcon, SunIcon } from "@implementjs/lucide";
 import { isMode } from "@implementjs/mode-watcher";
 import { mode } from "@/lib/mode";
@@ -36,7 +36,7 @@ export function ModeToggle(): Mountable {
 		if (isMode(value)) mode.setMode(value);
 	});
 
-	return Implement.Lifecycle(
+	return ImplementLifecycle(
 		{ onMount: () => mode.userPrefersMode.subscribe((value) => preference.set(value)) },
 		DropdownMenu(
 			DropdownMenuTrigger(

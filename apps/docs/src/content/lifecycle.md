@@ -5,18 +5,18 @@ section: Composition
 order: 13
 ---
 
-Sometimes you need to run code when part of your UI appears or disappears. `Implement.Lifecycle` runs hooks when its position in the tree mounts and unmounts. Standalone it renders nothing and tracks its own lifecycle. Given children it owns them, so the hooks fire with the wrapped subtree's lifecycle.
+Sometimes you need to run code when part of your UI appears or disappears. `ImplementLifecycle` runs hooks when its position in the tree mounts and unmounts. Standalone it renders nothing and tracks its own lifecycle. Given children it owns them, so the hooks fire with the wrapped subtree's lifecycle.
 
 ```ts
-import { Implement } from "@implementjs/core";
+import { ImplementEffect, ImplementLifecycle } from "@implementjs/core";
 
 // standalone: focus the dialog's input once it's on screen
-Implement.Lifecycle({
+ImplementLifecycle({
 	onMount: (parent) => parent.querySelector("input")?.focus(),
 });
 
 // wrapping: hooks tied to IssueView's mounted lifetime
-Implement.Lifecycle(
+ImplementLifecycle(
 	{ onMount: () => id.onChange(refetch) }, // returns the unsubscribe
 	IssueView(id),
 );
@@ -29,7 +29,7 @@ Implement.Lifecycle(
 Return a cleanup function and it runs on unmount. This is the idiom for scoping anything with an unsubscribe to the component's lifetime:
 
 ```ts
-Implement.Lifecycle({
+ImplementLifecycle({
 	onMount: () => {
 		const stop = query.onChange(refetch);
 		const timer = setInterval(tick, 1000);
@@ -41,7 +41,7 @@ Implement.Lifecycle({
 });
 ```
 
-Since `subscribe` and `onChange` return their unsubscribe function, single-subscription cases collapse to `onMount: () => query.onChange(refetch)`. If all you want to do is watch some signals you don't need `Lifecycle` at all, use [`Implement.Watch`](/docs/derived) and it will clean up after itself.
+Since `subscribe` and `onChange` return their unsubscribe function, single-subscription cases collapse to `onMount: () => query.onChange(refetch)`. If all you want to do is watch some signals you don't need `Lifecycle` at all, use [`ImplementEffect`](/docs/derived) and it will clean up after itself.
 
 ## onUnmount
 

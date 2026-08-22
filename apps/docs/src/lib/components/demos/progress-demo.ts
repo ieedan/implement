@@ -1,4 +1,4 @@
-import { Div, Implement, signal, Span } from "@implementjs/core";
+import { Div, ImplementLifecycle, signal, Span } from "@implementjs/core";
 import { Progress } from "@/lib/components/ui/progress";
 
 export default function ProgressDemo() {
@@ -6,7 +6,7 @@ export default function ProgressDemo() {
 
 	return Div(
 		{ class: "flex w-full max-w-sm flex-col gap-2" },
-		Implement.Lifecycle({
+		ImplementLifecycle({
 			onMount: () => {
 				const timer = setInterval(() => {
 					value.update((v) => (v === null || v >= 100 ? 13 : Math.min(100, v + 29)));

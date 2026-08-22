@@ -2,7 +2,7 @@ import {
 	Button,
 	context,
 	Div,
-	Implement,
+	ImplementLifecycle,
 	ref,
 	signal,
 	type Bindable,
@@ -97,7 +97,7 @@ export const CollapsibleContent = createComponent(function CollapsibleContent(
 			hiddenUntilFound,
 		});
 
-		return Implement.Lifecycle(
+		return ImplementLifecycle(
 			{ onMount },
 			Div(
 				mergeProps(

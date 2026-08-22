@@ -4,7 +4,7 @@ import {
 	derived,
 	Div,
 	ForEach,
-	Implement,
+	ImplementLifecycle,
 	Option,
 	ref,
 	Select as SelectElement,
@@ -747,7 +747,7 @@ function selectWithValueSync(
 		if (el) el.value = String(currentValue());
 	};
 	const unsubscribe = state.placeholder.subscribe(apply);
-	return Implement.Lifecycle(
+	return ImplementLifecycle(
 		{ onMount: apply, onUnmount: () => unsubscribe() },
 		SelectElement({ this: selectRef, ...props }, options),
 	);

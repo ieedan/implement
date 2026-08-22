@@ -1,6 +1,6 @@
 ---
 title: Reactive collections
-description: Real Sets and Maps that notify the DOM when they change, via Implement.Set and Implement.Map.
+description: Real Sets and Maps that notify the DOM when they change, via ImplementSet and ImplementMap.
 section: Reactivity
 order: 6.5
 ---
@@ -17,12 +17,12 @@ selected.update((s) => {
 });
 ```
 
-`Implement.Set` and `Implement.Map` skip the ceremony. They create a **real** `Set`/`Map` (`instanceof` and all) that is also a `Readable`, so calling its own mutators notifies subscribers and the DOM follows:
+`ImplementSet` and `ImplementMap` skip the ceremony. They create a **real** `Set`/`Map` (`instanceof` and all) that is also a `Readable`, so calling its own mutators notifies subscribers and the DOM follows:
 
 ```ts
-import { Implement } from "@implementjs/core";
+import { ImplementEffect, ImplementMap, ImplementSet } from "@implementjs/core";
 
-const selected = Implement.Set<string>();
+const selected = ImplementSet<string>();
 
 selected.add(id); // notifies
 selected.delete(id); // notifies
@@ -32,10 +32,10 @@ selected.has(id); // plain read, not reactive
 
 ## Reading reactively
 
-The collection supports every normal `Set`/`Map` read (`has`, `size`, `get(key)`, iteration), and those are plain, non-reactive reads. To react to changes you go through the readable surface you already know: [`bind`](/docs/bindings), [`derived`](/docs/derived), `Implement.Watch`, or a prop.
+The collection supports every normal `Set`/`Map` read (`has`, `size`, `get(key)`, iteration), and those are plain, non-reactive reads. To react to changes you go through the readable surface you already know: [`bind`](/docs/bindings), [`derived`](/docs/derived), `ImplementEffect`, or a prop.
 
 ```ts
-const selected = Implement.Set<string>();
+const selected = ImplementSet<string>();
 
 Span(selected.bind((s) => `${s.size} selected`));
 
@@ -54,12 +54,12 @@ Subscribers receive an **immutable snapshot** — a plain `ReadonlySet`/`Readonl
 
 Mutations that change nothing don't notify: adding a value that's already there, deleting a missing key, `set` of an identical value, clearing an empty collection.
 
-## Implement.Map
+## ImplementMap
 
-`Implement.Map` works the same way, with its own mutators (`set`, `delete`, `clear`):
+`ImplementMap` works the same way, with its own mutators (`set`, `delete`, `clear`):
 
 ```ts
-const drafts = Implement.Map<string, string>();
+const drafts = ImplementMap<string, string>();
 
 Textarea({
 	value: drafts.bind((d) => d.get(issueId) ?? ""),
@@ -77,7 +77,7 @@ const dirtyCount = drafts.bind("size");
 Replacing an entry notifies, but mutating an object _stored inside_ the collection does not — the collection can't see it. After an in-place mutation, call `flush()` to notify subscribers with a fresh snapshot:
 
 ```ts
-const todos = Implement.Map<string, { title: string; done: boolean }>();
+const todos = ImplementMap<string, { title: string; done: boolean }>();
 
 todos.get(id)!.done = true; // silent
 todos.flush(); // now everyone hears about it

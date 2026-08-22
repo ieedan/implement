@@ -1,6 +1,7 @@
 import {
 	derived,
-	Implement,
+	ImplementHead,
+	ImplementLifecycle,
 	signal,
 	watch,
 	type HeadChild,
@@ -447,16 +448,16 @@ export function ModeWatcher({
 	// dark until the script below (or the manager, once mounted) says otherwise,
 	// so there is always a tag for them to update
 	if (settings.themeColors) {
-		head.push(Implement.Head.Meta({ name: "theme-color", content: settings.themeColors.dark }));
+		head.push(ImplementHead.Meta({ name: "theme-color", content: settings.themeColors.dark }));
 	}
 	if (injectScript) {
 		head.push(
-			Implement.Head.Script(
+			ImplementHead.Script(
 				nonce === undefined ? {} : { nonce },
 				createInitialModeExpression(config),
 			),
 		);
 	}
 
-	return Implement.Lifecycle({ onMount: () => state.start() }, Implement.Head(...head));
+	return ImplementLifecycle({ onMount: () => state.start() }, ImplementHead(...head));
 }

@@ -3,7 +3,11 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementDocument,
+	ImplementEffect,
+	ImplementLifecycle,
+	ImplementMap,
+	ImplementWindow,
 	Portal,
 	ref,
 	signal,
@@ -94,7 +98,7 @@ export class ToastManager {
 	/** Current toasts, frontmost first. Render with `ForEach(manager.toasts, (t) => t.id, ...)`. */
 	toasts: Signal<ToastData[]>;
 	/** Measured heights by toast id, filled in by each mounted `Toast` root. */
-	heights = Implement.Map<string, number>();
+	heights = ImplementMap<string, number>();
 	options: Required<ToastManagerOptions>;
 
 	private timers = new Map<string, TimerEntry>();
@@ -334,18 +338,18 @@ export const ToastProvider = createComponent(function ToastProvider(
 	const state = new ToastProviderState(props);
 	const ownsManager = props.manager === undefined;
 	return ToastProviderContext.Provide(state).To(
-		Implement.Window({
+		ImplementWindow({
 			onBlur: () => state.manager.pause("window-blur"),
 			onFocus: () => state.manager.resume("window-blur"),
 		}),
-		Implement.Document({
+		ImplementDocument({
 			onKeydown: (e: KeyboardEvent) => state.handleHotkey(e),
 			onVisibilitychange: () => {
 				if (document.hidden) state.manager.pause("document-hidden");
 				else state.manager.resume("document-hidden");
 			},
 		}),
-		Implement.Lifecycle(
+		ImplementLifecycle(
 			{
 				onUnmount: () => {
 					if (ownsManager) state.manager.dispose();
@@ -370,7 +374,7 @@ export const ToastViewport = createComponent(function ToastViewport(
 	return ToastProviderContext.Use((provider) => {
 		const viewportRef = ref<HTMLDivElement>();
 
-		return Implement.Lifecycle(
+		return ImplementLifecycle(
 			{
 				onMount: () => {
 					provider.viewportRef.set(viewportRef.get());
@@ -660,14 +664,14 @@ export const Toast = createComponent(function Toast(
 		const state = new ToastRootState(provider, toast, rootRef, swipeDirection);
 
 		return ToastRootContext.Provide(state).To(
-			Implement.Lifecycle(
+			ImplementLifecycle(
 				{
 					onMount: () => {
 						state.onMount();
 						return () => state.onUnmount();
 					},
 				},
-				Implement.Watch([toast], (t) => {
+				ImplementEffect([toast], (t) => {
 					if (t.ending) state.scheduleRemove();
 				}),
 				Div(

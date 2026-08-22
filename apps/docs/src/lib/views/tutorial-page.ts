@@ -4,7 +4,8 @@ import {
 	derived,
 	Div,
 	If,
-	Implement,
+	ImplementHead,
+	ImplementLifecycle,
 	navigateTo,
 	P,
 	signal,
@@ -175,12 +176,12 @@ export function TutorialPage(lesson: Tutorial): Mountable {
 		{ class: "relative flex min-h-0 flex-1 flex-col" },
 		Sheet(
 			{ open: menuOpen },
-			Implement.Head(
-				Implement.Head.Title(`${lesson.title} ~ tutorial ~ implement`),
-				Implement.Head.Meta({ name: "description", content: lesson.description }),
+			ImplementHead(
+				ImplementHead.Title(`${lesson.title} ~ tutorial ~ implement`),
+				ImplementHead.Meta({ name: "description", content: lesson.description }),
 			),
 			UnsavedChangesGuard(tainted, "You have unsaved edits in this lesson — leave anyway?"),
-			Implement.Lifecycle({ onMount: () => watchLessonFiles(files, refresh) }),
+			ImplementLifecycle({ onMount: () => watchLessonFiles(files, refresh) }),
 			Div(
 				{ class: "flex h-10 shrink-0 items-center gap-2 border-b border-border px-2 sm:px-3" },
 				SheetTrigger({ "aria-label": "Open lesson list" }, MenuIcon({ class: "size-4" })),

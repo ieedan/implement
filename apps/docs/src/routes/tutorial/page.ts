@@ -1,4 +1,4 @@
-import { Implement, navigateTo, P, type Child } from "@implementjs/core";
+import { ImplementLifecycle, navigateTo, P, type Child } from "@implementjs/core";
 import { tutorials } from "@/lib/tutorials";
 import { TutorialPage } from "@/lib/views/tutorial-page";
 
@@ -9,7 +9,7 @@ export default function Page(): Child {
 		return P({ class: "p-6 text-sm text-foreground/60" }, "No lessons yet.");
 	}
 
-	return Implement.Lifecycle(
+	return ImplementLifecycle(
 		{
 			onMount: () => {
 				navigateTo(first.permalink, { replace: true });

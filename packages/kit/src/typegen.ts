@@ -14,8 +14,14 @@ import { type RouteNode, type RouteTree } from "./scan.ts";
 export const IMPLEMENT_DIR = ".implement";
 
 const ENTRY_CLIENT = `import { App } from "@implementjs/core";
+import { installHydration } from "@implementjs/core/hydrate";
 import { initClientData, preloadRoute } from "@implementjs/kit/runtime";
 import { router } from "$implement/router";
+
+// Kit apps are server-rendered, so the mount adopts that markup instead of
+// rebuilding it. Hydration is opt-in precisely so client-only apps — which
+// never reach this entry — do not carry the claim machinery.
+installHydration();
 
 initClientData();
 

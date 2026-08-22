@@ -1,4 +1,4 @@
-import { Implement, type Mountable, type Readable } from "@implementjs/core";
+import { ImplementLifecycle, type Mountable, type Readable } from "@implementjs/core";
 import { LIB_PREFIX, noop } from "../../utils";
 
 const SCROLLBAR_WIDTH_VAR = `--${LIB_PREFIX}-scrollbar-width`;
@@ -90,7 +90,7 @@ export type ScrollLockProps = {
  * overlay so the page behind a dialog, select, or popover cannot move.
  */
 export function ScrollLock({ open, enabled = true }: ScrollLockProps): Mountable {
-	return Implement.Lifecycle({
+	return ImplementLifecycle({
 		onMount: () => {
 			if (!enabled) return () => {};
 

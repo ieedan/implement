@@ -53,7 +53,7 @@ Combine with `onChange` when the request depends on another signal (a router par
 ```ts
 const request = signal(api.fetchIssue(id.get()));
 
-Implement.Lifecycle(
+ImplementLifecycle(
 	{ onMount: () => id.onChange((next) => request.set(api.fetchIssue(next))) },
 	Await(request)
 		.WhileLoading(Spinner())

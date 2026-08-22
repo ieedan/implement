@@ -1,5 +1,5 @@
 import {
-	Implement,
+	ImplementLifecycle,
 	normalizePath,
 	registerNavigationGuard,
 	type Mountable,
@@ -36,7 +36,7 @@ export function UnsavedChangesGuard(
 	dirty: Readable<boolean>,
 	message = DEFAULT_MESSAGE,
 ): Mountable {
-	return Implement.Lifecycle({
+	return ImplementLifecycle({
 		onMount() {
 			const onBeforeUnload = (event: BeforeUnloadEvent) => {
 				if (!dirty.get()) return;

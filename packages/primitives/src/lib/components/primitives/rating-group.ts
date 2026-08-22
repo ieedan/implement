@@ -154,7 +154,6 @@ export const RatingGroup = createComponent(function RatingGroup(
 		disabled = false,
 		hoverPreview = true,
 		orientation = "horizontal",
-		required,
 		...restProps
 	}: RatingGroupRootProps,
 	...children: Child[]
@@ -180,7 +179,6 @@ export const RatingGroup = createComponent(function RatingGroup(
 					"aria-valuemax": max,
 					"aria-valuetext": state.value.bind((value) => `${value} out of ${max}`),
 					"aria-orientation": orientation,
-					"aria-required": required,
 					"aria-disabled": state.disabled.bind((disabled) => (disabled ? "true" : undefined)),
 					"data-rating-group-root": "",
 					"data-orientation": orientation,

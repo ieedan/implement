@@ -50,7 +50,7 @@ If(open).Then(DropdownMenu()).Else(CollapsedLabel());
 If(open).Then(
 	Panel(),
 	// listeners scoped to the open state — detached when the branch hides
-	Implement.Document({ onKeydown: closeOnEscape }),
+	ImplementDocument({ onKeydown: closeOnEscape }),
 );
 ```
 

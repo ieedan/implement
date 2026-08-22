@@ -4,7 +4,8 @@ import {
 	derived,
 	Div,
 	H2,
-	Implement,
+	ImplementLifecycle,
+	ImplementMap,
 	P,
 	ref,
 	Ref,
@@ -57,7 +58,7 @@ export type ModalRootOptions = {
 export class ModalState {
 	open: Signal<boolean>;
 	currentTriggerId = signal<string | null>(null);
-	triggerRefs = Implement.Map<string, ModalTriggerState>();
+	triggerRefs = ImplementMap<string, ModalTriggerState>();
 	content = signal<ModalContentState | null>(null);
 	titleId = signal<Bindable<string> | null>(null);
 	descriptionId = signal<Bindable<string> | null>(null);
@@ -288,7 +289,7 @@ export function ModalRoot(state: ModalState, ...children: Child[]) {
 			},
 			ScrollLock({ open: state.open, enabled: state.opts.preventScroll !== false }),
 			ModalCtx.Provide(state).To(
-				Implement.Lifecycle(
+				ImplementLifecycle(
 					{
 						onMount: () => {
 							if (state.open.get()) {
