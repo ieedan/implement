@@ -25,6 +25,7 @@
 		"@implementjs/lucide": "workspace:*",
 		"@implementjs/mode-watcher": "workspace:*",
 		"@implementjs/primitives": "workspace:*",
+		"@implementjs/router": "workspace:*",
 		"@lezer/highlight": "^1.2.3",
 		"codemirror": "^6.0.2",
 		"sucrase": "^3.35.1",

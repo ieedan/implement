@@ -193,7 +193,7 @@ const routeDataExpr = (files: string[]): string => `routeData(${JSON.stringify(f
 
 /**
  * The source of the `$implement/router` virtual module: declares a lazy handle
- * per page and layout, adapts them onto `@implementjs/core`'s `Router` tree,
+ * per page and layout, adapts them onto `@implementjs/router`'s `Router` tree,
  * and exports the router. Pages render as `Page.get()({ params, url, data })`,
  * layouts as `Layout.get()({ children, params, url, data })`, and a root
  * `error.ts` becomes the router fallback, rendered as
@@ -224,7 +224,7 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 		pattern: route.pattern,
 		modules: route.files.map((file) => routeModuleId(routesBase, file)),
 	}));
-	const imports: string[] = ['import { Router } from "@implementjs/core";'];
+	const imports: string[] = ['import { Router } from "@implementjs/router";'];
 	const declarations: string[] = [];
 	const names = new Map<string, string>();
 	let counter = 0;

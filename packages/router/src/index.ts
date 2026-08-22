@@ -1,35 +1,25 @@
-import { reconcileChildren, type Child, type IMountable, type Mountable } from "../components";
-import { A } from "../components/elements";
-import type { ElementProps } from "../components/props";
-import { dom } from "../dom";
-import { derived, isReadable, signal, subscribe, type Readable, type Signal } from "../signal";
-import { asParent, mountChild, isDetaching } from "../tree";
-import type { Unsubscribe } from "../types";
-import { syncDomOrder } from "../utils";
 import {
-	isPageLocation,
-	locationSignal,
+	A,
+	derived,
+	ImplementEffect,
+	ImplementLifecycle,
+	isReadable,
+	location,
 	navigateTo,
 	normalizePath,
+	Outlet,
 	searchParam,
+	signal,
+	type Child,
+	type ElementProps,
+	type IMountable,
+	type Mountable,
 	type NavigateOptions,
+	type OutletHelper,
+	type Readable,
 	type RouterLocation,
-} from "./location";
-import { restoreInitialScroll } from "./scroll";
-
-export {
-	navigateTo,
-	normalizePath,
-	registerNavigationGuard,
-	searchParam,
-	setNavigationResolver,
-	withLocationSignal,
-	type NavigateOptions,
-	type NavigationGuard,
-	type NavigationResolver,
-	type RouterLocation,
-	type SearchParam,
-} from "./location";
+	type Signal,
+} from "@implementjs/core";
 
 type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
@@ -325,69 +315,6 @@ function buildHref(path: string, params: Record<string, string | number> = {}): 
 	return built === "" ? "/" : built;
 }
 
-/**
- * A swappable mount region. Layouts receive `outlet.mountable` as their child;
- * the router calls `set` to swap what renders inside it without touching the
- * layout itself.
- */
-class Outlet {
-	#parent: HTMLElement | null = null;
-	#mounted: IMountable[] = [];
-	#children: Child[] = [];
-	#endMarker = dom.createComment("");
-	#node: IMountable;
-
-	constructor() {
-		this.#node = {
-			mount: (parent: HTMLElement) => {
-				this.#parent = parent;
-				dom.attach(parent, this.#endMarker);
-				this.#render();
-			},
-			unmount: () => {
-				this.#clear();
-				if (!isDetaching()) this.#endMarker.remove();
-				this.#parent = null;
-			},
-			getFirstDomNode: () => {
-				for (const child of this.#mounted) {
-					const first = child.getFirstDomNode();
-					if (first) return first;
-				}
-				return this.#endMarker.isConnected ? this.#endMarker : null;
-			},
-		};
-	}
-
-	mountable: Mountable = () => this.#node;
-
-	set(...children: Child[]) {
-		this.#children = children;
-		if (this.#parent) this.#render();
-	}
-
-	#clear() {
-		for (const child of this.#mounted) child.unmount();
-		this.#mounted = [];
-	}
-
-	#render() {
-		this.#clear();
-		asParent(this.#node, () => {
-			for (const factory of reconcileChildren({}, ...this.#children)) {
-				const instance = factory();
-				this.#mounted.push(instance);
-				mountChild(instance, this.#parent!);
-			}
-		});
-		syncDomOrder(
-			this.#parent!,
-			this.#mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
-			this.#endMarker,
-		);
-	}
-}
-
 const FALLBACK = Symbol("router.fallback");
 
 const NOT_FOUND: RouterError = { code: 404, message: "Not Found" };
@@ -406,18 +333,6 @@ function toRouterError(thrown: unknown): RouterError {
 	}
 	return { code: 500, message: thrown instanceof Error ? thrown.message : String(thrown) };
 }
-
-/**
- * Defers to the active location signal per call. `Router(...)` commonly runs at
- * module scope, which must not touch `window` (server) or eagerly create the
- * browser singleton.
- */
-const lazyLocation: Readable<RouterLocation> = {
-	get: () => locationSignal().get(),
-	subscribe: (callback) => locationSignal().subscribe(callback),
-	onChange: (callback) => locationSignal().onChange(callback),
-	bind: (keyOrSelector: never) => locationSignal().bind(keyOrSelector),
-};
 
 /**
  * A route-tree router. One nested object describes the whole app: keys are
@@ -460,12 +375,10 @@ export function Router<T extends Routes<T>>(
 	compiled.sort(compareRoutes);
 
 	const mountable = (): IMountable => {
-		const root = new Outlet();
-		const rootNode = root.mountable();
+		const root = Outlet();
 		const paramSignals = new Map<string, Signal<string>>();
-		const outlets: Outlet[] = [root];
+		const outlets: OutletHelper[] = [root];
 		let chain: unknown[] = [];
-		let unsubscribe: Unsubscribe | null = null;
 
 		const paramsFor = (route: LeafRoute): RuntimeParams => {
 			const params: RuntimeParams = {};
@@ -479,9 +392,9 @@ export function Router<T extends Routes<T>>(
 		const build = (route: LeafRoute, index: number): Child => {
 			const params = paramsFor(route);
 			if (index < route.layouts.length) {
-				const child = new Outlet();
+				const child = Outlet();
 				outlets[index + 1] = child;
-				const content = route.layouts[index]!.handler(child.mountable, params);
+				const content = route.layouts[index]!.handler(child, params);
 				child.set(build(route, index + 1));
 				return content;
 			}
@@ -547,26 +460,21 @@ export function Router<T extends Routes<T>>(
 			}
 		};
 
-		return {
-			mount(parent: HTMLElement) {
-				mountChild(rootNode, parent);
-				unsubscribe = subscribe([locationSignal()], onLocation);
-				// a reload lands here rather than at a `popstate`, and the first
-				// render is the earliest the page is tall enough to scroll through
-				if (isPageLocation()) restoreInitialScroll();
+		// The whole router, in public parts: an effect that follows the location
+		// for as long as the router is mounted, and the outlet the match renders
+		// into. The effect mounts first, so the first match is already `set` by
+		// the time the outlet puts it in the document.
+		return ImplementLifecycle(
+			{
+				onUnmount() {
+					chain = [];
+					outlets.length = 1;
+					paramSignals.clear();
+				},
 			},
-			unmount() {
-				unsubscribe?.();
-				unsubscribe = null;
-				rootNode.unmount();
-				chain = [];
-				outlets.length = 1;
-				paramSignals.clear();
-			},
-			getFirstDomNode() {
-				return rootNode.getFirstDomNode();
-			},
-		};
+			ImplementEffect([location], onLocation),
+			root,
+		)();
 	};
 
 	const href = (path: string, params?: Record<string, string | number>) => buildHref(path, params);
@@ -599,8 +507,8 @@ export function Router<T extends Routes<T>>(
 
 		const currentHref = () => (typeof linkHref === "string" ? linkHref : linkHref.get());
 		const hrefSignals = typeof linkHref === "string" ? [] : [linkHref];
-		const ariaCurrent = derived([locationSignal(), ...hrefSignals], (location) =>
-			location.path === normalizePath(currentHref()) ? "page" : undefined,
+		const ariaCurrent = derived([location, ...hrefSignals], (current) =>
+			current.path === normalizePath(currentHref()) ? "page" : undefined,
 		);
 
 		return A(
@@ -627,7 +535,7 @@ export function Router<T extends Routes<T>>(
 
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Router helper methods are merged onto the mountable return value.
 	return Object.assign(mountable, {
-		location: lazyLocation,
+		location,
 		href,
 		navigate,
 		Link,

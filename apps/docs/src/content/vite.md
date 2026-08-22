@@ -36,7 +36,10 @@ Everything is exported from the package root, and the bigger subsystems are also
 ```ts
 import { App, signal } from "@implementjs/core"; // everything
 import { Div, Button } from "@implementjs/core/elements"; // the HTML element factories
-import { Router } from "@implementjs/core/router"; // the router
+import { installHydration } from "@implementjs/core/hydrate"; // adopting server markup
+import { renderToString } from "@implementjs/core/server"; // rendering to HTML
 ```
+
+The [router](/docs/router) is a package of its own, `@implementjs/router`, written against the same public API as [any other node](/docs/custom-nodes).
 
 You've now seen every piece on its own. The last page [puts them all together](/docs/building-an-app) into a complete application.

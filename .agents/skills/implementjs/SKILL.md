@@ -57,6 +57,7 @@ Start with **Introduction** and **Getting Started** if you have not built an imp
 ### Building applications
 
 - [Router](https://implementjs.dev/docs/router.md) — A typed route-tree router with params as signals, persistent layouts, typed links, and URL-synced search params.
+- [Custom nodes](https://implementjs.dev/docs/custom-nodes.md) — Build your own control-flow nodes on the public API — swappable regions with Outlet, and a router in twenty lines.
 - [Vite](https://implementjs.dev/docs/vite.md) — How the apps run on Vite — the four-line HMR recipe and the package entrypoints.
 - [Putting It All Together](https://implementjs.dev/docs/building-an-app.md) — Assemble everything you've learned into a complete application.
 - [Kit](https://implementjs.dev/docs/kit.md) — Skip the wiring — file-based routing, SSR, and prerendering with @implementjs/kit.

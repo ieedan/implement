@@ -1,4 +1,4 @@
-import { Div } from "../components/elements";
+import { Div } from "@implementjs/core";
 import { Router } from "./index";
 
 const router = Router(

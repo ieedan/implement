@@ -6,6 +6,7 @@ import {
 	currentEntryState,
 	installScrollRestoration,
 	newEntryState,
+	restoreInitialScroll,
 	restoreScroll,
 	scrollToTop,
 } from "./scroll";
@@ -42,14 +43,14 @@ let serverSignal: Signal<RouterLocation> | null = null;
 let scopeSignal: Signal<RouterLocation> | null = null;
 
 /**
- * Run `fn` with `location` installed as the location signal, so routers
+ * Run `fn` with `source` installed as the location signal, so routers
  * mounted inside `fn` subscribe to it instead of the shared browser location.
  * Powers embedded previews (like the tutorial playground) that route without
- * touching the page URL — drive navigation afterwards by setting `location`.
+ * touching the page URL — drive navigation afterwards by setting `source`.
  */
-export function withLocationSignal<T>(location: Signal<RouterLocation>, fn: () => T): T {
+export function withLocationSignal<T>(source: Signal<RouterLocation>, fn: () => T): T {
 	const previous = scopeSignal;
-	scopeSignal = location;
+	scopeSignal = source;
 	try {
 		return fn();
 	} finally {
@@ -69,7 +70,7 @@ export function installServerLocation(location: RouterLocation): () => void {
 	};
 }
 
-/** Lazy singleton so importing the router has no side effects until it is used. */
+/** Lazy singleton so importing this module has no side effects until it is used. */
 export function locationSignal(): Signal<RouterLocation> {
 	if (scopeSignal) return scopeSignal;
 	if (serverSignal) return serverSignal;
@@ -110,6 +111,44 @@ export function locationSignal(): Signal<RouterLocation> {
 export function isPageLocation(): boolean {
 	return scopeSignal === null && serverSignal === null;
 }
+
+let initialScrollPending = true;
+
+/**
+ * A reload lands on an entry whose scroll position only `sessionStorage`
+ * remembers, and the first location subscription is whatever is about to
+ * render that entry. Deferring the restore a microtask puts it after the
+ * synchronous render it belongs behind — the page has to be tall enough to
+ * scroll through before the position means anything — and before paint, so
+ * the page never shows the top of a document it is meant to be partway down.
+ */
+function scheduleInitialScrollRestore(): void {
+	if (!initialScrollPending || !isPageLocation()) return;
+	initialScrollPending = false;
+	queueMicrotask(restoreInitialScroll);
+}
+
+/**
+ * The current location, reactive. Reads and subscriptions defer to the active
+ * location signal per call, so touching this at module scope reaches neither
+ * `window` nor the browser singleton — a server render or a
+ * {@link withLocationSignal} scope installed later still wins.
+ *
+ * Readable only: navigation goes through {@link navigateTo}, which moves the
+ * history entry alongside the value.
+ */
+export const location: Readable<RouterLocation> = {
+	get: () => locationSignal().get(),
+	subscribe: (callback) => {
+		const unsubscribe = locationSignal().subscribe(callback);
+		// the first subscriber is a router coming up, and a reload is the one
+		// navigation it never sees
+		scheduleInitialScrollRestore();
+		return unsubscribe;
+	},
+	onChange: (callback) => locationSignal().onChange(callback),
+	bind: (keyOrSelector: never) => locationSignal().bind(keyOrSelector),
+};
 
 /**
  * Runs before a navigation is attempted; returning `false` cancels it — the
@@ -203,7 +242,7 @@ export function navigateTo(href: string, options: NavigateOptions = {}): void {
 	// resolved up front: it installs scroll restoration before the first entry
 	// this pushes, and a resolver that awaits must not commit into whatever
 	// scope happens to be installed by the time it comes back
-	const location = locationSignal();
+	const active = locationSignal();
 	const url = new URL(href, window.location.href);
 	if (url.href === window.location.href) return;
 	const target: RouterLocation = {
@@ -221,7 +260,7 @@ export function navigateTo(href: string, options: NavigateOptions = {}): void {
 			captureScroll();
 			history.pushState(newEntryState(), "", url);
 		}
-		location.set(target);
+		active.set(target);
 		commitEntry();
 		if (!options.replace && !options.noScroll) scrollToTop();
 	});
@@ -241,8 +280,8 @@ export type SearchParam<T extends string | null> = Readable<T> & {
 export function searchParam(name: string): SearchParam<string | null>;
 export function searchParam(name: string, fallback: string): SearchParam<string>;
 export function searchParam(name: string, fallback?: string): SearchParam<string | null> {
-	const location = locationSignal();
-	const inner = derived([location], ({ search }) => {
+	const source = locationSignal();
+	const inner = derived([source], ({ search }) => {
 		const value = new URLSearchParams(search).get(name);
 		return value ?? fallback ?? null;
 	});

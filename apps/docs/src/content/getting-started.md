@@ -5,7 +5,7 @@ section: Start here
 order: 1
 ---
 
-implement ships as `@implementjs/core`: signals, element helpers, and a router, in plain TypeScript with no compiler and no build step of its own.
+implement ships as `@implementjs/core`: signals, element helpers, and the pieces you build nodes out of, in plain TypeScript with no compiler and no build step of its own. The [router](/docs/router) is a package of its own, `@implementjs/router`, written against that same public API.
 
 ## Setup
 

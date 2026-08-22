@@ -48,7 +48,7 @@ function options(overrides: Partial<CreateOptions> = {}): CreateOptions {
 
 describe("--link", () => {
 	it("points every implement package the app needs at the local repo", async () => {
-		const repo = fakeRepo(["core", "kit", "primitives", "lucide"]);
+		const repo = fakeRepo(["core", "kit", "router", "primitives", "lucide"]);
 
 		const result = await runCreate(
 			"my-app",
@@ -59,13 +59,14 @@ describe("--link", () => {
 		expect(deps("my-app")).toMatchObject({
 			"@implementjs/core": "link:../implement/packages/core",
 			"@implementjs/kit": "link:../implement/packages/kit",
+			"@implementjs/router": "link:../implement/packages/router",
 			"@implementjs/primitives": "link:../implement/packages/primitives",
 			"@implementjs/lucide": "link:../implement/packages/lucide",
 		});
 	});
 
 	it("leaves everything else on a version", async () => {
-		const repo = fakeRepo(["core", "kit"]);
+		const repo = fakeRepo(["core", "kit", "router"]);
 
 		await runCreate("my-app", options({ link: repo }));
 
@@ -73,7 +74,7 @@ describe("--link", () => {
 	});
 
 	it("only links the packages the app actually depends on", async () => {
-		const repo = fakeRepo(["core", "kit", "primitives", "lucide"]);
+		const repo = fakeRepo(["core", "kit", "router", "primitives", "lucide"]);
 
 		await runCreate("my-app", options({ link: repo, template: "csr" }));
 
@@ -83,7 +84,7 @@ describe("--link", () => {
 	});
 
 	it("spells the link the way npm and bun understand it", async () => {
-		const repo = fakeRepo(["core", "kit"]);
+		const repo = fakeRepo(["core", "kit", "router"]);
 
 		await runCreate("my-app", options({ link: repo, packageManager: "npm" }));
 
@@ -91,7 +92,7 @@ describe("--link", () => {
 	});
 
 	it("links a repo given by an absolute path", async () => {
-		fakeRepo(["core", "kit"]);
+		fakeRepo(["core", "kit", "router"]);
 
 		await runCreate("my-app", options({ link: join(cwd, "implement") }));
 
@@ -99,7 +100,7 @@ describe("--link", () => {
 	});
 
 	it("points the ui registry at the clone, through jsrepo's fs provider", async () => {
-		const repo = fakeRepo(["core", "kit", "primitives"]);
+		const repo = fakeRepo(["core", "kit", "router", "primitives"]);
 		// the registry is built from the docs app, not the repository root
 		mkdirSync(join(cwd, repo, "apps/docs"), { recursive: true });
 		writeFileSync(
@@ -115,7 +116,7 @@ describe("--link", () => {
 	});
 
 	it("errors when the linked repo has no built registry", async () => {
-		const repo = fakeRepo(["core", "kit", "primitives"]);
+		const repo = fakeRepo(["core", "kit", "router", "primitives"]);
 
 		const result = await runCreate("my-app", options({ link: repo, ui: true }));
 
@@ -129,7 +130,7 @@ describe("--link", () => {
 	});
 
 	it("errors when the repo is missing a package the app needs", async () => {
-		const repo = fakeRepo(["core", "kit"]);
+		const repo = fakeRepo(["core", "kit", "router"]);
 
 		const result = await runCreate("my-app", options({ link: repo, primitives: true }));
 
@@ -137,7 +138,7 @@ describe("--link", () => {
 	});
 
 	it("errors when combined with --workspace", async () => {
-		const repo = fakeRepo(["core", "kit"]);
+		const repo = fakeRepo(["core", "kit", "router"]);
 
 		const result = await runCreate("my-app", options({ link: repo, workspace: true }));
 

@@ -54,6 +54,7 @@
 	"devDependencies": {
 		"@implementjs/core": "workspace:*",
 		"@implementjs/kit": "workspace:*",
+		"@implementjs/router": "workspace:*",
 		"@types/node": "^26.2.0",
 		"tsdown": "^0.22.14",
 		"typescript": "^7.0.2",

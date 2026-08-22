@@ -177,7 +177,8 @@ type LoadData<T> = T extends (...args: never) => infer R
 		: {}
 	: {};
 `;
-	return `import type { Mountable, Readable, RouterError, RouterLocation } from "@implementjs/core";
+	return `import type { Mountable, Readable, RouterLocation } from "@implementjs/core";
+import type { RouterError } from "@implementjs/router";
 ${node.endpoint === null ? "" : HANDLER_IMPORT}import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 ${helpers}
 export type RouteParams = ${paramsType(node.params)};
@@ -217,7 +218,8 @@ export function generateRouterDeclaration(
 		? `\n\n\texport function errorPage(error: RouterError): Child;`
 		: "";
 	return `declare module "$implement/router" {
-	import type { Child, Readable, RouterError, RouterHelper } from "@implementjs/core";
+	import type { Child, Readable } from "@implementjs/core";
+	import type { RouterError, RouterHelper } from "@implementjs/router";
 
 	export const router: RouterHelper<{
 ${entries}

@@ -1,7 +1,7 @@
 import { reconcileChildren } from "../components";
 import type { Child, IMountable } from "../components/types";
 import { installDomEnvironment } from "../dom";
-import { installServerLocation, normalizePath, type RouterLocation } from "../router/location";
+import { installServerLocation, normalizePath, type RouterLocation } from "../location";
 import { mountChild } from "../tree";
 import {
 	createServerEnvironment,

@@ -15,6 +15,7 @@ export const VERSIONS = {
 	"@implementjs/lucide": IMPLEMENT_VERSION,
 	"@implementjs/mode-watcher": IMPLEMENT_VERSION,
 	"@implementjs/primitives": IMPLEMENT_VERSION,
+	"@implementjs/router": IMPLEMENT_VERSION,
 	"@tailwindcss/vite": "^4.3.3",
 	"@types/node": "^26.2.0",
 	jsrepo: "^3.8.1",
