@@ -51,6 +51,13 @@ class ContextProvideBuilder<T> {
  * when the mountable was built — and stands in as the thrown error's stack.
  */
 function missingProviderError(name: Identity, site: CallSite, parent: HTMLElement): Error {
+	// The terse form still names the context, which is the one thing a production
+	// stack cannot recover. Everything that makes the long form worth reading —
+	// the call site, the DOM path, the remedy — is what pulls the reporting
+	// helpers into the bundle, so it is development-only.
+	if (!import.meta.env.DEV) {
+		return new Error(`[implement] ${name.subject}.Use() found no matching Provide() above it.`);
+	}
 	const where = domPath(parent);
 	const message = [
 		`[implement] ${name.subject}.Use() found no matching Provide() above it.`,
@@ -107,6 +114,9 @@ type CallSite = { stack: string | undefined; location: string | undefined };
 type Identity = { subject: string; detail: string };
 
 function identify(name: string | undefined, createdAt: string | undefined): Identity {
+	// `detail` is only ever read by the long-form error, so production keeps the
+	// subject (which the terse one names) and skips composing the rest.
+	if (!import.meta.env.DEV) return { subject: name ?? "context", detail: "" };
 	const at = createdAt ? `created at ${createdAt}` : "creation site unknown";
 	if (name) return { subject: name, detail: `${name}, ${at}` };
 	return { subject: "context", detail: `unnamed, ${at}` };

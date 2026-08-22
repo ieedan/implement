@@ -16,6 +16,30 @@ import {
 	type RouterLocation,
 } from "../src/index";
 
+describe("server markup without hydration installed", () => {
+	it("discards it, mounts fresh, and says so", () => {
+		const target = document.createElement("div");
+		// what the Vite plugin injects: the server's tree inside a marked wrapper
+		target.innerHTML = '<div data-ssr=""><p id="stale">from the server</p></div>';
+		document.body.appendChild(target);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		const app = App({ target });
+		const unmount = app.render(Div({ id: "fresh" }, "from the client"));
+
+		// the server tree is gone rather than adopted un-hydrated, and the client
+		// tree is the only thing left standing
+		expect(target.querySelector("#stale")).toBeNull();
+		expect(target.querySelector("[data-ssr]")).toBeNull();
+		expect(target.querySelector("#fresh")?.textContent).toBe("from the client");
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("hydration is not installed"));
+
+		unmount();
+		warn.mockRestore();
+		target.remove();
+	});
+});
+
 describe("browser mounting", () => {
 	it("mounts, reacts to signals, and unmounts", () => {
 		const target = document.createElement("div");

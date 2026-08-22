@@ -1,5 +1,5 @@
 import type { IMountable } from "./components/types";
-import { isHydrating, withMountParent } from "./hydrate";
+import { isHydrating, withMountParent } from "./hydration";
 import { toError } from "./utils";
 
 let current: IMountable | null = null;

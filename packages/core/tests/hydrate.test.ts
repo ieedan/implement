@@ -22,7 +22,13 @@ import {
 	Ul,
 	type Child,
 } from "../src/index";
+import { installHydration } from "../src/hydrate";
 import { renderToString } from "../src/server/index";
+
+// Hydration is opt-in: an app that never server-renders should not carry the
+// claim machinery. Kit's generated client entry installs it; these tests are
+// the client entry.
+installHydration();
 
 /**
  * Server-renders `build()`, injects the markup the way the Vite plugin does,

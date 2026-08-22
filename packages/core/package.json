@@ -13,6 +13,10 @@
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
 		},
+		"./hydrate": {
+			"types": "./src/hydrate.ts",
+			"default": "./src/hydrate.ts"
+		},
 		"./elements": {
 			"types": "./src/components/elements.ts",
 			"default": "./src/components/elements.ts"

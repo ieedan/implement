@@ -1,5 +1,5 @@
 import { dom } from "../../dom";
-import { claimHtmlBlock } from "../../hydrate";
+import { claimHtmlBlock } from "../../hydration";
 import { subscribe } from "../../signal";
 import { isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";

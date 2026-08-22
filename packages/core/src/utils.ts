@@ -100,6 +100,10 @@ export function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | 
 
 /** The `file:line:column` of the first frame in `stack`, without its function name. */
 export function frameLocation(stack: string | undefined): string | undefined {
+	// Internal to the diagnostics, like `captureStack`: its only callers hand the
+	// result to a developer-facing message, and in production there is no stack to
+	// read a frame out of anyway.
+	if (!import.meta.env.DEV) return undefined;
 	const frame = stack?.split("\n")[0]?.trim();
 	if (!frame) return undefined;
 	// v8: `at name (file:line:col)` or `at file:line:col`
@@ -145,6 +149,9 @@ function getCoreDirectory(): string | undefined {
  * always goes with them.
  */
 export function captureStack(modules: string[]): string | undefined {
+	// Stacks exist to be read by a developer. Bailing before the throw keeps the
+	// capture, the directory probe and the frame walk out of a production build.
+	if (!import.meta.env.DEV) return undefined;
 	const frames = framesOf(new Error().stack);
 	const core = getCoreDirectory();
 	if (frames.length === 0 || !core) return frames.join("\n") || undefined;

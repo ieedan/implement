@@ -18,6 +18,12 @@
  * tier-1 behavior.
  */
 
+import {
+	setClaiming,
+	setHydrationSupport,
+	type HtmlBlock,
+	type HydrationMismatch,
+} from "./hydration";
 import { captureStack } from "./utils";
 
 type ParentState = {
@@ -37,31 +43,10 @@ type HydrationState = {
 	mismatch: HydrationMismatch | null;
 };
 
-/**
- * Where a pass stopped matching. Recorded at the claim that failed — the only
- * point where both sides are still known: what the client render asked for,
- * what the server left there, and the stack of component frames that got here.
- * By the time `App.render` reports it the pass has moved on, so nothing about
- * the failure is recoverable from the fallback path itself.
- */
-export type HydrationMismatch = {
-	/** What the client render tried to create. */
-	expected: string;
-	/** What the server markup had in that position. */
-	found: string;
-	/** Path from the hydration root down to the parent being filled. */
-	path: string;
-	/** The parent whose children diverged, for an inspectable console entry. */
-	parent: Node | null;
-	/** The serialized node the claim rejected, if there was one. */
-	node: Node | null;
-	/** Stack from the failing claim: the component frames that built this node. */
-	stack: string | undefined;
-};
-
 let state: HydrationState | null = null;
 
-export function beginHydration(root: Element): void {
+function beginHydration(root: Element): void {
+	setClaiming(true);
 	state = {
 		root,
 		parents: new Map(),
@@ -78,9 +63,10 @@ export function beginHydration(root: Element): void {
  * mismatch when the pass failed and the caller must discard the server markup
  * and mount fresh.
  */
-export function endHydration(): HydrationMismatch | null {
+function endHydration(): HydrationMismatch | null {
 	const current = state;
 	state = null;
+	setClaiming(false);
 	if (!current) return null;
 	if (current.mismatch) return current.mismatch;
 	for (const { preexisting } of current.parents.values()) {
@@ -92,21 +78,24 @@ export function endHydration(): HydrationMismatch | null {
 	return null;
 }
 
-export function isHydrating(): boolean {
-	return state !== null && state.mismatch === null;
-}
-
 /**
  * A structural mismatch: record what diverged (the first one only — every
  * later claim in the pass is downstream of it and would only bury the cause)
  * and fall back to fresh creation for the rest of the pass.
  */
 function fail(expected: string, found: Node | null): null {
+	// The rest of the pass creates fresh nodes rather than claiming, which the
+	// state used to say by carrying a mismatch; the flag says it directly now.
+	setClaiming(false);
 	if (state && !state.mismatch) {
 		state.mismatch = {
 			expected,
-			found: describeNode(found),
-			path: domPath(state.currentParent, state.root),
+			// The offending nodes ride along either way, so a production mismatch is
+			// still inspectable in the console entry; only the rendering of them —
+			// which is what carries the reporting helpers into the bundle — is
+			// development-only.
+			found: import.meta.env.DEV ? describeNode(found) : "",
+			path: import.meta.env.DEV ? domPath(state.currentParent, state.root) : "",
 			parent: state.currentParent,
 			node: found,
 			// the component functions that built this node, which is the thing worth
@@ -118,7 +107,7 @@ function fail(expected: string, found: Node | null): null {
 }
 
 /** Track the element a mount call is inserting into, so claims know their parent. */
-export function withMountParent<T>(parent: HTMLElement, fn: () => T): T {
+function withMountParent<T>(parent: HTMLElement, fn: () => T): T {
 	if (!state) return fn();
 	const previous = state.currentParent;
 	state.currentParent = parent;
@@ -155,7 +144,7 @@ function parentState(): ParentState | null {
  * arrangement a fresh mount produces. Returns false when not hydrating (the
  * caller appends normally).
  */
-export function attachAtCursor(parent: HTMLElement, node: Node): boolean {
+function attachAtCursor(parent: HTMLElement, node: Node): boolean {
 	const entry = parentStateFor(parent);
 	if (!entry) return false;
 	if (entry.cursor) {
@@ -176,7 +165,7 @@ function skipComments(entry: ParentState): void {
 	}
 }
 
-export function claimElement(tag: string): HTMLElement | null {
+function claimElement(tag: string): HTMLElement | null {
 	const entry = parentState();
 	if (!entry) return null;
 	skipComments(entry);
@@ -188,7 +177,7 @@ export function claimElement(tag: string): HTMLElement | null {
 	return node as HTMLElement;
 }
 
-export function claimSvgRoot(): SVGSVGElement | null {
+function claimSvgRoot(): SVGSVGElement | null {
 	const entry = parentState();
 	if (!entry) return null;
 	skipComments(entry);
@@ -200,7 +189,7 @@ export function claimSvgRoot(): SVGSVGElement | null {
 	return node as SVGSVGElement;
 }
 
-export function claimText(data: string): Text | null {
+function claimText(data: string): Text | null {
 	const entry = parentState();
 	if (!entry) return null;
 	skipComments(entry);
@@ -234,23 +223,16 @@ export function claimText(data: string): Text | null {
 }
 
 /** True when `node` was adopted this pass and is already in position. */
-export function wasClaimed(node: Node): boolean {
+function wasClaimed(node: Node): boolean {
 	return state !== null && state.claimed.has(node);
 }
-
-export type HtmlBlock = {
-	/** Where the helper's own start comment belongs (first content node, or the end position). */
-	before: Node | null;
-	/** Where the helper's own end comment belongs (the node after the block). */
-	after: Node | null;
-};
 
 /**
  * Claims an `Html` block: the span the server serialized between its
  * `<!--html-->` / `<!--/html-->` delimiters. Content is adopted as-is — the
  * markup is trusted and deterministic, so it is not re-parsed or compared.
  */
-export function claimHtmlBlock(): HtmlBlock | null {
+function claimHtmlBlock(): HtmlBlock | null {
 	const entry = parentState();
 	if (!entry) return null;
 	// step over other helpers' anchors, but stop at content — an Html mount
@@ -326,7 +308,10 @@ function domPath(node: Node | null, root: Element): string {
  * the tree it happened, then points at the usual cause: a render that read
  * something the server could not see.
  */
-export function describeMismatch(mismatch: HydrationMismatch): string {
+function describeMismatch(mismatch: HydrationMismatch): string {
+	if (!import.meta.env.DEV) {
+		return "[implement] hydration mismatch: discarding server-rendered markup and mounting fresh.";
+	}
 	return [
 		"[implement] hydration mismatch: discarding server-rendered markup and mounting fresh.",
 		`  expected: ${mismatch.expected}`,
@@ -338,4 +323,25 @@ export function describeMismatch(mismatch: HydrationMismatch): string {
 		"let a signal update it. The page is correct, but it paid for a full re-render.",
 		mismatch.stack ? `\n${mismatch.stack}` : "",
 	].join("\n");
+}
+
+/**
+ * Makes hydration available to the mount path. Call it before the first
+ * `render` of an app whose markup was server-rendered; kit's generated client
+ * entry already does. Without it a `[data-ssr]` tree is discarded and mounted
+ * fresh, which is correct but pays for a render the server already did.
+ */
+export function installHydration(): void {
+	setHydrationSupport({
+		begin: beginHydration,
+		end: endHydration,
+		withMountParent,
+		attachAtCursor,
+		claimElement,
+		claimSvgRoot,
+		claimText,
+		claimHtmlBlock,
+		wasClaimed,
+		describeMismatch,
+	});
 }
