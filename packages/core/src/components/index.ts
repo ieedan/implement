@@ -373,7 +373,7 @@ export function App(options: { target: HTMLElement }) {
 			const serialized = target.querySelector("[data-ssr]");
 			let ssr = serialized;
 			if (serialized !== null && !canHydrate()) {
-				if (import.meta.env.DEV) {
+				if (import.meta.env?.DEV) {
 					console.warn(
 						'[implement] found server-rendered markup but hydration is not installed, so it was discarded and mounted fresh.\nCall `installHydration()` from "@implementjs/core/hydrate" before your first render. (Kit apps get this in their generated client entry.)',
 					);

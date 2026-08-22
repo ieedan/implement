@@ -94,8 +94,8 @@ function fail(expected: string, found: Node | null): null {
 			// still inspectable in the console entry; only the rendering of them —
 			// which is what carries the reporting helpers into the bundle — is
 			// development-only.
-			found: import.meta.env.DEV ? describeNode(found) : "",
-			path: import.meta.env.DEV ? domPath(state.currentParent, state.root) : "",
+			found: import.meta.env?.DEV ? describeNode(found) : "",
+			path: import.meta.env?.DEV ? domPath(state.currentParent, state.root) : "",
 			parent: state.currentParent,
 			node: found,
 			// the component functions that built this node, which is the thing worth
@@ -309,7 +309,7 @@ function domPath(node: Node | null, root: Element): string {
  * something the server could not see.
  */
 function describeMismatch(mismatch: HydrationMismatch): string {
-	if (!import.meta.env.DEV) {
+	if (!import.meta.env?.DEV) {
 		return "[implement] hydration mismatch: discarding server-rendered markup and mounting fresh.";
 	}
 	return [
