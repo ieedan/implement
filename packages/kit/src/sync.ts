@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { scanRoutes } from "./scan.ts";
-import { writeGenerated, type SyncOptions } from "./typegen.ts";
+import { DEFAULT_PARAMS_DIR, writeGenerated, type SyncOptions } from "./typegen.ts";
 
 export type { SyncOptions } from "./typegen.ts";
 
@@ -18,5 +18,6 @@ export type KitPluginApi = { options: SyncOptions };
  */
 export function sync(root: string, options: SyncOptions = {}): void {
 	const routes = options.routes ?? "src/routes";
-	writeGenerated(root, scanRoutes(join(root, routes)), options);
+	const params = options.params ?? DEFAULT_PARAMS_DIR;
+	writeGenerated(root, scanRoutes(join(root, routes), join(root, params)), options);
 }

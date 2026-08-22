@@ -9,6 +9,7 @@ import {
 	generateEndpointsModule,
 	generateHooksModule,
 	generatePagesModule,
+	generateParamsModule,
 	generateRouterModule,
 	serverRoutes,
 	staticRoutePaths,
@@ -43,7 +44,7 @@ import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
 import type { KitPluginApi } from "./sync.ts";
 import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
-import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
+import { DEFAULT_ALIASES, DEFAULT_PARAMS_DIR, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
 export type {
 	Adapter,
@@ -56,11 +57,22 @@ export type {
 export type { ClientStyle, DataChain, PageRoute, ServerRoute } from "./codegen.ts";
 export type { OpenApiDocument, OpenApiOptions, ToJsonSchema } from "./openapi.ts";
 export type { PrerenderDefault } from "./prerender.ts";
+export {
+	isParamMatcher,
+	matcher,
+	mismatch,
+	type AnyParamMatcher,
+	type ParamMatcher,
+	type ParamMatchers,
+	type ParamType,
+} from "./params.ts";
 export { defineEnv, PUBLIC_PREFIX, type Env, type EnvKind, type EnvSchemas } from "./env.ts";
 export type { ExtensionEndpoint, RouteTree } from "./scan.ts";
 export { sync, type KitPluginApi } from "./sync.ts";
 
 const ROUTER_ID = "$implement/router";
+/** The app's param matchers. Needed in both graphs — a matcher runs on both sides of a navigation. */
+const PARAMS_ID = "$implement/params";
 /** The generated client, aliased to the real `.implement/client.ts` file. */
 const CLIENT_ID = "$implement/client";
 /**
@@ -71,6 +83,7 @@ const CLIENT_ID = "$implement/client";
 const TYPES_ID = "\0$implement/route-types";
 const TYPES_MODULE = 'export { handler } from "@implementjs/kit/endpoint";\n';
 const RESOLVED_ROUTER_ID = "\0$implement/router";
+const RESOLVED_PARAMS_ID = `\0${PARAMS_ID}`;
 const RESOLVED_PAGES_ID = `\0${PAGES_ID}`;
 const RESOLVED_ENDPOINTS_ID = `\0${ENDPOINTS_ID}`;
 const RESOLVED_HOOKS_ID = `\0${HOOKS_ID}`;
@@ -113,6 +126,16 @@ export type KitPrerenderOptions = {
 export type KitOptions = {
 	/** Routes directory relative to the Vite root. @default "src/routes" */
 	routes?: string;
+	/**
+	 * Where the app's route param matchers live, relative to the Vite root.
+	 * One `<name>.ts` per matcher, default-exporting a
+	 * [`matcher()`](https://implementjs.dev/kit/routing#param-matchers); a
+	 * `[id=<name>]` route directory names one. A directory that does not exist
+	 * is simply an app with no matchers.
+	 *
+	 * @default "src/params"
+	 */
+	params?: string;
 	/**
 	 * Server hooks file relative to the Vite root, run around every server
 	 * request. @default "src/hooks.server.ts"
@@ -287,11 +310,19 @@ const treeHasLoads = (node: RouteNode): boolean =>
 export function kit(options: KitOptions = {}): Plugin[] {
 	const routes = options.routes ?? "src/routes";
 	const routesBase = `/${routes.replaceAll("\\", "/")}`;
+	const paramsPath = options.params ?? DEFAULT_PARAMS_DIR;
+	const paramsBase = `/${paramsPath.replaceAll("\\", "/")}`;
 	const hooksPath = (options.hooks ?? "src/hooks.server.ts").replaceAll("\\", "/");
 	const aliases = { ...DEFAULT_ALIASES, ...options.alias };
-	const genOptions = { routes, alias: options.alias, client: options.api?.client };
+	const genOptions = {
+		routes,
+		params: paramsPath,
+		alias: options.alias,
+		client: options.api?.client,
+	};
 	let root = process.cwd();
 	let routesDir = join(root, routes);
+	let paramsDir = join(root, paramsPath);
 	let hooksFile = join(root, hooksPath);
 	let tree: RouteTree | null = null;
 	let shell: { path: string; relative: string } | null = null;
@@ -320,7 +351,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	};
 
 	const scan = (): RouteTree => {
-		tree = scanRoutes(routesDir);
+		tree = scanRoutes(routesDir, paramsDir);
 		return tree;
 	};
 
@@ -340,7 +371,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	): Promise<OpenApiEndpoint[]> => {
 		const routes = apiRoutes(tree ?? scan());
 		const modules = await Promise.all(routes.map((route) => load(`${routesBase}/${route.file}`)));
-		return routes.map((route, index) => ({ ...route, module: modules[index]! }));
+		return routes.map((route, index) => ({
+			...route,
+			params: route.params.map((param) => param.name),
+			module: modules[index]!,
+		}));
 	};
 
 	/** The document as a file, with every warning reported against the route it came from. */
@@ -495,6 +530,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			if (config.command === "build" && config.build.ssr === false) resolvedConfig = config;
 			root = config.root;
 			routesDir = join(root, routes);
+			paramsDir = join(root, paramsPath);
 			hooksFile = join(root, hooksPath);
 			outDir = resolve(root, config.build.outDir);
 			shell = resolveShell(root);
@@ -522,6 +558,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		},
 		resolveId(id) {
 			if (id === ROUTER_ID) return RESOLVED_ROUTER_ID;
+			if (id === PARAMS_ID) return RESOLVED_PARAMS_ID;
 			if (id === PAGES_ID) return RESOLVED_PAGES_ID;
 			if (id === ENDPOINTS_ID) return RESOLVED_ENDPOINTS_ID;
 			if (id === HOOKS_ID) return RESOLVED_HOOKS_ID;
@@ -530,6 +567,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		load(id, loadOptions) {
 			if (id === RESOLVED_ROUTER_ID) {
 				return generateRouterModule(tree ?? scan(), routesBase);
+			}
+			// not a SERVER_ID: matching happens on both sides of a navigation, so
+			// the browser needs the matchers as much as the pipeline does
+			if (id === RESOLVED_PARAMS_ID) {
+				return generateParamsModule(tree ?? scan(), paramsBase);
 			}
 			if (SERVER_IDS.includes(id)) {
 				// server files must never reach the browser bundle
@@ -589,7 +631,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		configureServer(server) {
 			devServer = server;
 			const isRouteFile = (file: string) =>
-				(file.startsWith(routesDir + sep) && isRouteFileName(basename(file))) || file === hooksFile;
+				(file.startsWith(routesDir + sep) && isRouteFileName(basename(file))) ||
+				// a matcher appearing or vanishing changes which `[id=name]` routes
+				// are valid, and what type every param behind it carries
+				(dirname(file) === paramsDir && file.endsWith(".ts")) ||
+				file === hooksFile;
 			const regenerate = () => {
 				try {
 					writeGenerated(root, scan(), genOptions);
@@ -599,7 +645,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 					);
 					return;
 				}
-				for (const id of [RESOLVED_ROUTER_ID, ...SERVER_IDS]) {
+				for (const id of [RESOLVED_ROUTER_ID, RESOLVED_PARAMS_ID, ...SERVER_IDS]) {
 					const mod = server.moduleGraph.getModuleById(id);
 					if (mod) server.moduleGraph.invalidateModule(mod);
 				}
@@ -609,7 +655,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				if (isRouteFile(file)) regenerate();
 			};
 			const onDir = (dir: string) => {
-				if (dir.startsWith(routesDir + sep)) regenerate();
+				if (dir.startsWith(routesDir + sep) || dir === paramsDir) regenerate();
 			};
 			// Inlined literals do not hot-patch sensibly, so an edited env file invalidates its
 			// copy in every graph and forces a reload. Vite already restarts the server on a

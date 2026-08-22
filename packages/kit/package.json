@@ -63,6 +63,10 @@
 			"types": "./src/openapi.ts",
 			"default": "./src/openapi.ts"
 		},
+		"./params": {
+			"types": "./src/params.ts",
+			"default": "./src/params.ts"
+		},
 		"./node": {
 			"types": "./src/node.ts",
 			"default": "./src/node.ts"
@@ -110,6 +114,10 @@
 			"./openapi": {
 				"types": "./dist/openapi.d.mts",
 				"default": "./dist/openapi.mjs"
+			},
+			"./params": {
+				"types": "./dist/params.d.mts",
+				"default": "./dist/params.mjs"
 			},
 			"./node": {
 				"types": "./dist/node.d.mts",

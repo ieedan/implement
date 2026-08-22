@@ -178,6 +178,34 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		});
 	});
 
+	it("runs a route's param matcher, and hands the handler what it parsed", async () => {
+		await withListener(async (origin) => {
+			const matched = await fetch(`${origin}/orders/21`);
+			expect(matched.status).toBe(200);
+			// the matcher parsed the segment, so the handler multiplied a number
+			expect(await matched.json()).toEqual({ id: 21, doubled: 42 });
+
+			// a segment the matcher turns down falls through to the plain route
+			const fellThrough = await fetch(`${origin}/orders/express`);
+			expect(await fellThrough.json()).toEqual({ slug: "express" });
+		});
+	});
+
+	it("writes a $types typing a matched param by what its matcher produces", () => {
+		const types = readFileSync(
+			join(fixture, ".implement/types/src/routes/orders/[id=integer]/$types.d.ts"),
+			"utf8",
+		);
+		expect(types).toContain(
+			'export type ServerParams = { "id": import("@implementjs/kit/params").ParamType<typeof import("../../../../src/params/integer.ts").default> };',
+		);
+		const declaration = readFileSync(join(fixture, ".implement/types/$implement.d.ts"), "utf8");
+		expect(declaration).toContain('declare module "@implementjs/router" {');
+		expect(declaration).toContain(
+			'"integer": import("@implementjs/kit/params").ParamType<typeof import("./src/params/integer.ts").default>;',
+		);
+	});
+
 	it("runs hooks.server.ts around every request", async () => {
 		await withListener(async (origin) => {
 			// the page render, with the hook's transformPageChunk applied to the document

@@ -44,6 +44,36 @@ export default function Page({ params, url }) {
 }
 ```
 
+## Param Matchers
+
+A `src/params/<name>.ts` default-exports a `matcher()`, and a `[id=<name>]`
+directory names it. A segment the matcher turns down is not a match, so the
+path falls through to the next route and reaches the error page rather than a
+handler that has to check for itself.
+
+Beyond SvelteKit: a matcher may parse the segment, and what it returns is what
+the param is downstream — in `event.params`, in a page's `params`, and in the
+generated client, typed off the matcher module by the generated `./$types`.
+
+```ts src/params/integer.ts
+import { matcher, mismatch } from "@implementjs/kit/params";
+
+export default matcher((value) => {
+	const parsed = Number(value);
+	return /^\d+$/.test(value) ? parsed : mismatch;
+});
+```
+
+```ts src/routes/posts/[id=integer]/server.ts
+export const GET = handler({ handle: ({ params }) => db.post(params.id) });
+//                                                          ^? number
+```
+
+`matcher()` also takes a regex (anchored to the whole segment) or any Standard
+Schema. A matched param outranks a plain one at the same position, so
+`[id=integer]` and `[slug]` can be siblings. Naming a matcher the app does not
+have is a scan error.
+
 ## Route Groups & Layout Resets
 
 (Just like in SvelteKit.)
@@ -90,6 +120,7 @@ my-app/
         /lib             @/lib alias, configured automatically (Vite + generated tsconfig)
             /components
             utils.ts
+        /params          route param matchers, one <name>.ts per [id=<name>]
         /routes
         index.html       the html shell, pointed at the generated client entry
         app.css          global css, imported from the root layout

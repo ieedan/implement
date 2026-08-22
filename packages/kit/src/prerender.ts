@@ -77,7 +77,11 @@ export function prerenderPolicy(options: {
 	return {
 		async page(path) {
 			const normalized = normalizeRoutePath(path);
-			const match = chains.find((entry) => matchRoutePattern(entry.pattern, normalized) !== null);
+			// structural: the question is which files feed this path, and a build
+			// runs before the app's matcher modules are evaluated
+			const match = chains.find(
+				(entry) => matchRoutePattern(entry.pattern, normalized, "structure") !== null,
+			);
 			// a path no page serves is the caller's to explain — the prerenderer
 			// reports it as a route that rendered nothing
 			const files = match?.files ?? [];

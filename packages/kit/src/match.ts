@@ -7,6 +7,7 @@
  */
 
 import { markErrorSource } from "./errors.ts";
+import { mismatch, type ParamMatchers } from "./params.ts";
 
 /** Load results keyed by the server file that produced them (`docs/page.server.ts`). */
 export type RouteData = Record<string, unknown>;
@@ -24,42 +25,85 @@ export function normalizeRoutePath(pathname: string): string {
 
 type PatternSegment =
 	| { param: false; value: string }
-	| { param: true; rest: boolean; name: string };
+	| { param: true; rest: boolean; name: string; matcher: string | null };
 
-function parsePattern(pattern: string): PatternSegment[] {
-	return pattern
-		.split("/")
-		.filter(Boolean)
-		.map((part) => {
-			if (part.startsWith(":...")) return { param: true, rest: true, name: part.slice(4) };
-			if (part.startsWith(":")) return { param: true, rest: false, name: part.slice(1) };
-			return { param: false, value: part };
-		});
+/** `:id`, `:id=integer`, `:...slug`, `:...slug=path`, or a static part. */
+function parsePatternSegment(part: string): PatternSegment {
+	if (!part.startsWith(":")) return { param: false, value: part };
+	const rest = part.startsWith(":...");
+	const body = part.slice(rest ? 4 : 1);
+	const equals = body.indexOf("=");
+	return equals === -1
+		? { param: true, rest, name: body, matcher: null }
+		: { param: true, rest, name: body.slice(0, equals), matcher: body.slice(equals + 1) };
 }
 
-/** The params a pattern binds on a path, or `null` when it does not match. */
-export function matchRoutePattern(pattern: string, path: string): Record<string, string> | null {
+function parsePattern(pattern: string): PatternSegment[] {
+	return pattern.split("/").filter(Boolean).map(parsePatternSegment);
+}
+
+/**
+ * How a caller wants `:param=<name>` segments treated. A table runs the
+ * matchers, which is what deciding whether a route may serve a path means.
+ * `"structure"` skips them and takes the segment as a string — for the callers
+ * asking which route *owns* a path rather than whether it is servable: the
+ * preload hints, the data chain behind an already-rendered page, the endpoint
+ * prerenderer. Those run where the app's matcher modules are not loaded, and a
+ * matcher cannot change which pattern a path belongs to once it has matched.
+ */
+export type MatcherMode = ParamMatchers | "structure";
+
+/**
+ * The params a pattern binds on a path, or `null` when it does not match. A
+ * `:param=<name>` segment is handed to that matcher, which either rejects the
+ * path — no match, and the caller moves on to the next route — or answers with
+ * the value the param carries from here on, which is not necessarily a string.
+ */
+export function matchRoutePattern(
+	pattern: string,
+	path: string,
+	matchers: MatcherMode,
+): Record<string, unknown> | null {
 	const segments = parsePattern(pattern);
 	const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
 	const last = segments[segments.length - 1];
 	const hasRest = last !== undefined && last.param && last.rest;
 	// a catch-all consumes one or more trailing segments; everything else is exact
 	if (hasRest ? parts.length < segments.length : parts.length !== segments.length) return null;
-	const params: Record<string, string> = {};
+	const params: Record<string, unknown> = {};
 	for (let i = 0; i < segments.length; i++) {
 		const segment = segments[i]!;
-		if (segment.param) {
-			params[segment.name] = segment.rest ? parts.slice(i).join("/") : parts[i]!;
-		} else if (segment.value !== parts[i]) {
-			return null;
+		if (!segment.param) {
+			if (segment.value !== parts[i]) return null;
+			continue;
 		}
+		const raw = segment.rest ? parts.slice(i).join("/") : parts[i]!;
+		if (segment.matcher === null || matchers === "structure") {
+			params[segment.name] = raw;
+			continue;
+		}
+		const matcher = matchers[segment.matcher];
+		if (matcher === undefined) {
+			throw new Error(
+				`"${pattern}" matches its "${segment.name}" against "${segment.matcher}", which is not a registered param matcher`,
+			);
+		}
+		const value = matcher.match(raw);
+		if (value === mismatch) return null;
+		params[segment.name] = value;
 	}
 	return params;
 }
 
-/** Static segments outrank params, and params outrank catch-alls, position by position. */
+/**
+ * Static segments outrank matched params, which outrank plain params, which
+ * outrank catch-alls — a segment that can turn a path down is more specific
+ * than one that takes anything.
+ */
 function patternSegmentRank(segment: PatternSegment): number {
-	return segment.param ? (segment.rest ? 2 : 1) : 0;
+	if (!segment.param) return 0;
+	const base = segment.rest ? 3 : 1;
+	return segment.matcher === null ? base + 1 : base;
 }
 
 /** Static segments outrank params, and params outrank catch-alls, position by position. */
@@ -74,7 +118,11 @@ export function comparePatterns(a: string, b: string): number {
 	return left.length - right.length;
 }
 
-/** The directory-name form of a pattern: `/docs/:...slug` → `/docs/[...slug]`. */
+/**
+ * The directory-name form of a pattern: `/docs/:...slug` → `/docs/[...slug]`,
+ * `/posts/:id=integer` → `/posts/[id=integer]`. The matcher stays in, since it
+ * is part of what tells two sibling routes apart.
+ */
 export function routeId(pattern: string): string {
 	return pattern
 		.split("/")
@@ -91,7 +139,7 @@ export function routeId(pattern: string): string {
  * through `./$types`; `locals` is whatever `src/hooks.server.ts` put there,
  * typed by the app through `App.Locals`.
  */
-export type RequestEvent<Params extends Record<string, string> = Record<string, string>> = {
+export type RequestEvent<Params extends Record<string, unknown> = Record<string, string>> = {
 	request: Request;
 	params: Params;
 	url: URL;
@@ -134,7 +182,7 @@ export type RequestEvent<Params extends Record<string, string> = Record<string, 
 };
 
 /** What a `*.server.ts` load receives — the request event, `params` as plain strings. */
-export type LoadEvent<Params extends Record<string, string> = Record<string, string>> =
+export type LoadEvent<Params extends Record<string, unknown> = Record<string, string>> =
 	RequestEvent<Params>;
 
 export type ServerLoad = (event: LoadEvent) => unknown;
@@ -151,13 +199,17 @@ export type PageRoute = {
 	files: { id: string; load: ServerLoad }[];
 };
 
-export type PageMatch = { route: PageRoute; params: Record<string, string> };
+export type PageMatch = { route: PageRoute; params: Record<string, unknown> };
 
 /** The most specific page serving a path, or `null` when none does. */
-export function matchPage(pages: PageRoute[], path: string): PageMatch | null {
+export function matchPage(
+	pages: PageRoute[],
+	path: string,
+	matchers: MatcherMode,
+): PageMatch | null {
 	const sorted = [...pages].toSorted((a, b) => comparePatterns(a.pattern, b.pattern));
 	for (const route of sorted) {
-		const params = matchRoutePattern(route.pattern, path);
+		const params = matchRoutePattern(route.pattern, path, matchers);
 		if (params !== null) return { route, params };
 	}
 	return null;
@@ -201,10 +253,14 @@ export type EndpointRoute = {
 	module: Record<string, unknown>;
 };
 
-export type EndpointMatch = { route: EndpointRoute; params: Record<string, string> };
+export type EndpointMatch = { route: EndpointRoute; params: Record<string, unknown> };
 
 /** The most specific endpoint serving a path; extension endpoints outrank plain ones. */
-export function matchEndpoint(endpoints: EndpointRoute[], path: string): EndpointMatch | null {
+export function matchEndpoint(
+	endpoints: EndpointRoute[],
+	path: string,
+	matchers: MatcherMode,
+): EndpointMatch | null {
 	const sorted = [...endpoints].toSorted(
 		(a, b) =>
 			comparePatterns(a.pattern, b.pattern) ||
@@ -216,7 +272,7 @@ export function matchEndpoint(endpoints: EndpointRoute[], path: string): Endpoin
 			if (!path.endsWith(route.extension)) continue;
 			base = normalizeRoutePath(path.slice(0, -route.extension.length));
 		}
-		const params = matchRoutePattern(route.pattern, base);
+		const params = matchRoutePattern(route.pattern, base, matchers);
 		if (params !== null) return { route, params };
 	}
 	return null;

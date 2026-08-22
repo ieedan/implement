@@ -1,5 +1,5 @@
 import { Div } from "@implementjs/core";
-import { Router } from "./index";
+import { mismatch, Router, type RouteMatcher } from "./index";
 
 const router = Router(
 	{
@@ -53,3 +53,40 @@ router.href("/docs/:...slug", { slug: "guide/install" });
 router.href("/docs/:...slug");
 router.navigate("/docs/:...slug", { slug: "guide" });
 router.Link({ to: "/docs/:...slug", params: { slug: "guide/install" } }, "Guide");
+
+// --- param matchers -------------------------------------------------------
+
+const integer: RouteMatcher<number> = {
+	match: (value) => (/^\d+$/.test(value) ? Number(value) : mismatch),
+};
+
+declare module "./index" {
+	interface ParamTypes {
+		integer: number;
+	}
+}
+
+const matched = Router(
+	{
+		"/posts": {
+			"/:id=integer": ({ id }) => {
+				const value: number = id.get();
+				return Div({ "data-id": `${value}` });
+			},
+		},
+		"/docs": {
+			"/:...slug=integer": ({ slug }) => Div({ "data-slug": `${slug.get()}` }),
+		},
+	},
+	{ matchers: { integer } },
+);
+
+matched.href("/posts/:id=integer", { id: 42 });
+// a string still builds a URL — the matcher runs on the way back in, not here
+matched.href("/posts/:id=integer", { id: "42" });
+// @ts-expect-error the param is named `id`, not `id=integer`
+matched.href("/posts/:id=integer", { "id=integer": 42 });
+// @ts-expect-error params are required for parameterized paths
+matched.href("/posts/:id=integer");
+matched.navigate("/docs/:...slug=integer", { slug: 3 });
+matched.Link({ to: "/posts/:id=integer", params: { id: 42 } }, "Open");

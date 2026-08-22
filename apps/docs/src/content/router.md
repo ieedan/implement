@@ -37,7 +37,7 @@ The router is itself a mountable, so you can render it at the root or anywhere i
 
 - `"/"` renders this level. `/issues` above renders `Issues()`.
 - `"/segment"` is a nested table for a static segment. Keys may be multi-segment too (`"/settings/profile"`).
-- `"/:param"` is a dynamic segment. Every render and layout below it receives the param.
+- `"/:param"` is a dynamic segment. Every render and layout below it receives the param. `"/:param=name"` gates it behind a [matcher](#param-matchers).
 - `layout` is `(child, params) => Child` and wraps everything beneath this level. Render `child` where the matched content should appear.
 - `fallback` (a router option) is rendered when nothing matches, or when a route render throws. It receives a `RouterError` — `{ code, message }`, where `code` is `404` for unmatched paths, `500` for a thrown render error, or the `code` of a thrown `{ code, message }` object.
 
@@ -54,6 +54,42 @@ Route params arrive as `Readable<string>`:
 ```
 
 Navigating between two URLs of the **same route** (`/issues/1` → `/issues/2`) does not remount the page. The router patches the param signal in place. Bind through it for display, and use `id.onChange(refetch)` (or wrap the page in [`Key(id, ...)`](/docs/key)) when a change should reload data or reset state.
+
+## Param matchers
+
+A `:param` takes any segment. `":param=<name>"` runs a **matcher** over it first: a segment the matcher turns down is not a match, so routing carries on to the next route, and a matcher that _parses_ decides what the param carries.
+
+```ts
+import { mismatch, Router, type RouteMatcher } from "@implementjs/router";
+
+const integer: RouteMatcher<number> = {
+	match: (value) => (/^\d+$/.test(value) ? Number(value) : mismatch),
+};
+
+const router = Router(
+	{
+		"/issues": {
+			"/:id=integer": ({ id }) => Issue(id), // id: Readable<number>
+			"/:slug": ({ slug }) => IssueBySlug(slug), // /issues/backlog lands here
+		},
+	},
+	{ matchers: { integer } },
+);
+```
+
+A matched param outranks a plain one at the same position, the way a static segment outranks both. Naming a matcher that isn't in `matchers` throws when the router is built, rather than becoming a route that never matches.
+
+For `id` to be a `Readable<number>` rather than a `Readable<string>`, tell the router what the matcher produces:
+
+```ts
+declare module "@implementjs/router" {
+	interface ParamTypes {
+		integer: number;
+	}
+}
+```
+
+[`@implementjs/kit`](/kit/routing#param-matchers) fills that in for you: drop a `src/params/integer.ts` in an app and every `[id=integer]` route gets the typed param, in `./$types` and in the router alike.
 
 ## Persistent layouts
 
