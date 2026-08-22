@@ -103,22 +103,20 @@ Full tables in [RESULTS.md](./RESULTS.md). The short version:
 
 |           | app JS (gzip) | hello world (gzip) |
 | --------- | ------------: | -----------------: |
-| implement |   **10.0 kB** |             6.4 kB |
+| implement |    **9.5 kB** |             5.5 kB |
 | Svelte 5  |       16.9 kB |            10.4 kB |
 | React 19  |       61.6 kB |            59.2 kB |
 
-implement ships the smallest bundle of the three, and it is not close on the
-React side: 6.2× smaller gzipped, 5.9× smaller brotli. Against Svelte the margin
-is 1.7×, and it comes almost entirely from the runtime floor — a hello-world page
-is 6.4 kB in implement against 10.4 kB in Svelte.
+implement ships the smallest bundle of the three by a wide margin: 6.5× smaller
+than React gzipped, 1.8× smaller than Svelte. Most of it is the runtime floor —
+a hello-world page is 5.5 kB against Svelte's 10.4 kB and React's 59.2 kB.
 
-The interesting column is what the app's _own_ code costs on top of its floor:
-2.4 kB for React, 3.6 kB for implement, 6.4 kB for Svelte. Svelte's compiler
+The interesting column is what the app's _own_ code costs on top of that floor:
+2.4 kB for React, 4.0 kB for implement, 6.4 kB for Svelte. Svelte's compiler
 emits per-component template strings and effect wiring, so app code grows faster
 there; React's app code is cheap because almost everything it needs is already in
-the 59 kB runtime. At this app's size the floor dominates and implement wins
-comfortably. A much larger app narrows the gap to Svelte and never narrows the
-gap to React.
+the 59 kB runtime. At this app's size the floor dominates. A much larger app
+narrows the gap to Svelte and never narrows the gap to React.
 
 ### Speed
 

@@ -1,332 +1,332 @@
 [
-	{
-		"id": "implement",
-		"steps": {
-			"create 1k rows": {
-				"created": 10000,
-				"inserted": 11000,
-				"removed": 2000,
-				"attrWrites": 7000,
-				"textWrites": 3
-			},
-			"update every 10th of 1k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 100
-			},
-			"select one row of 1k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 1,
-				"textWrites": 0
-			},
-			"swap two rows of 1k": {
-				"created": 0,
-				"inserted": 997,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"filter 1k by text": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 8890,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"clear the filter": {
-				"created": 8890,
-				"inserted": 9779,
-				"removed": 0,
-				"attrWrites": 6223,
-				"textWrites": 0
-			},
-			"sort 1k by title": {
-				"created": 0,
-				"inserted": 992,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"sort 1k back by id": {
-				"created": 0,
-				"inserted": 994,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"append 1k to 1k": {
-				"created": 10000,
-				"inserted": 11000,
-				"removed": 0,
-				"attrWrites": 7000,
-				"textWrites": 2
-			},
-			"clear 2k rows": {
-				"created": 2,
-				"inserted": 3,
-				"removed": 20000,
-				"attrWrites": 1,
-				"textWrites": 3
-			},
-			"create 10k rows": {
-				"created": 100000,
-				"inserted": 110000,
-				"removed": 2,
-				"attrWrites": 70000,
-				"textWrites": 3
-			},
-			"update every 10th of 10k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 1000
-			},
-			"select one row of 10k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 1,
-				"textWrites": 0
-			},
-			"swap two rows of 10k": {
-				"created": 0,
-				"inserted": 997,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"clear 10k rows": {
-				"created": 2,
-				"inserted": 3,
-				"removed": 100000,
-				"attrWrites": 1,
-				"textWrites": 3
-			}
-		}
-	},
-	{
-		"id": "react",
-		"steps": {
-			"create 1k rows": {
-				"created": 6000,
-				"inserted": 6000,
-				"removed": 200,
-				"attrWrites": 7004,
-				"textWrites": 4003
-			},
-			"update every 10th of 1k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 104,
-				"textWrites": 100
-			},
-			"select one row of 1k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 6,
-				"textWrites": 0
-			},
-			"swap two rows of 1k": {
-				"created": 0,
-				"inserted": 997,
-				"removed": 0,
-				"attrWrites": 4,
-				"textWrites": 0
-			},
-			"filter 1k by text": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 889,
-				"attrWrites": 4,
-				"textWrites": 0
-			},
-			"clear the filter": {
-				"created": 5334,
-				"inserted": 5334,
-				"removed": 0,
-				"attrWrites": 6227,
-				"textWrites": 3556
-			},
-			"sort 1k by title": {
-				"created": 0,
-				"inserted": 992,
-				"removed": 0,
-				"attrWrites": 4,
-				"textWrites": 0
-			},
-			"sort 1k back by id": {
-				"created": 0,
-				"inserted": 994,
-				"removed": 0,
-				"attrWrites": 4,
-				"textWrites": 0
-			},
-			"append 1k to 1k": {
-				"created": 6000,
-				"inserted": 6000,
-				"removed": 0,
-				"attrWrites": 7004,
-				"textWrites": 4002
-			},
-			"clear 2k rows": {
-				"created": 1,
-				"inserted": 1,
-				"removed": 2000,
-				"attrWrites": 5,
-				"textWrites": 4
-			},
-			"create 10k rows": {
-				"created": 60000,
-				"inserted": 60000,
-				"removed": 1,
-				"attrWrites": 70004,
-				"textWrites": 40003
-			},
-			"update every 10th of 10k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 1004,
-				"textWrites": 1000
-			},
-			"select one row of 10k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 6,
-				"textWrites": 0
-			},
-			"swap two rows of 10k": {
-				"created": 0,
-				"inserted": 997,
-				"removed": 0,
-				"attrWrites": 4,
-				"textWrites": 0
-			},
-			"clear 10k rows": {
-				"created": 1,
-				"inserted": 1,
-				"removed": 10000,
-				"attrWrites": 5,
-				"textWrites": 4
-			}
-		}
-	},
-	{
-		"id": "svelte",
-		"steps": {
-			"create 1k rows": {
-				"created": 14001,
-				"inserted": 2000,
-				"removed": 200,
-				"attrWrites": 2000,
-				"textWrites": 3003
-			},
-			"update every 10th of 1k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 100
-			},
-			"select one row of 1k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 1,
-				"textWrites": 0
-			},
-			"swap two rows of 1k": {
-				"created": 0,
-				"inserted": 2,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"filter 1k by text": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 889,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"clear the filter": {
-				"created": 12446,
-				"inserted": 1778,
-				"removed": 0,
-				"attrWrites": 1778,
-				"textWrites": 2667
-			},
-			"sort 1k by title": {
-				"created": 0,
-				"inserted": 982,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"sort 1k back by id": {
-				"created": 0,
-				"inserted": 985,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"append 1k to 1k": {
-				"created": 14000,
-				"inserted": 2000,
-				"removed": 0,
-				"attrWrites": 2000,
-				"textWrites": 3002
-			},
-			"clear 2k rows": {
-				"created": 3,
-				"inserted": 1,
-				"removed": 2000,
-				"attrWrites": 0,
-				"textWrites": 4
-			},
-			"create 10k rows": {
-				"created": 140000,
-				"inserted": 20000,
-				"removed": 1,
-				"attrWrites": 20000,
-				"textWrites": 30003
-			},
-			"update every 10th of 10k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 1000
-			},
-			"select one row of 10k": {
-				"created": 0,
-				"inserted": 0,
-				"removed": 0,
-				"attrWrites": 1,
-				"textWrites": 0
-			},
-			"swap two rows of 10k": {
-				"created": 0,
-				"inserted": 2,
-				"removed": 0,
-				"attrWrites": 0,
-				"textWrites": 0
-			},
-			"clear 10k rows": {
-				"created": 2,
-				"inserted": 1,
-				"removed": 10000,
-				"attrWrites": 0,
-				"textWrites": 3
-			}
-		}
-	}
+  {
+    "id": "implement",
+    "steps": {
+      "create 1k rows": {
+        "created": 10000,
+        "inserted": 10000,
+        "removed": 200,
+        "attrWrites": 7000,
+        "textWrites": 3
+      },
+      "update every 10th of 1k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 100
+      },
+      "select one row of 1k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 1,
+        "textWrites": 0
+      },
+      "swap two rows of 1k": {
+        "created": 0,
+        "inserted": 2,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "filter 1k by text": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 889,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "clear the filter": {
+        "created": 8890,
+        "inserted": 9001,
+        "removed": 0,
+        "attrWrites": 6223,
+        "textWrites": 0
+      },
+      "sort 1k by title": {
+        "created": 0,
+        "inserted": 943,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "sort 1k back by id": {
+        "created": 0,
+        "inserted": 943,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "append 1k to 1k": {
+        "created": 10000,
+        "inserted": 10000,
+        "removed": 0,
+        "attrWrites": 7000,
+        "textWrites": 2
+      },
+      "clear 2k rows": {
+        "created": 2,
+        "inserted": 3,
+        "removed": 2000,
+        "attrWrites": 1,
+        "textWrites": 3
+      },
+      "create 10k rows": {
+        "created": 100000,
+        "inserted": 100000,
+        "removed": 1,
+        "attrWrites": 70000,
+        "textWrites": 3
+      },
+      "update every 10th of 10k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 1000
+      },
+      "select one row of 10k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 1,
+        "textWrites": 0
+      },
+      "swap two rows of 10k": {
+        "created": 0,
+        "inserted": 2,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "clear 10k rows": {
+        "created": 2,
+        "inserted": 3,
+        "removed": 10000,
+        "attrWrites": 1,
+        "textWrites": 3
+      }
+    }
+  },
+  {
+    "id": "react",
+    "steps": {
+      "create 1k rows": {
+        "created": 6000,
+        "inserted": 6000,
+        "removed": 200,
+        "attrWrites": 7004,
+        "textWrites": 4003
+      },
+      "update every 10th of 1k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 104,
+        "textWrites": 100
+      },
+      "select one row of 1k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 6,
+        "textWrites": 0
+      },
+      "swap two rows of 1k": {
+        "created": 0,
+        "inserted": 997,
+        "removed": 0,
+        "attrWrites": 4,
+        "textWrites": 0
+      },
+      "filter 1k by text": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 889,
+        "attrWrites": 4,
+        "textWrites": 0
+      },
+      "clear the filter": {
+        "created": 5334,
+        "inserted": 5334,
+        "removed": 0,
+        "attrWrites": 6227,
+        "textWrites": 3556
+      },
+      "sort 1k by title": {
+        "created": 0,
+        "inserted": 992,
+        "removed": 0,
+        "attrWrites": 4,
+        "textWrites": 0
+      },
+      "sort 1k back by id": {
+        "created": 0,
+        "inserted": 994,
+        "removed": 0,
+        "attrWrites": 4,
+        "textWrites": 0
+      },
+      "append 1k to 1k": {
+        "created": 6000,
+        "inserted": 6000,
+        "removed": 0,
+        "attrWrites": 7004,
+        "textWrites": 4002
+      },
+      "clear 2k rows": {
+        "created": 1,
+        "inserted": 1,
+        "removed": 2000,
+        "attrWrites": 5,
+        "textWrites": 4
+      },
+      "create 10k rows": {
+        "created": 60000,
+        "inserted": 60000,
+        "removed": 1,
+        "attrWrites": 70004,
+        "textWrites": 40003
+      },
+      "update every 10th of 10k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 1004,
+        "textWrites": 1000
+      },
+      "select one row of 10k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 6,
+        "textWrites": 0
+      },
+      "swap two rows of 10k": {
+        "created": 0,
+        "inserted": 997,
+        "removed": 0,
+        "attrWrites": 4,
+        "textWrites": 0
+      },
+      "clear 10k rows": {
+        "created": 1,
+        "inserted": 1,
+        "removed": 10000,
+        "attrWrites": 5,
+        "textWrites": 4
+      }
+    }
+  },
+  {
+    "id": "svelte",
+    "steps": {
+      "create 1k rows": {
+        "created": 14001,
+        "inserted": 2000,
+        "removed": 200,
+        "attrWrites": 2000,
+        "textWrites": 3003
+      },
+      "update every 10th of 1k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 100
+      },
+      "select one row of 1k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 1,
+        "textWrites": 0
+      },
+      "swap two rows of 1k": {
+        "created": 0,
+        "inserted": 2,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "filter 1k by text": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 889,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "clear the filter": {
+        "created": 12446,
+        "inserted": 1778,
+        "removed": 0,
+        "attrWrites": 1778,
+        "textWrites": 2667
+      },
+      "sort 1k by title": {
+        "created": 0,
+        "inserted": 982,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "sort 1k back by id": {
+        "created": 0,
+        "inserted": 985,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "append 1k to 1k": {
+        "created": 14000,
+        "inserted": 2000,
+        "removed": 0,
+        "attrWrites": 2000,
+        "textWrites": 3002
+      },
+      "clear 2k rows": {
+        "created": 3,
+        "inserted": 1,
+        "removed": 2000,
+        "attrWrites": 0,
+        "textWrites": 4
+      },
+      "create 10k rows": {
+        "created": 140000,
+        "inserted": 20000,
+        "removed": 1,
+        "attrWrites": 20000,
+        "textWrites": 30003
+      },
+      "update every 10th of 10k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 1000
+      },
+      "select one row of 10k": {
+        "created": 0,
+        "inserted": 0,
+        "removed": 0,
+        "attrWrites": 1,
+        "textWrites": 0
+      },
+      "swap two rows of 10k": {
+        "created": 0,
+        "inserted": 2,
+        "removed": 0,
+        "attrWrites": 0,
+        "textWrites": 0
+      },
+      "clear 10k rows": {
+        "created": 2,
+        "inserted": 1,
+        "removed": 10000,
+        "attrWrites": 0,
+        "textWrites": 3
+      }
+    }
+  }
 ]
