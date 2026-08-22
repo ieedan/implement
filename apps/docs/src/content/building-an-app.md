@@ -32,13 +32,19 @@ The router describes the whole app in one object. A persistent layout wraps the 
 
 ```ts
 // src/router.ts
-import { Implement, Router } from "@implementjs/core";
+import {
+	ImplementBoundary,
+	ImplementDocument,
+	ImplementHead,
+	ImplementLifecycle,
+	Router,
+} from "@implementjs/core";
 
 export const router = Router(
 	{
 		"/": () => Home(),
 		"/issues": {
-			layout: (child) => Shell(Implement.Boundary(child).Catch(PageError)),
+			layout: (child) => Shell(ImplementBoundary(child).Catch(PageError)),
 			"/": () => Issues(),
 			"/:id": { "/": ({ id }) => Issue(id) },
 		},
@@ -72,7 +78,7 @@ Data fetching is the [Await](/docs/await) pattern. Keep the request in a [signal
 function Issue(id: Readable<string>) {
 	const request = signal(api.fetchIssue(id.get()));
 
-	return Implement.Lifecycle(
+	return ImplementLifecycle(
 		{ onMount: () => id.onChange((next) => request.set(api.fetchIssue(next))) },
 		Await(request)
 			.WhileLoading(Spinner())
@@ -93,7 +99,7 @@ function IssueView(issue: Readable<Issue>) {
 	const comments = issue.bind("comments");
 
 	return Article(
-		Implement.Head(Implement.Head.Title(issue.bind((i) => `${i.name} — Tracker`))),
+		ImplementHead(ImplementHead.Title(issue.bind((i) => `${i.name} — Tracker`))),
 		H1(issue.bind("name")),
 		P(issue.bind("description")),
 		Ul(
@@ -115,7 +121,7 @@ Overlays combine [If](/docs/if), [Portal](/docs/portal), and a document listener
 function NewIssueDialog(open: Signal<boolean>) {
 	return If(open).Then(
 		Portal(Div({ class: "fixed inset-0 grid place-items-center bg-black/50" }, IssueForm())),
-		Implement.Document({
+		ImplementDocument({
 			onKeydown: (event) => {
 				if (event.key === "Escape") open.set(false);
 			},

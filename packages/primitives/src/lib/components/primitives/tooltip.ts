@@ -3,7 +3,9 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementLifecycle,
+	ImplementMap,
+	ImplementWindow,
 	Portal,
 	ref,
 	Ref,
@@ -133,8 +135,8 @@ export const TooltipProvider = createComponent(function TooltipProvider(
 ) {
 	const state = new TooltipProviderState(props);
 	return TooltipProviderContext.Provide(state).To(
-		Implement.Window({ onScroll: (e: Event) => state.handleScroll(e) }),
-		Implement.Lifecycle({ onUnmount: () => state.dispose() }, ...children),
+		ImplementWindow({ onScroll: (e: Event) => state.handleScroll(e) }),
+		ImplementLifecycle({ onUnmount: () => state.dispose() }, ...children),
 	);
 });
 
@@ -157,7 +159,7 @@ class TooltipState {
 	/** Whether the current open came from the hover delay ("delayed-open") or not ("instant-open"). */
 	wasOpenDelayed = signal(false);
 	currentTriggerId = signal<string | null>(null);
-	triggerRefs = Implement.Map<string, TooltipTriggerState>();
+	triggerRefs = ImplementMap<string, TooltipTriggerState>();
 	content = signal<TooltipContentState | null>(null);
 	autoUpdateDispose: (() => void) | null = null;
 	safePolygonDispose: (() => void) | null = null;
@@ -386,7 +388,7 @@ export const Tooltip = createComponent(function Tooltip(
 				),
 			},
 			TooltipContext.Provide(state).To(
-				Implement.Lifecycle(
+				ImplementLifecycle(
 					{
 						onMount: () => {
 							if (state.open.get()) {
@@ -415,7 +417,7 @@ export const Tooltip = createComponent(function Tooltip(
 
 		if (!ownsProvider) return tree;
 		return TooltipProviderContext.Provide(providerState).To(
-			Implement.Window({
+			ImplementWindow({
 				onScroll: (e: Event) => providerState.handleScroll(e),
 			}),
 			tree,
@@ -582,7 +584,7 @@ export const TooltipTrigger = createComponent(function TooltipTrigger(
 			disabled: disabledSignal,
 		});
 
-		return Implement.Lifecycle(
+		return ImplementLifecycle(
 			{ onUnmount: () => rootState.unregisterTrigger(id) },
 			Button(
 				mergeProps(

@@ -1,0 +1,32 @@
+{
+	"name": "@implementjs/eslint",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"scripts": {
+		"dev": "tsdown --watch",
+		"build": "tsdown",
+		"check": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@types/aria-query": "^5.0.4",
+		"@types/estree": "^1.0.9",
+		"@types/node": "^26.2.0",
+		"eslint": "^10.8.1",
+		"oxlint": "^1.78.0",
+		"tsdown": "^0.22.14",
+		"typescript": "^7.0.2",
+		"vitest": "^4.0.18"
+	},
+	"dependencies": {
+		"aria-query": "^5.3.2"
+	}
+}

@@ -4,7 +4,8 @@ import {
 	Div,
 	ForEach,
 	If,
-	Implement,
+	ImplementDocument,
+	ImplementLifecycle,
 	Kbd,
 	Mark,
 	navigateTo,
@@ -373,7 +374,7 @@ export function DocsSearch(): Mountable {
 		{ open },
 		// ⌘K / Ctrl+K opens the palette; pressed again it opens the actions
 		// menu for the highlighted result.
-		Implement.Document({
+		ImplementDocument({
 			onKeydown(e) {
 				if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
 					e.preventDefault();
@@ -385,7 +386,7 @@ export function DocsSearch(): Mountable {
 				}
 			},
 		}),
-		Implement.Lifecycle({
+		ImplementLifecycle({
 			onMount: () => {
 				const unsubOpen = open.onChange((isOpen) => {
 					if (isOpen) {

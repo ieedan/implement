@@ -1,4 +1,12 @@
-import { context, If, Implement, type Child, type Readable, type Signal } from "@implementjs/core";
+import {
+	context,
+	If,
+	ImplementDocument,
+	ImplementLifecycle,
+	type Child,
+	type Readable,
+	type Signal,
+} from "@implementjs/core";
 import { getId, getReadableValue, type MaybeReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 
@@ -222,13 +230,13 @@ export const DismissableLayer = createComponent(function DismissableLayer(
 		return DismissableLayerCtx.Provide(state).To(
 			// only register listener for the big boss
 			If(parent === null).Then(
-				Implement.Document({
+				ImplementDocument({
 					onKeydown: (e) => state.onKeydown(e),
 					onPointerdown: (e) => state.onPointerDown(e),
 					onFocusin: (e) => state.onFocusin(e),
 				}),
 			),
-			Implement.Lifecycle(
+			ImplementLifecycle(
 				{
 					onUnmount: () => state.dispose(),
 				},

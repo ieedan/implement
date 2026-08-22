@@ -3,7 +3,8 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementDocument,
+	ImplementLifecycle,
 	Portal,
 	ref,
 	Ref,
@@ -227,8 +228,8 @@ export const LinkPreview = createComponent(function LinkPreview(
 		},
 		ScrollLock({ open: state.open, enabled: state.opts.preventScroll !== false }),
 		LinkPreviewCtx.Provide(state).To(
-			Implement.Document({ onPointerup: () => state.documentPointerup() }),
-			Implement.Lifecycle(
+			ImplementDocument({ onPointerup: () => state.documentPointerup() }),
+			ImplementLifecycle(
 				{
 					onMount: () => {
 						if (state.open.get()) state.onOpened();

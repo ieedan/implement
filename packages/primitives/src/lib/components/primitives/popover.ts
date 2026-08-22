@@ -3,7 +3,8 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementLifecycle,
+	ImplementMap,
 	Portal,
 	ref,
 	Ref,
@@ -38,7 +39,7 @@ export type PopoverRootProps = {
 class PopoverState {
 	open: Signal<boolean>;
 	currentTriggerId = signal<string | null>(null);
-	triggerRefs = Implement.Map<string, PopoverTriggerState>();
+	triggerRefs = ImplementMap<string, PopoverTriggerState>();
 	content = signal<PopoverContentState | null>(null);
 	autoUpdateDispose: (() => void) | null = null;
 	/** First trigger that registered with `default: true`, if any. */
@@ -183,7 +184,7 @@ export const Popover = createComponent(function Popover(
 		},
 		ScrollLock({ open: state.open, enabled: state.opts.preventScroll === true }),
 		PopoverContext.Provide(state).To(
-			Implement.Lifecycle(
+			ImplementLifecycle(
 				{
 					onMount: () => {
 						if (state.open.get()) state.ensureAnchor();

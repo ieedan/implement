@@ -5,12 +5,12 @@ section: Composition
 order: 14
 ---
 
-Things break, and when they do you don't want one error taking down the whole app. `Implement.Boundary` isolates failures. When something in its subtree throws, the boundary swaps in its `Catch` branch instead of letting the error propagate.
+Things break, and when they do you don't want one error taking down the whole app. `ImplementBoundary` isolates failures. When something in its subtree throws, the boundary swaps in its `Catch` branch instead of letting the error propagate.
 
 ```ts
-import { Implement } from "@implementjs/core";
+import { ImplementBoundary, ImplementEffect } from "@implementjs/core";
 
-Implement.Boundary(IssuePage(id)).Catch((error, reset) =>
+ImplementBoundary(IssuePage(id)).Catch((error, reset) =>
 	Div(P(error.message), Button({ onClick: reset }, "Retry")),
 );
 ```
@@ -21,7 +21,7 @@ Implement.Boundary(IssuePage(id)).Catch((error, reset) =>
 
 - Errors thrown **synchronously while the subtree mounts**, including a component function throwing while building its tree.
 - Errors raised **during reactive updates** inside the structural helpers. [`If`](/docs/if), [`ForEach`](/docs/foreach), [`Switch`](/docs/switch), [`Key`](/docs/key), [`Await`](/docs/await), and [`Portal`](/docs/portal) all route their signal-driven re-syncs to the nearest boundary. A `ForEach` key error or a render function throwing on update lands here.
-- Errors thrown in [`Lifecycle.onMount`](/docs/lifecycle) and in [`Implement.Watch`](/docs/derived) effects.
+- Errors thrown in [`Lifecycle.onMount`](/docs/lifecycle) and in [`ImplementEffect`](/docs/derived) effects.
 
 Thrown values that aren't `Error`s are normalized into one.
 
@@ -44,7 +44,7 @@ Put boundaries where a failure has a sensible replacement UI. Around a route's p
 ```ts
 const router = Router({
 	"/issues": {
-		layout: (child) => Shell(Implement.Boundary(child).Catch(PageError)),
+		layout: (child) => Shell(ImplementBoundary(child).Catch(PageError)),
 		"/": () => Issues(),
 		"/:id": { "/": ({ id }) => Issue(id) },
 	},

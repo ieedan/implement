@@ -5,6 +5,9 @@ export default defineConfig({
 		typeAware: true,
 	},
 	plugins: ["eslint", "typescript", "unicorn", "oxc", "import"],
+	// The framework's own rules. They are an ESLint plugin, run here through
+	// oxlint's ESLint-compatible plugin API — see `packages/eslint`.
+	jsPlugins: ["@implementjs/eslint"],
 	categories: {
 		correctness: "error",
 		suspicious: "warn",
@@ -14,6 +17,17 @@ export default defineConfig({
 		"no-shadow": "off",
 		// CSS imports are side-effect-only by design in Vite apps.
 		"import/no-unassigned-import": ["warn", { allow: ["**/*.css"] }],
+		"implementjs/no-hanging-unsubscribe": "error",
+		"implementjs/no-html": "error",
+		"implementjs/no-redundant-roles": "warn",
+		"implementjs/no-signal-collection": "warn",
+		"implementjs/no-signal-condition": "error",
+		"implementjs/prefer-effect": "warn",
+		"implementjs/prefer-foreach": "error",
+		"implementjs/role-has-required-aria-props": "error",
+		"implementjs/role-supports-aria-props": "error",
+		"implementjs/valid-aria": "error",
+		"implementjs/valid-role": "error",
 	},
 	ignorePatterns: [
 		// Agent worktrees are full repo checkouts; their nested configs break lint.
@@ -32,10 +46,29 @@ export default defineConfig({
 			},
 		},
 		{
-			// Compile-time type assertions use leading underscores as a convention.
+			// Compile-time type assertions use leading underscores as a convention,
+			// and assert that bad props are rejected by writing bad props.
 			files: ["**/type-test.ts"],
 			rules: {
 				"no-underscore-dangle": "off",
+				"implementjs/role-has-required-aria-props": "off",
+				"implementjs/role-supports-aria-props": "off",
+				"implementjs/valid-aria": "off",
+				"implementjs/valid-role": "off",
+			},
+		},
+		{
+			// The ARIA rules read every object literal, because without types there
+			// is no telling a props object from any other. That is the right trade
+			// in an app and the wrong one in the package that owns the spec tables
+			// and the fixtures full of deliberate mistakes.
+			files: ["packages/eslint/**/*.ts"],
+			rules: {
+				"implementjs/no-redundant-roles": "off",
+				"implementjs/role-has-required-aria-props": "off",
+				"implementjs/role-supports-aria-props": "off",
+				"implementjs/valid-aria": "off",
+				"implementjs/valid-role": "off",
 			},
 		},
 		{

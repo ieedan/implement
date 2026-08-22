@@ -1,4 +1,4 @@
-import { Div, Html, Implement, type Child, type Mountable } from "@implementjs/core";
+import { Div, Html, ImplementLifecycle, type Child, type Mountable } from "@implementjs/core";
 import { apiReference } from "@/lib/api-reference";
 import { copyText } from "@/lib/copy-text";
 import { demos } from "../demos";
@@ -94,6 +94,9 @@ function contentChildren(content: string): Child[] {
 	let panelLabel = "";
 
 	const pushHtml = (from: number, to: number) => {
+		// `content` is this repo's own markdown, compiled to HTML by Velite at build
+		// time. Nothing a visitor sends ever reaches it.
+		// oxlint-disable-next-line implementjs/no-html
 		if (to > from) children.push(Html(content.slice(from, to)));
 	};
 	const closePanel = (end: number) => {
@@ -181,7 +184,7 @@ function contentChildren(content: string): Child[] {
 export function Typeset(content: string, className?: string): Mountable {
 	return Div(
 		{ class: ["typeset", className] },
-		Implement.Lifecycle(
+		ImplementLifecycle(
 			{
 				onMount(parent) {
 					for (const pre of parent.querySelectorAll("pre")) {

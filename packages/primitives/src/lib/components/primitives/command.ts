@@ -3,7 +3,9 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementLifecycle,
+	ImplementMap,
+	ImplementSet,
 	Input,
 	ref,
 	signal,
@@ -120,9 +122,9 @@ class CommandState {
 	/** How many items the current search leaves visible. */
 	filteredCount = signal(0);
 	/** Score per item value for the current search. Only meaningful while filtering. */
-	scores = Implement.Map<string, number>();
+	scores = ImplementMap<string, number>();
 	/** Groups with at least one visible item under the current search. */
-	visibleGroups = Implement.Set<string>();
+	visibleGroups = ImplementSet<string>();
 	labelId: string | null = null;
 	root = ref<HTMLDivElement>();
 	input = ref<HTMLInputElement>();
@@ -767,7 +769,7 @@ export const Command = createComponent(function Command(
 	});
 	if (label !== undefined) state.labelId = getId();
 	return CommandCtx.Provide(state).To(
-		Implement.Lifecycle(
+		ImplementLifecycle(
 			{
 				onMount: () => state.search.onChange(() => state.scheduleSync(true)),
 			},
@@ -872,7 +874,7 @@ export const CommandViewport = createComponent(function CommandViewport(
 	...children: Child[]
 ) {
 	return CommandCtx.Use((state) =>
-		Implement.Lifecycle(
+		ImplementLifecycle(
 			{
 				onMount: () => {
 					const node = state.viewport.get();
@@ -918,7 +920,7 @@ export const CommandEmpty = createComponent(function CommandEmpty(
 			[state.filteredCount, ready],
 			(count, isReady) => forceMount || (isReady && count === 0),
 		);
-		return Implement.Lifecycle(
+		return ImplementLifecycle(
 			{ onMount: () => ready.set(true) },
 			Div(
 				mergeProps(
@@ -1027,7 +1029,7 @@ export const CommandGroup = createComponent(function CommandGroup(
 					(search, groups) => !state.filterActive(search) || groups.has(groupValue),
 				);
 		return CommandGroupCtx.Provide(group).To(
-			Implement.Lifecycle(
+			ImplementLifecycle(
 				{ onMount: () => () => state.unregisterGroup(groupValue) },
 				Div(
 					mergeProps(
@@ -1145,7 +1147,7 @@ function commandItem(
 				(selectedValue, current) => current !== "" && selectedValue === current,
 			);
 
-			return Implement.Lifecycle(
+			return ImplementLifecycle(
 				{
 					onMount: () => {
 						if (itemValue.get() === "") {

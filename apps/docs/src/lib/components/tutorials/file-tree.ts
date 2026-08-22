@@ -2,7 +2,7 @@ import {
 	Button,
 	derived,
 	Div,
-	Implement,
+	ImplementLifecycle,
 	Input,
 	Key,
 	ref,
@@ -186,7 +186,7 @@ function CreateInput(
 			},
 			onBlur: () => done(),
 		}),
-		Implement.Lifecycle({
+		ImplementLifecycle({
 			onMount: () => inputRef.get()?.focus(),
 		}),
 	);

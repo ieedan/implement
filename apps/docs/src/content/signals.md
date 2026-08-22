@@ -149,10 +149,10 @@ unsubscribe();
 id.onChange((next, previous) => refetch(next));
 ```
 
-If you want to run an effect now and on every change use [`Implement.Watch`](/docs/derived). It subscribes when it mounts and cleans up after itself when it unmounts. Outside of the tree you can use the [`watch`](/docs/derived) function which returns its unsubscribe function.
+If you want to run an effect now and on every change use [`ImplementEffect`](/docs/derived). It subscribes when it mounts and cleans up after itself when it unmounts. Outside of the tree you can use the [`watch`](/docs/derived) function which returns its unsubscribe function.
 
 > [!TIP]
-> If you subscribe inside a component, tie the subscription to the component's lifetime with [`Implement.Lifecycle`](/docs/lifecycle) so it is cleaned up on unmount.
+> If you subscribe inside a component, tie the subscription to the component's lifetime with [`ImplementLifecycle`](/docs/lifecycle) so it is cleaned up on unmount.
 
 ## Element references
 
@@ -169,6 +169,6 @@ Div(Input({ this: input }), Button({ onClick: () => input.get()?.focus() }, "Foc
 The ref is written right after the node is appended to its parent and set back to `null` on unmount.
 
 > [!NOTE]
-> The node may not be connected to the document yet when the ref is written, because ancestors append after children. To measure or focus once everything is connected use [`Implement.Lifecycle`](/docs/lifecycle).
+> The node may not be connected to the document yet when the ref is written, because ancestors append after children. To measure or focus once everything is connected use [`ImplementLifecycle`](/docs/lifecycle).
 
 You can update the DOM from state now, but real apps also need values computed from other values. That's [derived](/docs/derived), up next.

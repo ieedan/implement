@@ -10,6 +10,7 @@ const PACKAGE_DIRS = [
 	"lucide",
 	"vite",
 	"create-implement-app",
+	"eslint",
 ] as const;
 
 export type PackageInfo = { name: string; version: string };

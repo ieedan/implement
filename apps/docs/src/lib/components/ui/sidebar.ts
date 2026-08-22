@@ -5,7 +5,8 @@ import {
 	derived,
 	Div,
 	If,
-	Implement,
+	ImplementDocument,
+	ImplementLifecycle,
 	Li,
 	signal,
 	Span,
@@ -104,7 +105,7 @@ export const SidebarProvider = createComponent(function SidebarProvider(
 	const store: SidebarStore = { open: openSignal, openMobile, isMobile, state, toggle };
 
 	return SidebarContext.Provide(store).To(
-		Implement.Lifecycle({
+		ImplementLifecycle({
 			onMount() {
 				const query = window.matchMedia(MOBILE_QUERY);
 				const sync = () => {
@@ -120,7 +121,7 @@ export const SidebarProvider = createComponent(function SidebarProvider(
 		}),
 		...(keyboardShortcut
 			? [
-					Implement.Document({
+					ImplementDocument({
 						onKeydown(event) {
 							if (event.key !== SIDEBAR_KEYBOARD_SHORTCUT) return;
 							if (!event.metaKey && !event.ctrlKey) return;

@@ -3,7 +3,7 @@ import {
 	derived,
 	Div,
 	If,
-	Implement,
+	ImplementLifecycle,
 	Input,
 	Key,
 	signal,
@@ -232,7 +232,7 @@ export function Playground(
 
 	return Div(
 		{ class: "flex min-h-0 min-w-0 flex-1 flex-col" },
-		Implement.Lifecycle({
+		ImplementLifecycle({
 			onMount: () =>
 				watchLessonFiles(files, () => {
 					snapshot.set(currentSnapshot());

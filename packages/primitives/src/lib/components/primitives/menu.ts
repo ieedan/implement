@@ -2,7 +2,7 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementLifecycle,
 	ref,
 	signal,
 	type Bindable,
@@ -328,7 +328,7 @@ export function MenuRoot(state: MenuState, ...children: Child[]) {
 		},
 		ScrollLock({ open: state.open, enabled: state.opts.preventScroll !== false }),
 		MenuCtx.Provide(state).To(
-			Implement.Lifecycle(
+			ImplementLifecycle(
 				{
 					onUnmount: () => state.dispose(),
 				},
@@ -794,7 +794,7 @@ export const MenuSub = createComponent(function MenuSub(props: MenuSubProps, ...
 		});
 
 		return MenuSubCtx.Provide(sub).To(
-			Implement.Lifecycle({ onUnmount: () => sub.dispose() }, ...children),
+			ImplementLifecycle({ onUnmount: () => sub.dispose() }, ...children),
 		);
 	});
 });
@@ -820,7 +820,7 @@ export const MenuSubTrigger = createComponent(function MenuSubTrigger(
 				hoverTimer = null;
 			};
 
-			return Implement.Lifecycle(
+			return ImplementLifecycle(
 				{ onUnmount: clearHoverTimer },
 				Div(
 					mergeProps(

@@ -74,7 +74,9 @@ export async function sendResponse(
 		// reports that as a failure. It is how a browser ends an event stream it
 		// no longer needs, or cancels a download — routine, and nothing the app
 		// can act on, so it must not surface as a request error.
-		if ((error as NodeJS.ErrnoException).code !== "ERR_STREAM_PREMATURE_CLOSE") throw error;
+		const code =
+			typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+		if (code !== "ERR_STREAM_PREMATURE_CLOSE") throw error;
 	}
 }
 

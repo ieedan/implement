@@ -1,4 +1,4 @@
-import { derived, Div, Implement, signal, type Mountable } from "@implementjs/core";
+import { derived, Div, ImplementHead, signal, type Mountable } from "@implementjs/core";
 import { SiteHeader } from "../components/site-header";
 import { Playground, type PlaygroundFile } from "../components/tutorials/playground";
 import replExample from "@/content/repl-example.ts?raw";
@@ -13,9 +13,9 @@ export function ReplPage(): Mountable {
 
 	return Div(
 		{ class: "flex h-dvh flex-col overflow-hidden" },
-		Implement.Head(
-			Implement.Head.Title("repl ~ implement"),
-			Implement.Head.Meta({
+		ImplementHead(
+			ImplementHead.Title("repl ~ implement"),
+			ImplementHead.Meta({
 				name: "description",
 				content: "Play with implement in the browser — live preview and console included.",
 			}),

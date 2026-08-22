@@ -3,7 +3,7 @@ import {
 	context,
 	derived,
 	Div,
-	Implement,
+	ImplementMap,
 	ref,
 	signal,
 	type Child,
@@ -39,9 +39,9 @@ class TabsState {
 	value: Signal<string>;
 	disabled: Signal<boolean>;
 	/** Trigger ids by tab value, so each panel can point back at its trigger. */
-	triggerIds: ReactiveMap<string, string> = Implement.Map<string, string>();
+	triggerIds: ReactiveMap<string, string> = ImplementMap<string, string>();
 	/** Content ids by tab value, so each trigger can point at its panel. */
-	contentIds: ReactiveMap<string, string> = Implement.Map<string, string>();
+	contentIds: ReactiveMap<string, string> = ImplementMap<string, string>();
 
 	constructor(
 		readonly opts: Required<Pick<TabsRootProps, "loop" | "orientation" | "activationMode">>,

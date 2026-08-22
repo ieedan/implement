@@ -1,4 +1,12 @@
-import { Div, If, Implement, Pre, signal, type Mountable, type Writable } from "@implementjs/core";
+import {
+	Div,
+	If,
+	ImplementLifecycle,
+	Pre,
+	signal,
+	type Mountable,
+	type Writable,
+} from "@implementjs/core";
 
 /**
  * The code editor, with CodeMirror loaded on demand.
@@ -96,7 +104,7 @@ export function CodeEditor(value: Writable<string>, options: CodeEditorOptions =
 	// `ready` starts false even when the chunk is already resolved, and the
 	// swap is left to a microtask: hydration claims the same stand-in the
 	// server rendered, and only then does the live pane replace it.
-	return Implement.Lifecycle(
+	return ImplementLifecycle(
 		{
 			onMount: () => {
 				let cancelled = false;

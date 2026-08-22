@@ -5,7 +5,7 @@ import {
 	H1,
 	H2,
 	H3,
-	Implement,
+	ImplementHead,
 	Main,
 	P,
 	Section,
@@ -109,6 +109,13 @@ const groups: PackageGroup[] = [
 				docs: { label: "Read the docs", to: "/create" },
 				sourceDir: "create-implement-app",
 			},
+			{
+				name: "@implementjs/eslint",
+				description:
+					"Lint rules for the mistakes types cannot catch: a subscription whose unsubscribe went missing, a misspelled aria attribute, a Lifecycle that wanted to be a Watch. An ESLint plugin, and oxlint runs it too.",
+				docs: { label: "Read the docs", to: "/docs" },
+				sourceDir: "eslint",
+			},
 		],
 	},
 	{
@@ -180,9 +187,9 @@ function PackageGroupSection(group: PackageGroup, data: Readable<PackagesData>):
 export function PackagesPage(data: Readable<PackagesData>): Mountable {
 	return Div(
 		{ class: "flex min-h-dvh flex-col" },
-		Implement.Head(
-			Implement.Head.Title("Packages ~ implement"),
-			Implement.Head.Meta({
+		ImplementHead(
+			ImplementHead.Title("Packages ~ implement"),
+			ImplementHead.Meta({
 				name: "description",
 				content: "The packages that make up implement, grouped by what they do.",
 			}),

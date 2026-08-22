@@ -2,7 +2,7 @@ import {
 	context,
 	Div,
 	Img,
-	Implement,
+	ImplementLifecycle,
 	isReadable,
 	signal,
 	Span,
@@ -114,7 +114,7 @@ export const AvatarImage = createComponent(function AvatarImage({
 		const load = () =>
 			state.loadImage(currentValue(src), currentValue(crossOrigin), currentValue(referrerPolicy));
 
-		return Implement.Lifecycle(
+		return ImplementLifecycle(
 			{
 				onMount: () => {
 					if (!isReadable(src)) return load();
