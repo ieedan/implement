@@ -1,7 +1,7 @@
 import { A, Div, H1, ImplementHead, P, type Mountable } from "@implementjs/core";
 import { Logo } from "../components/logo";
 import { ogTags } from "../og-tags";
-import { Link } from "../router";
+import { router } from "$implement/router";
 
 export function Home(): Mountable {
 	return Div(
@@ -25,7 +25,10 @@ export function Home(): Mountable {
 		P({ class: "text-foreground/60" }, "A simple ergonomic ui framework without a compiler."),
 		Div(
 			{ class: "flex items-center gap-4" },
-			Link({ to: "/docs", class: "text-foreground underline underline-offset-4" }, "Read the docs"),
+			router.Link(
+				{ to: "/docs", class: "text-foreground underline underline-offset-4" },
+				"Read the docs",
+			),
 			A(
 				{
 					href: "https://github.com/ieedan/implement",

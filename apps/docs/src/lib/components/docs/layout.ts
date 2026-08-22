@@ -11,7 +11,7 @@ import {
 	type Mountable,
 } from "@implementjs/core";
 import type { Page } from "@/lib/content";
-import { router } from "../../router";
+import { router } from "$implement/router";
 import { SiteHeader } from "../site-header";
 import { MenuIcon } from "@implementjs/lucide";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../ui/sheet";
