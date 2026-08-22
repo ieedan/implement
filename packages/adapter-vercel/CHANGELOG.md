@@ -1,5 +1,12 @@
 # @implementjs/adapter-vercel
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [[`96c8eb9`](https://github.com/ieedan/implement/commit/96c8eb97aa3a1c5fe234f1c5ab068411476f5cdb)]:
+  - @implementjs/kit@0.0.3
+
 ## 0.0.2
 
 ### Patch Changes
