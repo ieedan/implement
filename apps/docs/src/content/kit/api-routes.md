@@ -139,9 +139,24 @@ kit({ api: { client: { errors: "throw" } } });
 
 An `ApiError` carries the `status`, the parsed `body`, and the `response`. A request that never reached a server — offline, DNS, an aborted signal — is an `ApiError` with status `0`, so `error` is the only branch a caller has to handle.
 
-The `neverthrow` style returns a `ResultAsync<Data, ApiError>`, which is already a `PromiseLike`: `.map`, `.andThen`, and `.match` chain straight off the call, and `await` is only for when you want the plain `Result`. It is the one style with a runtime dependency, so it ships as its own entry and `neverthrow` is an optional peer — apps on the other two styles never install it.
+The `neverthrow` style returns a `ResultAsync<Data, ApiError>`, which is already a `PromiseLike`: `.map`, `.andThen`, and `.match` chain straight off the call, and `await` is only for when you want the plain `Result`. It is the one style with a runtime dependency, so it ships as its own entry and `neverthrow` is an optional peer — apps on the other two styles never install it. Picking it without installing `neverthrow` fails codegen with a message saying so, rather than generating a client whose types quietly resolve to nothing.
 
-`client.style` picks how a call reads: `"method"` (`api.GET(path, …)`, the default) or `"path"` (`api["/api/posts/[id]"].GET(…)`).
+### Nested calls
+
+`client.nested` turns the flat client into a tree of the app's own routes, a segment at a time:
+
+```ts
+kit({ api: { client: { nested: true } } });
+```
+
+```ts
+const { data, error } = await api.api.posts["[id]"].GET({ params: { id: "1" } });
+await api.docs["[...slug].md"].GET({ params: { slug: "guide/install" } });
+```
+
+The tree is the route table's keys split on `/`, so every level offers only the segments that actually continue a route and the methods sit at the leaf — the same calls, the same options, reached by autocomplete instead of by typing a whole route key. A route at the root of the app is called straight off the client (`api.GET()`).
+
+It composes with every error style, so `nested` and `errors` are picked independently. One reservation comes with it: a route's own methods share a level with the routes nested under it, so the seven HTTP method names are taken and a path segment spelled `GET` is not reachable this way.
 
 ## `event.fetch` and `event.api`
 

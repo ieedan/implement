@@ -296,7 +296,7 @@ export type KitServerOptions = {
 	/**
 	 * Builds `event.api`. The generated `.implement/entry-server.ts` passes
 	 * `createClient` from `$implement/client`, so the client an app configured
-	 * — its style, its error handling — is the one bound to `event.fetch`.
+	 * — its shape, its error handling — is the one bound to `event.fetch`.
 	 * Without it `event.api` is an empty object, which is exactly what `App.Api`
 	 * says it is until an app generates its own.
 	 */

@@ -7,14 +7,14 @@ import {
 	createClient,
 	type MethodClient,
 	type Operations,
-	type PathClient,
+	type NestedClient,
 	type ThrowWrapper,
 	type TypedClient,
 } from "../src/client.ts";
 import {
 	createClient as createResultClient,
 	type ResultClient,
-	type ResultPathClient,
+	type ResultNestedClient,
 } from "../src/client-neverthrow.ts";
 import { handler } from "../src/endpoint.ts";
 
@@ -39,6 +39,20 @@ type Api = {
 	"/api/posts/[id]": { params: { id: string }; operations: Operations<typeof posts> };
 	"/docs/[...slug].md": { params: { slug: string }; operations: Operations<{ GET: typeof plain }> };
 };
+
+/** A `server.ts` at `src/routes/server.ts` — the route the nested tree keeps at its own root. */
+type RootOperations = Operations<{ GET: typeof plain }>;
+
+// The nested tree offers exactly what the table has, which `tsc` is the only
+// one who can check — every one of these is an error, and `@ts-expect-error`
+// fails the type check if it stops being one.
+type Nested = NestedClient<Api>;
+// @ts-expect-error nothing continues `/api/posts` with a `comments` segment
+export type _NoSuchSegment = Nested["api"]["posts"]["comments"];
+// @ts-expect-error `/api` is a prefix of a route, not a route of its own
+export type _NoSuchRoute = Nested["api"]["GET"];
+// @ts-expect-error the route serves `GET` and `PATCH`, and nothing else
+export type _NoSuchMethod = Nested["api"]["posts"]["[id]"]["DELETE"];
 
 /** A fetch that records what it was asked for and answers with what a test set up. */
 function stub(respond: (request: Request) => Response | Promise<Response>) {
@@ -204,17 +218,46 @@ describe('the "throw" style', () => {
 	});
 });
 
-describe('the "path" style', () => {
-	it("calls through the route key", async () => {
+describe("the nested client", () => {
+	it("calls through the route's segments", async () => {
 		const stubbed = stub(() => Response.json({ id: "7", title: "hello" }));
-		const api = createClient<PathClient<Api>>({
+		const api = createClient<NestedClient<Api>>({
 			baseUrl: ORIGIN,
 			fetch: stubbed.fetch,
-			style: "path",
+			nested: true,
 		});
-		const { data } = await api["/api/posts/[id]"].GET({ params: { id: "7" } });
+		const { data } = await api.api.posts["[id]"].GET({ params: { id: "7" } });
 		expect(data).toEqual({ id: "7", title: "hello" });
 		expect(stubbed.seen[0]!.url).toBe(`${ORIGIN}/api/posts/7`);
+	});
+
+	it("keeps a leaf's extension and its own body and query", async () => {
+		const stubbed = stub(() => Response.json({ id: 1, title: "renamed" }));
+		const api = createClient<NestedClient<Api>>({
+			baseUrl: ORIGIN,
+			fetch: stubbed.fetch,
+			nested: true,
+		});
+		await api.docs["[...slug].md"].GET({ params: { slug: "guide/install" } });
+		expect(stubbed.seen[0]!.url).toBe(`${ORIGIN}/docs/guide/install.md`);
+
+		const { data } = await api.api.posts["[id]"].PATCH({
+			params: { id: "7" },
+			body: { title: "renamed" },
+		});
+		expect(data).toEqual({ id: 1, title: "renamed" });
+		expect(stubbed.seen[1]!.method).toBe("PATCH");
+	});
+
+	it('serves a route at the root of the tree, which is keyed "/"', async () => {
+		const stubbed = stub(() => Response.json({ ok: true }));
+		const api = createClient<NestedClient<{ "/": { params: {}; operations: RootOperations } }>>({
+			baseUrl: ORIGIN,
+			fetch: stubbed.fetch,
+			nested: true,
+		});
+		await api.GET();
+		expect(stubbed.seen[0]!.url).toBe(`${ORIGIN}/`);
 	});
 });
 
@@ -237,14 +280,15 @@ describe('the "neverthrow" style', () => {
 		if (result.isErr()) expect(result.error.status).toBe(410);
 	});
 
-	it("works in the path style too", async () => {
+	it("wraps a nested client's calls too", async () => {
 		const stubbed = stub(() => Response.json({ id: "7", title: "hello" }));
-		const api = createResultClient<ResultPathClient<Api>>({
+		const api = createResultClient<ResultNestedClient<Api>>({
 			baseUrl: ORIGIN,
 			fetch: stubbed.fetch,
-			style: "path",
+			nested: true,
 		});
-		const post = await api["/api/posts/[id]"].GET({ params: { id: "7" } }).unwrapOr(null);
+		const post = await api.api.posts["[id]"].GET({ params: { id: "7" } }).unwrapOr(null);
 		expect(post).toEqual({ id: "7", title: "hello" });
+		expect(stubbed.seen[0]!.url).toBe(`${ORIGIN}/api/posts/7`);
 	});
 });

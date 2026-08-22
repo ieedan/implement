@@ -135,8 +135,8 @@ describe("App.Api", () => {
 		expect(generateRouterDeclaration(routes, false, { errors: "neverthrow" })).toContain(
 			'import("@implementjs/kit/client/neverthrow").ResultClient<import("../client.ts").Api>',
 		);
-		expect(generateRouterDeclaration(routes, false, { errors: "throw", style: "path" })).toContain(
-			'import("@implementjs/kit/client").PathClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
+		expect(generateRouterDeclaration(routes, false, { errors: "throw", nested: true })).toContain(
+			'import("@implementjs/kit/client").NestedClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
 		);
 	});
 
@@ -222,6 +222,34 @@ describe("writeGenerated", () => {
 		const declaration = readFileSync(join(app, ".implement/types/$implement.d.ts"), "utf8");
 		expect(declaration).toContain('declare module "$implement/pages"');
 		expect(declaration).toContain('declare module "$implement/endpoints"');
+	});
+
+	it("says so when the neverthrow style is picked without the package", () => {
+		const app = makeApp(["page.ts"]);
+		const tree = scanRoutes(join(app, "src/routes"));
+		expect(() => writeGenerated(app, tree, { client: { errors: "neverthrow" } })).toThrow(
+			/`neverthrow` package is not installed/,
+		);
+		// nothing half-generated: the check runs before anything is written
+		expect(existsSync(join(app, ".implement/client.ts"))).toBe(false);
+
+		// the other two styles never need it
+		expect(() => writeGenerated(app, tree, { client: { errors: "throw" } })).not.toThrow();
+	});
+
+	it("generates the neverthrow client once the package resolves", () => {
+		const app = makeApp(["page.ts"]);
+		const installed = join(app, "node_modules/neverthrow");
+		mkdirSync(installed, { recursive: true });
+		writeFileSync(join(installed, "package.json"), '{ "name": "neverthrow", "main": "index.js" }');
+		writeFileSync(join(installed, "index.js"), "export {};\n");
+
+		writeGenerated(app, scanRoutes(join(app, "src/routes")), {
+			client: { errors: "neverthrow" },
+		});
+		expect(readFileSync(join(app, ".implement/client.ts"), "utf8")).toContain(
+			"export const api: ResultClient<Api> = createClient();",
+		);
 	});
 
 	it("prunes $types for removed routes", () => {
