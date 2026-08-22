@@ -1,4 +1,5 @@
 import {
+	Binding,
 	isReadable,
 	isWritable,
 	subscribe,
@@ -1024,6 +1025,18 @@ function setDomValue(el: HTMLElement, key: string, value: unknown) {
 
 function noop() {}
 
+/**
+ * What a prop hands back to be undone: a plain unsubscribe, or a binding that
+ * cancels itself. Keeping the union internal means a bound prop costs one
+ * object and no closure, while the exported surface stays a function.
+ */
+export type Teardown = Unsubscribe | Binding<unknown>;
+
+export function runTeardown(teardown: Teardown): void {
+	if (typeof teardown === "function") teardown();
+	else teardown.stop();
+}
+
 function bindEvent(el: Element, event: string, value: unknown): Unsubscribe {
 	const attach = (handler: unknown): Unsubscribe => {
 		if (typeof handler !== "function") return noop;
@@ -1090,7 +1103,48 @@ function resolveClassValue(value: unknown, found: Set<Readable<unknown>>, out: s
 
 const callUnsubscribe = (unsubscribe: Unsubscribe): void => unsubscribe();
 
-function bindClassProp(el: Element, value: unknown): Unsubscribe {
+/**
+ * A `class` that is one readable of plain strings — a `derived` or a `bind`,
+ * the shape most reactive classes take. It writes the attribute straight from
+ * the value, skipping the resolve pass, the nested-signal bookkeeping, and the
+ * closures the general path needs. A value that turns out to hold nested
+ * readables falls back to that path and stays there.
+ */
+class ClassBinding extends Binding<unknown> {
+	private fallback: Unsubscribe | null = null;
+
+	constructor(
+		private readonly el: Element,
+		private readonly source: ReadableSource,
+	) {
+		super();
+		this.start(source);
+	}
+
+	protected apply(value: unknown): void {
+		if (this.fallback !== null) return;
+		if (typeof value === "string") {
+			this.el.setAttribute("class", value);
+			return;
+		}
+		if (value == null || typeof value === "boolean") {
+			this.el.setAttribute("class", "");
+			return;
+		}
+		// Arrays and objects can carry readables of their own, which need the
+		// resolve-and-resubscribe machinery. Hand the whole prop over once.
+		this.stop();
+		this.fallback = bindClassValue(this.el, this.source);
+	}
+
+	override stop(): void {
+		super.stop();
+		this.fallback?.();
+		this.fallback = null;
+	}
+}
+
+function bindClassProp(el: Element, value: unknown): Teardown {
 	// By far the most common class value is a literal string, and it needs no
 	// resolution pass, no subscription bookkeeping, and no teardown.
 	if (typeof value === "string") {
@@ -1098,6 +1152,12 @@ function bindClassProp(el: Element, value: unknown): Unsubscribe {
 		return noop;
 	}
 
+	if (isReadable(value)) return new ClassBinding(el, value);
+
+	return bindClassValue(el, value);
+}
+
+function bindClassValue(el: Element, value: unknown): Unsubscribe {
 	let subscriptions: Map<Readable<unknown>, Unsubscribe> | null = null;
 	const apply = () => {
 		const found = new Set<Readable<unknown>>();
@@ -1158,7 +1218,40 @@ function bindStyleObject(
 	};
 }
 
-function bindDomProp(el: HTMLElement, tag: string, key: string, value: unknown): Unsubscribe {
+/** Writes one reactive value to one SVG attribute, with no closure per prop. */
+class SvgAttrBinding extends Binding<unknown> {
+	constructor(
+		private readonly el: SVGElement,
+		private readonly name: string,
+		private readonly booleanAsString: boolean,
+		source: ReadableSource,
+	) {
+		super();
+		this.start(source);
+	}
+
+	protected apply(value: unknown): void {
+		setAttribute(this.el, this.name, value, this.booleanAsString);
+	}
+}
+
+/** Writes one reactive value to one DOM property, with no closure per prop. */
+class DomPropBinding extends Binding<unknown> {
+	constructor(
+		private readonly el: HTMLElement,
+		private readonly key: string,
+		source: ReadableSource,
+	) {
+		super();
+		this.start(source);
+	}
+
+	protected apply(value: unknown): void {
+		setDomValue(this.el, this.key, value);
+	}
+}
+
+function bindDomProp(el: HTMLElement, tag: string, key: string, value: unknown): Teardown {
 	const event = eventName(key);
 	if (event) return bindEvent(el, event, value);
 	if (key === "innerHTML") return noop;
@@ -1173,9 +1266,8 @@ function bindDomProp(el: HTMLElement, tag: string, key: string, value: unknown):
 	}
 
 	const twoWay = twoWayBinding(tag, key);
-	const apply = (resolved: unknown) => setDomValue(el, key, resolved);
-
 	if (twoWay && isWritable(value)) {
+		const apply = (resolved: unknown) => setDomValue(el, key, resolved);
 		const unsub = subscribe([value], apply);
 		const handler = () => {
 			value.set(twoWay.read(el));
@@ -1188,10 +1280,10 @@ function bindDomProp(el: HTMLElement, tag: string, key: string, value: unknown):
 	}
 
 	if (isReadable(value)) {
-		return subscribe([value], apply);
+		return new DomPropBinding(el, key, value);
 	}
 
-	apply(value);
+	setDomValue(el, key, value);
 	return noop;
 }
 
@@ -1200,11 +1292,11 @@ export function applyElementProps(
 	el: HTMLElement,
 	tag: string,
 	props: Record<string, unknown>,
-): Unsubscribe {
+): Teardown {
 	// An element whose props are all static — most of them — leaves with no
 	// array and no teardown closure to allocate, and nothing to walk on unmount.
-	let first: Unsubscribe | null = null;
-	let rest: Unsubscribe[] | null = null;
+	let first: Teardown | null = null;
+	let rest: Teardown[] | null = null;
 	for (const key in props) {
 		if (key === "children" || key === "this") continue;
 		const value = props[key];
@@ -1221,8 +1313,8 @@ export function applyElementProps(
 	const head = first;
 	const tail = rest;
 	return () => {
-		head();
-		for (const unsub of tail) unsub();
+		runTeardown(head);
+		for (const teardown of tail) runTeardown(teardown);
 	};
 }
 
@@ -1231,7 +1323,7 @@ const SVG_ATTR_ALIASES: Record<string, string> = {
 	tabIndex: "tabindex",
 };
 
-function bindSvgProp(el: SVGElement, key: string, value: unknown): Unsubscribe {
+function bindSvgProp(el: SVGElement, key: string, value: unknown): Teardown {
 	const event = eventName(key);
 	if (event) return bindEvent(el, event, value);
 
@@ -1248,13 +1340,11 @@ function bindSvgProp(el: SVGElement, key: string, value: unknown): Unsubscribe {
 	// camelCase SVG attributes (viewBox) pass through untouched.
 	const name = SVG_ATTR_ALIASES[key] ?? key;
 	const booleanAsString = key.startsWith("aria-") || key.startsWith("data-");
-	const apply = (resolved: unknown) => setAttribute(el, name, resolved, booleanAsString);
-
 	if (isReadable(value)) {
-		return subscribe([value], apply);
+		return new SvgAttrBinding(el, name, booleanAsString, value);
 	}
 
-	apply(value);
+	setAttribute(el, name, value, booleanAsString);
 	return noop;
 }
 
@@ -1263,9 +1353,9 @@ function bindSvgProp(el: SVGElement, key: string, value: unknown): Unsubscribe {
  * Attribute-only: SVG DOM properties are readonly (`SVGAnimatedLength` etc.),
  * so the HTML property path can never be reused here.
  */
-export function applySvgProps(el: SVGElement, props: Record<string, unknown>): Unsubscribe {
-	let first: Unsubscribe | null = null;
-	let rest: Unsubscribe[] | null = null;
+export function applySvgProps(el: SVGElement, props: Record<string, unknown>): Teardown {
+	let first: Teardown | null = null;
+	let rest: Teardown[] | null = null;
 	for (const key in props) {
 		if (key === "this") continue;
 		const value = props[key];
@@ -1282,8 +1372,8 @@ export function applySvgProps(el: SVGElement, props: Record<string, unknown>): U
 	const head = first;
 	const tail = rest;
 	return () => {
-		head();
-		for (const unsub of tail) unsub();
+		runTeardown(head);
+		for (const teardown of tail) runTeardown(teardown);
 	};
 }
 

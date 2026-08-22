@@ -265,10 +265,17 @@ export function isWritable<T = unknown>(value: unknown): value is Writable<T> {
  * thousands of maps never created, and an unsubscribe that is a field write
  * rather than a hash delete.
  */
+/**
+ * What a notifier hands a value to. A plain callback is the public shape; a
+ * `Binding` is the internal one, and it keeps its state in fields so a
+ * subscription costs one object rather than a chain of closures.
+ */
+type Subscriber<T> = Callback<T> | Binding<T>;
+
 abstract class Notifier<T> {
-	private single: Callback<T> | null = null;
+	private single: Subscriber<T> | null = null;
 	private singleId = 0;
-	private many: Map<number, Callback<T>> | null = null;
+	private many: Map<number, Subscriber<T>> | null = null;
 	private nextId = 0;
 
 	protected get subscriberCount(): number {
@@ -281,7 +288,21 @@ abstract class Notifier<T> {
 	 * caller that has cleanup of its own wraps one closure instead of two. Every
 	 * subscription carries an id so one held past a promotion still cancels.
 	 */
-	protected addSubscriber(callback: Callback<T>): number {
+	/**
+	 * Registers a binding without the wrapper closure `subscribe` would add.
+	 * Only ever reached through `takesBindings`, which checks that this
+	 * notifier's own subscriber table is the one its `subscribe` feeds.
+	 */
+	attachBinding(binding: Binding<T>): number {
+		return this.addSubscriber(binding);
+	}
+
+	/** Cancels an `attachBinding` registration by its id. */
+	detachBinding(id: number): void {
+		this.removeSubscriber(id);
+	}
+
+	protected addSubscriber(callback: Subscriber<T>): number {
 		const id = ++this.nextId;
 		if (this.many === null && this.single === null) {
 			this.single = callback;
@@ -315,13 +336,85 @@ abstract class Notifier<T> {
 
 	protected notifySubscribers(value: T): void {
 		if (this.many === null) {
-			this.single?.(value);
+			const only = this.single;
+			if (only !== null) deliver(only, value);
 			return;
 		}
 		// A copy, because a subscriber may unsubscribe while this iterates.
 		// oxlint-disable-next-line unicorn/no-useless-spread -- The copy is the point: iterating the live map would skip a subscriber removed mid-notify.
-		for (const callback of [...this.many.values()]) callback(value);
+		for (const subscriber of [...this.many.values()]) deliver(subscriber, value);
 	}
+}
+
+/**
+ * Whether a source's own subscriber table is the one its `subscribe` feeds, so
+ * a binding registered there will actually be notified. `BoundPath` and
+ * `BoundSelector` extend `Signal` but forward `subscribe` to another signal
+ * and never notify their own table, so an `instanceof` test would silently
+ * drop their updates. Comparing the method itself cannot go stale: a subclass
+ * that overrides `subscribe` fails this and takes the callback path.
+ */
+function takesBindings<T>(source: ReadableSource<T>): source is Notifier<T> & ReadableSource<T> {
+	if (!(source instanceof Notifier)) return false;
+	// oxlint-disable-next-line typescript/unbound-method -- Compared by identity, never called; that is the whole point of the check.
+	const method: unknown = source.subscribe;
+	return (
+		method === Signal.prototype.subscribe ||
+		method === LazyReadable.prototype.subscribe ||
+		method === ForwardedSignal.prototype.subscribe
+	);
+}
+
+function deliver<T>(subscriber: Subscriber<T>, value: T): void {
+	if (typeof subscriber === "function") subscriber(value);
+	else subscriber.receive(value);
+}
+
+/**
+ * A subscription that is its own teardown. Going through `subscribe` leaves a
+ * getter closure, a change-filtering wrapper, and an unsubscribe closure —
+ * three closures and their contexts for every bound prop, which at six
+ * bindings a row is most of what a long list retains. A binding keeps the
+ * same state in fields on one object instead, and cancels by id.
+ */
+export abstract class Binding<T> {
+	/** Set only when the source could not take a binding directly. */
+	private cancel: Unsubscribe | null = null;
+	private notifier: Notifier<T> | null = null;
+	private id = 0;
+	private value!: T;
+
+	/** Reads the source, applies the value, and subscribes for later ones. */
+	protected start(source: ReadableSource<T>): void {
+		this.value = source.get();
+		if (takesBindings(source)) {
+			this.notifier = source;
+			this.id = source.attachBinding(this);
+		} else {
+			// Sources outside the notifier hierarchy (reactive collections, views)
+			// still take a plain callback; one closure here beats none of the rest.
+			this.cancel = source.subscribe((next: T) => this.receive(next));
+		}
+		this.apply(this.value);
+	}
+
+	/** Called by the notifier. Filters unchanged values the way `subscribe` does. */
+	receive(next: T): void {
+		if (next === this.value) return;
+		this.value = next;
+		this.apply(next);
+	}
+
+	/** Ends the subscription. Safe to call more than once. */
+	stop(): void {
+		this.notifier?.detachBinding(this.id);
+		this.notifier = null;
+		this.cancel?.();
+		this.cancel = null;
+	}
+
+	/** Writes the value wherever this binding points. */
+	protected abstract apply(value: T): void;
 }
 
 export class Signal<T> extends Notifier<T> implements Writable<T> {
@@ -700,6 +793,19 @@ abstract class LazyReadable<T> extends Notifier<T> implements Readable<T> {
 		};
 	}
 
+	// A lazy source only watches its own sources while something is listening,
+	// and a binding counts the same as a callback.
+	override attachBinding(binding: Binding<T>): number {
+		if (this.disposed) return 0;
+		this.activate();
+		return this.addSubscriber(binding);
+	}
+
+	override detachBinding(id: number): void {
+		this.removeSubscriber(id);
+		if (this.subscriberCount === 0) this.deactivate();
+	}
+
 	onChange(callback: ChangeCallback<T>): Unsubscribe {
 		if (!this.disposed && !this.sourceUnsubscribe) {
 			this.value = this.read();
@@ -902,12 +1008,67 @@ function setAtKeys(obj: unknown, keys: readonly string[], value: unknown, path: 
  * like `toggle` / `push` work; `set` writes an updated parent object so
  * `todo.bind("author.name")` updates the nested field.
  */
-class BoundPath<T> extends Signal<unknown> {
+/**
+ * A writable that reads through to another signal: `bind(path)` and
+ * `bind(selector, update)`. Each one used to give every subscriber its own
+ * upstream subscription and its own change filter, so a row with three bound
+ * texts held three chains into the same source. This watches the source once,
+ * for as long as anything is listening, and notifies its own subscribers —
+ * which also lets bound props register directly instead of through a callback.
+ */
+abstract class ForwardedSignal<T> extends Signal<T> {
+	private sourceUnsubscribe: Unsubscribe | null = null;
+	private current!: T;
+
+	/** The upstream signal this reads through to. */
+	protected abstract origin(): ReadableSource;
+
+	private activate(): void {
+		if (this.sourceUnsubscribe !== null) return;
+		this.current = this.get();
+		this.sourceUnsubscribe = this.origin().subscribe(() => {
+			const next = this.get();
+			if (!hasChanged(this.current, next)) return;
+			this.current = next;
+			this.notifySubscribers(next);
+		});
+	}
+
+	private deactivate(): void {
+		this.sourceUnsubscribe?.();
+		this.sourceUnsubscribe = null;
+	}
+
+	override subscribe(callback: Callback<T>): Unsubscribe {
+		this.activate();
+		const id = this.addSubscriber(callback);
+		return () => {
+			this.removeSubscriber(id);
+			if (this.subscriberCount === 0) this.deactivate();
+		};
+	}
+
+	override attachBinding(binding: Binding<T>): number {
+		this.activate();
+		return this.addSubscriber(binding);
+	}
+
+	override detachBinding(id: number): void {
+		this.removeSubscriber(id);
+		if (this.subscriberCount === 0) this.deactivate();
+	}
+}
+
+class BoundPath<T> extends ForwardedSignal<unknown> {
 	constructor(
 		private readonly source: Writable<T>,
 		private readonly path: string,
 	) {
 		super(getAtPath(source.get(), path));
+	}
+
+	protected origin(): ReadableSource {
+		return this.source;
 	}
 
 	get(): unknown {
@@ -925,28 +1086,22 @@ class BoundPath<T> extends Signal<unknown> {
 		this.source.flush();
 	}
 
-	subscribe(callback: Callback<unknown>): Unsubscribe {
-		let current = this.get();
-		return this.source.subscribe(() => {
-			const next = this.get();
-			if (!hasChanged(current, next)) return;
-			current = next;
-			callback(next);
-		});
-	}
-
 	onChange(callback: ChangeCallback<unknown>): Unsubscribe {
 		return bindOnChange(this.get(), (cb) => this.subscribe(cb), callback);
 	}
 }
 
-class BoundSelector<T, U> extends Signal<U> {
+class BoundSelector<T, U> extends ForwardedSignal<U> {
 	constructor(
 		private readonly source: Writable<T>,
 		private readonly selector: (value: T) => U,
 		private readonly writeBack: BindUpdate<T, U>,
 	) {
 		super(selector(source.get()));
+	}
+
+	protected origin(): ReadableSource {
+		return this.source;
 	}
 
 	get(): U {
@@ -965,16 +1120,6 @@ class BoundSelector<T, U> extends Signal<U> {
 
 	flush() {
 		this.source.flush();
-	}
-
-	subscribe(callback: Callback<U>): Unsubscribe {
-		let current = this.get();
-		return this.source.subscribe(() => {
-			const next = this.get();
-			if (!hasChanged(current, next)) return;
-			current = next;
-			callback(next);
-		});
 	}
 
 	onChange(callback: ChangeCallback<U>): Unsubscribe {

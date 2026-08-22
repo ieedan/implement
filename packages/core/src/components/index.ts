@@ -6,14 +6,15 @@ import {
 	endHydration,
 	withMountParent,
 } from "../hydration";
-import { isReadable } from "../signal";
+import { Binding, isReadable } from "../signal";
 import { beginDetach, beginDiscard, endDetach, endDiscard, isDetaching, mountChild } from "../tree";
-import type { Unsubscribe } from "../types";
 import {
 	applyElementProps,
+	runTeardown,
 	syncValueProp,
 	type ElementChildArgs,
 	type ElementProps,
+	type Teardown,
 } from "./props";
 import type { Child, IMountable, Mountable, PrimitiveChild, ReadableChild } from "./types";
 
@@ -89,26 +90,33 @@ class StaticText implements IMountable {
 }
 
 /** A text node that follows a readable. One closure at mount, not three at creation. */
-class LiveText implements IMountable {
+/**
+ * A `Binding` rather than a subscriber, so a reactive text child costs this
+ * object and nothing else: subscribing through a callback would leave a
+ * closure to receive the value and another to cancel with, on every text in
+ * every row.
+ */
+class LiveText extends Binding<PrimitiveChild> implements IMountable {
 	#node: Text | null = null;
 	#content: ReadableChild;
-	#unsubscribe: Unsubscribe | null = null;
 
 	constructor(content: ReadableChild) {
+		super();
 		this.#content = content;
 	}
 
 	mount(parent: HTMLElement): void {
 		this.#node = dom.createTextNode(toText(this.#content.get()));
 		dom.attach(parent, this.#node);
-		this.#unsubscribe = this.#content.subscribe((value) => {
-			if (this.#node) this.#node.data = toText(value);
-		});
+		this.start(this.#content);
+	}
+
+	protected apply(value: PrimitiveChild): void {
+		if (this.#node) this.#node.data = toText(value);
 	}
 
 	unmount(): void {
-		this.#unsubscribe?.();
-		this.#unsubscribe = null;
+		this.stop();
 		if (!isDetaching()) this.#node?.remove();
 		this.#node = null;
 	}
@@ -196,6 +204,26 @@ export function reconcileChildren(
 	return [...fromProps, ...children].map(toMountable);
 }
 
+/**
+ * Keeps an element's lone text node current. A `Binding` rather than a
+ * `subscribe` call because this is the densest reactive shape in a list —
+ * three per row here — and going through a callback would leave a closure to
+ * receive each value and another to cancel with, on every one of them.
+ */
+class TextBinding extends Binding<PrimitiveChild> {
+	constructor(
+		private readonly node: Text,
+		source: ReadableChild,
+	) {
+		super();
+		this.start(source);
+	}
+
+	protected apply(value: PrimitiveChild): void {
+		this.node.data = toText(value);
+	}
+}
+
 const NO_CHILDREN: Mountable[] = [];
 
 class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
@@ -211,9 +239,9 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	 */
 	#textChild: ReadableChild | null = null;
 	#textNode: Text | null = null;
-	#unsubscribeText: Unsubscribe | null = null;
+	#textBinding: TextBinding | null = null;
 	#mountedChildren: IMountable[] | null = null;
-	#unsubscribeProps: Unsubscribe | null = null;
+	#unsubscribeProps: Teardown | null = null;
 
 	constructor(tag: T, props: ElementProps<T>, ...children: ElementChildArgs<T>) {
 		this.#tag = tag;
@@ -243,11 +271,7 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 				dom.attach(host, node);
 			});
 			const node = this.#textNode;
-			if (node !== null) {
-				this.#unsubscribeText = content.subscribe((value) => {
-					node.data = toText(value);
-				});
-			}
+			if (node !== null) this.#textBinding = new TextBinding(node, content);
 		}
 		for (const child of this.#children) {
 			const createdChild = child();
@@ -271,10 +295,10 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 		beginDiscard();
 		beginDetach();
 		try {
-			this.#unsubscribeProps?.();
+			if (this.#unsubscribeProps !== null) runTeardown(this.#unsubscribeProps);
 			this.#unsubscribeProps = null;
-			this.#unsubscribeText?.();
-			this.#unsubscribeText = null;
+			this.#textBinding?.stop();
+			this.#textBinding = null;
 			this.#textNode = null;
 			if (this.#mountedChildren !== null) {
 				for (const child of this.#mountedChildren) child.unmount();
