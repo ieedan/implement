@@ -7,7 +7,7 @@
 	"scripts": {
 		"dev": "pnpm --filter @apps/docs dev",
 		"build": "pnpm -r build",
-		"check": "pnpm -r check",
+		"check": "tsc --noEmit -p tsconfig.scripts.json && pnpm -r check",
 		"test": "NO_COLOR=1 pnpm -r test",
 		"generate": "pnpm -r generate",
 		"registry": "pnpm -r registry",
@@ -17,13 +17,20 @@
 		"lint": "oxlint --disable-nested-config --deny-warnings",
 		"lint:fix": "oxlint --disable-nested-config --fix --deny-warnings",
 		"format": "oxfmt",
-		"format:check": "oxfmt --check"
+		"format:check": "oxfmt --check",
+		"check:changesets": "node --experimental-strip-types scripts/check-changesets.ts",
+		"changeset": "changeset",
+		"changeset:version": "changeset version",
+		"changeset:publish": "pnpm build && changeset publish",
+		"prepare": "git config core.hooksPath .githooks || exit 0"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"packageManager": "pnpm@11.22.0",
 	"devDependencies": {
+		"@changesets/changelog-github": "^1.0.0",
+		"@changesets/cli": "^3.0.1",
 		"@implementjs/eslint": "workspace:*",
 		"@types/node": "^26.2.0",
 		"jscpd": "^5.0.15",

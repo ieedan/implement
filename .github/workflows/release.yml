@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # a release half-done is worse than a release that waits its turn
+  cancel-in-progress: false
+
+permissions:
+  # push the version commit and the release tags
+  contents: write
+  # open and update the version pull request
+  pull-requests: write
+  # let npm mint a provenance statement for what it publishes
+  id-token: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # the changelog traces every changeset file back to the pull request
+          # that added it, which it can only do with the full history
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          # writes the .npmrc that NODE_AUTH_TOKEN authenticates through
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      # the gate that actually holds: a changeset asking for more than this
+      # repo's version line allows never reaches `changeset version`, whoever
+      # committed it and whatever hooks their clone did or did not have
+      - run: pnpm check:changesets --all
+      # With changesets pending this opens (or updates) the version pull
+      # request. With none pending — which is what merging that pull request
+      # leaves behind — it builds and publishes whatever the registry has not
+      # seen. In prerelease mode both halves follow the tag in
+      # .changeset/pre.json rather than `latest`.
+      - uses: changesets/action@v2
+        with:
+          version-script: pnpm changeset:version
+          publish-script: pnpm changeset:publish
+          commit-message: "chore: version packages"
+          pr-title: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

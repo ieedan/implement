@@ -1,11 +1,35 @@
 {
 	"name": "@implementjs/kit",
 	"version": "0.0.0",
-	"private": true,
+	"description": "File based routing, server rendering and prerendering for implement apps, on top of Vite.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"kit",
+		"vite",
+		"ssr",
+		"routing",
+		"prerender",
+		"fullstack"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/kit",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/kit"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
 	"type": "module",
 	"bin": {
 		"implement-kit": "./dist/cli.mjs"
 	},
+	"files": [
+		"dist"
+	],
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
@@ -54,6 +78,55 @@
 		"./sync": {
 			"types": "./src/sync.ts",
 			"default": "./src/sync.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			},
+			"./client": {
+				"types": "./dist/client.d.mts",
+				"default": "./dist/client.mjs"
+			},
+			"./client/neverthrow": {
+				"types": "./dist/client-neverthrow.d.mts",
+				"default": "./dist/client-neverthrow.mjs"
+			},
+			"./endpoint": {
+				"types": "./dist/endpoint.d.mts",
+				"default": "./dist/endpoint.mjs"
+			},
+			"./adapter": {
+				"types": "./dist/adapter.d.mts",
+				"default": "./dist/adapter.mjs"
+			},
+			"./handler": {
+				"types": "./dist/handler.d.mts",
+				"default": "./dist/handler.mjs"
+			},
+			"./openapi": {
+				"types": "./dist/openapi.d.mts",
+				"default": "./dist/openapi.mjs"
+			},
+			"./node": {
+				"types": "./dist/node.d.mts",
+				"default": "./dist/node.mjs"
+			},
+			"./server": {
+				"types": "./dist/server.d.mts",
+				"default": "./dist/server.mjs"
+			},
+			"./runtime": {
+				"types": "./dist/runtime.d.mts",
+				"default": "./dist/runtime.mjs"
+			},
+			"./sync": {
+				"types": "./dist/sync.d.mts",
+				"default": "./dist/sync.mjs"
+			}
 		}
 	},
 	"scripts": {

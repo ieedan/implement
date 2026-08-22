@@ -18,8 +18,8 @@ const LIB_FILE = "src/lib/utils.ts";
 const DEFAULT_PATHS = { ui: UI_DIR, lib: "src/lib" };
 
 /**
- * implement isn't published to a registry yet, so the packages a component pulls in ask for the
- * latest tag — the same thing `create-implement-app` writes into a scaffolded `package.json`.
+ * The packages a component pulls in ask for the latest tag, the same thing
+ * `create-implement-app` writes into a scaffolded `package.json`.
  */
 const IMPLEMENT_VERSION = "latest";
 

@@ -1,9 +1,15 @@
+[![npm version](https://img.shields.io/npm/v/@implementjs/formish.svg)](https://www.npmjs.com/package/@implementjs/formish) [![npm downloads](https://img.shields.io/npm/dm/@implementjs/formish.svg)](https://www.npmjs.com/package/@implementjs/formish)
+
 # @implementjs/formish
 
 Schema-first forms for [implement](https://github.com/ieedan/implement). The schema types
 the fields, validates the input and produces the output your submit handler receives — any
 [Standard Schema](https://standardschema.dev) library works, so valibot, zod and arktype
 are all fair game.
+
+```sh
+npm install @implementjs/formish
+```
 
 ```ts
 import { Button, Div, Input, Label, Span } from "@implementjs/core";

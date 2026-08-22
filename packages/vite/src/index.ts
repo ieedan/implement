@@ -112,6 +112,17 @@ export function implement(options: ImplementOptions = {}): Plugin {
 
 	return {
 		name: "implement",
+		/**
+		 * The implement packages are never external to an SSR run. Published
+		 * they are plain ESM, so Vite would hand them straight to Node, where
+		 * the `import.meta.env` their dev-only diagnostics read does not exist
+		 * and the first one to run throws. Bundling them puts the server halves
+		 * on the same `import.meta.env` the client build gives them.
+		 * `@implementjs/kit`'s own server build already does this.
+		 */
+		config() {
+			return { ssr: { noExternal: [/^@implementjs\//] } };
+		},
 		configResolved(resolved) {
 			config = resolved;
 		},

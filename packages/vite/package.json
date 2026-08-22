@@ -1,8 +1,30 @@
 {
 	"name": "@implementjs/vite",
 	"version": "0.0.0",
-	"private": true,
+	"description": "The Vite plugin behind implement's server rendering, prerendering and dev styles.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"vite",
+		"vite-plugin",
+		"ssr",
+		"prerender"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/docs/vite",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/vite"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
 	"type": "module",
+	"files": [
+		"dist"
+	],
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
@@ -11,6 +33,19 @@
 		"./inject": {
 			"types": "./src/inject.ts",
 			"default": "./src/inject.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			},
+			"./inject": {
+				"types": "./dist/inject.d.mts",
+				"default": "./dist/inject.mjs"
+			}
 		}
 	},
 	"scripts": {

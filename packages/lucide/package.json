@@ -1,13 +1,43 @@
 {
 	"name": "@implementjs/lucide",
 	"version": "0.0.0",
-	"private": true,
+	"description": "The Lucide icon set as implement components. One module per icon, so bundlers keep only what you import.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"lucide",
+		"icons",
+		"svg"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/lucide",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/lucide"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
 	"type": "module",
 	"sideEffects": false,
+	"files": [
+		"dist"
+	],
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			}
 		}
 	},
 	"scripts": {

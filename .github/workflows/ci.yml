@@ -68,6 +68,25 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
+  extension:
+    name: Extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # A bad manifest, a missing icon, or an entry point that does not bundle
+      # would otherwise only surface at publish time.
+      - run: pnpm --filter implement-vscode package
+      - uses: actions/upload-artifact@v5
+        with:
+          name: implement-vscode
+          path: packages/vscode/implement-vscode.vsix
+
   registry:
     name: Registry
     runs-on: ubuntu-latest
@@ -105,6 +124,21 @@ jobs:
       # page was added or renamed without it.
       - run: pnpm skills
       - run: git diff --exit-code .agents/skills
+
+  changesets:
+    name: Changesets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # the pre-commit hook runs this too, but a hook only exists in a clone
+      # that installed, and git will not run one out of a fresh checkout at all
+      - run: pnpm check:changesets --all
 
   jscpd:
     name: Duplication

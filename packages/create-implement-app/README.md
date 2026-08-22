@@ -1,3 +1,5 @@
+[![npm version](https://img.shields.io/npm/v/create-implement-app.svg)](https://www.npmjs.com/package/create-implement-app) [![npm downloads](https://img.shields.io/npm/dm/create-implement-app.svg)](https://www.npmjs.com/package/create-implement-app)
+
 # create-implement-app
 
 Scaffold a new [implement](https://github.com/ieedan/implement) app.
@@ -141,7 +143,7 @@ export default defineConfig({
 
 ## Inside the monorepo
 
-implement isn't published to a registry yet, so a generated `package.json` asks for `latest` and will only install once the packages land. To scaffold an app inside this repo, pass `--workspace` — the implement dependencies come out as `workspace:*` and resolve against the workspace:
+A generated `package.json` asks for the `latest` tag of each implement package. To scaffold an app inside this repo, pass `--workspace` — the implement dependencies come out as `workspace:*` and resolve against the workspace:
 
 ```sh
 pnpm create implement-app demos/my-demo --workspace --yes
