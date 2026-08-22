@@ -9,7 +9,8 @@
 		}
 	],
 	"commit": false,
-	"ignore": ["@apps/docs"],
+	"ignore": [],
+	"privatePackages": { "version": true, "tag": false },
 	"fixed": [],
 	"linked": [],
 	"updateInternalDependencies": "patch"
