@@ -100,6 +100,10 @@ export function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | 
 
 /** The `file:line:column` of the first frame in `stack`, without its function name. */
 export function frameLocation(stack: string | undefined): string | undefined {
+	// Internal to the diagnostics, like `captureStack`: its only callers hand the
+	// result to a developer-facing message, and in production there is no stack to
+	// read a frame out of anyway.
+	if (!import.meta.env.DEV) return undefined;
 	const frame = stack?.split("\n")[0]?.trim();
 	if (!frame) return undefined;
 	// v8: `at name (file:line:col)` or `at file:line:col`
@@ -117,16 +121,27 @@ function framesOf(stack: string | undefined): string[] {
 }
 
 /**
- * Where core's own modules live, read from this file's own frame at load. Frames
- * are matched against this directory rather than bare file names so an app's
+ * Where core's own modules live, read from this file's own frame. Frames are
+ * matched against this directory rather than bare file names so an app's
  * `context.ts` is never mistaken for core's; a bundle that no longer ships those
  * names simply matches nothing and keeps every frame.
+ *
+ * Resolved on first use rather than at load: this is diagnostic-only machinery,
+ * and a module that throws and stack-parses on import is one no bundler can
+ * treat as side-effect free.
  */
-const coreDirectory = ((): string | undefined => {
-	const file = frameLocation(framesOf(new Error().stack).join("\n"))?.replace(/:\d+:\d+$/, "");
-	const slash = file?.lastIndexOf("/") ?? -1;
-	return slash === -1 ? undefined : file!.slice(0, slash + 1);
-})();
+let coreDirectory: string | undefined;
+let coreDirectoryResolved = false;
+
+function getCoreDirectory(): string | undefined {
+	if (!coreDirectoryResolved) {
+		coreDirectoryResolved = true;
+		const file = frameLocation(framesOf(new Error().stack).join("\n"))?.replace(/:\d+:\d+$/, "");
+		const slash = file?.lastIndexOf("/") ?? -1;
+		coreDirectory = slash === -1 ? undefined : file!.slice(0, slash + 1);
+	}
+	return coreDirectory;
+}
 
 /**
  * The frames above core's own, so the first line is the code that called in.
@@ -134,9 +149,13 @@ const coreDirectory = ((): string | undefined => {
  * always goes with them.
  */
 export function captureStack(modules: string[]): string | undefined {
+	// Stacks exist to be read by a developer. Bailing before the throw keeps the
+	// capture, the directory probe and the frame walk out of a production build.
+	if (!import.meta.env.DEV) return undefined;
 	const frames = framesOf(new Error().stack);
-	if (frames.length === 0 || !coreDirectory) return frames.join("\n") || undefined;
-	const directory = coreDirectory.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const core = getCoreDirectory();
+	if (frames.length === 0 || !core) return frames.join("\n") || undefined;
+	const directory = core.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	const internal = new RegExp(`${directory}(?:${["utils", ...modules].join("|")})\\.[cm]?[jt]s`);
 	while (frames.length > 0 && internal.test(frames[0]!)) frames.shift();
 	return frames.length > 0 ? frames.join("\n") : undefined;

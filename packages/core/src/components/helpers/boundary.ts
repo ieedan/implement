@@ -31,12 +31,12 @@ export type BoundaryHelper = Mountable & {
  * the stack.
  *
  * ```ts
- * Implement.Boundary(IssuePage(id)).Catch((error, reset) =>
+ * ImplementBoundary(IssuePage(id)).Catch((error, reset) =>
  * 	Div(P(error.message), Button({ onClick: reset }, "Retry")),
  * );
  * ```
  */
-export function Boundary(...children: Child[]): BoundaryHelper {
+export function ImplementBoundary(...children: Child[]): BoundaryHelper {
 	let catchRender: ((error: Error, reset: () => void) => Child) | null = null;
 
 	const helper: BoundaryHelper = Object.assign(

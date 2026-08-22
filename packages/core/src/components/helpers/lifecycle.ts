@@ -24,15 +24,15 @@ export type LifecycleProps = {
  * an `If` toggling branches inside the children does not re-fire them.
  *
  * ```ts
- * Implement.Lifecycle({ onMount: (el) => el.querySelector("input")?.focus() });
+ * ImplementLifecycle({ onMount: (el) => el.querySelector("input")?.focus() });
  *
- * Implement.Lifecycle(
+ * ImplementLifecycle(
  * 	{ onMount: () => id.onChange(refetch) },
  * 	IssueView(id),
  * );
  * ```
  */
-export function Lifecycle(props: LifecycleProps = {}, ...children: Child[]): Mountable {
+export function ImplementLifecycle(props: LifecycleProps = {}, ...children: Child[]): Mountable {
 	return () => {
 		const childrenArray = reconcileChildren(props, ...children);
 		let mounted: IMountable[] = [];

@@ -1,5 +1,11 @@
 import { dom } from "../dom";
-import { beginHydration, describeMismatch, endHydration, withMountParent } from "../hydrate";
+import {
+	beginHydration,
+	canHydrate,
+	describeMismatch,
+	endHydration,
+	withMountParent,
+} from "../hydration";
 import { isReadable } from "../signal";
 import { beginDetach, beginDiscard, endDetach, endDiscard, isDetaching, mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
@@ -336,7 +342,22 @@ export function App(options: { target: HTMLElement }) {
 			// it; remember where it ended to roll a failed mount back
 			const handoff = host[HANDOFF];
 			const mark = handoff === undefined ? -1 : target.childNodes.length;
-			const ssr = target.querySelector("[data-ssr]");
+			// Server markup with nothing installed to adopt it would otherwise be
+			// claimed as the mount root without a single node having been hydrated,
+			// leaving the stale tree on screen under the fresh one. Discarding it is
+			// the same fallback a mismatch takes, and correct — just not free.
+			const serialized = target.querySelector("[data-ssr]");
+			let ssr = serialized;
+			if (serialized !== null && !canHydrate()) {
+				if (import.meta.env.DEV) {
+					console.warn(
+						'[implement] found server-rendered markup but hydration is not installed, so it was discarded and mounted fresh.\nCall `installHydration()` from "@implementjs/core/hydrate" before your first render. (Kit apps get this in their generated client entry.)',
+					);
+				}
+				serialized.remove();
+				sweepHead();
+				ssr = null;
+			}
 			try {
 				if (ssr) {
 					beginHydration(ssr);

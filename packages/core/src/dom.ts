@@ -5,7 +5,7 @@ import {
 	claimText,
 	isHydrating,
 	wasClaimed,
-} from "./hydrate";
+} from "./hydration";
 
 /**
  * The DOM factory surface core mounts through. The browser environment

@@ -2,7 +2,8 @@ import { A, Br, Button, Div, Form, H1, Img, Input, Link, P, Span } from "./eleme
 import { ForEach } from "./helpers/foreach";
 import { Fragment } from "./helpers/fragment";
 import { If } from "./helpers/if";
-import { Implement } from "./helpers/implement";
+import { ImplementHead } from "./helpers/head";
+import { ImplementMap, ImplementSet } from "./helpers/implement";
 import { Svg } from "./helpers/svg";
 import { derived, Ref, signal, type Readable, type Signal, type Writable } from "../signal";
 import type { Child } from "./types";
@@ -120,35 +121,35 @@ Svg(glyph, { strokeWidth: 1.5 });
 Svg(glyph, {}, "nope");
 
 const title = signal("Tracker");
-Implement.Head(
-	Implement.Head.Title(title),
-	Implement.Head.Title("Tracker"),
-	Implement.Head.Meta({ name: "description", content: title }),
-	Implement.Head.Meta({ property: "og:title", content: "Tracker" }),
-	Implement.Head.Meta({ charset: "utf-8" }),
-	Implement.Head.Link({ rel: "icon", href: "/favicon.svg" }),
-	Implement.Head.Script({ src: "/analytics.js", async: true }),
-	Implement.Head.Script(
+ImplementHead(
+	ImplementHead.Title(title),
+	ImplementHead.Title("Tracker"),
+	ImplementHead.Meta({ name: "description", content: title }),
+	ImplementHead.Meta({ property: "og:title", content: "Tracker" }),
+	ImplementHead.Meta({ charset: "utf-8" }),
+	ImplementHead.Link({ rel: "icon", href: "/favicon.svg" }),
+	ImplementHead.Script({ src: "/analytics.js", async: true }),
+	ImplementHead.Script(
 		{ type: "application/ld+json" },
 		title.bind((t) => `{"name":"${t}"}`),
 	),
-	Implement.Head.Style(":root { color-scheme: dark; }"),
+	ImplementHead.Style(":root { color-scheme: dark; }"),
 );
 
-// @ts-expect-error only head-branded components slot into Implement.Head
-Implement.Head(Div());
+// @ts-expect-error only head-branded components slot into ImplementHead
+ImplementHead(Div());
 // @ts-expect-error text is not a head child
-Implement.Head("nope");
-// @ts-expect-error head components cannot render outside Implement.Head
-Div({}, Implement.Head.Meta({ name: "description", content: "nope" }));
+ImplementHead("nope");
+// @ts-expect-error head components cannot render outside ImplementHead
+Div({}, ImplementHead.Meta({ name: "description", content: "nope" }));
 // @ts-expect-error head components are not regular children props
-Div({ children: Implement.Head.Title("nope") });
+Div({ children: ImplementHead.Title("nope") });
 // @ts-expect-error meta content cannot be a script prop bag
-Implement.Head.Meta({ src: "/nope.js" });
+ImplementHead.Meta({ src: "/nope.js" });
 // @ts-expect-error script content is the second argument, not a children prop
-Implement.Head.Script({ children: "nope" });
+ImplementHead.Script({ children: "nope" });
 
-const selected = Implement.Set<string>(["a", "b"]);
+const selected = ImplementSet<string>(["a", "b"]);
 selected.add("c");
 selected.toggle("a");
 selected.delete("b");
@@ -164,7 +165,7 @@ ForEach(
 );
 derived([selected], (s) => s.size);
 
-const drafts = Implement.Map<string, string>([["a", "draft"]]);
+const drafts = ImplementMap<string, string>([["a", "draft"]]);
 drafts.set("b", "another");
 drafts.delete("a");
 const draft: string | undefined = drafts.get("b");

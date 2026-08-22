@@ -3,10 +3,19 @@
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
+	"sideEffects": false,
+	"files": [
+		"src",
+		"!src/**/type-test.ts"
+	],
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
+		},
+		"./hydrate": {
+			"types": "./src/hydrate.ts",
+			"default": "./src/hydrate.ts"
 		},
 		"./elements": {
 			"types": "./src/components/elements.ts",
@@ -28,9 +37,11 @@
 		"check": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
 		"test": "vitest run"
 	},
+	"dependencies": {
+		"fast-deep-equal": "^3.1.3"
+	},
 	"devDependencies": {
 		"@types/node": "^26.2.0",
-		"fast-deep-equal": "^3.1.3",
 		"happy-dom": "^20.0.11",
 		"tsdown": "^0.22.14",
 		"typescript": "^7.0.2",
