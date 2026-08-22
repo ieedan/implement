@@ -5,24 +5,26 @@ Context is extremely important for writing reusable components.
 In implement you can create a context using the `context` function.
 
 ```ts
-import { context } from "@implementjs/core";
+import { context, type Signal } from "@implementjs/core";
 
 type Theme = "light" | "dark";
 
-const ThemeContext = context<Signal<Theme>>();
+// the name is optional but worth passing: it's what a missing-provider error
+// calls this context. Without one the error falls back to the file and line.
+const ThemeContext = context<Signal<Theme>>("ThemeContext");
 ```
 
 Then you need to mount the context provider wrapping your children:
 
 ```ts
-import { context, type Child } from "@implementjs/core";
+import { context, signal, type Child, type Signal } from "@implementjs/core";
 
 type Theme = "light" | "dark";
 
-const ThemeContext = context<Signal<Theme>>();
+const ThemeContext = context<Signal<Theme>>("ThemeContext");
 
 export default function App(...children: Child[]) {
-	const theme = signal("light");
+	const theme = signal<Theme>("light");
 	// <context>.Provide(<value>).To(<children>)
 	return ThemeContext.Provide(theme).To(...children);
 }
@@ -51,25 +53,28 @@ export function ThemeSwitcher() {
 }
 ```
 
+`Use` throws if no provider sits above it in the tree. When rendering without one is legitimate, `<context>.UseOr((<value>) => <children>, <fallback>)` supplies a default instead — the render function then receives `T | typeof fallback`.
+
 > [!IMPORTANT]
 > Context values are **not** reactive by default. Transport a signal to be able to react to updates.
 
 A common pattern is to send a class through context and which has reactive properties:
 
 ```ts
-import { context, type Child } from "@implementjs/core";
+import { context, signal, type Child } from "@implementjs/core";
 
 type Theme = "light" | "dark";
 
 class ThemeManager {
-	private theme = signal<Theme>("light");
+	// public: `Use` hands the instance to code outside the class, which reads it
+	readonly theme = signal<Theme>("light");
 
 	toggle() {
 		this.theme.set(this.theme.get() === "light" ? "dark" : "light");
 	}
 }
 
-const ThemeContext = context<ThemeManager>();
+const ThemeContext = context<ThemeManager>("ThemeContext");
 
 export default function App(...children: Child[]) {
 	const themeManager = new ThemeManager();

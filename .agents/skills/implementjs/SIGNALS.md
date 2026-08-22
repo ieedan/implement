@@ -67,21 +67,26 @@ import { signal } from "@implementjs/core";
 
 const count = signal(0);
 
-signal.get(); // 0
-signal.set(1);
-signal.get(); // 1
-signal.increment();
-signal.get(); // 2
+count.get(); // 0
+count.set(1);
+count.get(); // 1
+count.increment();
+count.get(); // 2
 ```
 
-For the most part Signals should just be POJOs but you will probably find yourself needing Sets and Maps so for that implementjs implements: `Implement.Set` and `Implement.Map`:
+For the most part Signals should just be POJOs but you will probably find yourself needing Sets and Maps so for that implementjs implements `ImplementSet` and `ImplementMap`. They are factory functions, and what they hand back is a real `Set`/`Map` that is also a readable of an immutable snapshot:
 
 ```ts
-import { Implement } from "@implementjs/core";
+import { ImplementMap, ImplementSet } from "@implementjs/core";
 
-Implement.Set; // reactive set
-Implement.Map; // reactive map
+const selected = ImplementSet<string>(); // reactive set, optional initial iterable
+const drafts = ImplementMap<string, string>(); // reactive map, optional initial entries
+
+Button({ onClick: () => selected.toggle(id) }, "Select");
+Span(selected.bind((s) => `${s.size} selected`));
 ```
+
+Mutators (`add`/`delete`/`clear`/`toggle` on the set, `set`/`delete`/`clear` on the map) notify subscribers. On a map, `get(key)` reads an entry non-reactively and `get()` with no arguments is the readable's snapshot.
 
 ## Binding and Deriving values
 
@@ -92,7 +97,7 @@ import { derived, signal } from "@implementjs/core";
 
 const count = signal(0);
 const multiplier = signal(2);
-const computed = derived([count, multiplier], ([count, multiplier]) => count * multiplier);
+const computed = derived([count, multiplier], (count, multiplier) => count * multiplier);
 
 computed.get(); // 0
 count.set(1);
@@ -177,17 +182,25 @@ unsubscribe();
 unsubscribe2();
 ```
 
-Alternatively you can mount the `Implement.Watch` component to watch for changes to one of more signals and automatically unsubscribe when the component is unmounted.
+Alternatively you can mount the `ImplementEffect` component to watch for changes to one or more signals and automatically unsubscribe when the component is unmounted. Values arrive as separate arguments, in the order of the signals array.
 
 ```ts
-import { Implement } from "@implementjs/core";
+import { ImplementEffect } from "@implementjs/core";
 
 export default function Page() {
-	return Implement.Watch([count, multiplier], (count, multiplier) =>
+	return ImplementEffect([count, multiplier], (count, multiplier) =>
 		console.log(count * multiplier),
 	);
 }
 ```
+
+It runs immediately on mount with the current values and again on every change. Pass `{ immediate: false }` to skip the run on mount and react to changes only:
+
+```ts
+ImplementEffect([id], (id) => refetch(id), { immediate: false });
+```
+
+It renders nothing, so mount it beside whatever it belongs to (in a `Fragment`, or as a child of the element that owns it).
 
 ### How updates propagate
 

@@ -20,4 +20,4 @@ export { Portal, type PortalHelper, type PortalProps } from "./portal";
 export { Svg, type SvgProps } from "./svg";
 export { Switch, type SwitchHelper } from "./switch";
 export { ImplementDocument, ImplementMap, ImplementSet, ImplementWindow } from "./implement";
-export { ImplementEffect } from "./watch";
+export { ImplementEffect, type EffectOptions } from "./watch";

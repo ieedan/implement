@@ -40,18 +40,28 @@ To make these reactive you can use the helper components exported from `@impleme
 Render a reactive if statement.
 
 ```ts
-import { If } from "@implementjs/core";
+import { If, signal } from "@implementjs/core";
 
 export default function Page() {
 	const condition = signal(false);
 	const condition2 = signal(false);
 	return If(condition)
 		.Then(Div("Hello, World!"))
-		.Else(Div("Goodbye, World!"))
 		.ElseIf(condition2)
 		.Then(Div("Hello, World 2!"))
-		.Else(Div("Goodbye, World 2!"));
+		.Else(Div("Goodbye, World!"));
 }
+```
+
+The first branch whose condition holds is the one that mounts. `Else` is the tail of the chain and there is only one of them — calling it twice just overwrites the previous children, so keep every `ElseIf` before it.
+
+Children can also be passed directly after the condition instead of through `.Then(...)`, and a lone signal is tested for truthiness:
+
+```ts
+If(user, ProfileCard()).Else(LoginForm());
+
+// several signals plus a getter over their values
+If([query, items], (q, list) => q !== "" && list.length === 0, P("No results"));
 ```
 
 ### Switch
@@ -59,7 +69,7 @@ export default function Page() {
 Render a reactive switch statement.
 
 ```ts
-import { Switch } from "@implementjs/core";
+import { Switch, signal } from "@implementjs/core";
 
 export default function Page() {
 	const status = signal<Status>("todo");
@@ -74,7 +84,7 @@ export default function Page() {
 
 ### ForEach
 
-Render a reactive list of items.
+Render a reactive list of items. The render function receives the row (a `Signal<T>` when the list is writable, a `Readable<T>` when it isn't) and a `Readable<number>` index.
 
 ```ts
 import { ForEach, signal } from "@implementjs/core";
@@ -101,7 +111,7 @@ export default function Page() {
 For when you need to force re-render a component based on a signal.
 
 ```ts
-import { Key } from "@implementjs/core";
+import { Key, signal } from "@implementjs/core";
 
 export default function Page() {
 	const counter = signal(0);
@@ -113,7 +123,7 @@ export default function Page() {
 or based on multiple signals:
 
 ```ts
-import { Key } from "@implementjs/core";
+import { Key, signal } from "@implementjs/core";
 
 export default function Page() {
 	const counter = signal(0);
@@ -125,17 +135,19 @@ export default function Page() {
 
 ### Portal
 
-Render a component somewhere else in the DOM.
+Render a component somewhere else in the DOM. Children stay in the logical tree, so context and unmounting still behave as if they rendered in place.
 
 ```ts
 import { Portal } from "@implementjs/core";
 
 export default function Page() {
-	return Portal(Div("Hello, World!"), "body");
+	return Portal(Div("Hello, World!")); // document.body by default
 }
 ```
 
 #### Targeting the portal
+
+The target is an `HTMLElement` or a `Readable<HTMLElement>`, not a selector string:
 
 ```ts
 Portal(Toast(message)).To(toastRoot);

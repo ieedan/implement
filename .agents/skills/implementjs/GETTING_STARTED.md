@@ -45,6 +45,8 @@ There are two templates. `--template csr` is the plain core app this document co
 | `--forms`        | Add `@implementjs/formish` and valibot. `--no-forms` opts out.                                               |
 | `--mode-watcher` | Add `@implementjs/mode-watcher`. `--no-mode-watcher` opts out.                                               |
 | `--overwrite`    | Scaffold into the directory even if it already has files in it.                                              |
+| `--link <path>`  | Point every implement dependency at a local clone of the implement repo.                                     |
+| `--workspace`    | Depend on the implement packages with `workspace:*` (for apps inside the implement monorepo).                |
 
 Without `--overwrite` a non-empty directory stops the run.
 

@@ -61,6 +61,7 @@ export {
 	type AwaitHelper,
 	type BoundaryHelper,
 	type DocumentProps,
+	type EffectOptions,
 	type FragmentProps,
 	type HeadChild,
 	type HeadHelper,

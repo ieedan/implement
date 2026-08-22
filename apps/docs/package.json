@@ -32,6 +32,7 @@
 		"valibot": "^1.4.1"
 	},
 	"devDependencies": {
+		"@implementjs/adapter-vercel": "workspace:*",
 		"@implementjs/kit": "workspace:*",
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",

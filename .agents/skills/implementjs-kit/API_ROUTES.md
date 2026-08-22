@@ -53,7 +53,7 @@ export function HEAD(): Response {
 
 `handle` also receives everything a normal `RequestEvent` has: `request`, `url`, `locals`, `route`, `isDataRequest`, `platform`, `setHeaders`, `getClientAddress`, `fetch`, `api`.
 
-Body parsing is by content type: `application/json` → `request.json()`, form content types → `request.formData()` flattened to an object.
+Body parsing is by content type: a form content type is `request.formData()` flattened to an object, a JSON one is parsed (a malformed body is a `400`), no content type at all is tried as JSON and handed over as text if it isn't, and anything else is handed over as text. An empty body is `undefined`, so the schema decides whether that is allowed.
 
 ## Returning
 

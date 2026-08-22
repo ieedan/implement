@@ -53,6 +53,11 @@ describe("@implementjs/adapter-vercel", () => {
 		expect(existsSync(join(output, "static/index.html"))).toBe(true);
 		expect(existsSync(join(output, "static/pinned/index.html"))).toBe(true);
 		expect(existsSync(join(fn, "index.js"))).toBe(true);
+		// without this the Node launcher reads the ESM bundle as CommonJS
+		expect(JSON.parse(readFileSync(join(fn, "package.json"), "utf8"))).toEqual({
+			private: true,
+			type: "module",
+		});
 		expect(JSON.parse(readFileSync(join(fn, ".vc-config.json"), "utf8"))).toEqual({
 			runtime: "nodejs20.x",
 			handler: "index.js",
