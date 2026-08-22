@@ -36,6 +36,10 @@ jobs:
           # writes the .npmrc that NODE_AUTH_TOKEN authenticates through
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      # the gate that actually holds: a changeset asking for more than this
+      # repo's version line allows never reaches `changeset version`, whoever
+      # committed it and whatever hooks their clone did or did not have
+      - run: pnpm check:changesets --all
       # With changesets pending this opens (or updates) the version pull
       # request. With none pending — which is what merging that pull request
       # leaves behind — it builds and publishes whatever the registry has not

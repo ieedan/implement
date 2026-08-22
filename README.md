@@ -45,19 +45,37 @@ whatever the registry has not seen yet. Each changelog entry links back to the p
 changeset arrived in, which is why the workflow checks out the full history: the link is found
 by tracing the changeset file to the commit that added it.
 
-The packages are in prerelease for `0.1.0`, under the `alpha` tag:
+### Patch only, for now
+
+The packages are on `0.0.x`, so the next release is `0.0.1` and `patch` is the only bump a
+changeset may ask for. A `minor` would publish `0.1.0` and a `major` would publish `1.0.0`, and
+a version number cannot be taken back once the registry has it.
+
+[`scripts/check-changesets.ts`](scripts/check-changesets.ts) is what holds that line. It reads
+the changesets out of the git index, so it sees what is actually being committed rather than
+what happens to be on disk. Run it over the whole directory by hand with:
 
 ```sh
-npm install @implementjs/core@alpha
+pnpm check:changesets --all
 ```
 
-`.changeset/pre.json` is what puts them there, and everything published while it exists goes to
-the `alpha` dist tag instead of `latest`. Leaving the prerelease is a command and one more
-version pull request:
+It runs in three places, in increasing order of how much they can be relied on:
 
-```sh
-pnpm changeset pre exit
-```
+| Where                                                        | Catches                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------- |
+| [`.githooks/pre-commit`](.githooks/pre-commit)               | your own commit, before it exists                    |
+| the `Changesets` job in [`ci.yml`](.github/workflows/ci.yml) | anything reaching a pull request                     |
+| a step in [`release.yml`](.github/workflows/release.yml)     | anything reaching `changeset version`, from anywhere |
+
+The hook is the convenience, not the guarantee. Git will not run a hook out of a fresh clone,
+by design, so an agent that clones and commits without installing has none. The root `prepare`
+script points `core.hooksPath` at the tracked `.githooks` directory, which means one
+`pnpm install` is enough to get it and the hook itself is reviewable in the repo rather than
+sitting untracked in `.git`. What actually stops a bad changeset from being published is the
+step in the release workflow, which runs before `changeset version` and does not care where the
+commit came from.
+
+When the version line really does move, raise `ALLOWED_BUMPS` in the script.
 
 ## TODOS
 

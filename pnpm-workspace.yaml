@@ -3,7 +3,12 @@ packages:
   - "apps/*"
 allowBuilds:
   "@parcel/watcher": true
+  # vsce's native postinstalls, deliberately skipped. Packaging needs neither:
+  # signing happens marketplace-side, and publishing reads VSCE_PAT rather than
+  # the system keychain.
+  "@vscode/vsce-sign": false
   esbuild: true
+  keytar: false
   sharp: true
 minimumReleaseAgeExclude:
   - satori@0.33.3

@@ -25,6 +25,9 @@ apps/docs/static/velite/
 
 # Build output
 dist/
+
+# Packaged VS Code extension
+*.vsix
 build/
 out/
 # kit's generated directory, and where a build is staged for an adapter

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Tracked hook, reached through `core.hooksPath` which the root `prepare` script
+# sets. Git will not run a hook out of a fresh clone on its own, so this is a
+# convenience for anyone who has installed, not the thing that holds the line.
+# The checks in .github/workflows do that.
+pnpm check:changesets

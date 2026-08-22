@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/core",
-	"version": "0.1.0-alpha.0",
+	"version": "0.0.0",
 	"description": "Signals, element helpers and a router for implement. Plain TypeScript that builds real DOM nodes, no compiler.",
 	"keywords": [
 		"implement",

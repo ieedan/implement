@@ -37,9 +37,6 @@ export default defineConfig({
 		// Lesson starter/solution/test sidecars are teaching content shown in the
 		// tutorial editor; they intentionally import things the learner will use.
 		"apps/docs/src/content/lessons/**",
-		// A standalone editor extension, not repo source: plain CommonJS meant to
-		// be copied into ~/.vscode/extensions and to build with no toolchain.
-		"implement-snippets/**",
 	],
 	overrides: [
 		{
