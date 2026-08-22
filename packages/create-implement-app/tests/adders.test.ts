@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { adders, applyAdders, parseAdders } from "@/adders";
 import { ADDERS, type AdderContext } from "@/adders/types";
+import { VERSIONS } from "@/templates/versions";
 import { unwrap, unwrapErr } from "./utils";
 
 function ctx(overrides: Partial<AdderContext> = {}): AdderContext {
@@ -15,7 +16,7 @@ function packageJson(overrides: Record<string, unknown> = {}): string {
 			version: "0.0.0",
 			type: "module",
 			scripts: { dev: "vite" },
-			dependencies: { "@implementjs/core": "^0.0.3" },
+			dependencies: { "@implementjs/core": VERSIONS["@implementjs/core"] },
 			devDependencies: { vite: "^7.3.0" },
 			...overrides,
 		},

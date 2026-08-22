@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Template file map lookups return known scaffold paths. */
 import { getTemplate, templates } from "@/templates";
 import { ADDONS, type Addon, TEMPLATES, type TemplateContext } from "@/templates/types";
-import { VERSIONS } from "@/templates/versions";
 
 function ctx(overrides: Partial<TemplateContext> = {}): TemplateContext {
 	return { name: "my-app", addons: [], workspace: false, ...overrides };
@@ -72,9 +71,9 @@ describe("templates", () => {
 	});
 
 	it.each(TEMPLATES)("%s asks for a version by default and workspace:* with --workspace", (id) => {
-		expect(pkg(fileMap(id, ctx())).dependencies["@implementjs/core"]).toBe(
-			VERSIONS["@implementjs/core"],
-		);
+		// a range and not a tag: `latest` would resolve at install time, so the same CLI would
+		// scaffold apps built against different releases
+		expect(pkg(fileMap(id, ctx())).dependencies["@implementjs/core"]).toMatch(/^\^\d+\.\d+\.\d+$/);
 		expect(pkg(fileMap(id, ctx({ workspace: true }))).dependencies["@implementjs/core"]).toBe(
 			"workspace:*",
 		);
