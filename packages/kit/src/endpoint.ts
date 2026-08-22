@@ -62,7 +62,7 @@ export type FormRecord = Record<string, FormDataEntryValue | FormDataEntryValue[
  * the module.
  */
 export type EndpointSpec = {
-	/** What `handle` sees as `event.params` — the route's strings, or the `params` schema's output. */
+	/** What `handle` sees as `event.params` — what the route bound, or the `params` schema's output. */
 	params: unknown;
 	/** What a caller may send as `query`, or `undefined` when nothing declares it. */
 	query: unknown;
@@ -94,7 +94,11 @@ export type Handler<S extends EndpointSpec = EndpointSpec> = ((
 
 /** The event a validated `handle` receives: the request event with the parsed parts on it. */
 export type HandlerEvent<Params, Query, Body> = Omit<RequestEvent, "params"> & {
-	/** The route's params — strings, or the `params` schema's output when one is declared. */
+	/**
+	 * The route's params: what the route bound — strings, or whatever a
+	 * `[id=<name>]` matcher parsed them into — or the `params` schema's output
+	 * when the handler declares one.
+	 */
 	params: Params;
 	/** `url.searchParams`, or the `query` schema's output when one is declared. */
 	query: Query;
@@ -165,7 +169,10 @@ type BodyInputOf<BS> = BS extends Schema ? StandardSchemaV1.InferInput<BS> : und
 
 /** The parts of a definition that do not depend on whether a `response` schema is present. */
 type Parts<PS, QS, BS> = {
-	/** Overrides the route's string params — coerce an `[id]` to a number here. */
+	/**
+	 * Overrides what the route bound — coerce an `[id]` to a number here. A
+	 * `[id=integer]` matcher already did that, and for every route naming it.
+	 */
 	params?: PS;
 	/** Validates `url.searchParams`, flattened to one value (or an array) per key. */
 	query?: QS;
@@ -178,8 +185,11 @@ type Parts<PS, QS, BS> = {
  * params. Two call signatures: with a `response` schema `handle` must return
  * something the schema accepts, and without one the return type flows straight
  * through to the client.
+ *
+ * `P` is what the route binds: strings, unless a `[id=<name>]` param matcher
+ * parsed the segment into something else on the way in.
  */
-export interface HandlerBuilder<P extends Record<string, string> = Record<string, string>> {
+export interface HandlerBuilder<P extends Record<string, unknown> = Record<string, string>> {
 	<
 		PS extends Schema | undefined = undefined,
 		QS extends Schema | undefined = undefined,

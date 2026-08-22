@@ -1,4 +1,5 @@
 import { comparePatterns, matchRoutePattern, normalizeRoutePath } from "./match.ts";
+import { appMatchers } from "./params.ts";
 
 /**
  * Route code-splitting: the generated router module declares a handle per page
@@ -95,7 +96,13 @@ export function registerRouteModules(routes: ModuleRoute[]): void {
  */
 export async function preloadRoute(url: string): Promise<void> {
 	const path = normalizeRoutePath(new URL(url, "http://implement.internal").pathname);
-	const route = moduleRoutes.find((entry) => matchRoutePattern(entry.pattern, path) !== null);
+	// the real matchers, not `"structure"`: preloading the chunks of a route a
+	// matcher would turn down leaves the route that does serve the path without
+	// its modules, and the render is synchronous
+	const matchers = appMatchers();
+	const route = moduleRoutes.find(
+		(entry) => matchRoutePattern(entry.pattern, path, matchers) !== null,
+	);
 	if (route === undefined) return;
 	await Promise.all(route.modules.map((id) => handleFor(id).load()));
 }

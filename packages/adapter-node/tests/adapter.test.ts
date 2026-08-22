@@ -97,6 +97,17 @@ describe("@implementjs/adapter-node", () => {
 		expect(plain.headers.get("cache-control")).toBe("public, max-age=0, must-revalidate");
 	});
 
+	it("runs the app's param matchers in the deployed server", async () => {
+		const matched = await fetch(`${origin}/orders/42`);
+		expect(matched.status).toBe(200);
+		expect(await matched.text()).toContain("order #42");
+
+		// the matcher turns the segment down, so nothing serves the path
+		const rejected = await fetch(`${origin}/orders/express`);
+		expect(rejected.status).toBe(404);
+		expect(await rejected.text()).toContain("error: Not Found");
+	});
+
 	it("renders the app's error page for an unknown path", async () => {
 		const response = await fetch(`${origin}/nope`);
 		expect(response.status).toBe(404);

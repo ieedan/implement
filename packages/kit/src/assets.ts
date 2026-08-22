@@ -64,7 +64,11 @@ export function matchRouteAssets(
 	path: string,
 ): RouteAssets | undefined {
 	const normalized = normalizeRoutePath(path);
-	return entries.find((entry) => matchRoutePattern(entry.pattern, normalized) !== null);
+	// structural: these are preload hints, and the app's matcher modules are not
+	// something the asset table should have to have loaded to name a chunk
+	return entries.find(
+		(entry) => matchRoutePattern(entry.pattern, normalized, "structure") !== null,
+	);
 }
 
 /**

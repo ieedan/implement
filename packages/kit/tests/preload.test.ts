@@ -35,8 +35,8 @@ const tree: RouteTree = {
 				children: [
 					node({
 						dir: "docs/[...slug]",
-						segment: { kind: "rest", name: "slug" },
-						params: ["slug"],
+						segment: { kind: "rest", name: "slug", matcher: null },
+						params: [{ name: "slug", matcher: null }],
 						page: "docs/[...slug]/page.ts",
 					}),
 				],
@@ -44,6 +44,7 @@ const tree: RouteTree = {
 		],
 	}),
 	error: "error.ts",
+	matchers: [],
 };
 
 /** The shape Vite writes: keys are root-relative sources, `imports` are keys too. */

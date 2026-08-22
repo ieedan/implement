@@ -7,8 +7,23 @@ import {
 } from "@implementjs/core";
 import { preloadRoute } from "./lazy.ts";
 import { dataPath, matchRoutePattern, normalizeRoutePath, type RouteData } from "./match.ts";
+import { appMatchers, registerMatchers } from "./params.ts";
 
 export { lazyModule, preloadRoute, registerRouteModules, type ModuleHandle } from "./lazy.ts";
+
+export { registerMatchers };
+
+export {
+	appMatchers,
+	isParamMatcher,
+	matcher,
+	matcherTable,
+	mismatch,
+	type AnyParamMatcher,
+	type ParamMatcher,
+	type ParamMatchers,
+	type ParamType,
+} from "./params.ts";
 
 export {
 	comparePatterns,
@@ -76,7 +91,10 @@ export function registerRoutes(routes: ClientRoute[]): void {
 
 /** Fetch and seed the destination's `__data.json`; no-op for a route with no loads. */
 async function fetchRouteData(path: string): Promise<void> {
-	const route = clientRoutes.find((entry) => matchRoutePattern(entry.pattern, path) !== null);
+	const matchers = appMatchers();
+	const route = clientRoutes.find(
+		(entry) => matchRoutePattern(entry.pattern, path, matchers) !== null,
+	);
 	if (route === undefined) return;
 	const response = await fetch(dataPath(path));
 	if (!response.ok) throw new Error(`fetching route data failed: ${response.status}`);

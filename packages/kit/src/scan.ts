@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 export const PAGE_FILE = "page.ts";
@@ -10,16 +10,21 @@ export const LAYOUT_SERVER_FILE = "layout.server.ts";
 
 export type RouteSegment =
 	| { kind: "static"; value: string }
-	| { kind: "param"; name: string }
-	| { kind: "rest"; name: string }
+	/** `[id]`, or `[id=integer]` with the name of the matcher gating it. */
+	| { kind: "param"; name: string; matcher: string | null }
+	/** `[...slug]`, or `[...slug=path]` — the matcher sees the joined remainder. */
+	| { kind: "rest"; name: string; matcher: string | null }
 	| { kind: "group"; name: string };
+
+/** A route param with the matcher gating it, as a route's `$types` need it. */
+export type RouteParam = { name: string; matcher: string | null };
 
 export type RouteNode = {
 	/** Directory path relative to the routes dir, `""` for the root. */
 	dir: string;
 	segment: RouteSegment | null;
 	/** Params accumulated from the root down to (and including) this segment. */
-	params: string[];
+	params: RouteParam[];
 	/** Relative path of this directory's page (`page.ts` or `page@<target>.ts`), when present. */
 	page: string | null;
 	/**
@@ -57,16 +62,30 @@ export type RouteTree = {
 	root: RouteNode;
 	/** Relative path of the root `error.ts`, when present. */
 	error: string | null;
+	/**
+	 * The param matchers the app declares, sorted: one name per
+	 * `<params>/<name>.ts`, which is the name a `[param=<name>]` directory uses.
+	 */
+	matchers: string[];
 };
 
-/** `[...slug]` → rest, `[id]` → param, `(name)` → group, anything else → static. */
+/**
+ * `[...slug]` → rest, `[id]` → param, `(name)` → group, anything else →
+ * static. A `=<name>` suffix inside the brackets names the param matcher
+ * gating the segment: `[id=integer]`, `[...slug=path]`.
+ */
 export function parseSegment(name: string): RouteSegment {
 	if (name.startsWith("[") || name.endsWith("]")) {
-		const match = /^\[(\.\.\.)?([^[\]./]+)\]$/.exec(name);
+		const match = /^\[(\.\.\.)?([^[\]./=]+)(?:=([^[\]./=]+))?\]$/.exec(name);
 		if (!match) {
-			throw new Error(`Invalid route directory name "${name}" — expected [param] or [...rest]`);
+			throw new Error(
+				`Invalid route directory name "${name}" — expected [param], [...rest], or either with a =matcher`,
+			);
 		}
-		return match[1] ? { kind: "rest", name: match[2]! } : { kind: "param", name: match[2]! };
+		const matcher = match[3] ?? null;
+		return match[1]
+			? { kind: "rest", name: match[2]!, matcher }
+			: { kind: "param", name: match[2]!, matcher };
 	}
 	if (name.startsWith("(") || name.endsWith(")")) {
 		const match = /^\(([^()/@]+)\)$/.exec(name);
@@ -111,6 +130,20 @@ export function isRouteFileName(name: string): boolean {
 const EXTENSION_DIR = /^(\.[a-z0-9]+)+$/i;
 
 /**
+ * Every `<params>/<name>.ts` in the app, sorted — the matchers a
+ * `[param=<name>]` directory may name. A params directory that does not exist
+ * is simply an app with no matchers.
+ */
+export function scanMatchers(paramsDir: string | null): string[] {
+	if (paramsDir === null || !existsSync(paramsDir)) return [];
+	return readdirSync(paramsDir, { withFileTypes: true })
+		.filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
+		.map((entry) => entry.name.slice(0, -".ts".length))
+		.filter((name) => name !== "")
+		.toSorted((a, b) => a.localeCompare(b));
+}
+
+/**
  * Scans a routes directory into a tree of pages and layouts. Only `page.ts`,
  * `layout.ts`, their `@` layout-reset variants, the server files
  * (`page.server.ts` / `layout.server.ts` loads and `server.ts` endpoints),
@@ -119,11 +152,18 @@ const EXTENSION_DIR = /^(\.[a-z0-9]+)+$/i;
  * holding a `server.ts`, which serve the parent path with the extension
  * appended. `(group)` directories scope layouts without contributing a URL
  * segment.
+ *
+ * `paramsDir` is where the app's param matchers live (`src/params`). A
+ * `[param=<name>]` directory naming a matcher that is not in there is a scan
+ * error, so a typo'd matcher is caught when the route tree is read rather than
+ * when a request happens to reach the route.
  */
-export function scanRoutes(routesDir: string): RouteTree {
+export function scanRoutes(routesDir: string, paramsDir: string | null = null): RouteTree {
+	const matchers = scanMatchers(paramsDir);
 	const tree: RouteTree = {
 		root: scanDirectory(routesDir, "", null, []),
 		error: null,
+		matchers,
 	};
 	if (
 		readdirSync(routesDir, { withFileTypes: true }).some(
@@ -133,6 +173,7 @@ export function scanRoutes(routesDir: string): RouteTree {
 		tree.error = ERROR_FILE;
 	}
 	assertUniquePatterns(tree.root);
+	assertMatchersExist(tree.root, matchers);
 	return tree;
 }
 
@@ -140,7 +181,7 @@ function scanDirectory(
 	routesDir: string,
 	dir: string,
 	segment: RouteSegment | null,
-	params: string[],
+	params: RouteParam[],
 ): RouteNode {
 	const node: RouteNode = {
 		dir,
@@ -221,13 +262,13 @@ function scanDirectory(
 
 		const childSegment = parseSegment(entry.name);
 		if (childSegment.kind === "param" || childSegment.kind === "rest") {
-			if (params.includes(childSegment.name)) {
+			if (params.some((param) => param.name === childSegment.name)) {
 				throw new Error(`Duplicate route param "${childSegment.name}" at "${relative}"`);
 			}
 		}
 		const childParams =
 			childSegment.kind === "param" || childSegment.kind === "rest"
-				? [...params, childSegment.name]
+				? [...params, { name: childSegment.name, matcher: childSegment.matcher }]
 				: params;
 		const child = scanDirectory(routesDir, relative, childSegment, childParams);
 		if (!hasRouteFiles(child)) continue;
@@ -276,7 +317,9 @@ function validateResetTarget(info: RouteFileInfo, dir: string, relative: string)
 	}
 }
 
-function segmentIsRest(segment: RouteSegment | null): segment is { kind: "rest"; name: string } {
+function segmentIsRest(
+	segment: RouteSegment | null,
+): segment is Extract<RouteSegment, { kind: "rest" }> {
 	return segment !== null && segment.kind === "rest";
 }
 
@@ -293,14 +336,42 @@ export function hasRouteFiles(node: RouteNode): boolean {
 }
 
 /**
- * The URL-pattern contribution of a segment: `/docs`, `/:id`, or `/:...slug`.
- * `(group)` segments contribute nothing.
+ * The URL-pattern contribution of a segment: `/docs`, `/:id`, `/:...slug`, or
+ * either param form with the matcher gating it — `/:id=integer`. `(group)`
+ * segments contribute nothing.
  */
 export function segmentKey(segment: RouteSegment): string {
 	if (segment.kind === "static") return `/${segment.value}`;
-	if (segment.kind === "param") return `/:${segment.name}`;
-	if (segment.kind === "rest") return `/:...${segment.name}`;
-	return "";
+	if (segment.kind === "group") return "";
+	const suffix = segment.matcher === null ? "" : `=${segment.matcher}`;
+	return segment.kind === "rest" ? `/:...${segment.name}${suffix}` : `/:${segment.name}${suffix}`;
+}
+
+/**
+ * Every `[param=<name>]` in the tree names a matcher the app actually has.
+ * Checked over the whole tree at once so the message can list what is there.
+ */
+function assertMatchersExist(root: RouteNode, matchers: string[]): void {
+	const known = new Set(matchers);
+	const walk = (node: RouteNode) => {
+		const segment = node.segment;
+		if (
+			segment !== null &&
+			(segment.kind === "param" || segment.kind === "rest") &&
+			segment.matcher !== null &&
+			!known.has(segment.matcher)
+		) {
+			const available =
+				matchers.length === 0
+					? "the app declares no param matchers"
+					: `the ones it declares are ${matchers.join(", ")}`;
+			throw new Error(
+				`"${node.dir}" names the param matcher "${segment.matcher}", but there is no "${segment.matcher}.ts" in the params directory — ${available}`,
+			);
+		}
+		for (const child of node.children) walk(child);
+	};
+	walk(root);
 }
 
 /** The URL pattern an extension endpoint serves: its directory's pattern with the extension appended. */
