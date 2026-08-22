@@ -134,4 +134,4 @@ Setting `null`, `""`, or the fallback removes the parameter from the URL. Withou
 
 No redirects, route-level code splitting, relative navigation, or hash/base-path modes yet. A navigation to a `#hash` restores or resets scroll like any other — it does not scroll the fragment's element into view for you. See [`MISSING.md`](https://github.com/ieedan/implement/blob/main/MISSING.md) in the repo for the roadmap of sharp edges.
 
-With routing in place, all that's left is running and shipping the thing, which is where [Vite](/docs/vite) comes in.
+The router itself is built on parts the package exports — a swappable region, the current location, an effect. [Custom nodes](/docs/custom-nodes) shows the same pieces from the other side, and builds a small router out of them.

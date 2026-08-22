@@ -16,6 +16,7 @@ export { Html } from "./html";
 export { If, type IfHelper } from "./if";
 export { Key } from "./key";
 export { ImplementLifecycle, type LifecycleProps } from "./lifecycle";
+export { Outlet, type OutletHelper } from "./outlet";
 export { Portal, type PortalHelper, type PortalProps } from "./portal";
 export { Svg, type SvgProps } from "./svg";
 export { Switch, type SwitchHelper } from "./switch";

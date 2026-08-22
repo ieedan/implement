@@ -55,6 +55,7 @@ export {
 	ImplementSet,
 	ImplementWindow,
 	Key,
+	Outlet,
 	Portal,
 	Svg,
 	Switch,
@@ -69,6 +70,7 @@ export {
 	type IfHelper,
 	type LifecycleProps,
 	type MetaProps,
+	type OutletHelper,
 	type ScriptProps,
 	type StyleProps,
 	type PortalHelper,
@@ -79,6 +81,7 @@ export {
 } from "./components/helpers";
 export { context } from "./context";
 export {
+	location,
 	navigateTo,
 	normalizePath,
 	registerNavigationGuard,

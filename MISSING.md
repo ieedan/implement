@@ -9,7 +9,9 @@ effect ownership (`Implement.Lifecycle` / `Implement.Effect`), clsx-style
 `class` values, `Svg`, error boundaries, the router (typed params, typed
 `Link`/`href`/`navigate`, persistent layouts, catch-alls, route groups,
 URL-synced search params, navigation guards, scroll restoration),
-`Implement.Document()` / `Window()`, SSR (`renderToString`), hydration, and
+`Implement.Document()` / `Window()`, SSR (`renderToString`), hydration,
+node authoring (`Outlet` + `location`, see
+[custom nodes](https://implementjs.dev/docs/custom-nodes)), and
 `create-implement-app`.
 
 Focus trapping, keyboard menus, and collision-aware floating live in
@@ -41,3 +43,14 @@ restoration). What real apps still ask for:
   but breadcrumbs/parent-section highlighting need prefix matching in code.
 - **Relative navigation** — every `Link`/`navigate` is absolute.
 - **Hash mode / base path** — history-mode-at-root only.
+
+## 3. A `Readable<Mountable>` child
+
+`Child` is `Mountable | PrimitiveChild | ReadableChild`, and `ReadableChild`
+resolves to text (`components/types.ts:14`) — so a readable of a _node_ is not
+a child. Swapping what renders means reaching for `If`/`Switch`/`ForEach`
+(declarative, condition-shaped) or `Outlet.set` (imperative, caller-driven).
+Neither is `Div(currentView)` where `currentView` is a `Readable<Mountable>`,
+which is what a component-in-a-signal wants to be. Its own design: identity
+(does the same mountable value remounting count as a change?), teardown
+ordering, and how it reads against the existing helpers.
