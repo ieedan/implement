@@ -31,7 +31,7 @@ function makeApp(shellPath: string | null): string {
 	root = mkdtempSync(join(import.meta.dirname, "fixtures/html-"));
 	mkdirSync(join(root, "src/routes"), { recursive: true });
 	writeFileSync(
-		join(root, "src/routes/index.ts"),
+		join(root, "src/routes/page.ts"),
 		`import { H1 } from "@implementjs/core";\nexport default () => H1("home");\n`,
 	);
 	writeFileSync(

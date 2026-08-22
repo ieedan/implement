@@ -5,6 +5,7 @@ import {
 	CollapsibleTrigger as CollapsibleTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 export type CollapsibleProps = ComponentProps<typeof CollapsiblePrimitive>;
@@ -19,7 +20,7 @@ export const Collapsible = createComponent(function Collapsible(
 	...children: Child[]
 ) {
 	return CollapsiblePrimitive(
-		{ "data-slot": "collapsible", class: ["flex flex-col gap-2", className], ...props },
+		{ "data-slot": "collapsible", class: cn("flex flex-col gap-2", className), ...props },
 		...children,
 	);
 });
@@ -41,7 +42,7 @@ export const CollapsibleTrigger = createComponent(function CollapsibleTrigger(
 			"data-slot": "collapsible-trigger",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);

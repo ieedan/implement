@@ -3,6 +3,9 @@ import type { Unsubscribe } from "./types";
 
 export type Callback<T> = (value: T) => void;
 
+/** Shared do-nothing unsubscribe, so the dead cases allocate nothing. */
+const noop = (): void => {};
+
 /** Called when a signal's value changes. Does not run with the current value. */
 export type ChangeCallback<T> = (value: T, previous: T) => void;
 
@@ -56,6 +59,24 @@ export function subscribe<T, Signals extends readonly ReadableSource<any>[]>(
 	signals: readonly [...Signals],
 	getter: Getter<T, Signals>,
 ) {
+	// One source is the shape of every binding and most deriveds, and it needs
+	// neither of the arrays the general path keeps nor a closure to unsubscribe
+	// through — at eight bindings a row, those are the allocations that add up.
+	if (signals.length === 1) {
+		/* oxlint-disable typescript/no-unsafe-type-assertion -- A one-source getter takes one value; the tuple types cannot express that narrowing. */
+		const source = signals[0] as ReadableSource;
+		const call = getter as unknown as (value: unknown) => T;
+		/* oxlint-enable typescript/no-unsafe-type-assertion */
+		let value = source.get();
+		const unsubscribe = source.subscribe((next: unknown) => {
+			if (next === value) return;
+			value = next;
+			call(value);
+		});
+		call(value);
+		return unsubscribe;
+	}
+
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tuple typing: mapped signal values align with getter rest args.
 	const values = signals.map((signal) => signal.get()) as SignalValues<Signals>;
 	const unsubscribers = signals.map((signal, i) =>
@@ -236,12 +257,78 @@ export function isWritable<T = unknown>(value: unknown): value is Writable<T> {
 	return isReadable<T>(value) && "set" in value && typeof value.set === "function";
 }
 
-export class Signal<T> implements Writable<T> {
+/**
+ * Subscriber storage shared by every readable in core. A signal in a mounted
+ * tree almost always has exactly one subscriber — one DOM node watching one
+ * value — so the single case is held in a field and a `Map` is only allocated
+ * once a second subscriber arrives. At ten thousand rows that is tens of
+ * thousands of maps never created, and an unsubscribe that is a field write
+ * rather than a hash delete.
+ */
+abstract class Notifier<T> {
+	private single: Callback<T> | null = null;
+	private singleId = 0;
+	private many: Map<number, Callback<T>> | null = null;
+	private nextId = 0;
+
+	protected get subscriberCount(): number {
+		if (this.many !== null) return this.many.size;
+		return this.single === null ? 0 : 1;
+	}
+
+	/**
+	 * Returns the subscription's id rather than a closure to cancel it, so a
+	 * caller that has cleanup of its own wraps one closure instead of two. Every
+	 * subscription carries an id so one held past a promotion still cancels.
+	 */
+	protected addSubscriber(callback: Callback<T>): number {
+		const id = ++this.nextId;
+		if (this.many === null && this.single === null) {
+			this.single = callback;
+			this.singleId = id;
+		} else {
+			if (this.many === null) {
+				this.many = new Map();
+				if (this.single !== null) this.many.set(this.singleId, this.single);
+				this.single = null;
+				this.singleId = 0;
+			}
+			this.many.set(id, callback);
+		}
+		return id;
+	}
+
+	protected removeSubscriber(id: number): void {
+		if (this.singleId === id) {
+			this.single = null;
+			this.singleId = 0;
+			return;
+		}
+		this.many?.delete(id);
+	}
+
+	protected clearSubscribers(): void {
+		this.single = null;
+		this.singleId = 0;
+		this.many = null;
+	}
+
+	protected notifySubscribers(value: T): void {
+		if (this.many === null) {
+			this.single?.(value);
+			return;
+		}
+		// A copy, because a subscriber may unsubscribe while this iterates.
+		// oxlint-disable-next-line unicorn/no-useless-spread -- The copy is the point: iterating the live map would skip a subscriber removed mid-notify.
+		for (const callback of [...this.many.values()]) callback(value);
+	}
+}
+
+export class Signal<T> extends Notifier<T> implements Writable<T> {
 	private value: T;
-	private subscriberId: number = 0;
-	private subscribers: Map<number, Callback<T>> = new Map();
 
 	constructor(initialValue: T) {
+		super();
 		this.value = initialValue;
 	}
 
@@ -318,15 +405,12 @@ export class Signal<T> implements Writable<T> {
 	}
 
 	private notify(value: T) {
-		for (const [_, notifyCallback] of this.subscribers) {
-			notifyCallback(value);
-		}
+		this.notifySubscribers(value);
 	}
 
 	subscribe(callback: Callback<T>): Unsubscribe {
-		const id = ++this.subscriberId;
-		this.subscribers.set(id, callback);
-		return () => this.subscribers.delete(id);
+		const id = this.addSubscriber(callback);
+		return () => this.removeSubscriber(id);
 	}
 
 	onChange(callback: ChangeCallback<T>): Unsubscribe {
@@ -384,14 +468,14 @@ export function ref<T>(): Ref<T> {
 
 /**
  * A `Set` that is also a `Readable<ReadonlySet<T>>`, created via
- * `Implement.Set(...)`. Mutators (`add`, `delete`, `clear`, `toggle`) notify
+ * `ImplementSet(...)`. Mutators (`add`, `delete`, `clear`, `toggle`) notify
  * subscribers with an immutable snapshot, so it plugs into `derived`, `watch`,
  * bindings, and props like any other readable. Reads on the set itself
  * (`has`, `size`, iteration) are plain non-reactive reads; reactive reads go
  * through `get()` or `bind`.
  *
  * ```ts
- * const selected = Implement.Set<string>();
+ * const selected = ImplementSet<string>();
  * Button({ onClick: () => selected.toggle(id) });
  * If(selected.bind((s) => s.has(id))).Then(...);
  * ```
@@ -466,7 +550,7 @@ export class ReactiveSet<T> extends Set<T> implements Readable<ReadonlySet<T>> {
 	bind<U>(selector: (value: ReadonlySet<T>) => U): Readable<Unwrapped<U>>;
 	bind(keyOrSelector: PropertyKey | ((value: ReadonlySet<T>) => unknown)): Readable<unknown> {
 		if (typeof keyOrSelector === "function") {
-			return new Flattened(new Derived([this], keyOrSelector));
+			return new SelectorView(this, keyOrSelector);
 		}
 		const path = String(keyOrSelector);
 		return new Derived([this], (value) => getAtPath(value, path));
@@ -475,13 +559,13 @@ export class ReactiveSet<T> extends Set<T> implements Readable<ReadonlySet<T>> {
 
 /**
  * A `Map` that is also a `Readable<ReadonlyMap<K, V>>`, created via
- * `Implement.Map(...)`. Mutators (`set`, `delete`, `clear`) notify subscribers
+ * `ImplementMap(...)`. Mutators (`set`, `delete`, `clear`) notify subscribers
  * with an immutable snapshot, so it plugs into `derived`, `watch`, bindings,
  * and props like any other readable. `get(key)` is the plain non-reactive
  * `Map` read; `get()` with no arguments is the readable's snapshot read.
  *
  * ```ts
- * const drafts = Implement.Map<string, string>();
+ * const drafts = ImplementMap<string, string>();
  * Input({ onInput: (ev) => drafts.set(id, ev.currentTarget.value) });
  * Span(drafts.bind((d) => d.get(id) ?? ""));
  * ```
@@ -558,7 +642,7 @@ export class ReactiveMap<K, V> extends Map<K, V> implements Readable<ReadonlyMap
 		// never route through createBinding: `set(key, value)` duck-types as
 		// Writable but is not `Writable.set`
 		if (typeof keyOrSelector === "function") {
-			return new Flattened(new Derived([this], keyOrSelector));
+			return new SelectorView(this, keyOrSelector);
 		}
 		const path = String(keyOrSelector);
 		return new Derived([this], (value) => getAtPath(value, path));
@@ -570,10 +654,8 @@ export class ReactiveMap<K, V> extends Map<K, V> implements Readable<ReadonlyMap
  * {@link dispose}). Creating one inside a per-row factory no longer leaks a
  * source subscription when the row is discarded or unmounted.
  */
-abstract class LazyReadable<T> implements Readable<T> {
+abstract class LazyReadable<T> extends Notifier<T> implements Readable<T> {
 	protected value!: T;
-	private subscriberId: number = 0;
-	private subscribers: Map<number, Callback<T>> = new Map();
 	private sourceUnsubscribe: Unsubscribe | null = null;
 	private disposed = false;
 
@@ -590,9 +672,7 @@ abstract class LazyReadable<T> implements Readable<T> {
 	}
 
 	private notify(value: T) {
-		for (const [_, notifyCallback] of this.subscribers) {
-			notifyCallback(value);
-		}
+		this.notifySubscribers(value);
 	}
 
 	private activate() {
@@ -611,13 +691,12 @@ abstract class LazyReadable<T> implements Readable<T> {
 	}
 
 	subscribe(callback: Callback<T>): Unsubscribe {
-		if (this.disposed) return () => {};
+		if (this.disposed) return noop;
 		this.activate();
-		const id = ++this.subscriberId;
-		this.subscribers.set(id, callback);
+		const id = this.addSubscriber(callback);
 		return () => {
-			this.subscribers.delete(id);
-			if (this.subscribers.size === 0) this.deactivate();
+			this.removeSubscriber(id);
+			if (this.subscriberCount === 0) this.deactivate();
 		};
 	}
 
@@ -639,77 +718,134 @@ abstract class LazyReadable<T> implements Readable<T> {
 		if (this.disposed) return;
 		this.disposed = true;
 		this.deactivate();
-		this.subscribers.clear();
+		this.clearSubscribers();
 	}
 }
 
 export class Derived<T, Signals extends readonly Readable<any>[]> extends LazyReadable<T> {
+	/**
+	 * The lone source when there is one, which is the shape of every binding and
+	 * most deriveds. Held here so reading does not walk the tuple, and typed
+	 * loosely because the tuple cannot express "exactly one".
+	 */
+	private readonly only: ReadableSource | null;
+
 	constructor(
 		private readonly signals: readonly [...Signals],
 		private readonly getter: Getter<T, Signals>,
 	) {
 		super();
+		this.only = signals.length === 1 ? (signals[0] ?? null) : null;
 		this.value = this.read();
 	}
 
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- Tuple typing cannot express "this getter takes exactly one value". */
 	protected read(): T {
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tuple typing for derived getter inputs.
+		if (this.only !== null) {
+			return (this.getter as unknown as (value: unknown) => T)(this.only.get());
+		}
 		const values = this.signals.map((signal) => signal.get()) as SignalValues<Signals>;
 		return this.getter(...values);
 	}
 
 	protected watch(onValue: (value: T) => void): Unsubscribe {
+		if (this.only !== null) {
+			const call = this.getter as unknown as (value: unknown) => T;
+			// `this.signals` as-is: wrapping the one source in a fresh array would
+			// allocate once per derived, which is the opposite of the point.
+			const forward = ((value: unknown) => onValue(call(value))) as unknown as Getter<
+				void,
+				Signals
+			>;
+			return subscribe(this.signals, forward);
+		}
 		return subscribe(this.signals, (...values) => onValue(this.getter(...values)));
 	}
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 }
 
 /**
- * Readable view of `source` with nested readables unwrapped: when the source's
- * value is itself a readable, this follows it (recursively) and surfaces the
- * innermost plain value. Selector binds route through this so
- * `content.bind((c) => c.opts.behavior)` works when `behavior` is a signal.
+ * A selector view of a readable, computed on demand instead of cached behind a
+ * subscription of its own. Where a `Derived` carries a cached value, a notifier,
+ * activate/deactivate machinery and a forwarding closure per subscriber, this
+ * carries a source and a selector — the same shape `BoundPath` uses for path
+ * binds, which measures at roughly a third of a derived's retained bytes. It
+ * matters because a list row builds one of these per reactive position.
+ *
+ * A selector result that is itself a readable is followed and unwrapped, the
+ * same as before, but nothing for following is allocated unless one turns up.
  */
-class Flattened<U> extends LazyReadable<Unwrapped<U>> {
-	constructor(private readonly source: ReadableSource<U>) {
-		super();
-		this.value = this.read();
-	}
+class SelectorView<T, U> implements Readable<Unwrapped<U>> {
+	constructor(
+		private readonly source: ReadableSource<T>,
+		private readonly selector: (value: T) => U,
+	) {}
 
-	protected read(): Unwrapped<U> {
-		let value: unknown = this.source.get();
+	get(): Unwrapped<U> {
+		let value: unknown = this.selector(this.source.get());
 		while (isReadable(value)) value = value.get();
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Unwrapping stops at the innermost plain value.
 		return value as Unwrapped<U>;
 	}
 
-	protected watch(onValue: (value: Unwrapped<U>) => void): Unsubscribe {
-		// one unsubscriber per nested readable; index 0 is the source's own value
-		const inner: Unsubscribe[] = [];
+	subscribe(callback: Callback<Unwrapped<U>>): Unsubscribe {
+		// Subscriptions to readables the selector returned, allocated only if the
+		// selector ever returns one.
+		let inner: Unsubscribe[] | null = null;
+		let current: unknown = this.get();
 
 		const clearFrom = (depth: number) => {
+			if (inner === null) return;
 			while (inner.length > depth) inner.pop()!();
 		};
 
-		// `value` was emitted by the readable at `depth - 1` (or the source when
-		// depth is 0), so every subscription at or below `depth` is stale
-		const follow = (value: unknown, depth: number) => {
+		// `value` came from the readable at `depth - 1` (or the selector when depth
+		// is 0), so every subscription at or below `depth` is stale.
+		const follow = (value: unknown, depth: number): unknown => {
 			clearFrom(depth);
 			while (isReadable(value)) {
 				const readable = value;
-				const nextDepth = inner.length + 1;
-				inner.push(readable.subscribe((next) => follow(next, nextDepth)));
+				const list = (inner ??= []);
+				const nextDepth = list.length + 1;
+				list.push(
+					readable.subscribe((next) => {
+						const settled = follow(next, nextDepth);
+						if (!hasChanged(current, settled)) return;
+						current = settled;
+						// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- follow() terminates at a plain value.
+						callback(settled as Unwrapped<U>);
+					}),
+				);
 				value = readable.get();
 			}
-			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- follow() terminates when nested readables are exhausted.
-			onValue(value as Unwrapped<U>);
+			return value;
 		};
 
-		const unsubscribe = this.source.subscribe((value) => follow(value, 0));
-		follow(this.source.get(), 0);
+		follow(this.selector(this.source.get()), 0);
+
+		const unsubscribe = this.source.subscribe(() => {
+			const raw: unknown = this.selector(this.source.get());
+			const next = inner === null && !isReadable(raw) ? raw : follow(raw, 0);
+			if (!hasChanged(current, next)) return;
+			current = next;
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- follow() terminates at a plain value.
+			callback(next as Unwrapped<U>);
+		});
+
 		return () => {
 			unsubscribe();
 			clearFrom(0);
 		};
+	}
+
+	onChange(callback: ChangeCallback<Unwrapped<U>>): Unsubscribe {
+		return bindOnChange(this.get(), (cb) => this.subscribe(cb), callback);
+	}
+
+	bind<P extends BindableKeys<Unwrapped<U>>>(path: P): Readable<BindPathValue<Unwrapped<U>, P>>;
+	bind<V>(selector: (value: Unwrapped<U>) => V): Readable<Unwrapped<V>>;
+	bind(keyOrSelector: PropertyKey | ((value: Unwrapped<U>) => unknown)): Readable<unknown> {
+		return createBinding(this, keyOrSelector);
 	}
 }
 
@@ -858,7 +994,7 @@ function createBinding<T>(
 			}
 			return new BoundSelector(source, keyOrSelector, update);
 		}
-		return new Flattened(new Derived([source], keyOrSelector));
+		return new SelectorView(source, keyOrSelector);
 	}
 	const path = String(keyOrSelector);
 	if (isWritable<T>(source)) {

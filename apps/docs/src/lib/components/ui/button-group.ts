@@ -2,6 +2,7 @@ import { Div, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
 import { Separator } from "./separator";
+import { cn } from "@/lib/utils";
 
 export const buttonGroupVariants = tv({
 	base: [
@@ -47,7 +48,7 @@ export const ButtonGroup = createComponent(function ButtonGroup(
 			...props,
 			"data-slot": "button-group",
 			"data-orientation": orientation,
-			class: [buttonGroupVariants({ orientation }), className],
+			class: cn(buttonGroupVariants({ orientation }), className),
 		},
 		...children,
 	);
@@ -62,11 +63,11 @@ export const ButtonGroupText = createComponent(function ButtonGroupText(
 		{
 			...props,
 			"data-slot": "button-group-text",
-			class: [
+			class: cn(
 				"flex items-center gap-2 rounded-md border bg-muted px-4 text-sm font-medium shadow-xs",
 				"[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -85,6 +86,6 @@ export const ButtonGroupSeparator = createComponent(function ButtonGroupSeparato
 		...props,
 		orientation,
 		"data-slot": "button-group-separator",
-		class: ["relative !m-0 self-stretch bg-input data-[orientation=vertical]:h-auto", className],
+		class: cn("relative !m-0 self-stretch bg-input data-[orientation=vertical]:h-auto", className),
 	});
 });

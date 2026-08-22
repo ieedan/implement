@@ -48,7 +48,7 @@ Event handler props can be signals of functions too, and the listener is swapped
 
 ### Two-way form bindings
 
-A few props are two-way. Pass a **writable** signal and the framework both applies the signal to the DOM and writes user input back into the signal.
+A few props are two-way. They are typed `MaybeTwoWayBindable`, a readable with an optional `set`. Pass a **writable** signal and the framework both applies the signal to the DOM and writes user input back into the signal. `set` is never required. Your own components can use `TwoWayBindable` when write-back must be a writable.
 
 | Element                  | Prop      | DOM event |
 | ------------------------ | --------- | --------- |

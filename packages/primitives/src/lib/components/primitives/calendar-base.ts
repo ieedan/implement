@@ -420,7 +420,7 @@ export abstract class CalendarBaseState {
 	}
 }
 
-export const CalendarBaseCtx = context<CalendarBaseState>();
+export const CalendarBaseCtx = context<CalendarBaseState>("CalendarBaseCtx");
 
 const VISUALLY_HIDDEN: Styles = {
 	border: "0",

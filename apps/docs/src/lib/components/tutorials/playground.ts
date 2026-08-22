@@ -15,7 +15,7 @@ import {
 } from "@implementjs/core";
 import { RefreshCwIcon, TerminalIcon } from "@implementjs/lucide";
 import type { ConsoleEntry } from "@/lib/console-format";
-import type { LessonFile } from "@/lib/content";
+import type { LessonFile } from "@/lib/tutorials";
 import { countLessonRoutes, isKitLesson } from "@/lib/run-kit-lesson";
 import { ConsolePanel } from "./console-panel";
 import { CodeEditor } from "./editor";
@@ -81,7 +81,7 @@ function UrlBar(urlPath: Signal<string>): Mountable {
 	});
 }
 
-/** `about/index.ts` from ` /about/index.ts/ ` — or `null` when it can't be a file path. */
+/** `about/page.ts` from ` /about/page.ts/ ` — or `null` when it can't be a file path. */
 function normalizeNewPath(raw: string): string | null {
 	const trimmed = raw.trim().replace(/^\/+/, "").replace(/\/+$/, "");
 	if (trimmed === "") return null;

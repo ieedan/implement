@@ -1,24 +1,78 @@
 import { computeCommandScore } from "@implementjs/primitives";
 
 /**
- * Full-text search over the docs.
+ * Full-text search over the docs, matched against a prebuilt index.
  *
- * Every page's rendered HTML already ships to the browser — the docs render it
- * client-side — so the index is built from that rather than from a second copy
- * of the content: strip the markup, split at the headings rehype-slug already
- * gave ids to, and a page becomes a list of separately linkable sections.
- * Stripping is lazy and cached per page, so nothing is parsed until the first
- * search runs.
+ * The index used to be built in the browser from the rendered HTML of every
+ * page, on the grounds that the docs ship that HTML anyway. Route
+ * code-splitting ended that: a route ships its own collection and nothing
+ * else, so reading every collection here made the search palette the one
+ * reason all of them were loaded on every page. The stripping now happens at
+ * build time instead ({@link ./search-index.ts}) and the result is served as a
+ * static file the palette fetches the first time it opens — see
+ * `src/routes/search/.json/server.ts`.
+ *
+ * This module holds the wire format both ends agree on, plus the matching and
+ * ranking, which run against the fetched index and never touch content
+ * modules.
  */
 
-/** The shape every content collection shares. */
-export type SearchPage = {
+/** A run of page text under one heading, as the index stores it. */
+export type IndexedSection = {
+	/** Heading anchor id, from rehype-slug; null for text ahead of the first heading. */
+	id: string | null;
+	heading: string;
+	text: string;
+};
+
+/** One page in the index. Carries no rendered HTML — only the text to match. */
+export type IndexedPage = {
 	title: string;
 	description: string;
 	permalink: string;
-	/** The page's rendered HTML, as Velite's `s.markdown()` produced it. */
-	content: string;
+	sections: IndexedSection[];
 };
+
+/** One part of the docs, and every page under it. */
+export type IndexedArea = {
+	key: string;
+	label: string;
+	/** Whether kit serves a `.md` twin next to these pages (lessons have none). */
+	markdown: boolean;
+	pages: IndexedPage[];
+};
+
+/** The whole served index, exactly as `/search.json` holds it. */
+export type SearchIndex = IndexedArea[];
+
+/** An indexed section with the cases matching needs, folded once on load. */
+type Section = IndexedSection & {
+	/** Lower-cased once here so matching never re-cases per keystroke. */
+	lowerHeading: string;
+	lowerText: string;
+};
+
+export type SearchPage = Omit<IndexedPage, "sections"> & { sections: Section[] };
+export type SearchArea = Omit<IndexedArea, "pages"> & { pages: SearchPage[] };
+
+/**
+ * Folds the fetched index into the shape matching wants. One pass over the
+ * whole corpus, done once when the index lands rather than per keystroke —
+ * and the index ships in its original case so results can quote it back.
+ */
+export function prepareSearchIndex(index: SearchIndex): SearchArea[] {
+	return index.map((area) => ({
+		...area,
+		pages: area.pages.map((page) => ({
+			...page,
+			sections: page.sections.map((section) => ({
+				...section,
+				lowerHeading: section.heading.toLowerCase(),
+				lowerText: section.text.toLowerCase(),
+			})),
+		})),
+	}));
+}
 
 /** A run of result text. `match` marks the part the query hit. */
 export type HighlightPart = { text: string; match: boolean };
@@ -34,101 +88,6 @@ export type SearchResult = {
 	detail: HighlightPart[];
 	score: number;
 };
-
-type Section = {
-	/** Heading anchor id; null for the text ahead of the first heading. */
-	id: string | null;
-	heading: string;
-	text: string;
-	/** Lower-cased once here so matching never re-cases per keystroke. */
-	lowerHeading: string;
-	lowerText: string;
-};
-
-/** Headings carry the ids rehype-slug generated, which the anchors reuse. */
-const headingPattern = /<h([23]) id="([^"]*)"[^>]*>([\s\S]*?)<\/h\1>/g;
-/** Ends of block elements, which separate words the way whitespace does. */
-const blockEndPattern = /<\/(?:p|h[1-6]|li|pre|blockquote|div|td|th|tr|table|ul|ol)>|<br\s*\/?>/gi;
-const tagPattern = /<[^>]+>/g;
-const entityPattern = /&(?:#(\d+)|#x([\da-f]+)|(amp|lt|gt|quot|apos|nbsp));/gi;
-
-function decodeEntities(value: string): string {
-	return value.replace(entityPattern, (entity, decimal?: string, hex?: string, named?: string) => {
-		if (decimal != null) return String.fromCodePoint(Number(decimal));
-		if (hex != null) return String.fromCodePoint(Number.parseInt(hex, 16));
-		switch (named?.toLowerCase()) {
-			case "amp":
-				return "&";
-			case "lt":
-				return "<";
-			case "gt":
-				return ">";
-			case "quot":
-				return '"';
-			case "apos":
-				return "'";
-			case "nbsp":
-				return " ";
-			default:
-				return entity;
-		}
-	});
-}
-
-/**
- * The text a reader sees, from the HTML they see it in. Inline tags close up
- * (`<code>signal</code>` stays one word) while block ends become whitespace,
- * so nothing runs together across a paragraph or a line of a code block.
- */
-function toText(html: string): string {
-	return decodeEntities(html.replace(blockEndPattern, "\n").replace(tagPattern, ""))
-		.replace(/\s+/g, " ")
-		.trim();
-}
-
-const sectionCache = new WeakMap<SearchPage, Section[]>();
-
-function sectionsOf(page: SearchPage): Section[] {
-	const cached = sectionCache.get(page);
-	if (cached) return cached;
-
-	const sections: Section[] = [];
-	let cursor = 0;
-	let id: string | null = null;
-	let heading = "";
-
-	const push = (html: string) => {
-		const text = toText(html);
-		if (text === "" && heading === "") return;
-		sections.push({
-			id,
-			heading,
-			text,
-			lowerHeading: heading.toLowerCase(),
-			lowerText: text.toLowerCase(),
-		});
-	};
-
-	for (const match of page.content.matchAll(headingPattern)) {
-		push(page.content.slice(cursor, match.index));
-		id = match[2] ?? null;
-		heading = toText(match[3] ?? "");
-		cursor = match.index + match[0].length;
-	}
-	push(page.content.slice(cursor));
-
-	sectionCache.set(page, sections);
-	return sections;
-}
-
-/**
- * Strips every page down ahead of the first keystroke. Called when the palette
- * opens so the work lands in the idle moment after the dialog animates in
- * rather than under the first character typed.
- */
-export function warmSearchIndex(pages: readonly SearchPage[]): void {
-	for (const page of pages) sectionsOf(page);
-}
 
 function terms(query: string): string[] {
 	const seen = new Set(
@@ -262,7 +221,7 @@ export function searchPage(page: SearchPage, query: string): SearchResult[] {
 	if (phrase.length < MIN_CONTENT_QUERY) return results;
 
 	const sections: SearchResult[] = [];
-	for (const section of sectionsOf(page)) {
+	for (const section of page.sections) {
 		if (!matchesEvery(section, queryTerms)) continue;
 		// the text ahead of the first heading has no anchor to land on, so it
 		// stands for the page itself

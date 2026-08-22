@@ -1,5 +1,12 @@
 import { dom } from "../../dom";
-import { asParent, mountChild, parentOf, raiseError, registerBoundary } from "../../tree";
+import {
+	asParent,
+	mountChild,
+	parentOf,
+	raiseError,
+	registerBoundary,
+	isDetaching,
+} from "../../tree";
 import { syncDomOrder, toError } from "../../utils";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
@@ -24,12 +31,12 @@ export type BoundaryHelper = Mountable & {
  * the stack.
  *
  * ```ts
- * Implement.Boundary(IssuePage(id)).Catch((error, reset) =>
+ * ImplementBoundary(IssuePage(id)).Catch((error, reset) =>
  * 	Div(P(error.message), Button({ onClick: reset }, "Retry")),
  * );
  * ```
  */
-export function Boundary(...children: Child[]): BoundaryHelper {
+export function ImplementBoundary(...children: Child[]): BoundaryHelper {
 	let catchRender: ((error: Error, reset: () => void) => Child) | null = null;
 
 	const helper: BoundaryHelper = Object.assign(
@@ -112,7 +119,7 @@ export function Boundary(...children: Child[]): BoundaryHelper {
 					pendingError = null;
 					clear();
 					showing = "children";
-					endMarker.remove();
+					if (!isDetaching()) endMarker.remove();
 					parent = null;
 				},
 				getFirstDomNode() {

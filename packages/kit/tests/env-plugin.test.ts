@@ -150,32 +150,32 @@ describe("the illegal-import guard", () => {
 	});
 
 	it("rejects a client file importing a server file", async () => {
-		await expect(transformIn(server, "client", "/src/routes/leaky/index.ts")).rejects.toThrow(
+		await expect(transformIn(server, "client", "/src/routes/leaky/page.ts")).rejects.toThrow(
 			/src\/lib\/secrets\.server\.ts is a server file/,
 		);
 	});
 
 	it("names the client file that reached for it", async () => {
-		await expect(transformIn(server, "client", "/src/routes/leaky/index.ts")).rejects.toThrow(
-			/imported by src\/routes\/leaky\/index\.ts/,
+		await expect(transformIn(server, "client", "/src/routes/leaky/page.ts")).rejects.toThrow(
+			/imported by src\/routes\/leaky\/page\.ts/,
 		);
 	});
 
 	it("leaves type-only imports alone", async () => {
-		const code = await transformIn(server, "client", "/src/routes/type-only/index.ts");
+		const code = await transformIn(server, "client", "/src/routes/type-only/page.ts");
 		expect(code).not.toContain("secrets.server");
 	});
 
 	it("trips on an inline `type` specifier, the documented papercut", async () => {
 		// `import { type Secret } from "./x.server"` leaves a bare import under
 		// verbatimModuleSyntax; `import type { Secret }` is the form that works
-		await expect(transformIn(server, "client", "/src/routes/inline-type/index.ts")).rejects.toThrow(
+		await expect(transformIn(server, "client", "/src/routes/inline-type/page.ts")).rejects.toThrow(
 			/is a server file and cannot be imported by client code/,
 		);
 	});
 
 	it("leaves `?raw` imports alone — that is the file's text, not its bindings", async () => {
-		const code = await transformIn(server, "client", "/src/routes/raw-source/index.ts");
+		const code = await transformIn(server, "client", "/src/routes/raw-source/page.ts");
 		expect(code).toContain("secrets.server.ts?raw");
 	});
 
@@ -191,7 +191,7 @@ describe("the illegal-import guard", () => {
 	});
 
 	it("lets the server graph import server files from anywhere", async () => {
-		await expect(transformIn(server, "ssr", "/src/routes/leaky/index.ts")).resolves.toContain(
+		await expect(transformIn(server, "ssr", "/src/routes/leaky/page.ts")).resolves.toContain(
 			"secrets.server",
 		);
 	});

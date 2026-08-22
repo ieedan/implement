@@ -10,6 +10,7 @@
 		"check": "pnpm -r check",
 		"test": "pnpm -r test",
 		"generate": "pnpm -r generate",
+		"registry": "pnpm -r registry",
 		"create:app": "pnpm --filter create-implement-app build && node packages/create-implement-app/dist/bin.mjs",
 		"jscpd": "jscpd --no-tips",
 		"lint": "oxlint --disable-nested-config --deny-warnings",

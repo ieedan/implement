@@ -7,6 +7,7 @@ import {
 	TooltipTrigger as TooltipTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 export type TooltipProviderProps = ComponentProps<typeof TooltipProviderPrimitive>;
@@ -47,7 +48,7 @@ export const TooltipTrigger = createComponent(function TooltipTrigger(
 			"data-slot": "tooltip-trigger",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);
@@ -64,7 +65,7 @@ export const TooltipContent = createComponent(function TooltipContent(
 			offset,
 			side,
 			align,
-			class: [
+			class: cn(
 				"absolute z-50 w-fit rounded-md bg-primary px-3 py-1.5 text-xs text-balance text-primary-foreground",
 				"origin-(--ip-tooltip-content-transform-origin)",
 				"transition-[opacity,translate,scale,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
@@ -74,7 +75,7 @@ export const TooltipContent = createComponent(function TooltipContent(
 				"starting:not-data-[state=closed]:opacity-0 starting:not-data-[state=closed]:scale-95",
 				"starting:not-data-[state=closed]:data-[side=bottom]:-translate-y-2 starting:not-data-[state=closed]:data-[side=top]:translate-y-2 starting:not-data-[state=closed]:data-[side=left]:translate-x-2 starting:not-data-[state=closed]:data-[side=right]:-translate-x-2",
 				className,
-			],
+			),
 		},
 		...children,
 	);

@@ -5,8 +5,6 @@ import {
 	DialogClose,
 	DialogContent,
 	DialogDescription,
-	DialogOverlay,
-	DialogPortal,
 	DialogTitle,
 	DialogTrigger,
 } from "@/lib/components/ui/dialog";
@@ -46,52 +44,49 @@ export default function DialogDemo() {
 
 	return Dialog(
 		DialogTrigger({ variant: "outline" }, "Edit profile"),
-		DialogPortal(
-			DialogOverlay(),
-			DialogContent(
+		DialogContent(
+			Div(
+				{ class: "grid gap-1.5" },
+				DialogTitle("Edit profile"),
+				DialogDescription("Make changes to your profile here. Click save when you're done."),
+			),
+			Div(
+				{ class: "grid gap-3" },
+				Field("name", "Name", "Aidan Bleser"),
+				Field("username", "Username", "@ieedan"),
 				Div(
-					{ class: "grid gap-1.5" },
-					DialogTitle("Edit profile"),
-					DialogDescription("Make changes to your profile here. Click save when you're done."),
-				),
-				Div(
-					{ class: "grid gap-3" },
-					Field("name", "Name", "Aidan Bleser"),
-					Field("username", "Username", "@ieedan"),
+					{ class: "grid grid-cols-4 items-center gap-4" },
+					Label({ for: "role", class: "text-sm" }, "Role"),
 					Div(
-						{ class: "grid grid-cols-4 items-center gap-4" },
-						Label({ for: "role", class: "text-sm" }, "Role"),
-						Div(
-							{ class: "col-span-3" },
-							Select(
-								{ value: role, items: roles },
-								SelectTrigger(
-									{ id: "role" },
-									Span(
-										{ class: "flex min-w-0 flex-1 items-center gap-2" },
-										Switch(role)
-											.Case("user", RoleIcon(UserIcon))
-											.Case("moderator", RoleIcon(ShieldCheckIcon))
-											.Case("admin", RoleIcon(CrownIcon)),
-										SelectValue({
-											placeholder: "Select a role",
-										}),
-									),
+						{ class: "col-span-3" },
+						Select(
+							{ value: role, items: roles },
+							SelectTrigger(
+								{ id: "role" },
+								Span(
+									{ class: "flex min-w-0 flex-1 items-center gap-2" },
+									Switch(role)
+										.Case("user", RoleIcon(UserIcon))
+										.Case("moderator", RoleIcon(ShieldCheckIcon))
+										.Case("admin", RoleIcon(CrownIcon)),
+									SelectValue({
+										placeholder: "Select a role",
+									}),
 								),
-								SelectContent(
-									...roles.map((item) =>
-										SelectItem(
-											{ value: item.value },
-											Span({ class: "flex items-center gap-2" }, RoleIcon(item.icon), item.label),
-										),
+							),
+							SelectContent(
+								...roles.map((item) =>
+									SelectItem(
+										{ value: item.value },
+										Span({ class: "flex items-center gap-2" }, RoleIcon(item.icon), item.label),
 									),
 								),
 							),
 						),
 					),
 				),
-				DialogClose({ variant: "outline", class: "w-full" }, "Save changes"),
 			),
+			DialogClose({ variant: "outline", class: "w-full" }, "Save changes"),
 		),
 	);
 }

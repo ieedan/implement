@@ -41,7 +41,6 @@ export default defineConfig({
 		velite(),
 		kit({
 			prerender: { entries },
-			// Mirrored in scripts/sync.ts, which regenerates the tsconfig without Vite.
 			alias: { "@": "src", "@tutorial/test": "src/lib/tutorial-test.ts" },
 		}),
 	],

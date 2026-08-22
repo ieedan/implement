@@ -18,7 +18,7 @@ It installs `tailwind-variants` at the same time.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/button.ts`. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/button.ts`. It imports `cn`, so copy [`utils.ts`](/ui#merging-classes) to `src/lib/utils.ts` too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install tailwind-variants
@@ -50,6 +50,17 @@ Button({ size: "icon", "aria-label": "Add" }, PlusIcon({ "aria-hidden": true }))
 ```
 
 `has-[>svg]` trims the horizontal padding when a button holds both an icon and a label, so the pair stays optically centered.
+
+## Overriding
+
+`class` is merged with the variant table, not appended to it, so a utility you pass wins over the one the variant baked in:
+
+```ts
+Button({ size: "icon", class: "size-20" }); // 20, not 9
+Button({ variant: "outline", class: "border-destructive" });
+```
+
+That holds for every component in the registry — see [Merging classes](/ui#merging-classes).
 
 ## Variants elsewhere
 

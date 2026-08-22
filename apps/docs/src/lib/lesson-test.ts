@@ -1,4 +1,4 @@
-import type { LessonFile } from "./content";
+import type { LessonFile } from "./tutorials";
 import { runKitApp, type KitApp } from "./run-kit-lesson";
 import { importLessonModule, runLesson, type ShimModule } from "./run-lesson";
 import * as tutorialTest from "./tutorial-test";

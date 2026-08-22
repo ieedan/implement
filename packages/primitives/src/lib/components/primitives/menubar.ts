@@ -50,7 +50,7 @@ export type MenubarRootProps = ComponentProps<typeof Div> & {
 	loop?: boolean;
 };
 
-const MenubarCtx = context<MenubarState>();
+const MenubarCtx = context<MenubarState>("MenubarCtx");
 
 class MenubarState {
 	value: Signal<string | null>;
@@ -133,7 +133,9 @@ export type MenubarMenuProps = {
 	preventScroll?: boolean;
 };
 
-const MenubarMenuCtx = context<{ value: string; menu: MenuState; menubar: MenubarState }>();
+const MenubarMenuCtx = context<{ value: string; menu: MenuState; menubar: MenubarState }>(
+	"MenubarMenuCtx",
+);
 
 export const MenubarMenu = createComponent(function MenubarMenu(
 	{ value, preventScroll }: MenubarMenuProps,

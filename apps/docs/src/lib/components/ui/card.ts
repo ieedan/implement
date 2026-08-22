@@ -1,5 +1,6 @@
 import { Div, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type CardProps = ElementProps<"div">;
 export type CardHeaderProps = ElementProps<"div">;
@@ -18,10 +19,10 @@ export const Card = createComponent(function Card(
 		{
 			...props,
 			"data-slot": "card",
-			class: [
+			class: cn(
 				"flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-sm",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -40,12 +41,12 @@ export const CardHeader = createComponent(function CardHeader(
 		{
 			...props,
 			"data-slot": "card-header",
-			class: [
+			class: cn(
 				"@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6",
 				"has-data-[slot=card-action]:grid-cols-[1fr_auto]",
 				"[.border-b]:pb-6",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -56,7 +57,7 @@ export const CardTitle = createComponent(function CardTitle(
 	...children: Child[]
 ) {
 	return Div(
-		{ ...props, "data-slot": "card-title", class: ["leading-none font-semibold", className] },
+		{ ...props, "data-slot": "card-title", class: cn("leading-none font-semibold", className) },
 		...children,
 	);
 });
@@ -69,7 +70,7 @@ export const CardDescription = createComponent(function CardDescription(
 		{
 			...props,
 			"data-slot": "card-description",
-			class: ["text-sm text-muted-foreground", className],
+			class: cn("text-sm text-muted-foreground", className),
 		},
 		...children,
 	);
@@ -84,7 +85,7 @@ export const CardAction = createComponent(function CardAction(
 		{
 			...props,
 			"data-slot": "card-action",
-			class: ["col-start-2 row-span-2 row-start-1 self-start justify-self-end", className],
+			class: cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className),
 		},
 		...children,
 	);
@@ -94,7 +95,7 @@ export const CardContent = createComponent(function CardContent(
 	{ class: className, ...props }: CardContentProps,
 	...children: Child[]
 ) {
-	return Div({ ...props, "data-slot": "card-content", class: ["px-6", className] }, ...children);
+	return Div({ ...props, "data-slot": "card-content", class: cn("px-6", className) }, ...children);
 });
 
 export const CardFooter = createComponent(function CardFooter(
@@ -105,7 +106,7 @@ export const CardFooter = createComponent(function CardFooter(
 		{
 			...props,
 			"data-slot": "card-footer",
-			class: ["flex items-center px-6 [.border-t]:pt-6", className],
+			class: cn("flex items-center px-6 [.border-t]:pt-6", className),
 		},
 		...children,
 	);

@@ -1,3 +1,4 @@
+import { errorSource, markErrorSource, type ServerErrorReport } from "./errors.ts";
 import {
 	matchEndpoint,
 	matchPage,
@@ -48,8 +49,17 @@ declare global {
 		interface Error {
 			message: string;
 		}
+		/**
+		 * What the adapter puts on `event.platform` — empty until an adapter
+		 * fills it in. `@implementjs/adapter-cloudflare` declares the worker's
+		 * `env`, `context`, and `caches` here.
+		 */
+		interface Platform {}
 	}
 }
+
+export type { ErrorSource, ServerErrorReport } from "./errors.ts";
+export { formatServerError } from "./errors.ts";
 
 export type {
 	EndpointRoute,
@@ -275,6 +285,17 @@ export type PageDocument = (page: {
 export type RespondOptions = {
 	document?: PageDocument;
 	getClientAddress?: () => string;
+	/** What the host hands the request — surfaced to the app as `event.platform`. */
+	platform?: App.Platform;
+	/**
+	 * Called with every unexpected error the pipeline catches, before the app's
+	 * `handleError` sees it — so a server error reaches the terminal even when
+	 * the app's hook answers with a message of its own and reports nowhere else.
+	 * The dev server and the prerenderer pass one that prints the failing
+	 * request and the route file it came from; with no reporter, kit falls back
+	 * to logging the error itself, and only when the app has no `handleError`.
+	 */
+	onError?: (report: ServerErrorReport) => void;
 };
 
 /** What the prerenderer consumes — `@implementjs/vite`'s `SsrResult`. */
@@ -310,6 +331,7 @@ export function createKitServer(options: KitServerOptions): KitServer {
 	let started: Promise<void> | undefined;
 
 	async function respond(request: Request, respondOptions: RespondOptions = {}): Promise<Response> {
+		const onError = respondOptions.onError;
 		// awaited inside the try below, so a failing init answers like any other
 		// error the pipeline catches rather than throwing out of `respond`
 		started ??= (async () => {
@@ -341,6 +363,7 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			route: { id: endpoint?.route.id ?? page?.route.id ?? null },
 			locals: {},
 			isDataRequest,
+			platform: respondOptions.platform,
 			setHeaders: (values) => {
 				for (const [name, value] of Object.entries(values)) {
 					const header = name.toLowerCase();
@@ -354,7 +377,9 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			getClientAddress:
 				respondOptions.getClientAddress ??
 				(() => {
-					throw new Error("getClientAddress is not available while prerendering");
+					throw new Error(
+						"getClientAddress is not available — nothing is serving this request a client to name (the prerender, or a host that did not supply one)",
+					);
 				}),
 		};
 
@@ -378,7 +403,12 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			pageError: { code: number; message: string } | null,
 		): Promise<Response> => {
 			const data = match === null ? null : await runLoads(match.route, current);
-			const rendered = await renderPage({ url: current.url, data, error: pageError });
+			let rendered: PageRender | null;
+			try {
+				rendered = await renderPage({ url: current.url, data, error: pageError });
+			} catch (thrown) {
+				throw markErrorSource(thrown, { kind: pageError === null ? "render" : "error-page" });
+			}
 			if (rendered === null) {
 				return new Response(pageError?.message ?? "Not Found", {
 					status,
@@ -402,14 +432,21 @@ export function createKitServer(options: KitServerOptions): KitServer {
 				});
 			}
 			const status = isHttpError(thrown) ? thrown.status : 500;
-			const body = isHttpError(thrown)
-				? thrown.body
-				: ((await (hooks.handleError ?? logError)({
-						error: thrown,
-						event: current,
-						status,
-						message: "Internal Error",
-					})) ?? { message: "Internal Error" });
+			let body: App.Error;
+			if (isHttpError(thrown)) {
+				body = thrown.body;
+			} else {
+				// reported first, so an error still reaches the log when the app's
+				// own handleError is what throws next
+				report(thrown, current, status);
+				const handleError = hooks.handleError ?? (onError === undefined ? logError : undefined);
+				body = (await handleError?.({
+					error: thrown,
+					event: current,
+					status,
+					message: "Internal Error",
+				})) ?? { message: "Internal Error" };
+			}
 			if (current.isDataRequest || endpoint !== null) {
 				return Response.json(body, { status });
 			}
@@ -418,13 +455,20 @@ export function createKitServer(options: KitServerOptions): KitServer {
 					code: status,
 					message: body.message,
 				});
-			} catch {
-				// the error page itself is broken — say so in plain text rather than looping
+			} catch (pageError) {
+				// the error page itself is broken — report that too (nothing else
+				// would ever mention it) and answer in plain text rather than looping
+				report(pageError, current, status);
 				return new Response(body.message, {
 					status,
 					headers: { "content-type": "text/plain; charset=utf-8" },
 				});
 			}
+		};
+
+		/** Hands an unexpected error to the reporter, with what kit knows about it. */
+		const report = (thrown: unknown, current: RequestEvent, status: number) => {
+			onError?.({ error: thrown, event: current, status, source: errorSource(thrown) });
 		};
 
 		const resolve: Resolve = async (resolveEvent, resolveOptions) => {
@@ -462,6 +506,7 @@ export function createKitServer(options: KitServerOptions): KitServer {
 	return { respond, render };
 }
 
+/** What kit does with an unexpected error when the app has no `handleError` and nothing reports. */
 const logError: HandleServerError = ({ error: thrown }) => {
 	console.error(thrown);
 };
@@ -497,5 +542,9 @@ async function runEndpoint(match: EndpointMatch, event: RequestEvent): Promise<R
 			headers: { allow: METHODS.filter((allowed) => allowed in module).join(", ") },
 		});
 	}
-	return await handler(event);
+	try {
+		return await handler(event);
+	} catch (thrown) {
+		throw markErrorSource(thrown, { kind: "endpoint", file: match.route.file, method: name });
+	}
 }

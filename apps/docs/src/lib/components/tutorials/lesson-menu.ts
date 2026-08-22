@@ -1,7 +1,7 @@
-import { A, Div, Fragment, navigateTo, Span, type Child, type Writable } from "@implementjs/core";
-import type { Tutorial } from "@/lib/content";
+import { A, Div, navigateTo, Span, type Child, type Writable } from "@implementjs/core";
+import type { Tutorial } from "@/lib/tutorials";
 import { tutorialParts, type TutorialSection } from "@/lib/tutorials";
-import { SheetContent, SheetOverlay, SheetTitle } from "../ui/sheet";
+import { SheetContent, SheetTitle } from "../ui/sheet";
 
 function SectionGroup(section: TutorialSection, current: Tutorial, open: Writable<boolean>) {
 	return Div(
@@ -39,25 +39,22 @@ function SectionGroup(section: TutorialSection, current: Tutorial, open: Writabl
 }
 
 /**
- * The lesson list as sheet parts (overlay + sliding panel) — mount inside
- * the tutorial page's `Sheet` root, whose header button is the trigger.
+ * The lesson list as a sheet panel — mount inside the tutorial page's
+ * `Sheet` root, whose header button is the trigger.
  */
 export function LessonMenu(open: Writable<boolean>, current: Tutorial): Child {
 	const parts = tutorialParts();
 
-	return Fragment(
-		SheetOverlay({}),
-		SheetContent(
-			{ side: "left" },
-			Div({ class: "border-b border-border px-4 py-3" }, SheetTitle({}, "Lessons")),
-			Div(
-				{ class: "flex-1 overflow-y-auto px-3 py-4" },
-				...parts.map((part, index) =>
-					Div(
-						{ class: index > 0 ? "mt-7 border-t border-border pt-5" : undefined },
-						Span({ class: "px-2 font-mono text-xs font-semibold text-foreground" }, part.name),
-						...part.sections.map((section) => SectionGroup(section, current, open)),
-					),
+	return SheetContent(
+		{ side: "left" },
+		Div({ class: "border-b border-border px-4 py-3" }, SheetTitle({}, "Lessons")),
+		Div(
+			{ class: "flex-1 overflow-y-auto px-3 py-4" },
+			...parts.map((part, index) =>
+				Div(
+					{ class: index > 0 ? "mt-7 border-t border-border pt-5" : undefined },
+					Span({ class: "px-2 font-mono text-xs font-semibold text-foreground" }, part.name),
+					...part.sections.map((section) => SectionGroup(section, current, open)),
 				),
 			),
 		),

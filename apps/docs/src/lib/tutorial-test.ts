@@ -36,7 +36,7 @@ function root(): HTMLElement {
 
 /**
  * The user's current code, for criteria the DOM can't show (e.g. "uses
- * signal()"). Kit lesson tests pass the file's path (`src/routes/index.ts`).
+ * signal()"). Kit lesson tests pass the file's path (`src/routes/page.ts`).
  */
 export function source(path?: string): string {
 	const lesson = activeLesson();

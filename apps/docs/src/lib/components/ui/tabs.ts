@@ -7,6 +7,7 @@ import {
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
+import { cn } from "@/lib/utils";
 
 /**
  * `default` is the segmented control — triggers sit in a filled track. `underline`
@@ -74,7 +75,7 @@ export const Tabs = createComponent(function Tabs(
 		{
 			...props,
 			"data-slot": "tabs",
-			class: ["flex flex-col gap-2 data-[orientation=vertical]:flex-row", className],
+			class: cn("flex flex-col gap-2 data-[orientation=vertical]:flex-row", className),
 		},
 		...children,
 	);
@@ -88,7 +89,7 @@ export const TabsList = createComponent(function TabsList(
 		{
 			...props,
 			"data-slot": "tabs-list",
-			class: [tabsListVariants({ variant }), className],
+			class: cn(tabsListVariants({ variant }), className),
 		},
 		...children,
 	);
@@ -102,7 +103,7 @@ export const TabsTrigger = createComponent(function TabsTrigger(
 		{
 			...props,
 			"data-slot": "tabs-trigger",
-			class: [tabsTriggerVariants({ variant }), className],
+			class: cn(tabsTriggerVariants({ variant }), className),
 		},
 		...children,
 	);
@@ -116,10 +117,10 @@ export const TabsContent = createComponent(function TabsContent(
 		{
 			...props,
 			"data-slot": "tabs-content",
-			class: [
+			class: cn(
 				"flex-1 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
 				className,
-			],
+			),
 		},
 		...children,
 	);

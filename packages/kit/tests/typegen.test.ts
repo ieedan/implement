@@ -32,7 +32,7 @@ const slugNode = {
 	dir: "docs/[...slug]",
 	segment: { kind: "rest", name: "slug" } as const,
 	params: ["slug"],
-	page: "docs/[...slug]/index.ts",
+	page: "docs/[...slug]/page.ts",
 	pageResetTo: null,
 	layout: null,
 	layoutResetTo: null,
@@ -58,13 +58,13 @@ describe("generateRouteTypes", () => {
 	it("types data as the merged load chain", () => {
 		const types = generateRouteTypes(slugNode, {
 			layoutFiles: ["layout.server.ts"],
-			pageFiles: ["layout.server.ts", "docs/[...slug]/index.server.ts"],
+			pageFiles: ["layout.server.ts", "docs/[...slug]/page.server.ts"],
 		});
 		expect(types).toContain(
 			'export type LayoutData = Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>;',
 		);
 		expect(types).toContain(
-			'export type PageData = Merge<Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>, LoadData<typeof import("../../docs/[...slug]/index.server.ts").default>>;',
+			'export type PageData = Merge<Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>, LoadData<typeof import("../../docs/[...slug]/page.server.ts").default>>;',
 		);
 	});
 });
@@ -119,7 +119,7 @@ describe("generateTsconfig", () => {
 
 describe("writeGenerated", () => {
 	it("writes entries, tsconfig, and per-route $types", () => {
-		const app = makeApp(["index.ts", "layout.ts", "docs/[...slug]/index.ts"]);
+		const app = makeApp(["page.ts", "layout.ts", "docs/[...slug]/page.ts"]);
 		writeGenerated(app, scanRoutes(join(app, "src/routes")));
 
 		expect(readFileSync(join(app, ".implement/entry-client.ts"), "utf8")).toContain(
@@ -138,18 +138,18 @@ describe("writeGenerated", () => {
 
 	it("writes $types for server-only and extension-endpoint directories", () => {
 		const app = makeApp([
-			"index.ts",
-			"index.server.ts",
+			"page.ts",
+			"page.server.ts",
 			"layout.server.ts",
 			"docs/.md/server.ts",
-			"docs/index.ts",
+			"docs/page.ts",
 			"api/server.ts",
 		]);
 		writeGenerated(app, scanRoutes(join(app, "src/routes")));
 
 		const rootTypes = readFileSync(join(app, ".implement/types/src/routes/$types.d.ts"), "utf8");
 		expect(rootTypes).toContain(
-			'export type PageData = Merge<Merge<{}, LoadData<typeof import("./layout.server.ts").default>>, LoadData<typeof import("./index.server.ts").default>>;',
+			'export type PageData = Merge<Merge<{}, LoadData<typeof import("./layout.server.ts").default>>, LoadData<typeof import("./page.server.ts").default>>;',
 		);
 		expect(existsSync(join(app, ".implement/types/src/routes/api/$types.d.ts"))).toBe(true);
 		const extensionTypes = readFileSync(
@@ -160,7 +160,7 @@ describe("writeGenerated", () => {
 	});
 
 	it("declares the server-only virtual modules", () => {
-		const app = makeApp(["index.ts"]);
+		const app = makeApp(["page.ts"]);
 		writeGenerated(app, scanRoutes(join(app, "src/routes")));
 		const declaration = readFileSync(join(app, ".implement/types/$implement.d.ts"), "utf8");
 		expect(declaration).toContain('declare module "$implement/pages"');
@@ -168,7 +168,7 @@ describe("writeGenerated", () => {
 	});
 
 	it("prunes $types for removed routes", () => {
-		const app = makeApp(["index.ts", "docs/index.ts"]);
+		const app = makeApp(["page.ts", "docs/page.ts"]);
 		const routesDir = join(app, "src/routes");
 		writeGenerated(app, scanRoutes(routesDir));
 		const stale = join(app, ".implement/types/src/routes/docs/$types.d.ts");

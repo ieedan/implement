@@ -6,7 +6,6 @@
 	},
 	"include": [
 		"src/**/*.ts",
-		"scripts/**/*.ts",
 		"*.config.ts",
 		".velite/**/*.d.ts",
 		".implement/**/*.ts",

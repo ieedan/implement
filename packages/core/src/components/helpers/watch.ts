@@ -10,10 +10,10 @@ import type { IMountable, Mountable } from "../types";
  * unmounting unsubscribes. Renders nothing.
  *
  * ```ts
- * Implement.Watch([query], (q) => localStorage.setItem("q", q));
+ * ImplementEffect([query], (q) => localStorage.setItem("q", q));
  * ```
  */
-export function Watch<Signals extends readonly Readable<any>[]>(
+export function ImplementEffect<Signals extends readonly Readable<any>[]>(
 	signals: readonly [...Signals],
 	effect: Getter<void, Signals>,
 ): Mountable {

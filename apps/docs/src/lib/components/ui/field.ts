@@ -3,6 +3,7 @@ import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
 import { Label } from "./label";
 import { Separator } from "./separator";
+import { cn } from "@/lib/utils";
 
 export const fieldVariants = tv({
 	base: "group/field flex w-full gap-3 data-[invalid=true]:text-destructive",
@@ -58,11 +59,11 @@ export const FieldSet = createComponent(function FieldSet(
 		{
 			...props,
 			"data-slot": "field-set",
-			class: [
+			class: cn(
 				"flex flex-col gap-6",
 				"has-[>[data-slot=checkbox-group]]:gap-3 has-[>[data-slot=radio-group]]:gap-3",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -77,7 +78,7 @@ export const FieldLegend = createComponent(function FieldLegend(
 			...props,
 			"data-slot": "field-legend",
 			"data-variant": variant,
-			class: [fieldLegendVariants({ variant }), className],
+			class: cn(fieldLegendVariants({ variant }), className),
 		},
 		...children,
 	);
@@ -96,11 +97,11 @@ export const FieldGroup = createComponent(function FieldGroup(
 		{
 			...props,
 			"data-slot": "field-group",
-			class: [
+			class: cn(
 				"@container/field-group flex w-full flex-col gap-7 data-[slot=checkbox-group]:gap-3",
 				"[&>[data-slot=field-group]]:gap-4",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -121,7 +122,7 @@ export const Field = createComponent(function Field(
 			...props,
 			"data-slot": "field",
 			"data-orientation": orientation,
-			class: [fieldVariants({ orientation }), className],
+			class: cn(fieldVariants({ orientation }), className),
 		},
 		...children,
 	);
@@ -136,7 +137,7 @@ export const FieldContent = createComponent(function FieldContent(
 		{
 			...props,
 			"data-slot": "field-content",
-			class: ["group/field-content flex flex-1 flex-col gap-1.5 leading-snug", className],
+			class: cn("group/field-content flex flex-1 flex-col gap-1.5 leading-snug", className),
 		},
 		...children,
 	);
@@ -155,13 +156,13 @@ export const FieldLabel = createComponent(function FieldLabel(
 		{
 			...props,
 			"data-slot": "field-label",
-			class: [
+			class: cn(
 				"group/field-label flex w-fit gap-2 leading-snug",
 				"group-data-[disabled=true]/field:opacity-50",
 				"has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border has-[>[data-slot=field]]:p-4",
 				"has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -176,11 +177,11 @@ export const FieldTitle = createComponent(function FieldTitle(
 		{
 			...props,
 			"data-slot": "field-title",
-			class: [
+			class: cn(
 				"flex w-fit items-center gap-2 text-sm leading-snug font-medium",
 				"group-data-[disabled=true]/field:opacity-50",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -194,13 +195,13 @@ export const FieldDescription = createComponent(function FieldDescription(
 		{
 			...props,
 			"data-slot": "field-description",
-			class: [
+			class: cn(
 				"text-sm leading-normal font-normal text-muted-foreground",
 				"group-has-[[data-orientation=horizontal]]/field:text-balance",
 				"last:mt-0 nth-last-2:-mt-1",
 				"[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -216,10 +217,10 @@ export const FieldSeparator = createComponent(function FieldSeparator(
 			...props,
 			"data-slot": "field-separator",
 			"data-content": children.length > 0 ? "" : undefined,
-			class: [
+			class: cn(
 				"relative -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2",
 				className,
-			],
+			),
 		},
 		Separator({ class: "absolute inset-0 top-1/2" }),
 		...(children.length > 0
@@ -250,7 +251,7 @@ export const FieldError = createComponent(function FieldError(
 			role: "alert",
 			...props,
 			"data-slot": "field-error",
-			class: ["text-sm font-normal text-destructive", className],
+			class: cn("text-sm font-normal text-destructive", className),
 		},
 		...children,
 	);

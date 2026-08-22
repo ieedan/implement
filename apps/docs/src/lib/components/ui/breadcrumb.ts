@@ -1,6 +1,7 @@
 import { A, Li, Nav, Ol, Span, type Child, type ElementProps } from "@implementjs/core";
 import { ChevronRightIcon, EllipsisIcon } from "@implementjs/lucide";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type BreadcrumbProps = ElementProps<"nav">;
 export type BreadcrumbListProps = ElementProps<"ol">;
@@ -33,10 +34,10 @@ export const BreadcrumbList = createComponent(function BreadcrumbList(
 		{
 			...props,
 			"data-slot": "breadcrumb-list",
-			class: [
+			class: cn(
 				"flex flex-wrap items-center gap-1.5 text-sm break-words text-muted-foreground sm:gap-2.5",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -50,7 +51,7 @@ export const BreadcrumbItem = createComponent(function BreadcrumbItem(
 		{
 			...props,
 			"data-slot": "breadcrumb-item",
-			class: ["inline-flex items-center gap-1.5", className],
+			class: cn("inline-flex items-center gap-1.5", className),
 		},
 		...children,
 	);
@@ -64,7 +65,7 @@ export const BreadcrumbLink = createComponent(function BreadcrumbLink(
 		{
 			...props,
 			"data-slot": "breadcrumb-link",
-			class: ["transition-colors hover:text-foreground", className],
+			class: cn("transition-colors hover:text-foreground", className),
 		},
 		...children,
 	);
@@ -82,7 +83,7 @@ export const BreadcrumbPage = createComponent(function BreadcrumbPage(
 			"aria-current": "page",
 			...props,
 			"data-slot": "breadcrumb-page",
-			class: ["font-normal text-foreground", className],
+			class: cn("font-normal text-foreground", className),
 		},
 		...children,
 	);
@@ -103,7 +104,7 @@ export const BreadcrumbSeparator = createComponent(function BreadcrumbSeparator(
 			"aria-hidden": true,
 			...props,
 			"data-slot": "breadcrumb-separator",
-			class: ["[&>svg]:size-3.5", className],
+			class: cn("[&>svg]:size-3.5", className),
 		},
 		...(children.length > 0 ? children : [ChevronRightIcon()]),
 	);
@@ -120,7 +121,7 @@ export const BreadcrumbEllipsis = createComponent(function BreadcrumbEllipsis(
 			"aria-hidden": true,
 			...props,
 			"data-slot": "breadcrumb-ellipsis",
-			class: ["flex size-9 items-center justify-center", className],
+			class: cn("flex size-9 items-center justify-center", className),
 		},
 		...children,
 		EllipsisIcon({ class: "size-4" }),

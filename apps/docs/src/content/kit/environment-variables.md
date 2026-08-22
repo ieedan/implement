@@ -42,7 +42,7 @@ The schemas are [Standard Schema](https://standardschema.dev) — zod, valibot, 
 Then import them where you need them:
 
 ```ts
-// src/routes/blog/index.server.ts
+// src/routes/blog/page.server.ts
 import { env } from "@/lib/env.server";
 import { env as publicEnv } from "@/lib/env.public";
 
@@ -138,7 +138,7 @@ The browser copy of `env.server.ts` is the part worth internalising: it does not
 src/lib/env.server.ts is a server file and cannot be imported by client code.
 
   src/lib/env.server.ts
-  imported by src/routes/blog/index.ts as "@/lib/env.server"
+  imported by src/routes/blog/page.ts as "@/lib/env.server"
     ← $implement/router
     ← .implement/entry-client.ts
 ```
@@ -150,14 +150,14 @@ src/lib/env.server.ts is a server file and cannot be imported by client code.
 Importing a _type_ from a server file is legal and common — type imports are erased before the module graph ever sees them:
 
 ```ts
-import type { PackageInfo } from "../../routes/packages/index.server";
+import type { PackageInfo } from "../../routes/packages/page.server";
 ```
 
 Write `import type`, not an inline `type` specifier. Under `verbatimModuleSyntax` (which scaffolded apps enable) this form leaves a real import behind and trips the guard:
 
 ```ts
-import { type PackageInfo } from "./index.server"; // ✗ trips the guard
-import type { PackageInfo } from "./index.server"; // ✓
+import { type PackageInfo } from "./page.server"; // ✗ trips the guard
+import type { PackageInfo } from "./page.server"; // ✓
 ```
 
 Vite's resource queries are left alone too. `import source from "./x.server.ts?raw"` asks for the file's _text_, not its bindings — a deliberate act, and how this site renders the source of every lesson. It ships the file's source, so don't reach for it on a file whose source contains anything secret.
@@ -182,11 +182,23 @@ Two things keep this from being annoying:
 
 What is left is a `vite build` for an app whose loads read `DATABASE_URL`. That build genuinely cannot produce correct output without it, so failing is the honest result.
 
-## Scope: server variables are build-time secrets
+## Scope: server variables are build-time values
 
-Kit has no production server yet. `implement()` prerenders on build, so a server env var is read **once, during `vite build`** — not per request. `DATABASE_URL` is the credential your build uses to fetch content, not one a running server holds.
+Both files are evaluated **once, during `vite build`**, and re-emitted as literals. A server variable is read at build time and baked into whatever the build produces — the prerendered pages with no adapter, the server bundle with one.
 
-That is a real simplification: everything can be static, and there is no `$env/dynamic` counterpart to reason about. It also means the story changes when a server adapter lands and non-GET endpoints can ship — runtime environment values are additive work for that phase.
+That is a real simplification: there is no `$env/dynamic` counterpart to reason about, and a variable's value is visible in the artifact you are about to ship rather than in an environment you have to reconstruct.
+
+It is also the thing to know before you deploy a server. With an [adapter](/kit/adapters), `DATABASE_URL` is compiled into the server bundle, so rotating it means rebuilding, and the built artifact holds the secret. Read it from `process.env` in the route itself where you want a value the running server picks up:
+
+```ts
+// src/routes/api/server.ts
+export async function POST(): Promise<Response> {
+	const key = process.env.STRIPE_KEY;
+	// ...
+}
+```
+
+A `$env/dynamic` counterpart — validated, typed, read per request — is additive work on top of what is here.
 
 ## Running outside kit
 

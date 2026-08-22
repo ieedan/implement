@@ -41,7 +41,7 @@ describe("runCreate", () => {
 		expect(value.name).toBe("my-app");
 		expect(value.installed).toBe(false);
 		expect(readFileSync(join(cwd, "my-app/package.json"), "utf8")).toContain('"name": "my-app"');
-		expect(readFileSync(join(cwd, "my-app/src/routes/index.ts"), "utf8")).toContain("Page");
+		expect(readFileSync(join(cwd, "my-app/src/routes/page.ts"), "utf8")).toContain("Page");
 	});
 
 	it("writes every file the template lists", async () => {
@@ -72,6 +72,19 @@ describe("runCreate", () => {
 		expect(readFileSync(join(cwd, "my-app/src/lib/mode.ts"), "utf8")).toContain(
 			"createModeManager()",
 		);
+	});
+
+	it("turns on what the ui addon cannot work without", async () => {
+		// the styled components are tailwind classes over the primitives, so `--no-tailwind --ui`
+		// would otherwise scaffold an app whose first component doesn't render
+		const result = await runCreate("my-app", options({ tailwind: false, ui: true }));
+
+		expect(unwrap(result).addons).toEqual(["tailwind", "primitives", "ui"]);
+		expect(readFileSync(join(cwd, "my-app/jsrepo.config.ts"), "utf8")).toContain(
+			'registries: ["@implementjs/ui"]',
+		);
+		// nothing was installed, so jsrepo never ran — the next steps say to run it
+		expect(unwrap(result).components).toEqual([]);
 	});
 
 	it("derives a valid package name from the directory", async () => {

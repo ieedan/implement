@@ -1,6 +1,7 @@
 import { derived, Div, signal, type ComponentProps } from "@implementjs/core";
 import { Progress as ProgressPrimitive } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type ProgressProps = ComponentProps<typeof ProgressPrimitive>;
 
@@ -28,10 +29,10 @@ export const Progress = createComponent(function Progress({
 			max: maxSignal,
 			...props,
 			"data-slot": "progress",
-			class: [
+			class: cn(
 				"group/progress relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
 				className,
-			],
+			),
 		},
 		Div({
 			"data-slot": "progress-indicator",

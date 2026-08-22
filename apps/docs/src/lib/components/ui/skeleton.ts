@@ -1,5 +1,6 @@
 import { Div, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type SkeletonProps = ElementProps<"div">;
 
@@ -15,7 +16,7 @@ export const Skeleton = createComponent(function Skeleton(
 		{
 			...props,
 			"data-slot": "skeleton",
-			class: ["animate-pulse rounded-md bg-accent motion-reduce:animate-none", className],
+			class: cn("animate-pulse rounded-md bg-accent motion-reduce:animate-none", className),
 		},
 		...children,
 	);

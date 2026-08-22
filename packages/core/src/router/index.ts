@@ -3,7 +3,7 @@ import { A } from "../components/elements";
 import type { ElementProps } from "../components/props";
 import { dom } from "../dom";
 import { derived, isReadable, signal, subscribe, type Readable, type Signal } from "../signal";
-import { asParent, mountChild } from "../tree";
+import { asParent, mountChild, isDetaching } from "../tree";
 import type { Unsubscribe } from "../types";
 import { syncDomOrder } from "../utils";
 import {
@@ -338,7 +338,7 @@ class Outlet {
 			},
 			unmount: () => {
 				this.#clear();
-				this.#endMarker.remove();
+				if (!isDetaching()) this.#endMarker.remove();
 				this.#parent = null;
 			},
 			getFirstDomNode: () => {

@@ -1,6 +1,7 @@
 import type { ComponentProps } from "@implementjs/core";
 import { Separator as SeparatorPrimitive } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type SeparatorProps = ComponentProps<typeof SeparatorPrimitive>;
 
@@ -15,9 +16,9 @@ export const Separator = createComponent(function Separator({
 		orientation,
 		decorative,
 		"data-slot": "separator",
-		class: [
+		class: cn(
 			"shrink-0 bg-border data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px",
 			className,
-		],
+		),
 	});
 });

@@ -18,7 +18,7 @@ jsrepo pulls `button`, [`input`](/ui/input), [`separator`](/ui/separator), `shee
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/sidebar.ts`. It imports `button`, [`input`](/ui/input), [`separator`](/ui/separator), `sheet`, [`skeleton`](/ui/skeleton) and [`tooltip`](/ui/tooltip) from the same directory, so install those too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/sidebar.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and `button`, [`input`](/ui/input), [`separator`](/ui/separator), `sheet`, [`skeleton`](/ui/skeleton) and [`tooltip`](/ui/tooltip) from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide tailwind-variants

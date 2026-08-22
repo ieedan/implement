@@ -121,7 +121,7 @@ class TooltipProviderState {
 	}
 }
 
-const TooltipProviderContext = context<TooltipProviderState>();
+const TooltipProviderContext = context<TooltipProviderState>("TooltipProviderContext");
 
 /**
  * Shares tooltip timing across every `Tooltip` inside it: one open at a time,
@@ -356,7 +356,7 @@ class TooltipState {
 	}
 }
 
-const TooltipContext = context<TooltipState>();
+const TooltipContext = context<TooltipState>("TooltipContext");
 
 export const Tooltip = createComponent(function Tooltip(
 	props: TooltipRootProps,

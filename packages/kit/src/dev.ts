@@ -1,13 +1,18 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
-import { Readable } from "node:stream";
 import { collectDevStyles, injectSsr } from "@implementjs/vite";
 import type { Connect, ViteDevServer } from "vite";
 import type { ServerRoute } from "./codegen.ts";
 import { dataPath, matchRoutePattern, type EndpointRoute, type RequestHandler } from "./match.ts";
+import { sendResponse, toRequest } from "./node.ts";
 import { extensionPattern } from "./scan.ts";
-import { INTERNAL_ORIGIN, type KitServer } from "./server.ts";
+import {
+	formatServerError,
+	INTERNAL_ORIGIN,
+	type KitServer,
+	type ServerErrorReport,
+} from "./server.ts";
 
 export const PAGES_ID = "$implement/pages";
 export const ENDPOINTS_ID = "$implement/endpoints";
@@ -16,39 +21,24 @@ export const HOOKS_ID = "$implement/hooks";
 /** Vite's own dev URLs (`/@vite/client`, `/@fs/…`) are never app routes. */
 const VITE_INTERNAL = /^\/@/;
 
-function toRequest(req: IncomingMessage, url: URL): Request {
-	const method = req.method ?? "GET";
-	const headers = new Headers();
-	for (const [name, value] of Object.entries(req.headers)) {
-		if (value === undefined) continue;
-		if (Array.isArray(value)) {
-			for (const entry of value) headers.append(name, entry);
-		} else {
-			headers.set(name, value);
-		}
-	}
-	const body =
-		method === "GET" || method === "HEAD"
-			? undefined
-			: // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Node Readable streams convert to Fetch BodyInit for endpoint handlers.
-				(Readable.toWeb(req) as unknown as BodyInit);
-	const init: RequestInit = { method, headers, body };
-	// streaming request bodies require half duplex
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- RequestInit duplex is required for streaming request bodies.
-	if (body !== undefined) (init as { duplex?: string }).duplex = "half";
-	return new Request(url, init);
-}
+/** Roughly what picocolors decides, without the dependency. */
+const COLOR =
+	!("NO_COLOR" in process.env) &&
+	("FORCE_COLOR" in process.env ||
+		"CI" in process.env ||
+		(process.stdout.isTTY && process.env["TERM"] !== "dumb"));
 
-async function sendResponse(res: ServerResponse, response: Response, head: boolean): Promise<void> {
-	res.statusCode = response.status;
-	response.headers.forEach((value, name) => {
-		res.setHeader(name, value);
-	});
-	if (head || response.body === null) {
-		res.end();
-		return;
-	}
-	res.end(Buffer.from(await response.arrayBuffer()));
+const dim = (text: string) => (COLOR ? `\u001B[2m${text}\u001B[22m` : text);
+const boldRed = (text: string) => (COLOR ? `\u001B[1m\u001B[31m${text}\u001B[39m\u001B[22m` : text);
+
+/**
+ * Kit's own tag for a log line. Vite stamps `[vite]` on anything it timestamps
+ * for you, and an error thrown by a route's server file belongs to the app and
+ * to kit, not to the dev server that carried the request — so the timestamp and
+ * the tag are written here and the message goes to Vite's logger already dressed.
+ */
+function tagged(message: string): string {
+	return `${dim(new Date().toLocaleTimeString())} ${boldRed("[implement]")} ${message}`;
 }
 
 /**
@@ -66,8 +56,10 @@ export async function handleServerRequest(options: {
 	entry: string;
 	/** Absolute path of the app's html shell, the template page responses render into. */
 	shell: string | null;
+	/** Routes directory relative to the Vite root, for naming the file an error came from. */
+	routes: string;
 }): Promise<boolean> {
-	const { server, req, res, entry, shell } = options;
+	const { server, req, res, entry, shell, routes } = options;
 	const path = req.url ?? "/";
 	if (VITE_INTERNAL.test(path)) return false;
 
@@ -76,6 +68,13 @@ export async function handleServerRequest(options: {
 	const { respond } = (await server.ssrLoadModule(entry)) as unknown as KitServer;
 	const response = await respond(toRequest(req, url), {
 		getClientAddress: () => req.socket.remoteAddress ?? "",
+		// a load or an endpoint that throws answers the browser with a 500 and
+		// nothing else — in dev the terminal is where you find out why
+		onError: (report) => {
+			server.config.logger.error(
+				tagged(formatServerError(report, { root: server.config.root, routes })),
+			);
+		},
 		document: async ({ render, transform }) => {
 			if (shell === null) {
 				throw new Error("no html shell to render into — add a src/index.html");
@@ -112,17 +111,40 @@ export async function prerenderServerFiles(options: {
 	entry: string;
 	hasLoads: boolean;
 	serverRoutes: ServerRoute[];
-	logger: { info(message: string): void; warn(message: string): void };
-}): Promise<void> {
-	const { routes, outDir, load, entry, hasLoads, serverRoutes, logger } = options;
+	/**
+	 * Whether an endpoint should become a file. Defaults to every GET endpoint,
+	 * which is what a static build needs; a server adapter passes the app's
+	 * prerender policy instead.
+	 */
+	shouldPrerender?: (route: { file: string }) => boolean | Promise<boolean>;
+	logger: {
+		info(message: string): void;
+		warn(message: string): void;
+		error(message: string): void;
+	};
+	/** Vite root and routes directory, for naming the file an error came from. */
+	source: { root: string; routes: string };
+	/** Every file written, as site-root-relative paths. */
+}): Promise<string[]> {
+	const { routes, outDir, load, entry, hasLoads, serverRoutes, logger, source } = options;
+	const shouldPrerender = options.shouldPrerender ?? (() => true);
+	const files: string[] = [];
 	const write = (path: string, contents: string | Buffer) => {
 		const out = join(outDir, path.slice(1));
 		mkdirSync(dirname(out), { recursive: true });
 		writeFileSync(out, contents);
+		files.push(path);
 	};
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated server entry exports the app request pipeline.
 	const { respond } = (await load(entry)) as unknown as KitServer;
-	const get = (path: string) => respond(new Request(new URL(path, INTERNAL_ORIGIN)));
+	const report = (error: ServerErrorReport) => {
+		logger.error(tagged(formatServerError(error, source)));
+	};
+	// the build writes these files from the same pipeline dev serves them with,
+	// so a load or an endpoint that throws has to say so here too — a skipped
+	// payload otherwise looks like a route that simply had nothing to write
+	const get = (path: string) =>
+		respond(new Request(new URL(path, INTERNAL_ORIGIN)), { onError: report });
 
 	if (hasLoads) {
 		let written = 0;
@@ -135,7 +157,7 @@ export async function prerenderServerFiles(options: {
 		logger.info(`wrote ${written} route data payloads`);
 	}
 
-	if (serverRoutes.length === 0) return;
+	if (serverRoutes.length === 0) return files;
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated endpoints module exports the compiled endpoint route table.
 	const { endpoints } = (await load(ENDPOINTS_ID)) as unknown as { endpoints: EndpointRoute[] };
 	const failed: string[] = [];
@@ -143,6 +165,7 @@ export async function prerenderServerFiles(options: {
 	for (const endpoint of endpoints) {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint module handlers are keyed by HTTP method name.
 		const handler = endpoint.module.GET as RequestHandler | undefined;
+		if (!(await shouldPrerender(endpoint))) continue;
 		if (handler === undefined) {
 			logger.warn(`skipping ${endpoint.file} — only GET endpoints prerender`);
 			continue;
@@ -182,4 +205,5 @@ export async function prerenderServerFiles(options: {
 	if (failed.length > 0) {
 		throw new Error(`endpoint prerender failed:\n  ${failed.join("\n  ")}`);
 	}
+	return files;
 }

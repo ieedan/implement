@@ -10,11 +10,11 @@ import {
 	Span,
 	type Mountable,
 } from "@implementjs/core";
-import { pages, type Page } from "@/lib/content";
+import type { Page } from "@/lib/content";
 import { router } from "../../router";
 import { SiteHeader } from "../site-header";
 import { MenuIcon } from "@implementjs/lucide";
-import { Sheet, SheetContent, SheetOverlay, SheetTitle, SheetTrigger } from "../ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../ui/sheet";
 
 type DocsSection = { name: string; pages: Page[] };
 
@@ -70,10 +70,8 @@ function DocsNav(collection: Page[], onNavigate?: () => void): Mountable {
 	);
 }
 
-export function DocsLayout(
-	child: Mountable,
-	collection: DocsCollection = { pages, label: "Docs" },
-): Mountable {
+// Required, not defaulted — see the note on `DocsPage`.
+export function DocsLayout(child: Mountable, collection: DocsCollection): Mountable {
 	const menuOpen = signal(false);
 	const currentTitle = derived(
 		[router.location],
@@ -96,9 +94,8 @@ export function DocsLayout(
 				SheetTrigger({ "aria-label": "Open docs navigation" }, MenuIcon({ class: "size-4" })),
 				Span({ class: "min-w-0 truncate text-sm text-foreground/60" }, currentTitle),
 			),
-			SheetOverlay({ class: "md:hidden" }),
 			SheetContent(
-				{ side: "left", class: "md:hidden" },
+				{ side: "left", class: "md:hidden", overlay: { class: "md:hidden" } },
 				Div({ class: "border-b border-border px-4 py-3" }, SheetTitle({}, collection.label)),
 				Div(
 					{ class: "flex-1 overflow-y-auto px-3 py-4" },

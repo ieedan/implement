@@ -1,7 +1,7 @@
 import { expect, navigate, screen, source } from "@tutorial/test";
 
 export default async function test() {
-	source("src/routes/about/index.ts");
+	source("src/routes/about/page.ts");
 	await navigate("/about");
 	expect(
 		screen.getByRole("heading"),

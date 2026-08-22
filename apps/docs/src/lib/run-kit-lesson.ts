@@ -29,7 +29,7 @@ import {
 	type RouteData,
 	type ServerLoad,
 } from "@implementjs/kit/runtime";
-import type { LessonFile } from "./content";
+import type { LessonFile } from "./tutorials";
 import {
 	buildRouterRoutes,
 	endpointFiles,
@@ -104,6 +104,7 @@ function previewEvent(url: URL, params: Record<string, string>, id: string | nul
 		route: { id },
 		locals: {},
 		isDataRequest: false,
+		platform: undefined,
 		setHeaders: () => {},
 		getClientAddress: () => "127.0.0.1",
 	};
@@ -132,7 +133,7 @@ export async function runKitApp(
 ): Promise<KitApp> {
 	const tree = scanVirtualRoutes(files.map((file) => file.path));
 	if (pageCount(tree) === 0) {
-		throw new Error(`No pages found — add a ${ROUTES_DIR}/index.ts file.`);
+		throw new Error(`No pages found — add a ${ROUTES_DIR}/page.ts file.`);
 	}
 
 	// Errors thrown by lesson code are the lesson's output — report them

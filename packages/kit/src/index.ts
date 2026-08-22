@@ -1,13 +1,9 @@
 import { existsSync } from "node:fs";
 import { basename, join, resolve, sep } from "node:path";
-import {
-	crawlRoutes,
-	implement,
-	normalizeRoute,
-	type RenderFn,
-	type PrerenderOptions,
-} from "@implementjs/vite";
-import type { Plugin, ViteDevServer } from "vite";
+import { crawlRoutes, implement, normalizeRoute, type PrerenderOptions } from "@implementjs/vite";
+import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
+import type { Adapter } from "./adapter.ts";
+import { OUTPUT_DIR, runAdapter } from "./build.ts";
 import {
 	generateEndpointsModule,
 	generateHooksModule,
@@ -41,13 +37,24 @@ import {
 } from "./guard.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
+import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
+import type { KitPluginApi } from "./sync.ts";
 import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
 import { DEFAULT_ALIASES, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
+export type {
+	Adapter,
+	AdapterBuild,
+	BuildLogger,
+	Builder,
+	BuiltRoutes,
+	Prerendered,
+} from "./adapter.ts";
 export type { DataChain, PageRoute, ServerRoute } from "./codegen.ts";
+export type { PrerenderDefault } from "./prerender.ts";
 export { defineEnv, PUBLIC_PREFIX, type Env, type EnvKind, type EnvSchemas } from "./env.ts";
 export type { ExtensionEndpoint, RouteTree } from "./scan.ts";
-export { sync } from "./sync.ts";
+export { sync, type KitPluginApi } from "./sync.ts";
 
 const ROUTER_ID = "$implement/router";
 const RESOLVED_ROUTER_ID = "\0$implement/router";
@@ -69,6 +76,19 @@ export type KitPrerenderOptions = {
 	 * link crawl — fill in dynamic `[param]` routes here.
 	 */
 	entries?: string[] | (() => string[] | Promise<string[]>);
+	/**
+	 * What a route prerenders when it does not say for itself. Routes say so by
+	 * exporting `prerender` from their `page.server.ts`, `layout.server.ts`
+	 * (which cascades to everything under it), or `server.ts`.
+	 *
+	 * Without a server to fall back on, everything prerenders — that is the
+	 * only thing a static build can mean, and it is the default with no adapter
+	 * or a static one. An adapter that ships a server defaults to `"auto"`
+	 * instead: pages with no server load prerender, pages with one are rendered
+	 * per request, and endpoints wait for the server. Set it here to override
+	 * either.
+	 */
+	default?: PrerenderDefault;
 };
 
 export type KitOptions = {
@@ -81,6 +101,22 @@ export type KitOptions = {
 	hooks?: string;
 	/** Prerender the built site. @default true */
 	prerender?: boolean | KitPrerenderOptions;
+	/**
+	 * What to do with the finished build. Without one, `vite build` writes a
+	 * static site straight to `build.outDir` and anything a request has to be
+	 * present for — a `POST` endpoint, a load that reads the session — has
+	 * nowhere to run.
+	 *
+	 * With one, the build is staged under `.implement/output` (`client/` and,
+	 * for an adapter that ships a server, `server/`) and the adapter turns that
+	 * into whatever its host deploys.
+	 *
+	 * ```ts
+	 * import node from "@implementjs/adapter-node";
+	 * kit({ adapter: node() });
+	 * ```
+	 */
+	adapter?: Adapter;
 	/**
 	 * Extra import aliases, mapped to paths relative to the Vite root. Each
 	 * entry is wired into both Vite's `resolve.alias` and the generated
@@ -145,11 +181,11 @@ const treeHasLoads = (node: RouteNode): boolean =>
 	node.pageServer !== null || node.layoutServer !== null || node.children.some(treeHasLoads);
 
 /**
- * File-based routing for implement apps. Scans `src/routes` — `index.ts` is a
+ * File-based routing for implement apps. Scans `src/routes` — `page.ts` is a
  * page, `layout.ts` wraps everything beneath it, `[param]` and `[...rest]`
  * directories bind params, `(group)` directories scope a layout without
- * adding a URL segment, `index@<segment>.ts` / `layout@<segment>.ts` reset
- * the layout chain to an ancestor segment (`index@.ts` resets to the root),
+ * adding a URL segment, `page@<segment>.ts` / `layout@<segment>.ts` reset
+ * the layout chain to an ancestor segment (`page@.ts` resets to the root),
  * and a root `error.ts` renders unmatched paths and render errors —
  * and serves the app through `@implementjs/vite`'s SSR dev server and
  * prerenderer. The router itself is exposed as the `$implement/router`
@@ -157,7 +193,7 @@ const treeHasLoads = (node: RouteNode): boolean =>
  * tsconfig apps extend land in `.implement/`.
  *
  * Server files run only on the server (dev requests and the prerender):
- * `index.server.ts` / `layout.server.ts` export a load function whose result
+ * `page.server.ts` / `layout.server.ts` export a load function whose result
  * reaches the page or layout as its `data` readable — serialized into the
  * prerendered page, and fetched from `__data.json` on client navigation.
  * A `server.ts` exports request handlers (`GET`, `POST`, …) serving its
@@ -213,6 +249,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	let shell: { path: string; relative: string } | null = null;
 	let outDir = join(root, "dist");
 	let devServer: ViteDevServer | null = null;
+	let resolvedConfig: ResolvedConfig | null = null;
 	/** Client-graph parents, recorded as rollup parses, for the importer chain. */
 	const clientParents = new Map<string, string>();
 	let envFiles: EnvFile[] = [];
@@ -239,46 +276,80 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		return tree;
 	};
 
+	const adapter = options.adapter;
 	const entriesOption =
 		typeof options.prerender === "object" ? options.prerender.entries : undefined;
+	/**
+	 * What a route prerenders when nothing declares otherwise. A build with no
+	 * server to fall back on has to prerender everything; one with a server
+	 * prerenders only what is safe to freeze.
+	 */
+	const prerenderDefault: PrerenderDefault =
+		(typeof options.prerender === "object" ? options.prerender.default : undefined) ??
+		(adapter === undefined || adapter.server === false ? true : "auto");
+	/** Built by the routes pass, and read again by the endpoint pass behind it. */
+	let policy: PrerenderPolicy | null = null;
+	/** Everything the prerender wrote besides the pages themselves. */
+	let prerenderedFiles: string[] = [];
+
 	// notFound is filled in from the scan in configResolved, before closeBundle reads it
 	const prerenderConfig: PrerenderOptions = {
-		routes: async (render: RenderFn) => {
+		routes: async ({ render, load }) => {
+			const scanned = tree ?? scan();
+			policy = prerenderPolicy({
+				tree: scanned,
+				routesBase,
+				load,
+				fallback: prerenderDefault,
+			});
 			const entries =
 				typeof entriesOption === "function" ? await entriesOption() : (entriesOption ?? []);
-			const all = new Set([
-				...staticRoutePaths(tree ?? scan()).map(normalizeRoute),
+			const seeds = [
+				...staticRoutePaths(scanned).map(normalizeRoute),
 				...entries.map(normalizeRoute),
-				...(await crawlRoutes(render)),
-			]);
-			return [...all];
+				"/",
+			];
+			// the crawl both discovers and filters: a page the policy keeps out of
+			// the build is never rendered, so its loads never run at build time
+			return await crawlRoutes(render, { from: seeds, follow: (route) => policy!.page(route) });
 		},
 		after: async ({ routes: prerendered, outDir, load }) => {
 			const scanned = tree ?? scan();
-			await prerenderServerFiles({
+			prerenderedFiles = await prerenderServerFiles({
 				routes: prerendered,
 				outDir,
 				load,
 				entry: ENTRY_SERVER,
 				hasLoads: treeHasLoads(scanned.root),
 				serverRoutes: serverRoutes(scanned),
+				shouldPrerender: policy === null ? undefined : (route) => policy!.endpoint(route),
 				logger: console,
+				source: { root, routes },
 			});
 		},
 	};
 
+	// what `implement-kit sync` reads, so the CLI generates against these same options
+	const api: KitPluginApi = { options: genOptions };
+
 	const kitPlugin: Plugin = {
 		name: "implement-kit",
-		config(userConfig) {
+		api,
+		config(userConfig, env) {
 			const appRoot = resolve(userConfig.root ?? ".");
 			const alias = Object.fromEntries(
 				Object.entries(aliases).map(([name, target]) => [name, resolve(appRoot, target)]),
 			);
+			// the server build kit runs for an adapter loads this same config, and
+			// none of the client build's entry, output, or asset wiring is its
+			// business — it has an entry of its own and writes somewhere else
+			const isServerBuild = env.isSsrBuild === true || userConfig.build?.ssr !== undefined;
 			// a shell outside the root is not something Vite would pick up on its own, so point the
 			// build at it here — `configResolved` is too late for rollup's input. A root `index.html`
 			// is already Vite's default entry and is left well alone.
 			const shellPath = resolveShell(appRoot);
 			const overrideInput =
+				!isServerBuild &&
 				shellPath !== null &&
 				!isRootShell(shellPath.relative) &&
 				userConfig.build?.rollupOptions?.input === undefined;
@@ -293,11 +364,19 @@ export function kit(options: KitOptions = {}): Plugin[] {
 					// the prerender needs chunk filenames to emit preload hints for
 					// each route's own modules, and only the manifest has them
 					manifest: userConfig.build?.manifest ?? true,
+					// an adapter owns the deployable output, so the client bundle it
+					// is assembled from is staged rather than written where a static
+					// build would put it
+					...(adapter !== undefined && !isServerBuild ? { outDir: `${OUTPUT_DIR}/client` } : {}),
 					...(overrideInput ? { rollupOptions: { input: shellPath.path } } : {}),
 				},
 			};
 		},
 		configResolved(config) {
+			// the prerender runs a dev server on this same config, and it may well
+			// be this same plugin instance answering for it — the adapter stage
+			// wants what the client build resolved, not what serving it resolves
+			if (config.command === "build" && config.build.ssr === false) resolvedConfig = config;
 			root = config.root;
 			routesDir = join(root, routes);
 			hooksFile = join(root, hooksPath);
@@ -313,7 +392,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			);
 			const scanned = scan();
 			writeGenerated(root, scanned, genOptions);
-			if (scanned.error !== null) prerenderConfig.notFound = NOT_FOUND_ROUTE;
+			// a 404.html is how a static host answers an unknown path; an adapter
+			// that ships a server renders the error page per request instead
+			if (scanned.error !== null && (adapter === undefined || adapter.server === false)) {
+				prerenderConfig.notFound = NOT_FOUND_ROUTE;
+			}
 			prerenderConfig.transformHtml = preloadHints({
 				manifest: manifestPath(outDir, config.build.manifest),
 				routesBase,
@@ -374,6 +457,12 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			}
 			return null;
 		},
+		/**
+		 * `vite preview` serves what the build wrote: with no adapter that is the
+		 * whole site, and with one it is the static half of it. The server half is
+		 * the adapter's own artifact — its entry is whatever shape its host wants
+		 * — so previewing that means running it (`node dist`, `wrangler dev`).
+		 */
 		configurePreviewServer(server) {
 			// after preview's own static middleware, so it only sees what missed
 			return () => {
@@ -438,6 +527,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 						res,
 						entry: ENTRY_SERVER,
 						shell: shell?.path ?? null,
+						routes,
 					}).then((handled) => {
 						if (!handled) next();
 					}, next);
@@ -466,7 +556,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		 */
 		moduleParsed(info) {
 			if (!isClientGraph(this.environment)) return;
-			for (const imported of info.importedIds) {
+			// dynamic imports count: routes are code-split, so `$implement/router`
+			// reaches every page through `import()` and a chain that skipped those
+			// would stop at the page instead of reporting the entry it hangs off
+			for (const imported of [...info.importedIds, ...info.dynamicallyImportedIds]) {
 				if (!clientParents.has(imported)) clientParents.set(imported, info.id);
 			}
 		},
@@ -518,6 +611,21 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			// kit serves dev pages itself, through the request pipeline
 			devSsr: false,
 			prerender: options.prerender === false ? false : prerenderConfig,
+			finish:
+				adapter === undefined
+					? undefined
+					: async ({ routes: prerendered, outDir: clientDir }) => {
+							await runAdapter({
+								adapter,
+								config: resolvedConfig!,
+								clientDir,
+								entryServer: ENTRY_SERVER,
+								tree: tree ?? scan(),
+								routesBase,
+								pages: prerendered,
+								files: prerenderedFiles,
+							});
+						},
 		}),
 	];
 }

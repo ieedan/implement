@@ -10,6 +10,7 @@ export type CLIError =
 	| InvalidAddonError
 	| NoLinkedPackagesError
 	| MissingLinkedPackageError
+	| MissingLinkedRegistryError
 	| ConflictingLinkOptionsError;
 
 export class CreateImplementAppError extends Error {
@@ -89,6 +90,14 @@ export class MissingLinkedPackageError extends CreateImplementAppError {
 	constructor(dependency: string) {
 		super(`The linked repository has no ${pc.bold(dependency)}.`, {
 			suggestion: "Update the clone --link points at, or drop the addon that needs it.",
+		});
+	}
+}
+
+export class MissingLinkedRegistryError extends CreateImplementAppError {
+	constructor(path: string) {
+		super(`The linked repository has no built ${pc.bold("registry.json")}.`, {
+			suggestion: `Run ${pc.cyan("pnpm registry")} in ${pc.bold(path)}, or drop the ui addon.`,
 		});
 	}
 }

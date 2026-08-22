@@ -1,5 +1,6 @@
 import { Label as LabelElement, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type LabelProps = ElementProps<"label">;
 
@@ -19,12 +20,12 @@ export const Label = createComponent(function Label(
 		{
 			...props,
 			"data-slot": "label",
-			class: [
+			class: cn(
 				"flex items-center gap-2 text-sm leading-none font-medium select-none",
 				"peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
 				"group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50",
 				className,
-			],
+			),
 		},
 		...children,
 	);

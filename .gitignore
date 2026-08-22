@@ -28,6 +28,10 @@ dist/
 dist-baseline/
 build/
 out/
+# kit's generated directory, and where a build is staged for an adapter
+.implement/
+# adapter build output
+.vercel/
 .next/
 .nuxt/
 .svelte-kit/

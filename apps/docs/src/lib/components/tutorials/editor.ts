@@ -1,83 +1,24 @@
-import { indentWithTab } from "@codemirror/commands";
-import { javascript } from "@codemirror/lang-javascript";
-import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
-import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
-import { tags as t } from "@lezer/highlight";
-import { Div, Pre, type IMountable, type Mountable, type Writable } from "@implementjs/core";
-import { basicSetup } from "codemirror";
-import { mode } from "@/lib/mode";
-
-const editorFontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
-
-// Every color here is a token from app.css, so the panes follow the site's
-// mode without CodeMirror being reconfigured — only the `dark` flag below,
-// which extensions read for their own defaults, has to be swapped.
-const highlight = HighlightStyle.define([
-	{ tag: t.keyword, color: "var(--syntax-keyword)" },
-	{ tag: t.string, color: "var(--syntax-string)" },
-	{ tag: t.number, color: "var(--syntax-literal)" },
-	{ tag: t.bool, color: "var(--syntax-literal)" },
-	{ tag: t.null, color: "var(--syntax-literal)" },
-	{ tag: t.comment, color: "var(--syntax-comment)", fontStyle: "italic" },
-	{ tag: t.function(t.variableName), color: "var(--syntax-function)" },
-	{ tag: t.definition(t.variableName), color: "var(--syntax-name)" },
-	{ tag: t.typeName, color: "var(--syntax-type)" },
-	{ tag: t.className, color: "var(--syntax-type)" },
-	{ tag: t.propertyName, color: "var(--syntax-name)" },
-	{ tag: t.operator, color: "var(--syntax-punctuation)" },
-	{ tag: t.punctuation, color: "var(--syntax-punctuation)" },
-]);
-
-const theme = EditorView.theme({
-	"&": {
-		backgroundColor: "transparent",
-		color: "var(--editor-foreground)",
-		height: "100%",
-	},
-	".cm-content": {
-		caretColor: "var(--editor-foreground)",
-		fontFamily: editorFontFamily,
-		fontSize: "13px",
-		lineHeight: "1.65",
-		padding: "8px 0",
-	},
-	".cm-gutters": {
-		backgroundColor: "transparent",
-		color: "var(--editor-gutter)",
-		border: "none",
-	},
-	".cm-activeLine": { backgroundColor: "var(--editor-active-line)" },
-	".cm-activeLineGutter": {
-		backgroundColor: "transparent",
-		color: "var(--editor-gutter-active)",
-	},
-	"&.cm-focused": { outline: "none" },
-	".cm-selectionBackground": {
-		backgroundColor: "var(--editor-selection)",
-	},
-	"&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
-		backgroundColor: "var(--editor-selection)",
-	},
-	".cm-cursor": { borderLeftColor: "var(--editor-foreground)" },
-});
+import { Div, If, Implement, Pre, signal, type Mountable, type Writable } from "@implementjs/core";
 
 /**
- * The `dark` flag is what extensions with their own built-in styling (the
- * autocomplete and search panels) read, and it is a facet rather than CSS —
- * so unlike the colors above it has to be reconfigured when the mode changes.
+ * The code editor, with CodeMirror loaded on demand.
+ *
+ * CodeMirror is the single heaviest thing the docs ship, and `Typeset` renders
+ * an editor for every live demo — so a static import put the whole editor in
+ * the graph of every docs page, including the ones with nothing editable on
+ * them. What renders first is the static stand-in below, which the server
+ * already had to render anyway; the real pane swaps in once
+ * {@link ./editor-view.ts} arrives.
  */
-const darkFlag = new Compartment();
 
-function darkFlagFor(current: string | undefined) {
-	return EditorView.darkTheme.of(current !== "light");
-}
+/** Shared with the CodeMirror theme, so the two panes sit on the same metrics. */
+export const editorFontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
 
-// Static server-side stand-in for the CodeMirror pane: the code in a plain
-// <pre> behind a line-number gutter, on the same metrics as the theme above
-// (13px mono, 1.65 line height, 8px vertical padding), so the client mount
-// swaps it out without a shift. `.editor-fallback` sizing lives in app.css
-// beside the `.cm-editor` rules it mirrors.
+// Static stand-in for the CodeMirror pane: the code in a plain <pre> behind a
+// line-number gutter, on the same metrics as the theme in `editor-view.ts`
+// (13px mono, 1.65 line height, 8px vertical padding), so the swap happens
+// without a shift. `.editor-fallback` sizing lives in app.css beside the
+// `.cm-editor` rules it mirrors.
 function EditorFallback(code: string): Mountable {
 	const lines = code.replace(/\n$/, "").split("\n");
 	return Div(
@@ -130,74 +71,49 @@ export type CodeEditorOptions = {
 	readOnly?: boolean;
 };
 
+type EditorViewModule = typeof import("./editor-view");
+
+/** Resolved once the chunk has landed; every pane on the page shares it. */
+let editorView: EditorViewModule | null = null;
+let editorViewRequest: Promise<EditorViewModule> | null = null;
+
+/** Pulls the CodeMirror chunk in, joining a load already in flight. */
+function loadEditorView(): Promise<EditorViewModule> {
+	editorViewRequest ??= import("./editor-view").then((module) => {
+		editorView = module;
+		return module;
+	});
+	return editorViewRequest;
+}
+
 export function CodeEditor(value: Writable<string>, options: CodeEditorOptions = {}): Mountable {
-	// browser-only pane: CodeMirror needs a real DOM — the server renders a
-	// static stand-in of the code that the client mount replaces
+	// browser-only pane: CodeMirror needs a real DOM — the server renders the
+	// static stand-in, and nothing swaps it
 	if (typeof document === "undefined") return EditorFallback(value.get());
 
-	return (): IMountable => {
-		let parent: HTMLElement | null = null;
-		let view: EditorView | null = null;
-		let unsubscribe: (() => void) | null = null;
-		let unsubscribeMode: (() => void) | null = null;
+	const ready = signal(false);
 
-		return {
-			mount(host: HTMLElement) {
-				parent = document.createElement("div");
-				parent.className = "tutorial-editor h-full min-h-0";
-				host.appendChild(parent);
-
-				view = new EditorView({
-					parent,
-					state: EditorState.create({
-						doc: value.get(),
-						extensions: [
-							basicSetup,
-							javascript({ typescript: true }),
-							// match oxfmt (useTabs: true): indent with real tabs
-							indentUnit.of("\t"),
-							EditorState.tabSize.of(4),
-							syntaxHighlighting(highlight),
-							theme,
-							darkFlag.of(darkFlagFor(mode.mode.get())),
-							keymap.of([indentWithTab]),
-							EditorState.readOnly.of(options.readOnly === true),
-							// a blinking caret in a read-only pane reads as an invitation to type
-							EditorView.editable.of(options.readOnly !== true),
-							EditorView.updateListener.of((update) => {
-								if (!update.docChanged) return;
-								const next = update.state.doc.toString();
-								if (value.get() !== next) value.set(next);
-							}),
-						],
-					}),
+	// `ready` starts false even when the chunk is already resolved, and the
+	// swap is left to a microtask: hydration claims the same stand-in the
+	// server rendered, and only then does the live pane replace it.
+	return Implement.Lifecycle(
+		{
+			onMount: () => {
+				let cancelled = false;
+				void loadEditorView().then(() => {
+					if (!cancelled) ready.set(true);
 				});
-
-				unsubscribeMode = mode.mode.onChange((current) => {
-					view?.dispatch({ effects: darkFlag.reconfigure(darkFlagFor(current)) });
-				});
-
-				unsubscribe = value.subscribe((next) => {
-					if (view == null) return;
-					if (view.state.doc.toString() === next) return;
-					view.dispatch({
-						changes: { from: 0, to: view.state.doc.length, insert: next },
-					});
-				});
+				return () => {
+					cancelled = true;
+				};
 			},
-			unmount() {
-				unsubscribe?.();
-				unsubscribe = null;
-				unsubscribeMode?.();
-				unsubscribeMode = null;
-				view?.destroy();
-				view = null;
-				parent?.remove();
-				parent = null;
-			},
-			getFirstDomNode() {
-				return parent;
-			},
-		};
-	};
+		},
+		If(ready)
+			.Then((): ReturnType<Mountable> => {
+				// only reachable once the import above resolved
+				if (editorView === null) throw new Error("editor chunk resolved without a module");
+				return editorView.EditorPane(value, options)();
+			})
+			.Else((): ReturnType<Mountable> => EditorFallback(value.get())()),
+	);
 }

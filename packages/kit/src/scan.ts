@@ -1,11 +1,11 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
-export const PAGE_FILE = "index.ts";
+export const PAGE_FILE = "page.ts";
 export const LAYOUT_FILE = "layout.ts";
 export const ERROR_FILE = "error.ts";
 export const ENDPOINT_FILE = "server.ts";
-export const PAGE_SERVER_FILE = "index.server.ts";
+export const PAGE_SERVER_FILE = "page.server.ts";
 export const LAYOUT_SERVER_FILE = "layout.server.ts";
 
 export type RouteSegment =
@@ -20,10 +20,10 @@ export type RouteNode = {
 	segment: RouteSegment | null;
 	/** Params accumulated from the root down to (and including) this segment. */
 	params: string[];
-	/** Relative path of this directory's page (`index.ts` or `index@<target>.ts`), when present. */
+	/** Relative path of this directory's page (`page.ts` or `page@<target>.ts`), when present. */
 	page: string | null;
 	/**
-	 * Layout-reset target of an `index@<target>.ts` page: `""` resets to the
+	 * Layout-reset target of a `page@<target>.ts` page: `""` resets to the
 	 * root layout, `"(name)"`/`"segment"` to that ancestor directory's level.
 	 * `null` when the page inherits normally.
 	 */
@@ -32,7 +32,7 @@ export type RouteNode = {
 	layout: string | null;
 	/** Layout-reset target of a `layout@<target>.ts` layout; `null` when it inherits normally. */
 	layoutResetTo: string | null;
-	/** Relative path of this directory's `index.server.ts` load, when present. */
+	/** Relative path of this directory's `page.server.ts` load, when present. */
 	pageServer: string | null;
 	/** Relative path of this directory's `layout.server.ts` load, when present. */
 	layoutServer: string | null;
@@ -84,16 +84,16 @@ export function parseSegment(name: string): RouteSegment {
 type RouteFileInfo = { kind: "page" | "layout"; resetTo: string | null };
 
 /**
- * `index.ts`/`layout.ts` → plain page/layout; `index@<target>.ts` /
+ * `page.ts`/`layout.ts` → plain page/layout; `page@<target>.ts` /
  * `layout@<target>.ts` → the same with a layout reset (`@` alone targets the
  * root). Anything else is not a routing file.
  */
 export function parseRouteFileName(name: string): RouteFileInfo | null {
 	if (name === PAGE_FILE) return { kind: "page", resetTo: null };
 	if (name === LAYOUT_FILE) return { kind: "layout", resetTo: null };
-	const match = /^(index|layout)@(.*)\.ts$/.exec(name);
+	const match = /^(page|layout)@(.*)\.ts$/.exec(name);
 	if (!match) return null;
-	return { kind: match[1] === "index" ? "page" : "layout", resetTo: match[2]! };
+	return { kind: match[1] === "page" ? "page" : "layout", resetTo: match[2]! };
 }
 
 /** Whether a filename participates in routing (including `@` reset variants, server files, and `error.ts`). */
@@ -111,9 +111,9 @@ export function isRouteFileName(name: string): boolean {
 const EXTENSION_DIR = /^(\.[a-z0-9]+)+$/i;
 
 /**
- * Scans a routes directory into a tree of pages and layouts. Only `index.ts`,
+ * Scans a routes directory into a tree of pages and layouts. Only `page.ts`,
  * `layout.ts`, their `@` layout-reset variants, the server files
- * (`index.server.ts` / `layout.server.ts` loads and `server.ts` endpoints),
+ * (`page.server.ts` / `layout.server.ts` loads and `server.ts` endpoints),
  * and a root `error.ts` are routing files — anything else is colocated code
  * and ignored. Dot-directories are skipped, except `.<ext>` directories
  * holding a `server.ts`, which serve the parent path with the extension
@@ -247,7 +247,7 @@ function scanDirectory(
 	}
 	if (node.pageServer !== null && node.page === null) {
 		throw new Error(
-			`"${node.pageServer}" has no "${dir === "" ? "" : `${dir}/`}index.ts" page to load for`,
+			`"${node.pageServer}" has no "${dir === "" ? "" : `${dir}/`}page.ts" page to load for`,
 		);
 	}
 

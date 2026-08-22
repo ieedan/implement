@@ -22,25 +22,42 @@ export function normalizeRoute(href: string): string {
 	return route;
 }
 
+export type CrawlOptions = {
+	/** Where to start crawling from. @default ["/"] */
+	from?: string[];
+	/**
+	 * Whether a discovered route should be crawled and kept. A route that says
+	 * no is neither rendered nor followed — with a server adapter in play, a
+	 * page that is going to be rendered per request must not have its loads run
+	 * at build time just to find the links on it.
+	 */
+	follow?: (route: string) => boolean | Promise<boolean>;
+};
+
 /**
- * Discovers routes by following internal links from `/` through server
- * renders — every page a reader can reach through the app's own links gets
- * prerendered. Paths with a dot are skipped as assets.
+ * Discovers routes by following internal links through server renders — every
+ * page a reader can reach through the app's own links gets prerendered. Paths
+ * with a dot are skipped as assets.
  */
-export async function crawlRoutes(render: RenderFn): Promise<string[]> {
-	const seen = new Set<string>(["/"]);
-	const queue = ["/"];
+export async function crawlRoutes(render: RenderFn, options: CrawlOptions = {}): Promise<string[]> {
+	const follow = options.follow ?? (() => true);
+	const queue = (options.from ?? ["/"]).map(normalizeRoute);
+	const seen = new Set<string>();
+	const kept: string[] = [];
 	while (queue.length > 0) {
 		const route = queue.shift()!;
+		if (seen.has(route)) continue;
+		seen.add(route);
+		if (!(await follow(route))) continue;
+		kept.push(route);
 		const { html } = await render(route);
 		for (const match of html.matchAll(INTERNAL_HREF)) {
 			const href = normalizeRoute(match[1]!);
 			if (href.includes(".") || seen.has(href)) continue;
-			seen.add(href);
 			queue.push(href);
 		}
 	}
-	return [...seen];
+	return kept;
 }
 
 export async function prerenderRoutes(options: {

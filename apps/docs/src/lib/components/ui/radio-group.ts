@@ -5,6 +5,7 @@ import {
 	RadioGroupItem as RadioGroupItemPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
+import { cn } from "@/lib/utils";
 
 export type RadioGroupProps = ComponentProps<typeof RadioGroupPrimitive>;
 export type RadioGroupItemProps = ComponentProps<typeof RadioGroupItemPrimitive>;
@@ -14,7 +15,7 @@ export const RadioGroup = createComponent(function RadioGroup(
 	...children: Child[]
 ) {
 	return RadioGroupPrimitive(
-		{ ...props, "data-slot": "radio-group", class: ["grid gap-3", className] },
+		{ ...props, "data-slot": "radio-group", class: cn("grid gap-3", className) },
 		...children,
 	);
 });
@@ -27,7 +28,7 @@ export const RadioGroupItem = createComponent(function RadioGroupItem(
 		{
 			...props,
 			"data-slot": "radio-group-item",
-			class: [
+			class: cn(
 				"group/radio-item aspect-square size-4 shrink-0 rounded-full border border-input text-primary shadow-xs transition-[color,box-shadow] outline-none",
 				"dark:bg-input/30",
 				"focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
@@ -35,7 +36,7 @@ export const RadioGroupItem = createComponent(function RadioGroupItem(
 				"disabled:cursor-not-allowed disabled:opacity-50",
 				"data-[state=checked]:border-primary",
 				className,
-			],
+			),
 		},
 		...(children.length > 0
 			? children

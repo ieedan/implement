@@ -25,7 +25,7 @@ function node(partial: Partial<RouteNode>): RouteNode {
 
 const tree: RouteTree = {
 	root: node({
-		page: "index.ts",
+		page: "page.ts",
 		layout: "layout.ts",
 		children: [
 			node({
@@ -37,7 +37,7 @@ const tree: RouteTree = {
 						dir: "docs/[...slug]",
 						segment: { kind: "rest", name: "slug" },
 						params: ["slug"],
-						page: "docs/[...slug]/index.ts",
+						page: "docs/[...slug]/page.ts",
 					}),
 				],
 			}),
@@ -49,13 +49,13 @@ const tree: RouteTree = {
 /** The shape Vite writes: keys are root-relative sources, `imports` are keys too. */
 const manifest = {
 	"src/routes/layout.ts": { file: "assets/layout-1.js", imports: ["_shared-9.js"] },
-	"src/routes/index.ts": { file: "assets/home-2.js" },
+	"src/routes/page.ts": { file: "assets/home-2.js" },
 	"src/routes/docs/layout.ts": {
 		file: "assets/docs-layout-3.js",
 		imports: ["_shared-9.js"],
 		css: ["assets/docs-4.css"],
 	},
-	"src/routes/docs/[...slug]/index.ts": {
+	"src/routes/docs/[...slug]/page.ts": {
 		file: "assets/docs-page-5.js",
 		imports: ["_editor-6.js"],
 	},

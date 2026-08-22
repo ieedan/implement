@@ -320,7 +320,7 @@ class ToastProviderState {
 	}
 }
 
-const ToastProviderContext = context<ToastProviderState>();
+const ToastProviderContext = context<ToastProviderState>("ToastProviderContext");
 
 /**
  * Provides the manager and timing to every toast part inside it. Wrap it around
@@ -644,7 +644,7 @@ class ToastRootState {
 	}
 }
 
-const ToastRootContext = context<ToastRootState>();
+const ToastRootContext = context<ToastRootState>("ToastRootContext");
 
 /**
  * One toast. Pass the readable from `ForEach` as `toast`; the root exposes the

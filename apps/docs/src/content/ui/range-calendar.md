@@ -18,7 +18,7 @@ jsrepo pulls `button` and [`calendar`](/ui/calendar) along with it, and installs
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/range-calendar.ts`. It imports `button` and [`calendar`](/ui/calendar) from the same directory, so install those too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/range-calendar.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and `button` and [`calendar`](/ui/calendar) from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide

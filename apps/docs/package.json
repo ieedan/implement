@@ -6,8 +6,10 @@
 	"scripts": {
 		"dev": "pnpm generate && vite",
 		"generate": "velite",
-		"sync": "node --experimental-strip-types scripts/sync.ts",
+		"registry": "jsrepo build",
+		"sync": "implement-kit sync",
 		"build": "pnpm generate && vite build",
+		"test": "vitest run",
 		"preview": "vite preview",
 		"check": "pnpm generate && pnpm sync && tsc --noEmit"
 	},
@@ -25,20 +27,23 @@
 		"@lezer/highlight": "^1.2.3",
 		"codemirror": "^6.0.2",
 		"sucrase": "^3.35.1",
-		"valibot": "^1.4.1",
-		"tailwind-variants": "^3.3.1"
+		"tailwind-merge": "^3.6.0",
+		"tailwind-variants": "^3.3.1",
+		"valibot": "^1.4.1"
 	},
 	"devDependencies": {
 		"@implementjs/kit": "workspace:*",
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",
+		"jsrepo": "^3.8.1",
 		"rehype-slug": "^6.0.0",
 		"remark-github-blockquote-alert": "^2.1.0",
 		"shiki": "^4.4.3",
 		"tailwindcss": "^4.3.3",
 		"typescript": "^7.0.2",
 		"velite": "^0.4.0",
-		"vite": "^7.3.0"
+		"vite": "^7.3.0",
+		"vitest": "^4.0.18"
 	}
 }

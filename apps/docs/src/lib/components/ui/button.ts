@@ -6,6 +6,7 @@ import {
 } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
+import { cn } from "@/lib/utils";
 
 export const buttonVariants = tv({
 	base: "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -59,7 +60,7 @@ export const Button = createComponent(function Button(
 			"data-slot": "button",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);

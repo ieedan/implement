@@ -6,6 +6,7 @@ import {
 	type ReadableSource,
 	type Ref,
 } from "../signal";
+import { isDiscarding } from "../tree";
 import type { Unsubscribe } from "../types";
 import type { Child } from "./types";
 
@@ -17,10 +18,41 @@ import type { Child } from "./types";
 export type BindableReadable<T> = ReadableSource<T>;
 
 /**
+ * A static value or a readable. The prop updates when the readable changes
+ * (signal → DOM). A readable may yield `undefined` to leave the prop unset —
+ * the same as omitting it.
+ */
+export type OneWayBindable<T> = T | BindableReadable<T | undefined>;
+
+/**
+ * A readable that is also writable. Use this in your own component props when
+ * write-back is required. Element props that can write back use
+ * {@link MaybeTwoWayBindable} instead, where `set` is optional.
+ */
+export type TwoWayBindable<T> = BindableReadable<T> & {
+	set(value: T): void;
+};
+
+/**
+ * A {@link OneWayBindable} whose readable may also be writable. `set` is
+ * optional: two-way props (`value`, `checked`, `open`) write the DOM back
+ * when it is present, and stay one-way when it is not.
+ */
+export type MaybeTwoWayBindable<T> =
+	| T
+	| (BindableReadable<T | undefined> & {
+			set?(value: T): void;
+	  });
+
+/**
  * A static value or a signal. Every element prop accepts this. A readable may
  * yield `undefined` to leave the prop unset — the same as omitting it.
+ *
+ * Two-way props (`value`, `checked`, `open`) are {@link MaybeTwoWayBindable}:
+ * the same shape, with `set` optional so hover shows write-back without
+ * requiring it. Force write-back in your own APIs with {@link TwoWayBindable}.
  */
-export type Bindable<T> = T | BindableReadable<T | undefined>;
+export type Bindable<T> = OneWayBindable<T>;
 
 type ClassPrimitive = string | number | bigint | boolean | null | undefined;
 
@@ -426,10 +458,10 @@ type TagAttributeMap = {
 	};
 	details: {
 		name?: Bindable<string>;
-		open?: Bindable<boolean>;
+		open?: MaybeTwoWayBindable<boolean>;
 	};
 	dialog: {
-		open?: Bindable<boolean>;
+		open?: MaybeTwoWayBindable<boolean>;
 	};
 	embed: {
 		height?: Bindable<number | string>;
@@ -485,7 +517,7 @@ type TagAttributeMap = {
 		alt?: Bindable<string>;
 		autocomplete?: Bindable<AutoComplete>;
 		capture?: Bindable<boolean | "user" | "environment">;
-		checked?: Bindable<boolean>;
+		checked?: MaybeTwoWayBindable<boolean>;
 		dirname?: Bindable<string>;
 		disabled?: Bindable<boolean>;
 		form?: Bindable<string>;
@@ -512,7 +544,7 @@ type TagAttributeMap = {
 		src?: Bindable<string>;
 		step?: Bindable<string | number>;
 		type?: Bindable<InputType>;
-		value?: Bindable<string | number>;
+		value?: MaybeTwoWayBindable<string | number>;
 		width?: Bindable<number | string>;
 	};
 	ins: {
@@ -615,7 +647,7 @@ type TagAttributeMap = {
 		name?: Bindable<string>;
 		required?: Bindable<boolean>;
 		size?: Bindable<number>;
-		value?: Bindable<string>;
+		value?: MaybeTwoWayBindable<string>;
 	};
 	slot: {
 		name?: Bindable<string>;
@@ -651,7 +683,7 @@ type TagAttributeMap = {
 		readOnly?: Bindable<boolean>;
 		required?: Bindable<boolean>;
 		rows?: Bindable<number>;
-		value?: Bindable<string>;
+		value?: MaybeTwoWayBindable<string>;
 		wrap?: Bindable<"hard" | "soft" | "off">;
 	};
 	th: {
@@ -839,7 +871,7 @@ const ATTR_ALIASES: Record<string, string> = {
 	allowfullscreen: "allowFullscreen",
 };
 
-function eventName(key: string): string | null {
+function resolveEventName(key: string): string | null {
 	if (key.length < 3 || !key.startsWith("on")) return null;
 	const third = key[2];
 	if (third === undefined || third !== third.toUpperCase() || third === third.toLowerCase()) {
@@ -848,27 +880,42 @@ function eventName(key: string): string | null {
 	return key.slice(2).toLowerCase();
 }
 
-function twoWayBinding(
-	tag: string,
-	key: string,
-): { event: string; read: (el: HTMLElement) => unknown } | null {
-	/* oxlint-disable typescript/no-unsafe-type-assertion -- Tag-specific DOM properties for two-way binding. */
+/**
+ * Prop names repeat across every element of every row, and the answer never
+ * changes for a given name — so it is worked out once instead of lower-casing a
+ * fresh string per element. Bounded by the number of distinct prop names an app
+ * uses, which is small.
+ */
+const eventNames = new Map<string, string | null>();
+
+function eventName(key: string): string | null {
+	const cached = eventNames.get(key);
+	// `null` is a cached answer; only `undefined` means "not looked up yet".
+	if (cached !== undefined) return cached;
+	const resolved = resolveEventName(key);
+	eventNames.set(key, resolved);
+	return resolved;
+}
+
+type TwoWay = { event: string; read: (el: HTMLElement) => unknown };
+
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Tag-specific DOM properties for two-way binding. */
+// Shared descriptors: these used to be built fresh on every matching prop of
+// every element, which is an object and a closure per bound input in a list.
+const SELECT_VALUE: TwoWay = { event: "change", read: (el) => (el as HTMLSelectElement).value };
+const INPUT_VALUE: TwoWay = { event: "input", read: (el) => (el as HTMLInputElement).value };
+const INPUT_CHECKED: TwoWay = { event: "change", read: (el) => (el as HTMLInputElement).checked };
+const TOGGLE_OPEN: TwoWay = { event: "toggle", read: (el) => (el as HTMLDetailsElement).open };
+/* oxlint-enable typescript/no-unsafe-type-assertion */
+
+function twoWayBinding(tag: string, key: string): TwoWay | null {
 	if (key === "value") {
-		if (tag === "select") {
-			return { event: "change", read: (el) => (el as HTMLSelectElement).value };
-		}
-		if (tag === "input" || tag === "textarea") {
-			return { event: "input", read: (el) => (el as HTMLInputElement).value };
-		}
+		if (tag === "select") return SELECT_VALUE;
+		if (tag === "input" || tag === "textarea") return INPUT_VALUE;
 		return null;
 	}
-	if (key === "checked" && tag === "input") {
-		return { event: "change", read: (el) => (el as HTMLInputElement).checked };
-	}
-	if (key === "open" && (tag === "details" || tag === "dialog")) {
-		return { event: "toggle", read: (el) => (el as HTMLDetailsElement).open };
-	}
-	/* oxlint-enable typescript/no-unsafe-type-assertion */
+	if (key === "checked" && tag === "input") return INPUT_CHECKED;
+	if (key === "open" && (tag === "details" || tag === "dialog")) return TOGGLE_OPEN;
 	return null;
 }
 
@@ -983,7 +1030,12 @@ function bindEvent(el: Element, event: string, value: unknown): Unsubscribe {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Event props accept any listener after a function check.
 		const listener = handler as EventListener;
 		el.addEventListener(event, listener);
-		return () => el.removeEventListener(event, listener);
+		return () => {
+			// A listener on a node being discarded dies with it. This runs once per
+			// handler per element, which is tens of thousands of calls to tear down
+			// a list, and every one of them is on a node nothing can reach again.
+			if (!isDiscarding()) el.removeEventListener(event, listener);
+		};
 	};
 
 	if (isReadable(value)) {
@@ -1036,8 +1088,17 @@ function resolveClassValue(value: unknown, found: Set<Readable<unknown>>, out: s
 	}
 }
 
+const callUnsubscribe = (unsubscribe: Unsubscribe): void => unsubscribe();
+
 function bindClassProp(el: Element, value: unknown): Unsubscribe {
-	const subscriptions = new Map<Readable<unknown>, Unsubscribe>();
+	// By far the most common class value is a literal string, and it needs no
+	// resolution pass, no subscription bookkeeping, and no teardown.
+	if (typeof value === "string") {
+		el.setAttribute("class", value);
+		return noop;
+	}
+
+	let subscriptions: Map<Readable<unknown>, Unsubscribe> | null = null;
 	const apply = () => {
 		const found = new Set<Readable<unknown>>();
 		const parts: string[] = [];
@@ -1045,13 +1106,16 @@ function bindClassProp(el: Element, value: unknown): Unsubscribe {
 		// resubscribe only what changed: signals nested inside a readable's value
 		// can come and go, while stable ones must keep their subscription so a
 		// notifying signal is never re-added to its own in-flight notify loop
-		for (const [readable, unsubscribe] of subscriptions) {
-			if (!found.has(readable)) {
-				unsubscribe();
-				subscriptions.delete(readable);
+		if (subscriptions !== null) {
+			for (const [readable, unsubscribe] of subscriptions) {
+				if (!found.has(readable)) {
+					unsubscribe();
+					subscriptions.delete(readable);
+				}
 			}
 		}
 		for (const readable of found) {
+			subscriptions ??= new Map();
 			if (!subscriptions.has(readable)) {
 				subscriptions.set(readable, readable.subscribe(apply));
 			}
@@ -1060,10 +1124,12 @@ function bindClassProp(el: Element, value: unknown): Unsubscribe {
 		el.setAttribute("class", parts.join(" "));
 	};
 	apply();
+	if (subscriptions === null) return noop;
 	return () => {
-		for (const unsubscribe of subscriptions.values()) {
-			unsubscribe();
-		}
+		if (subscriptions === null) return;
+		// forEach with a hoisted callback: iterating `.values()` would allocate an
+		// iterator on a path that runs once per element in a discarded tree.
+		subscriptions.forEach(callUnsubscribe);
 		subscriptions.clear();
 	};
 }
@@ -1072,20 +1138,23 @@ function bindStyleObject(
 	el: HTMLElement | SVGElement,
 	styles: Record<string, unknown>,
 ): Unsubscribe {
-	const unsubscribers: Unsubscribe[] = [];
-	for (const [property, value] of Object.entries(styles)) {
+	let unsubscribers: Unsubscribe[] | null = null;
+	for (const property in styles) {
+		const value = styles[property];
 		if (value === undefined) continue;
 		const apply = (resolved: unknown) => {
 			setStyleProperty(el, property, resolved == null ? "" : toAttrString(resolved));
 		};
 		if (isReadable(value)) {
-			unsubscribers.push(subscribe([value], apply));
+			(unsubscribers ??= []).push(subscribe([value], apply));
 		} else {
 			apply(value);
 		}
 	}
+	if (unsubscribers === null) return noop;
+	const bound = unsubscribers;
 	return () => {
-		for (const unsub of unsubscribers) unsub();
+		for (const unsub of bound) unsub();
 	};
 }
 
@@ -1123,7 +1192,7 @@ function bindDomProp(el: HTMLElement, tag: string, key: string, value: unknown):
 	}
 
 	apply(value);
-	return () => {};
+	return noop;
 }
 
 /** Apply typed props (and signal subscriptions) to a mounted element. */
@@ -1132,13 +1201,28 @@ export function applyElementProps(
 	tag: string,
 	props: Record<string, unknown>,
 ): Unsubscribe {
-	const unsubscribers: Unsubscribe[] = [];
-	for (const [key, value] of Object.entries(props)) {
-		if (key === "children" || key === "this" || value === undefined) continue;
-		unsubscribers.push(bindDomProp(el, tag, key, value));
+	// An element whose props are all static — most of them — leaves with no
+	// array and no teardown closure to allocate, and nothing to walk on unmount.
+	let first: Unsubscribe | null = null;
+	let rest: Unsubscribe[] | null = null;
+	for (const key in props) {
+		if (key === "children" || key === "this") continue;
+		const value = props[key];
+		if (value === undefined) continue;
+		const unsubscribe = bindDomProp(el, tag, key, value);
+		if (unsubscribe === noop) continue;
+		if (first === null) first = unsubscribe;
+		else (rest ??= []).push(unsubscribe);
 	}
+	// Nothing reactive leaves with no teardown at all; one reactive prop — the
+	// usual shape — leaves with its own, and neither allocates an array.
+	if (first === null) return noop;
+	if (rest === null) return first;
+	const head = first;
+	const tail = rest;
 	return () => {
-		for (const unsub of unsubscribers) unsub();
+		head();
+		for (const unsub of tail) unsub();
 	};
 }
 
@@ -1180,13 +1264,26 @@ function bindSvgProp(el: SVGElement, key: string, value: unknown): Unsubscribe {
  * so the HTML property path can never be reused here.
  */
 export function applySvgProps(el: SVGElement, props: Record<string, unknown>): Unsubscribe {
-	const unsubscribers: Unsubscribe[] = [];
-	for (const [key, value] of Object.entries(props)) {
-		if (key === "this" || value === undefined) continue;
-		unsubscribers.push(bindSvgProp(el, key, value));
+	let first: Unsubscribe | null = null;
+	let rest: Unsubscribe[] | null = null;
+	for (const key in props) {
+		if (key === "this") continue;
+		const value = props[key];
+		if (value === undefined) continue;
+		const unsubscribe = bindSvgProp(el, key, value);
+		if (unsubscribe === noop) continue;
+		if (first === null) first = unsubscribe;
+		else (rest ??= []).push(unsubscribe);
 	}
+	// Nothing reactive leaves with no teardown at all; one reactive prop — the
+	// usual shape — leaves with its own, and neither allocates an array.
+	if (first === null) return noop;
+	if (rest === null) return first;
+	const head = first;
+	const tail = rest;
 	return () => {
-		for (const unsub of unsubscribers) unsub();
+		head();
+		for (const unsub of tail) unsub();
 	};
 }
 

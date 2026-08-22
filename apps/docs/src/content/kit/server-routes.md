@@ -36,7 +36,7 @@ src/routes
 		[...slug]
 			.md
 				server.ts     → /docs/anything/below.md
-			index.ts        → /docs/anything/below
+			page.ts         → /docs/anything/below
 ```
 
 ```ts
@@ -62,7 +62,16 @@ The prerender renders every `GET` endpoint into a real file in `dist/`, so the b
 - An extension endpoint over params derives its paths from the pages that were prerendered: every prerendered `/docs/foo` gets a `/docs/foo.md` next to it.
 - A param endpoint without an extension has no way to enumerate its paths, so it's skipped with a warning — it works in dev, but you'll need a real server to ship it.
 
-That last point generalizes: the built site is static. `GET` endpoints survive as files, but `POST` and friends only exist while a server is running (dev today, a server adapter eventually). Design endpoints you want in production as prerenderable `GET`s.
+That last point generalizes to how the app is deployed. With no adapter the built site is static: `GET` endpoints survive as files, and `POST` and friends only exist while the dev server is running. Add an [adapter](/kit/adapters) and every method ships — the endpoint runs per request, the way it does in dev:
+
+```ts
+// vite.config.ts
+import adapter from "@implementjs/adapter-node";
+
+kit({ adapter: adapter() });
+```
+
+With a server behind them, `GET` endpoints stop being prerendered by default too — the server can answer them with fresher data than the build could. `export const prerender = true` from the `server.ts` puts one back in the build as a file.
 
 ## In dev
 

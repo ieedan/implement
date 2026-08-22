@@ -7,6 +7,7 @@ import {
 	PopoverTrigger as PopoverTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 export type PopoverProps = ComponentProps<typeof PopoverPrimitive>;
@@ -43,7 +44,7 @@ export const PopoverTrigger = createComponent(function PopoverTrigger(
 			"data-slot": "popover-trigger",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);
@@ -60,7 +61,7 @@ export const PopoverContent = createComponent(function PopoverContent(
 			offset,
 			side,
 			align,
-			class: [
+			class: cn(
 				"absolute z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none",
 				"origin-(--ip-popover-content-transform-origin)",
 				"transition-[opacity,translate,scale,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
@@ -70,7 +71,7 @@ export const PopoverContent = createComponent(function PopoverContent(
 				"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
 				"starting:data-[state=open]:data-[side=bottom]:-translate-y-2 starting:data-[state=open]:data-[side=top]:translate-y-2 starting:data-[state=open]:data-[side=left]:translate-x-2 starting:data-[state=open]:data-[side=right]:-translate-x-2",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -93,7 +94,7 @@ export const PopoverClose = createComponent(function PopoverClose(
 			"data-slot": "popover-close",
 			"data-variant": variant,
 			"data-size": size,
-			class: [buttonVariants({ variant, size }), className],
+			class: cn(buttonVariants({ variant, size }), className),
 		},
 		...children,
 	);

@@ -4,6 +4,67 @@ import { hasAddon, type TemplateContext } from "@/templates/types";
 /** implement has no docs site of its own yet, everything lives in the monorepo. */
 export const DOCS_URL = "https://github.com/ieedan/implement";
 
+/** The jsrepo registry the `ui` addon adds components from. */
+export const UI_REGISTRY = "@implementjs/ui";
+
+/** Where the generated `jsrepo.config.ts` puts each type of item, in both templates. */
+export const UI_PATH = "src/lib/components/ui";
+export const UI_LIB_PATH = "src/lib";
+
+/**
+ * Where the registry is built inside a clone of the implement repo. It is configured from the docs
+ * app so that it resolves against the project its component files live in, so that — rather than
+ * the repository root — is what `--link` points jsrepo's `fs` provider at.
+ */
+export const UI_REGISTRY_DIR = "apps/docs";
+
+/** The script the `ui` addon adds, so adding a component is the same command in every app. */
+export const UI_SCRIPT = "ui";
+
+/**
+ * The components the scaffolded app already uses, so a run that installs also ends with them on
+ * disk. Everything else is `jsrepo add <name>` away.
+ */
+export const UI_ITEMS = ["button"];
+
+/**
+ * Where jsrepo reads `@implementjs/ui` from. `--link` points an app at a clone of the implement
+ * repo, and the registry is built into that clone's `registry.json` — so the components come off
+ * disk through jsrepo's `fs` provider, the same way the linked packages do.
+ */
+function uiRegistry(ctx: TemplateContext): string {
+	if (ctx.linkRoot === undefined) return UI_REGISTRY;
+	return `fs://${ctx.linkRoot}/${UI_REGISTRY_DIR}`;
+}
+
+/** The `jsrepo.config.ts` the `ui` addon writes: where components come from, and where they land. */
+export function jsrepoConfig(ctx: TemplateContext): string {
+	const linked = ctx.linkRoot !== undefined;
+
+	return `${[
+		linked
+			? `import { DEFAULT_PROVIDERS, defineConfig } from "jsrepo";`
+			: `import { defineConfig } from "jsrepo";`,
+		...(linked ? [`import { fs } from "jsrepo/providers";`] : []),
+		``,
+		`export default defineConfig({`,
+		...(linked
+			? [
+					`\t// the registry is read off disk, out of the linked implement clone — run \`pnpm registry\``,
+					`\t// there after changing a component so the registry.json jsrepo reads is up to date`,
+				]
+			: []),
+		`\tregistries: [${JSON.stringify(uiRegistry(ctx))}],`,
+		...(linked ? [`\tproviders: [...DEFAULT_PROVIDERS, fs()],`] : []),
+		`\t// every component is typed \`ui\`, and the \`cn\` they all share is a \`lib\``,
+		`\tpaths: {`,
+		`\t\tui: ${JSON.stringify(UI_PATH)},`,
+		`\t\tlib: ${JSON.stringify(UI_LIB_PATH)},`,
+		`\t},`,
+		`});`,
+	].join("\n")}\n`;
+}
+
 export function packageJson({
 	name,
 	scripts,
@@ -28,6 +89,34 @@ export function packageJson({
 		null,
 		"\t",
 	)}\n`;
+}
+
+/**
+ * pnpm blocks a dependency's install scripts until the project names it, and since pnpm 11 that is
+ * a failed install rather than a warning. Vite's transformer, esbuild, fetches its platform binary
+ * in a `postinstall` — so every generated app needs it allowed, or the very first `pnpm install`
+ * stops with `ERR_PNPM_IGNORED_BUILDS`.
+ *
+ * `pnpm-workspace.yaml` is where the allowance lives, workspace or not.
+ */
+export function pnpmWorkspace(): string {
+	return (
+		dedent`
+		# esbuild — vite's transformer — downloads its platform binary in a postinstall script.
+		# Without this the install fails rather than quietly skipping it.
+		allowBuilds:
+		  esbuild: true
+	` + "\n"
+	);
+}
+
+/**
+ * Whether the app needs its own {@link pnpmWorkspace}. An app scaffolded into the implement
+ * monorepo resolves against the root one, and a second file there would make it a nested
+ * workspace root.
+ */
+export function needsPnpmWorkspace(ctx: TemplateContext): boolean {
+	return ctx.packageManager === "pnpm" && !ctx.workspace;
 }
 
 export function gitignore(): string {
@@ -132,6 +221,74 @@ const TAILWIND_PALETTE: Record<string, { light: string; dark: string }> = {
 	success: { light: "text-emerald-600", dark: "text-emerald-400" },
 };
 
+/**
+ * The same entries as {@link TAILWIND_PALETTE}, written against the tokens `@implementjs/ui` runs
+ * on. One value per key rather than a light and a dark one: the tokens themselves are what change
+ * between the modes, so nothing here needs a `dark:` variant.
+ */
+const UI_PALETTE: Record<string, string> = {
+	subtitle: "text-muted-foreground",
+	code: "bg-muted text-muted-foreground",
+	button: "border-input bg-background hover:bg-accent hover:text-accent-foreground",
+	trigger: "text-muted-foreground hover:text-foreground",
+	link: "text-muted-foreground hover:text-foreground",
+	nav: "border-border",
+	navLink: "text-muted-foreground hover:text-foreground",
+	label: "text-foreground",
+	input: "border-input bg-background focus:border-ring",
+	error: "text-destructive",
+	submit: "bg-primary text-primary-foreground hover:bg-primary/90",
+	success: "text-muted-foreground",
+};
+
+/**
+ * The tokens every `@implementjs/ui` component reads. They are named once here and turned into
+ * tailwind colors by the `@theme inline` block, which is what makes `bg-popover` and `ring-ring/50`
+ * compile at all.
+ */
+const UI_TOKENS = {
+	light: {
+		"--background": "#fff",
+		"--foreground": "#000",
+		"--card": "#fff",
+		"--card-foreground": "#000",
+		"--popover": "#fff",
+		"--popover-foreground": "#000",
+		"--primary": "#000",
+		"--primary-foreground": "#fff",
+		"--secondary": "#f5f5f5",
+		"--secondary-foreground": "#000",
+		"--muted": "#f5f5f5",
+		"--muted-foreground": "#737373",
+		"--accent": "#f5f5f5",
+		"--accent-foreground": "#000",
+		"--destructive": "oklch(0.577 0.245 27.325)",
+		"--border": "#e5e5e5",
+		"--input": "#e5e5e5",
+		"--ring": "#000",
+	},
+	dark: {
+		"--background": "#000",
+		"--foreground": "#fff",
+		"--card": "#000",
+		"--card-foreground": "#fff",
+		"--popover": "#000",
+		"--popover-foreground": "#fff",
+		"--primary": "#fff",
+		"--primary-foreground": "#000",
+		"--secondary": "#222",
+		"--secondary-foreground": "#fff",
+		"--muted": "#222",
+		"--muted-foreground": "#a1a1a1",
+		"--accent": "#222",
+		"--accent-foreground": "#fff",
+		"--destructive": "oklch(0.704 0.191 22.216)",
+		"--border": "#222",
+		"--input": "#222",
+		"--ring": "#fff",
+	},
+};
+
 /** The CSS custom properties the non-tailwind `app.css` defines, in each mode. */
 const CSS_TOKENS = {
 	light: {
@@ -184,18 +341,32 @@ export function styles(ctx: TemplateContext): Record<string, string> {
 	}
 
 	const dual = hasAddon(ctx, "modeWatcher");
+	const ui = hasAddon(ctx, "ui");
 
 	return Object.fromEntries(
 		Object.entries(TAILWIND_BASE).map(([key, base]) => {
-			const palette = TAILWIND_PALETTE[key];
-			const colors = palette
-				? dual
-					? [palette.light, ...palette.dark.split(" ").map((name) => `dark:${name}`)]
-					: [palette.dark]
-				: [];
+			const colors = ui ? uiColors(key) : paletteColors(key, { dual });
 			return [key, [base, ...colors].filter((part) => part !== "").join(" ")];
 		}),
 	);
+}
+
+/** The token classes for one {@link TAILWIND_BASE} entry, when the `ui` addon is on. */
+function uiColors(key: string): string[] {
+	const palette = UI_PALETTE[key];
+	return palette === undefined ? [] : [palette];
+}
+
+/**
+ * The zinc classes for one {@link TAILWIND_BASE} entry. A dark-only app renders the dark half
+ * bare; with the mode-watcher addon the light half renders bare and the dark half moves behind the
+ * `dark:` variant.
+ */
+function paletteColors(key: string, { dual }: { dual: boolean }): string[] {
+	const palette = TAILWIND_PALETTE[key];
+	if (palette === undefined) return [];
+	if (!dual) return [palette.dark];
+	return [palette.light, ...palette.dark.split(" ").map((name) => `dark:${name}`)];
 }
 
 function cssBlock(selector: string, tokens: Record<string, string>): string {
@@ -255,8 +426,95 @@ function tailwindCss(dual: boolean): string {
 	return `${lines.join("\n")}\n`;
 }
 
+/** `@theme inline`: one tailwind color per token, plus the keyframes two components animate to. */
+function uiTheme(): string {
+	return [
+		"@theme inline {",
+		...Object.keys(UI_TOKENS.light).map(
+			(token) => `\t--color-${token.slice("--".length)}: var(${token});`,
+		),
+		"",
+		"\t/* Accordion and Collapsible animate to a height the primitive measures onto the element at",
+		"\t   runtime. Without these they still open and close, they just snap instead of sliding. */",
+		"\t--animate-accordion-down: accordion-down 0.2s ease-out;",
+		"\t--animate-accordion-up: accordion-up 0.2s ease-out;",
+		"\t--animate-collapsible-down: collapsible-down 0.2s ease-out;",
+		"\t--animate-collapsible-up: collapsible-up 0.2s ease-out;",
+		...["accordion", "collapsible"].flatMap((name) => [
+			"",
+			`\t@keyframes ${name}-down {`,
+			`\t\tfrom {`,
+			`\t\t\theight: 0;`,
+			`\t\t}`,
+			`\t\tto {`,
+			`\t\t\theight: var(--ip-${name}-content-height);`,
+			`\t\t}`,
+			`\t}`,
+			"",
+			`\t@keyframes ${name}-up {`,
+			`\t\tfrom {`,
+			`\t\t\theight: var(--ip-${name}-content-height);`,
+			`\t\t}`,
+			`\t\tto {`,
+			`\t\t\theight: 0;`,
+			`\t\t}`,
+			`\t}`,
+		]),
+		"}",
+	].join("\n");
+}
+
+/**
+ * The stylesheet `@implementjs/ui` needs: the tokens every component reads, the `@theme` block that
+ * turns them into tailwind colors, and the base layer the components assume — `border` with no
+ * color in a component file means the token, which only holds because of the `*` rule below.
+ */
+function uiCss(dual: boolean): string {
+	const blocks = [`@import "tailwindcss";`, ``, `@source ".";`, ``];
+
+	if (dual) {
+		blocks.push(
+			`/* dark mode is a class on <html>, put there by @implementjs/mode-watcher */`,
+			`@custom-variant dark (&:where(.dark, .dark *));`,
+			``,
+			cssBlock(":root", UI_TOKENS.light),
+			``,
+			cssBlock(".dark", UI_TOKENS.dark),
+			``,
+		);
+	} else {
+		blocks.push(
+			`@custom-variant dark (&:where(.dark, .dark *));`,
+			``,
+			cssBlock(":root", { "color-scheme": "dark", ...UI_TOKENS.dark }),
+			``,
+		);
+	}
+
+	blocks.push(
+		uiTheme(),
+		``,
+		`@layer base {`,
+		`\t* {`,
+		`\t\t@apply border-border;`,
+		`\t}`,
+		``,
+		`\thtml {`,
+		`\t\t@apply antialiased;`,
+		`\t}`,
+		``,
+		`\tbody {`,
+		`\t\t@apply min-h-dvh bg-background text-foreground;`,
+		`\t}`,
+		`}`,
+	);
+
+	return `${blocks.join("\n")}\n`;
+}
+
 export function appCss(ctx: TemplateContext): string {
 	const dual = hasAddon(ctx, "modeWatcher");
+	if (hasAddon(ctx, "ui")) return uiCss(dual);
 	if (hasAddon(ctx, "tailwind")) return tailwindCss(dual);
 
 	return `${cssTokens(dual)}\n\n${dedent`
@@ -455,15 +713,35 @@ export function counterComponent(
 		links,
 		formImport,
 		modeImport,
-	}: { editPath: string; links: Link[]; formImport: string; modeImport: string },
+		uiImport,
+	}: {
+		editPath: string;
+		links: Link[];
+		formImport: string;
+		modeImport: string;
+		uiImport: string;
+	},
 ): string {
 	const c = styles(ctx);
 	const icons = hasAddon(ctx, "icons");
 	const primitives = hasAddon(ctx, "primitives");
 	const forms = hasAddon(ctx, "forms");
 	const modeWatcher = hasAddon(ctx, "modeWatcher");
+	// the styled Button is the counter's buttons, so the bare element from core is not imported
+	const ui = hasAddon(ctx, "ui");
 
-	const coreImports = ["A", "Button", "Code", "Div", "H1", "Li", "P", "Span", "Ul", "signal"];
+	const coreImports = [
+		"A",
+		...(ui ? [] : ["Button"]),
+		"Code",
+		"Div",
+		"H1",
+		"Li",
+		"P",
+		"Span",
+		"Ul",
+		"signal",
+	];
 
 	const lines: string[] = [`import { ${coreImports.join(", ")} } from "@implementjs/core";`];
 	if (icons) lines.push(`import { MinusIcon, PlusIcon } from "@implementjs/lucide";`);
@@ -476,11 +754,22 @@ export function counterComponent(
 			`} from "@implementjs/primitives";`,
 		);
 	}
+	if (ui) lines.push(`import { Button } from ${JSON.stringify(uiImport)};`);
 	if (modeWatcher) lines.push(`import { ModeToggle } from ${JSON.stringify(modeImport)};`);
 	if (forms) lines.push(`import { SignUpForm } from ${JSON.stringify(formImport)};`);
 
 	// the class names live in one object so the components below stay readable
-	const used = ["page", "title", "subtitle", "code", "counter", "button", "count", "links", "link"];
+	const used = [
+		"page",
+		"title",
+		"subtitle",
+		"code",
+		"counter",
+		...(ui ? [] : ["button"]),
+		"count",
+		"links",
+		"link",
+	];
 	if (primitives) used.push("trigger", "panel");
 
 	lines.push(
@@ -502,6 +791,13 @@ export function counterComponent(
 		return sign === "minus" ? `MinusIcon({ class: "size-4" })` : `PlusIcon({ class: "size-4" })`;
 	};
 
+	// the styled Button carries its own look, so it takes a variant instead of a class
+	const buttonProps = (direction: "Decrement" | "Increment"): string => {
+		const onClick = `onClick: () => count.${direction === "Decrement" ? "decrement" : "increment"}()`;
+		if (ui) return `{ variant: "outline", size: "icon", "aria-label": "${direction}", ${onClick} }`;
+		return `{ class: styles.button, "aria-label": "${direction}", ${onClick} }`;
+	};
+
 	lines.push(
 		`export function Counter() {`,
 		`\tconst count = signal(0);`,
@@ -518,12 +814,12 @@ export function counterComponent(
 		`\t\tDiv(`,
 		`\t\t\t{ class: styles.counter },`,
 		`\t\t\tButton(`,
-		`\t\t\t\t{ class: styles.button, "aria-label": "Decrement", onClick: () => count.decrement() },`,
+		`\t\t\t\t${buttonProps("Decrement")},`,
 		`\t\t\t\t${label("minus")},`,
 		`\t\t\t),`,
 		`\t\t\tSpan({ class: styles.count }, count),`,
 		`\t\t\tButton(`,
-		`\t\t\t\t{ class: styles.button, "aria-label": "Increment", onClick: () => count.increment() },`,
+		`\t\t\t\t${buttonProps("Increment")},`,
 		`\t\t\t\t${label("plus")},`,
 		`\t\t\t),`,
 		`\t\t),`,

@@ -61,7 +61,7 @@ export type MenuRootOptions = {
 	preventScroll?: boolean;
 };
 
-export const MenuCtx = context<MenuState>();
+export const MenuCtx = context<MenuState>("MenuCtx");
 
 export class MenuState {
 	open: Signal<boolean>;
@@ -551,7 +551,7 @@ class MenuGroupState {
 	headingId = signal<string | null>(null);
 }
 
-const MenuGroupCtx = context<MenuGroupState>();
+const MenuGroupCtx = context<MenuGroupState>("MenuGroupCtx");
 
 export type MenuGroupProps = ComponentProps<typeof Div>;
 
@@ -607,7 +607,7 @@ class MenuRadioGroupState extends MenuGroupState {
 	}
 }
 
-const MenuRadioGroupCtx = context<MenuRadioGroupState>();
+const MenuRadioGroupCtx = context<MenuRadioGroupState>("MenuRadioGroupCtx");
 
 export const MenuRadioGroup = createComponent(function MenuRadioGroup(
 	{ id = getId(), value, ...restProps }: MenuRadioGroupProps,
@@ -770,7 +770,7 @@ export class MenuSubState extends MenuState {
 	}
 }
 
-const MenuSubCtx = context<MenuSubState>();
+const MenuSubCtx = context<MenuSubState>("MenuSubCtx");
 
 export type MenuSubProps = MenuRootOptions;
 

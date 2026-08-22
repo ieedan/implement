@@ -18,7 +18,7 @@ It installs `@implementjs/lucide` at the same time.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/rating-group.ts`. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/rating-group.ts`. It imports `cn`, so copy [`utils.ts`](/ui#merging-classes) to `src/lib/utils.ts` too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide

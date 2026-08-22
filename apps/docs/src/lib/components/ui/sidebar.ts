@@ -26,9 +26,10 @@ import { tv, type VariantProps } from "tailwind-variants";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
 import { Input } from "./input";
 import { Separator } from "./separator";
-import { Sheet, SheetContent, SheetDescription, SheetOverlay, SheetTitle } from "./sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "./sheet";
 import { Skeleton } from "./skeleton";
 import { TooltipContent } from "./tooltip";
+import { cn } from "@/lib/utils";
 
 /**
  * A collapsible application sidebar. `SidebarProvider` owns the open state and
@@ -133,11 +134,11 @@ export const SidebarProvider = createComponent(function SidebarProvider(
 			{
 				...props,
 				"data-slot": "sidebar-wrapper",
-				class: [
+				class: cn(
 					"group/sidebar-wrapper flex min-h-svh w-full",
 					"has-data-[variant=inset]:bg-sidebar",
 					className,
-				],
+				),
 			},
 			...children,
 		),
@@ -170,10 +171,10 @@ export const Sidebar = createComponent(function Sidebar(
 			{
 				...props,
 				"data-slot": "sidebar",
-				class: [
+				class: cn(
 					"flex h-full w-[var(--sidebar-width,16rem)] flex-col bg-sidebar text-sidebar-foreground",
 					className,
-				],
+				),
 			},
 			...children,
 		);
@@ -184,7 +185,6 @@ export const Sidebar = createComponent(function Sidebar(
 			.Then(
 				Sheet(
 					{ open: sidebar.openMobile },
-					SheetOverlay(),
 					SheetContent(
 						{
 							side,
@@ -216,20 +216,20 @@ export const Sidebar = createComponent(function Sidebar(
 					// underneath. Two elements, one width, kept in step by CSS.
 					Div({
 						"data-slot": "sidebar-gap",
-						class: [
+						class: cn(
 							"relative w-[var(--sidebar-width,16rem)] bg-transparent transition-[width] duration-200 ease-linear motion-reduce:transition-none",
 							"group-data-[collapsible=offcanvas]:w-0",
 							"group-data-[side=right]:rotate-180",
 							variant === "floating" || variant === "inset"
 								? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon,3rem)+(--spacing(4)))]"
 								: "group-data-[collapsible=icon]:w-[var(--sidebar-width-icon,3rem)]",
-						],
+						),
 					}),
 					Div(
 						{
 							...props,
 							"data-slot": "sidebar-container",
-							class: [
+							class: cn(
 								"fixed inset-y-0 z-10 hidden h-svh w-[var(--sidebar-width,16rem)] transition-[left,right,width] duration-200 ease-linear md:flex motion-reduce:transition-none",
 								side === "left"
 									? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width,16rem)*-1)]"
@@ -243,16 +243,16 @@ export const Sidebar = createComponent(function Sidebar(
 												: "border-l border-sidebar-border",
 										].join(" "),
 								className,
-							],
+							),
 						},
 						Div(
 							{
 								"data-sidebar": "sidebar",
 								"data-slot": "sidebar-inner",
-								class: [
+								class: cn(
 									"flex h-full w-full flex-col bg-sidebar",
 									"group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm",
-								],
+								),
 							},
 							...children,
 						),
@@ -284,7 +284,7 @@ export const SidebarTrigger = createComponent(function SidebarTrigger(
 				"aria-label": "Toggle sidebar",
 				...props,
 				"data-slot": "sidebar-trigger",
-				class: [buttonVariants({ variant, size }), className],
+				class: cn(buttonVariants({ variant, size }), className),
 				onClick: () => sidebar.toggle(),
 			},
 			...(children.length > 0 ? children : [PanelLeftIcon({ "aria-hidden": true })]),
@@ -308,13 +308,13 @@ export const SidebarRail = createComponent(function SidebarRail({
 			...props,
 			"data-slot": "sidebar-rail",
 			"data-sidebar": "rail",
-			class: [
+			class: cn(
 				"absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear sm:flex",
 				"after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border",
 				"in-data-[side=left]:-right-4 in-data-[side=right]:left-0",
 				"group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full group-data-[collapsible=offcanvas]:hover:bg-sidebar",
 				className,
-			],
+			),
 			onClick: () => sidebar.toggle(),
 		}),
 	);
@@ -331,12 +331,12 @@ export const SidebarInset = createComponent(function SidebarInset(
 		{
 			...props,
 			"data-slot": "sidebar-inset",
-			class: [
+			class: cn(
 				"relative flex w-full flex-1 flex-col bg-background",
 				"md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm",
 				"md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -351,7 +351,7 @@ export const SidebarInput = createComponent(function SidebarInput({
 	return Input({
 		...props,
 		"data-slot": "sidebar-input",
-		class: ["h-8 w-full shadow-none", className],
+		class: cn("h-8 w-full shadow-none", className),
 	});
 });
 
@@ -366,7 +366,7 @@ export const SidebarHeader = createComponent(function SidebarHeader(
 			...props,
 			"data-slot": "sidebar-header",
 			"data-sidebar": "header",
-			class: ["flex flex-col gap-2 p-2", className],
+			class: cn("flex flex-col gap-2 p-2", className),
 		},
 		...children,
 	);
@@ -381,7 +381,7 @@ export const SidebarFooter = createComponent(function SidebarFooter(
 			...props,
 			"data-slot": "sidebar-footer",
 			"data-sidebar": "footer",
-			class: ["flex flex-col gap-2 p-2", className],
+			class: cn("flex flex-col gap-2 p-2", className),
 		},
 		...children,
 	);
@@ -397,7 +397,7 @@ export const SidebarSeparator = createComponent(function SidebarSeparator({
 		...props,
 		"data-slot": "sidebar-separator",
 		"data-sidebar": "separator",
-		class: ["mx-2 w-auto bg-sidebar-border", className],
+		class: cn("mx-2 w-auto bg-sidebar-border", className),
 	});
 });
 
@@ -411,11 +411,11 @@ export const SidebarContent = createComponent(function SidebarContent(
 			...props,
 			"data-slot": "sidebar-content",
 			"data-sidebar": "content",
-			class: [
+			class: cn(
 				"flex min-h-0 flex-1 flex-col gap-2 overflow-auto",
 				"group-data-[collapsible=icon]:overflow-hidden",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -430,7 +430,7 @@ export const SidebarGroup = createComponent(function SidebarGroup(
 			...props,
 			"data-slot": "sidebar-group",
 			"data-sidebar": "group",
-			class: ["relative flex w-full min-w-0 flex-col p-2", className],
+			class: cn("relative flex w-full min-w-0 flex-col p-2", className),
 		},
 		...children,
 	);
@@ -447,14 +447,14 @@ export const SidebarGroupLabel = createComponent(function SidebarGroupLabel(
 			...props,
 			"data-slot": "sidebar-group-label",
 			"data-sidebar": "group-label",
-			class: [
+			class: cn(
 				"flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 outline-none",
 				"transition-[margin,opacity] duration-200 ease-linear motion-reduce:transition-none",
 				"focus-visible:ring-2 focus-visible:ring-sidebar-ring",
 				"[&>svg]:size-4 [&>svg]:shrink-0",
 				"group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -472,7 +472,7 @@ export const SidebarGroupAction = createComponent(function SidebarGroupAction(
 			...props,
 			"data-slot": "sidebar-group-action",
 			"data-sidebar": "group-action",
-			class: [
+			class: cn(
 				"absolute top-3.5 right-3 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none transition-transform",
 				"hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
 				"focus-visible:ring-2 focus-visible:ring-sidebar-ring",
@@ -481,7 +481,7 @@ export const SidebarGroupAction = createComponent(function SidebarGroupAction(
 				"after:absolute after:-inset-2 md:after:hidden",
 				"group-data-[collapsible=icon]:hidden",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -496,7 +496,7 @@ export const SidebarGroupContent = createComponent(function SidebarGroupContent(
 			...props,
 			"data-slot": "sidebar-group-content",
 			"data-sidebar": "group-content",
-			class: ["w-full text-sm", className],
+			class: cn("w-full text-sm", className),
 		},
 		...children,
 	);
@@ -514,7 +514,7 @@ export const SidebarMenu = createComponent(function SidebarMenu(
 			...props,
 			"data-slot": "sidebar-menu",
 			"data-sidebar": "menu",
-			class: ["flex w-full min-w-0 flex-col gap-1", className],
+			class: cn("flex w-full min-w-0 flex-col gap-1", className),
 		},
 		...children,
 	);
@@ -529,7 +529,7 @@ export const SidebarMenuItem = createComponent(function SidebarMenuItem(
 			...props,
 			"data-slot": "sidebar-menu-item",
 			"data-sidebar": "menu-item",
-			class: ["group/menu-item relative", className],
+			class: cn("group/menu-item relative", className),
 		},
 		...children,
 	);
@@ -662,7 +662,7 @@ export const SidebarMenuLink = createComponent(function SidebarMenuLink(
 			"data-sidebar": "menu-button",
 			"data-size": size,
 			"data-active": isActive,
-			class: [sidebarMenuButtonVariants({ variant, size }), className],
+			class: cn(sidebarMenuButtonVariants({ variant, size }), className),
 		},
 		...children,
 	);
@@ -683,7 +683,7 @@ export const SidebarMenuAction = createComponent(function SidebarMenuAction(
 			...props,
 			"data-slot": "sidebar-menu-action",
 			"data-sidebar": "menu-action",
-			class: [
+			class: cn(
 				"absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none transition-transform",
 				"hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
 				"focus-visible:ring-2 focus-visible:ring-sidebar-ring",
@@ -697,7 +697,7 @@ export const SidebarMenuAction = createComponent(function SidebarMenuAction(
 				showOnHover &&
 					"data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 md:opacity-0",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -714,7 +714,7 @@ export const SidebarMenuBadge = createComponent(function SidebarMenuBadge(
 			...props,
 			"data-slot": "sidebar-menu-badge",
 			"data-sidebar": "menu-badge",
-			class: [
+			class: cn(
 				"pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums text-sidebar-foreground select-none",
 				"peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[active=true]/menu-button:text-sidebar-accent-foreground",
 				"peer-data-[size=sm]/menu-button:top-1",
@@ -722,7 +722,7 @@ export const SidebarMenuBadge = createComponent(function SidebarMenuBadge(
 				"peer-data-[size=lg]/menu-button:top-2.5",
 				"group-data-[collapsible=icon]:hidden",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -746,7 +746,7 @@ export const SidebarMenuSkeleton = createComponent(function SidebarMenuSkeleton(
 			...props,
 			"data-slot": "sidebar-menu-skeleton",
 			"data-sidebar": "menu-skeleton",
-			class: ["flex h-8 items-center gap-2 rounded-md px-2", className],
+			class: cn("flex h-8 items-center gap-2 rounded-md px-2", className),
 		},
 		showIcon ? Skeleton({ class: "size-4 rounded-md" }) : null,
 		Skeleton({
@@ -768,11 +768,11 @@ export const SidebarMenuSub = createComponent(function SidebarMenuSub(
 			...props,
 			"data-slot": "sidebar-menu-sub",
 			"data-sidebar": "menu-sub",
-			class: [
+			class: cn(
 				"mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5",
 				"group-data-[collapsible=icon]:hidden",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -787,7 +787,7 @@ export const SidebarMenuSubItem = createComponent(function SidebarMenuSubItem(
 			...props,
 			"data-slot": "sidebar-menu-sub-item",
 			"data-sidebar": "menu-sub-item",
-			class: ["group/menu-sub-item relative", className],
+			class: cn("group/menu-sub-item relative", className),
 		},
 		...children,
 	);
@@ -828,7 +828,7 @@ export const SidebarMenuSubButton = createComponent(function SidebarMenuSubButto
 			"data-sidebar": "menu-sub-button",
 			"data-size": size,
 			"data-active": isActive,
-			class: [subButtonClasses, className],
+			class: cn(subButtonClasses, className),
 		},
 		...children,
 	);
@@ -845,7 +845,7 @@ export const SidebarMenuSubLink = createComponent(function SidebarMenuSubLink(
 			"data-sidebar": "menu-sub-button",
 			"data-size": size,
 			"data-active": isActive,
-			class: [subButtonClasses, className],
+			class: cn(subButtonClasses, className),
 		},
 		...children,
 	);

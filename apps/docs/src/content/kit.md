@@ -11,11 +11,11 @@ Everything on the last few pages, the entry, the HMR block, the route tree, is c
 
 ```
 src/routes
-	index.ts          → /
+	page.ts           → /
 	layout.ts         → wraps everything
 	users
 		[id]
-			index.ts      → /users/:id
+			page.ts       → /users/:id
 ```
 
 ```ts

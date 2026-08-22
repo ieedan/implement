@@ -22,7 +22,7 @@ export type AvatarRootProps = ComponentProps<typeof Div> & {
 	onLoadingStatusChange?: (status: AvatarLoadingStatus) => void;
 };
 
-const AvatarCtx = context<AvatarState>();
+const AvatarCtx = context<AvatarState>("AvatarCtx");
 
 function currentValue<T extends string>(
 	value: T | ReadableSource<T | undefined> | undefined,

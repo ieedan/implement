@@ -50,7 +50,7 @@ The file is server-only, like `*.server.ts` — it never reaches the browser bun
 `event.locals` is a plain object, fresh for every request. Whatever `handle` puts there, the route's loads and endpoint handlers read:
 
 ```ts
-// src/routes/account/index.server.ts
+// src/routes/account/page.server.ts
 import type { LoadEvent } from "./$types";
 
 export default function load({ locals }: LoadEvent) {
@@ -119,6 +119,19 @@ export const handleError: HandleServerError = ({ error, event }) => {
 ```
 
 Without one, kit logs the error and answers `Internal Error`. Either way the status is `500`, and a page request renders your `error.ts`.
+
+In dev, the terminal always gets the failure — whether or not you wrote a `handleError`, and whether the request was a page, a `__data.json` payload, or an endpoint. Kit names the request and the server file it came from, and trims the stack to your own code:
+
+```
+GET /docs/install → 500 — load in src/routes/docs/[...slug]/page.server.ts
+
+Error: no such file
+    at readDoc (src/lib/docs.ts:14:9)
+    at load (src/routes/docs/[...slug]/page.server.ts:6:10)
+    … 7 frames outside your app
+```
+
+The build prints the same block when a load or an endpoint throws while its `__data.json` payload or static response is being written, instead of quietly writing one file fewer.
 
 An unmatched path is a `404` with the same error page — a kit dev server no longer answers every URL with `200`.
 

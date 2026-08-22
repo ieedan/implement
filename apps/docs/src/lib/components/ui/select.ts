@@ -10,6 +10,7 @@ import {
 	SelectValue as SelectValuePrimitive,
 } from "@implementjs/primitives";
 import { menuGroupHeadingClasses } from "./dropdown-menu";
+import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 export type SelectProps = ComponentProps<typeof SelectPrimitive>;
@@ -101,13 +102,13 @@ export const SelectTrigger = createComponent(function SelectTrigger(
 			type,
 			...props,
 			"data-slot": "select-trigger",
-			class: [
+			class: cn(
 				"flex min-h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs outline-none",
 				"focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
 				"disabled:cursor-not-allowed disabled:opacity-50",
 				"[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 				className,
-			],
+			),
 		},
 		...children,
 		ChevronDownIcon({
@@ -128,7 +129,7 @@ export const SelectContent = createComponent(function SelectContent(
 			side,
 			align,
 			"data-slot": "select-content",
-			class: [
+			class: cn(
 				"absolute z-50 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-none",
 				"w-[var(--ip-select-anchor-width,100%)] min-w-32 origin-(--ip-select-content-transform-origin)",
 				"max-h-(--ip-select-content-available-height)",
@@ -139,7 +140,7 @@ export const SelectContent = createComponent(function SelectContent(
 				"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
 				"starting:data-[state=open]:data-[side=bottom]:-translate-y-2 starting:data-[state=open]:data-[side=top]:translate-y-2 starting:data-[state=open]:data-[side=left]:translate-x-2 starting:data-[state=open]:data-[side=right]:-translate-x-2",
 				className,
-			],
+			),
 		},
 		...children,
 	);
@@ -153,7 +154,7 @@ export const SelectItem = createComponent(function SelectItem(
 		{
 			...props,
 			"data-slot": "select-item",
-			class: [
+			class: cn(
 				"group/select-item relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
 				"data-selected:bg-accent/50",
 				"data-highlighted:bg-accent data-highlighted:text-accent-foreground",
@@ -161,7 +162,7 @@ export const SelectItem = createComponent(function SelectItem(
 				"data-disabled:pointer-events-none data-disabled:opacity-50",
 				"[&_svg]:pointer-events-none [&_svg]:shrink-0",
 				className,
-			],
+			),
 		},
 		Span({ class: "flex-1 truncate" }, ...children),
 		Span(
@@ -184,7 +185,7 @@ export const SelectGroupHeading = createComponent(function SelectGroupHeading(
 		{
 			...props,
 			"data-slot": "select-group-heading",
-			class: [menuGroupHeadingClasses, className],
+			class: cn(menuGroupHeadingClasses, className),
 		},
 		...children,
 	);

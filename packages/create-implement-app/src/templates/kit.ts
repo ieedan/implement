@@ -5,11 +5,16 @@ import {
 	DOCS_URL,
 	gitignore,
 	indexHtml,
+	jsrepoConfig,
 	modeModule,
+	needsPnpmWorkspace,
 	packageJson,
+	pnpmWorkspace,
 	signUpFormComponent,
 	styles,
 	tsconfig,
+	UI_PATH,
+	UI_SCRIPT,
 	vitePlugins,
 } from "@/templates/shared";
 import { hasAddon, type Template, type TemplateContext } from "@/templates/types";
@@ -22,31 +27,28 @@ export const kit: Template = {
 	hint: "File based routing, SSR & prerendering",
 	files: (ctx) => [
 		{ path: "package.json", contents: pkg(ctx) },
+		...(needsPnpmWorkspace(ctx)
+			? [{ path: "pnpm-workspace.yaml", contents: pnpmWorkspace() }]
+			: []),
 		{
 			path: "tsconfig.json",
 			contents: tsconfig({
 				extend: "./.implement/tsconfig.json",
-				include: [
-					"src/**/*.ts",
-					"scripts/**/*.ts",
-					"*.config.ts",
-					".implement/**/*.ts",
-					".implement/types/**/*.d.ts",
-				],
+				include: ["src/**/*.ts", "*.config.ts", ".implement/**/*.ts", ".implement/types/**/*.d.ts"],
 				types: ["node", "vite/client"],
 			}),
 		},
 		{ path: "vite.config.ts", contents: viteConfig(ctx) },
+		...(hasAddon(ctx, "ui") ? [{ path: "jsrepo.config.ts", contents: jsrepoConfig(ctx) }] : []),
 		{
 			path: "src/index.html",
 			contents: indexHtml(ctx, { title: ctx.name, entry: "/.implement/entry-client.ts" }),
 		},
 		{ path: "src/app.css", contents: appCss(ctx) },
 		{ path: "src/app.d.ts", contents: appTypes() },
-		{ path: "scripts/sync.ts", contents: syncScript() },
 		{ path: "src/routes/layout.ts", contents: layout(ctx) },
-		{ path: "src/routes/index.ts", contents: page() },
-		{ path: "src/routes/about/index.ts", contents: aboutPage(ctx) },
+		{ path: "src/routes/page.ts", contents: page() },
+		{ path: "src/routes/about/page.ts", contents: aboutPage(ctx) },
 		{ path: "src/routes/error.ts", contents: errorPage(ctx) },
 		{ path: "src/lib/counter.ts", contents: counter(ctx) },
 		{ path: "src/lib/env.public.ts", contents: envPublic() },
@@ -70,11 +72,15 @@ function pkg(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "icons")) deps.push("@implementjs/lucide");
 	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
 	if (hasAddon(ctx, "modeWatcher")) deps.push("@implementjs/mode-watcher");
+	// what the styled components are built out of: `tv()` for the variant tables, and the
+	// tailwind-merge behind `cn()` that makes a class passed in override the one baked in
+	if (hasAddon(ctx, "ui")) deps.push("tailwind-merge", "tailwind-variants");
 
 	// zod is a devDependency on purpose: kit evaluates the env files at build time and inlines
 	// the results, so the schemas never reach a bundle
 	const devDeps: Dependency[] = ["@implementjs/kit", "@types/node", "typescript", "vite", "zod"];
 	if (hasAddon(ctx, "tailwind")) devDeps.push("@tailwindcss/vite", "tailwindcss");
+	if (hasAddon(ctx, "ui")) devDeps.push("jsrepo");
 
 	return packageJson({
 		name: ctx.name,
@@ -82,9 +88,13 @@ function pkg(ctx: TemplateContext): string {
 			dev: "vite",
 			build: "vite build",
 			preview: "vite preview",
-			sync: "node --experimental-strip-types scripts/sync.ts",
-			// tsc needs the generated `.implement/` files, and a fresh clone has never run vite
-			check: "node --experimental-strip-types scripts/sync.ts && tsc --noEmit",
+			sync: "implement-kit sync",
+			// `.implement/` is generated, so a fresh clone has none until something writes it.
+			// prepare runs on install for exactly that, and never fails the install if it cannot
+			prepare: "implement-kit sync || echo ''",
+			// tsc needs those same generated files, and vite may not have run yet
+			check: "implement-kit sync && tsc --noEmit",
+			...(hasAddon(ctx, "ui") ? { [UI_SCRIPT]: "jsrepo add" } : {}),
 		},
 		dependencies: dependencies(ctx, deps),
 		devDependencies: dependencies(ctx, devDeps),
@@ -120,18 +130,6 @@ function appTypes(): string {
 		}
 
 		export {};
-	` + "\n"
-	);
-}
-
-function syncScript(): string {
-	return (
-		dedent`
-		import { sync } from "@implementjs/kit/sync";
-
-		// Writes .implement/ (entries, tsconfig, ./$types) without running vite, so \`check\` works on a
-		// fresh clone. Keep any kit() options that affect codegen in step with vite.config.ts.
-		sync(new URL("..", import.meta.url).pathname);
 	` + "\n"
 	);
 }
@@ -194,8 +192,8 @@ function aboutPage(ctx: TemplateContext): string {
 		`\t\tP(`,
 		`\t\t\t{ class: "${c.subtitle}" },`,
 		`\t\t\t"This page is ",`,
-		`\t\t\t"src/routes/about/index.ts",`,
-		`\t\t\t" — every directory under src/routes with an index.ts is a route.",`,
+		`\t\t\t"src/routes/about/page.ts",`,
+		`\t\t\t" — every directory under src/routes with a page.ts is a route.",`,
 		`\t\t),`,
 		`\t\tA({ class: "${c.link}", href: "${DOCS_URL}" }, "Read the docs"),`,
 		`\t);`,
@@ -235,12 +233,16 @@ function counter(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "modeWatcher")) {
 		links.push({ label: "Dark mode", href: `${DOCS_URL}/tree/main/packages/mode-watcher` });
 	}
+	if (hasAddon(ctx, "ui")) {
+		links.push({ label: "Components", href: `${DOCS_URL}/tree/main/apps/docs/src/content/ui` });
+	}
 
 	return counterComponent(ctx, {
 		editPath: "src/lib/counter.ts",
 		links,
 		formImport: "@/lib/sign-up-form",
 		modeImport: "@/lib/mode",
+		uiImport: `@/${UI_PATH.slice("src/".length)}/button`,
 	});
 }
 
@@ -307,10 +309,10 @@ function readme(ctx: TemplateContext): string {
 		│  │  └ env.public.ts  typed environment variables, safe to ship
 		│  ├ routes/         the routing tree
 		│  │  ├ about/
-		│  │  │  └ index.ts  → /about
+		│  │  │  └ page.ts   → /about
 		│  │  ├ error.ts     the 404 / render error page
-		│  │  ├ index.ts     → /
-		│  │  └ layout.ts    wraps every page
+		│  │  ├ layout.ts    wraps every page
+		│  │  └ page.ts      → /
 		│  ├ app.css         global styles, imported from the root layout
 		│  └ index.html      the shell, pointed at the generated client entry
 		└ static/            served from the site root
@@ -320,7 +322,7 @@ function readme(ctx: TemplateContext): string {
 		\`.env.example\` is the committed list of keys. Keys there must start with \`PUBLIC_\` — add a
 		\`src/lib/env.server.ts\` for anything that must not reach the browser.
 
-		\`index.ts\` is a page, \`layout.ts\` wraps everything below it, and \`[param]\` / \`[...rest]\`
+		\`page.ts\` is a page, \`layout.ts\` wraps everything below it, and \`[param]\` / \`[...rest]\`
 		directories bind params. Kit generates \`.implement/\` (entries, the tsconfig this app extends, and
 		a \`./$types\` for every route) — it is gitignored and regenerates itself, so nothing in there
 		needs editing.

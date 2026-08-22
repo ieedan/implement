@@ -73,7 +73,7 @@ function textChild(children: Child[]): string | undefined {
 	return undefined;
 }
 
-const SelectCtx = context<SelectState>();
+const SelectCtx = context<SelectState>("SelectCtx");
 
 abstract class SelectState {
 	open: Signal<boolean>;
@@ -541,7 +541,7 @@ class SelectGroupState {
 	headingId = signal<string | null>(null);
 }
 
-const SelectGroupCtx = context<SelectGroupState>();
+const SelectGroupCtx = context<SelectGroupState>("SelectGroupCtx");
 
 export type SelectGroupProps = ComponentProps<typeof Div>;
 

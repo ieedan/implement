@@ -1,7 +1,13 @@
 import { dom } from "../dom";
-import { beginHydration, describeMismatch, endHydration } from "../hydrate";
+import {
+	beginHydration,
+	canHydrate,
+	describeMismatch,
+	endHydration,
+	withMountParent,
+} from "../hydration";
 import { isReadable } from "../signal";
-import { mountChild } from "../tree";
+import { beginDetach, beginDiscard, endDetach, endDiscard, isDetaching, mountChild } from "../tree";
 import type { Unsubscribe } from "../types";
 import {
 	applyElementProps,
@@ -18,6 +24,9 @@ export type {
 	AutoComplete,
 	Bindable,
 	BindableReadable,
+	OneWayBindable,
+	TwoWayBindable,
+	MaybeTwoWayBindable,
 	ClassArray,
 	ClassDictionary,
 	ClassReadable,
@@ -50,49 +59,72 @@ function toText(value: PrimitiveChild): string {
 	return typeof value === "string" ? value : `${value}`;
 }
 
+/**
+ * A static text node. A class rather than an object literal of closures
+ * because a row of this app carries four text children and a ten-thousand-row
+ * list therefore forty thousand of them — one object against one object plus
+ * three closures, forty thousand times over.
+ */
+class StaticText implements IMountable {
+	#node: Text | null = null;
+	#initial: string;
+
+	constructor(initial: string) {
+		this.#initial = initial;
+	}
+
+	mount(parent: HTMLElement): void {
+		this.#node = dom.createTextNode(this.#initial);
+		dom.attach(parent, this.#node);
+	}
+
+	unmount(): void {
+		if (!isDetaching()) this.#node?.remove();
+		this.#node = null;
+	}
+
+	getFirstDomNode(): Node | null {
+		return this.#node;
+	}
+}
+
+/** A text node that follows a readable. One closure at mount, not three at creation. */
+class LiveText implements IMountable {
+	#node: Text | null = null;
+	#content: ReadableChild;
+	#unsubscribe: Unsubscribe | null = null;
+
+	constructor(content: ReadableChild) {
+		this.#content = content;
+	}
+
+	mount(parent: HTMLElement): void {
+		this.#node = dom.createTextNode(toText(this.#content.get()));
+		dom.attach(parent, this.#node);
+		this.#unsubscribe = this.#content.subscribe((value) => {
+			if (this.#node) this.#node.data = toText(value);
+		});
+	}
+
+	unmount(): void {
+		this.#unsubscribe?.();
+		this.#unsubscribe = null;
+		if (!isDetaching()) this.#node?.remove();
+		this.#node = null;
+	}
+
+	getFirstDomNode(): Node | null {
+		return this.#node;
+	}
+}
+
 function text(content: PrimitiveChild): Mountable {
 	const initial = toText(content);
-	return () => {
-		let node: Text | null = null;
-		return {
-			mount(parent: HTMLElement) {
-				node = dom.createTextNode(initial);
-				dom.attach(parent, node);
-			},
-			unmount() {
-				node?.remove();
-				node = null;
-			},
-			getFirstDomNode() {
-				return node;
-			},
-		};
-	};
+	return () => new StaticText(initial);
 }
 
 function readableText(content: ReadableChild): Mountable {
-	return () => {
-		let node: Text | null = null;
-		let unsubscribe: Unsubscribe | null = null;
-		return {
-			mount(parent: HTMLElement) {
-				node = dom.createTextNode(toText(content.get()));
-				dom.attach(parent, node);
-				unsubscribe = content.subscribe((value) => {
-					if (node) node.data = toText(value);
-				});
-			},
-			unmount() {
-				unsubscribe?.();
-				unsubscribe = null;
-				node?.remove();
-				node = null;
-			},
-			getFirstDomNode() {
-				return node;
-			},
-		};
-	};
+	return () => new LiveText(content);
 }
 
 function toMountable(child: Child): Mountable {
@@ -146,25 +178,52 @@ export function reconcileChildren(
 	props: { children?: Child | Child[] },
 	...children: Child[]
 ): Mountable[] {
-	const fromProps = props.children
-		? Array.isArray(props.children)
-			? props.children
-			: [props.children]
-		: [];
+	// The overwhelmingly common shape is children as arguments and no `children`
+	// prop. Falsy rather than undefined, matching what the concatenation did
+	// before: `children: null` contributes nothing, it does not become an empty
+	// text node.
+	if (!props.children) {
+		// Children that are already mountables map to themselves, so the rest-args
+		// array — which this call owns — is the result. One array per element with
+		// children, saved, on a path that runs once per element in the tree.
+		for (const child of children) {
+			if (typeof child !== "function") return children.map(toMountable);
+		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Every entry was just checked to be a mountable factory.
+		return children as Mountable[];
+	}
+	const fromProps = Array.isArray(props.children) ? props.children : [props.children];
 	return [...fromProps, ...children].map(toMountable);
 }
+
+const NO_CHILDREN: Mountable[] = [];
 
 class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 	#element: HTMLElementTagNameMap[T] | null = null;
 	#tag: T;
 	#props: ElementProps<T>;
 	#children: Mountable[];
-	#mountedChildren: IMountable[] = [];
+	/**
+	 * An element whose whole content is one readable — `Span(issue.bind("title"))`
+	 * — owns its text node directly instead of mounting a child for it. Three of
+	 * the ten mountables in this comparison's list row are exactly that shape, so
+	 * skipping them is 30% fewer objects to create, track and tear down per row.
+	 */
+	#textChild: ReadableChild | null = null;
+	#textNode: Text | null = null;
+	#unsubscribeText: Unsubscribe | null = null;
+	#mountedChildren: IMountable[] | null = null;
 	#unsubscribeProps: Unsubscribe | null = null;
 
 	constructor(tag: T, props: ElementProps<T>, ...children: ElementChildArgs<T>) {
 		this.#tag = tag;
 		this.#props = props;
+		const lone = props.children === undefined && children.length === 1 ? children[0] : undefined;
+		if (lone !== null && typeof lone === "object" && isReadable<PrimitiveChild>(lone)) {
+			this.#textChild = lone;
+			this.#children = NO_CHILDREN;
+			return;
+		}
 		this.#children = reconcileChildren(props, ...children);
 	}
 
@@ -172,24 +231,61 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- createElement returns HTMLElement; the tag generic selects the concrete member.
 		this.#element = dom.createElement(this.#tag) as HTMLElementTagNameMap[T];
 		this.#unsubscribeProps = applyElementProps(this.#element, this.#tag, this.#props);
-		this.#children.forEach((child) => {
+		if (this.#textChild !== null) {
+			const content = this.#textChild;
+			const host = this.#element;
+			// The parent scope `mountChild` would have established, so a hydration
+			// pass claims the serialized text node in place rather than hunting for
+			// it under this element's own parent.
+			withMountParent(host, () => {
+				const node = dom.createTextNode(toText(content.get()));
+				this.#textNode = node;
+				dom.attach(host, node);
+			});
+			const node = this.#textNode;
+			if (node !== null) {
+				this.#unsubscribeText = content.subscribe((value) => {
+					node.data = toText(value);
+				});
+			}
+		}
+		for (const child of this.#children) {
 			const createdChild = child();
-			this.#mountedChildren.push(createdChild);
-			mountChild(createdChild, this.#element!);
-		});
+			// Allocated on the first child, so a void element never carries one.
+			(this.#mountedChildren ??= []).push(createdChild);
+			mountChild(createdChild, this.#element);
+		}
 		syncValueProp(this.#element, this.#props);
 		dom.attach(parent, this.#element);
 		this.#props.this?.set(this.#element);
 	}
 
 	unmount(): void {
-		this.#unsubscribeProps?.();
-		this.#unsubscribeProps = null;
-		// children unmount first so their `onUnmount` hooks still read this element
-		this.#mountedChildren.forEach((child) => child.unmount());
-		this.#mountedChildren = [];
+		// Whether an ancestor is already taking this element out of the document,
+		// read before the flags below change it.
+		const detached = isDetaching();
+		// Everything from here down is being thrown away, which is what lets the
+		// prop teardown skip work whose only purpose is to leave a live node tidy;
+		// and removing this element takes its children with it, so they skip their
+		// own removal too.
+		beginDiscard();
+		beginDetach();
+		try {
+			this.#unsubscribeProps?.();
+			this.#unsubscribeProps = null;
+			this.#unsubscribeText?.();
+			this.#unsubscribeText = null;
+			this.#textNode = null;
+			if (this.#mountedChildren !== null) {
+				for (const child of this.#mountedChildren) child.unmount();
+				this.#mountedChildren = null;
+			}
+		} finally {
+			endDetach();
+			endDiscard();
+		}
 		this.#props.this?.set(null);
-		this.#element?.remove();
+		if (!detached) this.#element?.remove();
 		this.#element = null;
 	}
 
@@ -246,7 +342,22 @@ export function App(options: { target: HTMLElement }) {
 			// it; remember where it ended to roll a failed mount back
 			const handoff = host[HANDOFF];
 			const mark = handoff === undefined ? -1 : target.childNodes.length;
-			const ssr = target.querySelector("[data-ssr]");
+			// Server markup with nothing installed to adopt it would otherwise be
+			// claimed as the mount root without a single node having been hydrated,
+			// leaving the stale tree on screen under the fresh one. Discarding it is
+			// the same fallback a mismatch takes, and correct — just not free.
+			const serialized = target.querySelector("[data-ssr]");
+			let ssr = serialized;
+			if (serialized !== null && !canHydrate()) {
+				if (import.meta.env.DEV) {
+					console.warn(
+						'[implement] found server-rendered markup but hydration is not installed, so it was discarded and mounted fresh.\nCall `installHydration()` from "@implementjs/core/hydrate" before your first render. (Kit apps get this in their generated client entry.)',
+					);
+				}
+				serialized.remove();
+				sweepHead();
+				ssr = null;
+			}
 			try {
 				if (ssr) {
 					beginHydration(ssr);

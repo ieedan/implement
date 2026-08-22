@@ -12,10 +12,10 @@ src/routes
     (marketing)
         layout.ts         wraps everything in the group
         about
-            index.ts      -> /about   (not /marketing/about)
+            page.ts       -> /about   (not /marketing/about)
         contact
-            index.ts      -> /contact
-    index.ts              -> /
+            page.ts       -> /contact
+    page.ts               -> /
 ```
 
 Here `/about` and `/contact` render inside the marketing layout, while `/` doesn't — even though all three live at the same URL depth.

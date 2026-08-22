@@ -21,7 +21,7 @@ import {
 } from "../components/tutorials/playground";
 import { Button } from "../components/ui/button";
 import { Sheet, SheetTrigger } from "../components/ui/sheet";
-import type { Tutorial } from "@/lib/content";
+import type { Tutorial } from "@/lib/tutorials";
 import { checkKitLesson, checkLesson } from "@/lib/lesson-test";
 import { isKitLesson } from "@/lib/run-kit-lesson";
 import { tutorialNeighbors } from "@/lib/tutorials";

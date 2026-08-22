@@ -9,7 +9,8 @@ import {
 	ForEach,
 	Html,
 	If,
-	Implement,
+	ImplementBoundary,
+	ImplementHead,
 	Key,
 	Li,
 	P,
@@ -21,7 +22,13 @@ import {
 	Ul,
 	type Child,
 } from "../src/index";
+import { installHydration } from "../src/hydrate";
 import { renderToString } from "../src/server/index";
+
+// Hydration is opt-in: an app that never server-renders should not carry the
+// claim machinery. Kit's generated client entry installs it; these tests are
+// the client entry.
+installHydration();
 
 /**
  * Server-renders `build()`, injects the markup the way the Vite plugin does,
@@ -94,9 +101,9 @@ const buildPortalTree = () => Div(Span("in place"), Portal(P("floating")));
 
 const buildHeadTree = () =>
 	Div(
-		Implement.Head(
-			Implement.Head.Title("Page"),
-			Implement.Head.Meta({ name: "description", content: "d" }),
+		ImplementHead(
+			ImplementHead.Title("Page"),
+			ImplementHead.Meta({ name: "description", content: "d" }),
 		),
 		P("body"),
 	);
@@ -184,7 +191,7 @@ describe("hydration", () => {
 				),
 			() => Div(Switch(signal("b")).Case("a", P("a")).Case("b", P("b")).Default(P("d"))),
 			() => Div(Key(signal(1), Span("keyed"))),
-			() => Div(Implement.Boundary(Span("safe")).Catch(() => P("caught"))),
+			() => Div(ImplementBoundary(Span("safe")).Catch(() => P("caught"))),
 			() => [Div(Span("multi")), P("roots")],
 			() => Div(Html("<b>bold</b> raw"), Span("after")),
 			() => Div(Svg('<svg viewBox="0 0 4 4"><path d="M0 0"/></svg>'), Span("s")),

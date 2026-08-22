@@ -3292,10 +3292,18 @@ const styledReference: Record<string, ApiPart[]> = {
 			AlertDialogCancel: { props: buttonStyleProps("outline", "default") },
 			AlertDialogAction: { props: buttonStyleProps("default", "default") },
 			AlertDialogOverlay: {
-				note: "Styled as a fixed scrim that fades in and out; a nested alert dialog's overlay renders transparent so the stack does not darken twice.",
+				note: "Styled as a fixed scrim that fades in and out; a nested alert dialog's overlay renders transparent so the stack does not darken twice. AlertDialogContent renders one for you — this export is for composing a panel of your own.",
 			},
 			AlertDialogContent: {
-				note: "Styled as a centered panel that scales in, and shifts up as further dialogs stack on top of it.",
+				props: [
+					{
+						name: "overlay",
+						type: "AlertDialogOverlayProps",
+						default: "{}",
+						description: "Props for the overlay the content renders behind itself.",
+					},
+				],
+				note: "Styled as a centered panel that scales in, and shifts up as further dialogs stack on top of it. Renders its own AlertDialogOverlay inside an AlertDialogPortal, so neither has to be placed by hand.",
 			},
 		},
 	}),
@@ -3361,7 +3369,7 @@ const styledReference: Record<string, ApiPart[]> = {
 			DialogTrigger: { props: buttonStyleProps("default", "default") },
 			DialogClose: { props: buttonStyleProps("ghost", "sm") },
 			DialogOverlay: {
-				note: "Styled as a fixed scrim that fades in and out; a nested dialog's overlay renders transparent so the stack does not darken twice.",
+				note: "Styled as a fixed scrim that fades in and out; a nested dialog's overlay renders transparent so the stack does not darken twice. DialogContent renders one for you — this export is for composing a panel of your own.",
 			},
 			DialogContent: {
 				props: [
@@ -3372,8 +3380,14 @@ const styledReference: Record<string, ApiPart[]> = {
 						description:
 							"Renders a DialogClose in the top right corner. Turn it off for a dialog that must be dismissed through its own buttons.",
 					},
+					{
+						name: "overlay",
+						type: "DialogOverlayProps",
+						default: "{}",
+						description: "Props for the overlay the content renders behind itself.",
+					},
 				],
-				note: "Styled as a centered panel that scales in, and shifts up as further dialogs stack on top of it.",
+				note: "Styled as a centered panel that scales in, and shifts up as further dialogs stack on top of it. Renders its own DialogOverlay inside a DialogPortal, so neither has to be placed by hand.",
 			},
 		},
 	}),
