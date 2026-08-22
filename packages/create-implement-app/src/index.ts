@@ -1,7 +1,26 @@
 export {
+	type Adder,
+	type AdderChanges,
+	type AdderContext,
+	ADDERS,
+	adders,
+	type AdderId,
+	applyAdders,
+	getAdder,
+	parseAdders,
+} from "@/adders";
+export {
+	addAddCommand,
+	type AddCommandResult,
+	type AddOptions,
+	runAdd,
+	schema as addOptionsSchema,
+} from "@/commands/add";
+export {
 	addCreateCommand,
 	type CreateCommandResult,
 	type CreateOptions,
+	DEFAULT_ADDERS,
 	DEFAULT_ADDONS,
 	DEFAULT_DIRECTORY,
 	DEFAULT_TEMPLATE,

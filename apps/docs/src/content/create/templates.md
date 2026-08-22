@@ -91,6 +91,8 @@ Six optional extras, available on either template. Each has a pair of flags — 
 
 Without Tailwind the generated `app.css` defines plain semantic classes (`.page`, `.counter`, `.button`) and the components reference them by the same names, so the two versions of the counter read identically.
 
+An addon shapes what the templates write, so it is a choice you make while scaffolding. Config that stands on its own — linting, formatting — is an [adder](/create/adders) instead, and can be added to the app whenever you want it.
+
 ### The ui addon
 
 `--ui` is the only addon that isn't a dependency. [`@implementjs/ui`](/ui) is a [jsrepo](https://jsrepo.dev) registry of styled components you copy into your project, so what the CLI writes is the setup those copies need:

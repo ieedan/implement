@@ -8,6 +8,10 @@ export type CLIError =
 	| InvalidPackageNameError
 	| InvalidTemplateError
 	| InvalidAddonError
+	| InvalidAdderError
+	| InvalidPackageJsonError
+	| MissingPackageJsonError
+	| NoAddersSelectedError
 	| NoLinkedPackagesError
 	| MissingLinkedPackageError
 	| MissingLinkedRegistryError
@@ -74,6 +78,38 @@ export class InvalidAddonError extends CreateImplementAppError {
 	constructor(addon: string, addons: string[]) {
 		super(`${pc.bold(addon)} is not a valid addon.`, {
 			suggestion: `Expected one of: ${addons.map((a) => pc.cyan(a)).join(", ")}.`,
+		});
+	}
+}
+
+export class InvalidAdderError extends CreateImplementAppError {
+	constructor(adder: string, adders: string[]) {
+		super(`${pc.bold(adder)} is not a valid adder.`, {
+			suggestion: `Expected one of: ${adders.map((a) => pc.cyan(a)).join(", ")}.`,
+		});
+	}
+}
+
+export class NoAddersSelectedError extends CreateImplementAppError {
+	constructor(adders: string[]) {
+		super("No adders were named.", {
+			suggestion: `Pass one of: ${adders.map((a) => pc.cyan(a)).join(", ")}.`,
+		});
+	}
+}
+
+export class MissingPackageJsonError extends CreateImplementAppError {
+	constructor(dir: string) {
+		super(`${pc.bold(dir)} has no package.json.`, {
+			suggestion: "Run this from inside an app, or point --cwd at one.",
+		});
+	}
+}
+
+export class InvalidPackageJsonError extends CreateImplementAppError {
+	constructor(reason: string) {
+		super(`The app's ${pc.bold("package.json")} could not be read: ${reason}.`, {
+			suggestion: "Fix it and try again.",
 		});
 	}
 }
