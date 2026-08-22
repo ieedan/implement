@@ -6,6 +6,12 @@
  * inside that build — and because the two facts it needs from the build
  * (which path prefixes are hashed, and which pages prerendered) are known only
  * once the build has run.
+ *
+ * Being a template literal, it is source code inside a string: a backslash
+ * meant for the generated file has to be written twice, or the template eats
+ * it. `\\n` in a message, `\\.` in a regex. A single `\` is for the template's
+ * own escapes — `` \` `` and `\${` — which land as a backtick and a `${` in
+ * the output.
  */
 
 export type EntrySettings = {
@@ -40,7 +46,7 @@ const ORIGIN = env("ORIGIN", undefined);
 const PROTOCOL_HEADER = env("PROTOCOL_HEADER", undefined);
 const HOST_HEADER = env("HOST_HEADER", undefined);
 
-const LOOPBACK = /^(127\.|::1|localhost$)/;
+const LOOPBACK = /^(127\\.|::1|localhost$)/;
 
 /**
  * Everything in front of the app: hashed assets first, then whatever else the
@@ -94,11 +100,11 @@ export function start(options = {}) {
 	if (exposed && process.env.NODE_ENV === "production") {
 		if (ORIGIN === undefined && PROTOCOL_HEADER === undefined && HOST_HEADER === undefined) {
 			console.error(
-				"[implement] No trusted origin source is configured.\n\n" +
-					"Set ORIGIN=https://your-domain.com to pin it, or set PROTOCOL_HEADER and\n" +
-					"HOST_HEADER to the headers a trusted reverse proxy sets (or HOST_HEADER alone\n" +
-					"when only the host is forwarded). Without one of these, event.url.origin is\n" +
-					"attacker-controlled in production, enabling host-header injection.\n\n" +
+				"[implement] No trusted origin source is configured.\\n\\n" +
+					"Set ORIGIN=https://your-domain.com to pin it, or set PROTOCOL_HEADER and\\n" +
+					"HOST_HEADER to the headers a trusted reverse proxy sets (or HOST_HEADER alone\\n" +
+					"when only the host is forwarded). Without one of these, event.url.origin is\\n" +
+					"attacker-controlled in production, enabling host-header injection.\\n\\n" +
 					"See packages/kit/SECURITY_AUDIT.md (M-1).",
 			);
 			process.exit(1);
