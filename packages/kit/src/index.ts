@@ -81,7 +81,7 @@ const CLIENT_ID = "$implement/client";
  * for every route, because params are purely type-level.
  */
 const TYPES_ID = "\0$implement/route-types";
-const TYPES_MODULE = 'export { handler } from "@implementjs/kit/endpoint";\n';
+const TYPES_MODULE = 'export { handler, json } from "@implementjs/kit/endpoint";\n';
 const RESOLVED_ROUTER_ID = "\0$implement/router";
 const RESOLVED_PARAMS_ID = `\0${PARAMS_ID}`;
 const RESOLVED_PAGES_ID = `\0${PAGES_ID}`;

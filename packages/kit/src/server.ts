@@ -77,7 +77,7 @@ export { formatServerError } from "./errors.ts";
 
 // the wrapper routes reach through their `./$types`, re-exported so a
 // `server.ts` that would rather name the package can
-export { handler } from "./endpoint.ts";
+export { handler, json, type JsonResponse } from "./endpoint.ts";
 export type {
 	EndpointSpec,
 	Handler,
@@ -117,6 +117,25 @@ export const INTERNAL_ORIGIN = "http://implement.internal";
 const DATA_SUFFIX = "/__data.json";
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"];
+
+/**
+ * `event.api` for a server built without a client — a hand-built one, or a
+ * test. The generated `.implement/entry-server.ts` always passes
+ * `createApiClient`, so this is only ever reached by a caller that assembled
+ * the pipeline itself; every method says so rather than failing as `undefined
+ * is not a function`.
+ */
+function unavailableApi(): App.Api {
+	const stand = Object.fromEntries(METHODS.map((method) => [method, unavailableApiCall]));
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion, typescript/no-unnecessary-type-assertion -- Redundant only here, where `App.Api` is the empty interface kit declares; in an app it is the generated client, which a stand-in is not.
+	return stand as unknown as App.Api;
+}
+
+function unavailableApiCall(): never {
+	throw new Error(
+		"event.api is not available: this server was built without `createApiClient`, which the generated `.implement/entry-server.ts` passes.",
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Hooks
@@ -404,7 +423,10 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			request,
 			url,
 			fetch: internalFetch,
-			api: createApiClient?.({ fetch: internalFetch, baseUrl: url.origin }) ?? {},
+			api:
+				createApiClient === undefined
+					? unavailableApi()
+					: createApiClient({ fetch: internalFetch, baseUrl: url.origin }),
 			// a matcher may hand back something other than a string, and the
 			// pipeline has no route to say which — the generated `./$types` are
 			// where a route learns what its own params are, and they are exact

@@ -43,6 +43,52 @@ import type { MaybePromise } from "./server.ts";
 /** The HTTP methods a `server.ts` may export a handler for. */
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD";
 
+/** The phantom key a {@link json} response carries its body type on. */
+declare const JSON_BODY: unique symbol;
+
+/**
+ * A `Response` that remembers the type of the JSON body it carries. The key is
+ * a phantom — nothing sets it at runtime — and it is required rather than
+ * optional so a plain `Response` is not one of these by accident.
+ */
+export interface JsonResponse<T> extends Response {
+	readonly [JSON_BODY]: T;
+}
+
+/**
+ * `Response.json`, with the body's type kept.
+ *
+ * Returning a `Response` from `handle` opts out of response handling, which is
+ * the point for a stream or a redirect — but it also opts the caller out of
+ * knowing what came back, and wanting a `201` is not a reason to lose that.
+ * `json` is the way to set a status and stay typed:
+ *
+ * ```ts
+ * export const POST = handler({
+ * 	body: NewIssue,
+ * 	handle: async ({ body }) => json(await createIssue(body), { status: 201 }),
+ * });
+ *
+ * const { data } = await api.POST("/api/issues", { body }); // the issue, not `never`
+ * ```
+ *
+ * A plain `Response` is still the escape hatch for a body that is not JSON,
+ * and a caller reads `data` as `never` for one — there is nothing to say about
+ * it. With a `response` schema the schema is what types `data`, and returning
+ * any `Response`, this one included, skips that validation.
+ */
+export function json<T>(body: T, init?: ResponseInit): JsonResponse<T> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The phantom key is type-level only; the value is the `Response` it says it is.
+	return Response.json(body, init) as JsonResponse<T>;
+}
+
+/**
+ * What a caller receives for what `handle` returned. A plain `Response` opts
+ * out of response handling, so it says nothing about `data`; a {@link json}
+ * says exactly what it carries.
+ */
+type HandlerData<R> = R extends JsonResponse<infer T> ? T : R extends Response ? never : R;
+
 /**
  * Query params as the parser produces them: one value for a key is a `string`,
  * a key that repeats is a `string[]`. This is what `event.query` holds when a
@@ -226,9 +272,9 @@ export interface HandlerBuilder<P extends Record<string, unknown> = Record<strin
 		params: ParamsOf<PS, P>;
 		query: QueryInputOf<QS>;
 		body: BodyInputOf<BS>;
-		// returning a `Response` opts out of response handling, so it is never
-		// part of what a caller receives as `data`
-		data: Exclude<Awaited<R>, Response>;
+		// returning a plain `Response` opts out of response handling, so it is
+		// never part of what a caller receives as `data`; `json()` keeps its body
+		data: HandlerData<Awaited<R>>;
 	}>;
 }
 

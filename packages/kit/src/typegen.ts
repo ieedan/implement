@@ -197,6 +197,7 @@ function dataType(dir: string, files: string[]): string {
  */
 const HANDLER_EXPORT = `
 export const handler: HandlerBuilder<ServerParams>;
+export { json } from "@implementjs/kit/endpoint";
 `;
 
 const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/endpoint";
@@ -322,11 +323,21 @@ declare module "$implement/hooks" {
 
 declare namespace App {
 	/**
+	 * The client over this app's own routes, as \`api.client\` shapes it.
+	 *
+	 * It is named before it is extended because an interface may only extend a
+	 * name — extending an inline \`import(…)\` type is \`TS2499\`. An app compiling
+	 * its generated types with \`skipLibCheck\` never sees that error, and is
+	 * simply left with an \`Api\` that has nothing on it.
+	 */
+	type GeneratedApi = ${clientTypeReference(client, 'import("../client.ts").Api')};
+
+	/**
 	 * \`event.api\` — the client over this app's own routes, bound to
 	 * \`event.fetch\`. Merged into the empty \`interface Api\` kit declares, the
 	 * same way an app's \`src/app.d.ts\` fills in \`Locals\`.
 	 */
-	interface Api extends ${clientTypeReference(client, 'import("../client.ts").Api')} {}
+	interface Api extends GeneratedApi {}
 }
 `;
 }

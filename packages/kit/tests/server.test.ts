@@ -593,8 +593,12 @@ describe("event.fetch", () => {
 		expect((thrown as Error | undefined)?.message).toContain("fetching a route");
 	});
 
-	it("leaves event.api empty until an app generates a client", async () => {
-		expect((await capturing().eventFor()).api).toEqual({});
+	it("says so on every call when nothing supplied a client", async () => {
+		const { api } = await capturing().eventFor();
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `App.Api` is empty inside kit itself; the stand-in is what is under test.
+		const call = (api as unknown as Record<string, () => unknown>)["GET"];
+		expect(call).toBeTypeOf("function");
+		expect(() => call?.()).toThrow(/without `createApiClient`/);
 	});
 
 	it("binds event.api to the in-process fetch, at the request's own origin", async () => {

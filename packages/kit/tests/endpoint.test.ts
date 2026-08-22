@@ -1,7 +1,7 @@
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Reading back JSON bodies and breaking a schema on purpose require intentional narrowing. */
 import { describe, expect, it } from "vitest";
 import * as z from "zod";
-import { handler, handlerDefinition, parseQuery } from "../src/endpoint.ts";
+import { handler, handlerDefinition, json as jsonResponse, parseQuery } from "../src/endpoint.ts";
 import type { EndpointRoute, RequestEvent } from "../src/match.ts";
 import { createKitServer, type ServerHooks } from "../src/server.ts";
 
@@ -64,6 +64,23 @@ describe("handler()", () => {
 		const response = await server([endpoint("/api", { GET })])("/api");
 		expect(response.status).toBe(201);
 		expect(await response.text()).toBe("raw");
+	});
+
+	it("sets the status a json() asked for, and serializes its body", async () => {
+		const POST = handler({ handle: () => jsonResponse({ id: "7" }, { status: 201 }) });
+		const response = await server([endpoint("/api", { POST })])("/api", { method: "POST" });
+		expect(response.status).toBe(201);
+		expect(response.headers.get("content-type")).toContain("application/json");
+		expect(await response.json()).toEqual({ id: "7" });
+	});
+
+	it("keeps the headers a json() was given", async () => {
+		const GET = handler({
+			handle: () => jsonResponse({ ok: true }, { headers: { "cache-control": "no-store" } }),
+		});
+		const response = await server([endpoint("/api", { GET })])("/api");
+		expect(response.headers.get("cache-control")).toBe("no-store");
+		expect(await response.json()).toEqual({ ok: true });
 	});
 
 	it("answers a handler that returned nothing with a 204", async () => {

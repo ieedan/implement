@@ -135,8 +135,16 @@ describe("App.Api", () => {
 		const declaration = generateRouterDeclaration(routes, false, PATHS, []);
 		expect(declaration).toContain("declare namespace App {");
 		expect(declaration).toContain(
-			'interface Api extends import("@implementjs/kit/client").TypedClient<import("../client.ts").Api> {}',
+			'type GeneratedApi = import("@implementjs/kit/client").TypedClient<import("../client.ts").Api>;',
 		);
+	});
+
+	it("names the client before extending it, since an interface may only extend a name", () => {
+		const declaration = generateRouterDeclaration(routes, false, PATHS, []);
+		// `interface Api extends import("…").Client<…> {}` is TS2499, which
+		// `skipLibCheck` hides — leaving `App.Api` empty and `event.api` useless
+		expect(declaration).toContain("interface Api extends GeneratedApi {}");
+		expect(declaration).not.toContain("interface Api extends import(");
 	});
 
 	it("follows the app's chosen error style", () => {

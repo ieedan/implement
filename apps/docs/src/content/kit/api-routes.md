@@ -74,6 +74,23 @@ export const GET = handler({
 });
 ```
 
+A `Response` says nothing about its body, so the client reads `data` as `never` for one — right for markdown or a stream, wrong for JSON that only wanted a status other than `200`. `json()` is that case: it sets the status and keeps the body's type.
+
+```ts
+import { handler, json } from "./$types";
+
+export const POST = handler({
+	body: NewIssue,
+	handle: async ({ body }) => json(await createIssue(body), { status: 201 }),
+});
+```
+
+```ts
+const { data } = await api.POST("/api/issues", { body }); // the issue, not `never`
+```
+
+`json` comes from `@implementjs/kit/server`, and a route's `./$types` re-exports it beside `handler`. With a `response` schema the schema is what types `data`, and returning any `Response` — a `json()` included — still skips that validation.
+
 `response` is optional, and the two choices differ in what they buy:
 
 - **Declared.** What `handle` returns is checked against the schema at compile time, validated at runtime outside production (`validateResponse: false` turns that off, `true` turns it on everywhere), and documented in the OpenAPI output.
