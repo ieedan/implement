@@ -27,6 +27,39 @@ Handlers receive a `RequestEvent` — the web-standard `request`, the route's `p
 > [!NOTE]
 > That is the whole contract, and everything below applies to it unchanged. When you want the edges typed as well — a validated body, a typed result, and a generated client for every caller — wrap the handler in [`handler()`](/kit/api-routes). It returns a plain handler, so nothing on this page changes.
 
+## Endpoints are server-only
+
+A `server.ts` never enters the client bundle — it is as server-only as anything named `*.server.ts`, and kit enforces it the same way. Importing one from client code is an error in dev and on build:
+
+```
+src/routes/api/issues/server.ts is a route endpoint and cannot be imported by client code.
+
+  src/routes/api/issues/server.ts
+  imported by src/lib/features/issues/create-issue-dialog.ts as "@/routes/api/issues/server"
+    ← src/routes/(dashboard)/layout.ts:3 imports { CreateIssueDialog }
+    ← $implement/router
+    ← .implement/entry-client.ts
+```
+
+The chain names the import that pulled it in, because the file that broke the rule is rarely the file you were editing.
+
+The one that catches people is a validation schema: the endpoint declares it, and a form on the client wants the same one. Put it in a module both sides import, and let the endpoint import it too.
+
+```ts
+// src/lib/issues/schema.ts — shared, no server imports
+export const NewIssueSchema = z.object({ title: z.string().min(1) });
+```
+
+```ts
+// src/routes/api/issues/server.ts
+import { db } from "@/lib/db.server";
+import { NewIssueSchema } from "@/lib/issues/schema";
+
+export const POST = handler({ body: NewIssueSchema, handle: ({ body }) => db.issues.create(body) });
+```
+
+Types are exempt, as always — `import type { … }` is erased before the module graph sees it, so a client file may read an endpoint's types freely. That is how [the generated client](/kit/api-routes) is typed.
+
 ## Extension routes
 
 A directory named `.md` (or any `.<ext>`) holding a `server.ts` serves its **parent's path with the extension appended**. Params still bind from the parent pattern:

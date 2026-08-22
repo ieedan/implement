@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { crawlRoutes, implement, normalizeRoute, type PrerenderOptions } from "@implementjs/vite";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
@@ -31,12 +32,18 @@ import {
 	type EnvFileInfo,
 } from "./env.ts";
 import {
+	chainLinks,
 	displayId,
 	importerChain,
+	isEndpointModule,
+	isEndpointSpecifier,
 	isServerModule,
 	isServerSpecifier,
+	scanImports,
 	serverImportError,
 	type ImporterLookup,
+	type ImportSiteLookup,
+	type ServerKind,
 } from "./guard.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
 import { buildOpenApiDocument, type OpenApiEndpoint, type OpenApiOptions } from "./openapi.ts";
@@ -248,6 +255,18 @@ function normalizeFile(file: string): string {
 	return file.replaceAll("\\", "/");
 }
 
+/** Whether a specifier is worth resolving to find out whether it is server-only. */
+function looksServerOnly(source: string): boolean {
+	return isServerSpecifier(source) || isEndpointSpecifier(source);
+}
+
+/** Whether a specifier's last segment names the same file as `id` — an ordering hint, not a decision. */
+function sameStem(source: string, id: string): boolean {
+	const stem = (value: string): string =>
+		(withoutQuery(value).split("/").pop() ?? "").replace(/\.[cm]?[jt]sx?$/, "");
+	return stem(source) === stem(id);
+}
+
 const treeHasLoads = (node: RouteNode): boolean =>
 	node.pageServer !== null || node.layoutServer !== null || node.children.some(treeHasLoads);
 
@@ -331,6 +350,17 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	let resolvedConfig: ResolvedConfig | null = null;
 	/** Client-graph parents, recorded as rollup parses, for the importer chain. */
 	const clientParents = new Map<string, string>();
+
+	/**
+	 * The two kinds of server-only module, under one question. A route's
+	 * `server.ts` is not spelled `*.server.ts`, but it is every bit as server-only
+	 * — importing one from a page drags its database and its secrets into the
+	 * client bundle — so both layers treat them the same.
+	 */
+	const serverKind = (id: string): ServerKind | null => {
+		if (isServerModule(id)) return "server";
+		return isEndpointModule(id, routesDir) ? "endpoint" : null;
+	};
 	let envFiles: EnvFile[] = [];
 	let envValues: Record<string, string | undefined> = {};
 	let aliasTargets: Record<string, string> = {};
@@ -608,9 +638,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			}
 			// Layer 2: the client copy of any server file keeps its shape and throws. The full id
 			// goes in, not the stripped path — `?raw` asks for the file's text, not its bindings.
-			if (client && isServerModule(normalized)) {
+			const kind = client ? serverKind(normalized) : null;
+			if (kind !== null) {
 				return {
-					code: serverStubModule(await exportNames(file), displayId(file, root)),
+					code: serverStubModule(await exportNames(file), displayId(file, root), kind),
 					map: null,
 				};
 			}
@@ -755,14 +786,15 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				// html importer is usually no importer at all — and a shell that really does point
 				// a <script> at a server file is Layer 2's to answer, loudly, at evaluation
 				importer.endsWith(".html") ||
-				!isServerSpecifier(source) ||
-				isServerModule(importer) ||
+				!looksServerOnly(source) ||
+				serverKind(importer) !== null ||
 				!isClientGraph(this.environment)
 			) {
 				return null;
 			}
 			const resolved = await this.resolve(source, importer, { skipSelf: true });
-			if (resolved === null || !isServerModule(resolved.id)) return null;
+			const kind = resolved === null ? null : serverKind(resolved.id);
+			if (resolved === null || kind === null) return null;
 			// vite resolves a queried module against its own clean path (`x.server.ts?raw` asks to
 			// resolve `x.server.ts` with `x.server.ts?raw` as the importer). A module never imports
 			// itself, so that pairing is bookkeeping rather than a violation.
@@ -774,12 +806,40 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				if (mod == null) return [];
 				return [...mod.importers].map((node) => node.id ?? node.file ?? "").filter(Boolean);
 			};
+			/**
+			 * How a link in the chain reached the one below it. Read off the file and
+			 * confirmed by resolution — a specifier only counts once it resolves to the
+			 * module it is claimed to reach — so the message can name the single import
+			 * to delete rather than leaving a chain of file names to bisect by hand.
+			 * Virtual modules like `$implement/router` have no file to read, and stay bare.
+			 */
+			const site: ImportSiteLookup = async (parent, child) => {
+				let code: string;
+				try {
+					code = await readFile(withoutQuery(parent), "utf8");
+				} catch {
+					return undefined;
+				}
+				const target = withoutQuery(child);
+				// the likely one first, so the usual case costs a single resolution
+				const candidates = scanImports(code).toSorted(
+					(a, b) => Number(sameStem(b.source, target)) - Number(sameStem(a.source, target)),
+				);
+				for (const candidate of candidates) {
+					const hit = await this.resolve(candidate.source, parent, { skipSelf: true }).catch(
+						() => null,
+					);
+					if (hit !== null && withoutQuery(hit.id) === target) return candidate;
+				}
+				return undefined;
+			};
 			return this.error(
 				serverImportError({
 					server: resolved.id,
+					kind,
 					importer,
 					source,
-					chain: importerChain(importer, importers),
+					chain: await chainLinks(importer, importerChain(importer, importers), site),
 					root,
 				}),
 			);

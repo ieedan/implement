@@ -13,6 +13,7 @@ import {
 	ImplementHead,
 	Key,
 	Li,
+	Main,
 	P,
 	Portal,
 	signal,
@@ -98,6 +99,10 @@ const buildAwaitTree = (source: PromiseLike<string>) =>
 	);
 
 const buildPortalTree = () => Div(Span("in place"), Portal(P("floating")));
+
+// the portal mounts before the rest of the tree, the arrangement a Toaster in
+// a root layout produces
+const buildPortalFirstTree = () => [Portal(P("floating")), Main(Span("in place"))];
 
 const buildHeadTree = () =>
 	Div(
@@ -244,17 +249,39 @@ describe("hydration", () => {
 	});
 
 	it("recreates Portal content and sweeps the serialized copy", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const { html } = renderToString(buildPortalTree());
 		const target = document.createElement("div");
 		target.innerHTML = `<div data-ssr>${html}</div>`;
 		document.body.appendChild(target);
 		// the server render put the portal output at the end of its body
 		expect(html).toContain("floating");
+		const claimed = target.querySelector("span")!;
 
 		App({ target }).render(buildPortalTree());
 		// swept from the wrapper, recreated in document.body
 		expect(target.querySelectorAll("p").length).toBe(0);
 		expect(document.body.querySelector(":scope > p")!.textContent).toBe("floating");
+		// and the rest of the tree was hydrated rather than remounted
+		expect(target.querySelector("span")).toBe(claimed);
+		expect(warn).not.toHaveBeenCalled();
+		warn.mockRestore();
+	});
+
+	it("hydrates the tree when a Portal mounts ahead of it", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const { html } = renderToString(buildPortalFirstTree());
+		const target = document.createElement("div");
+		target.innerHTML = `<div data-ssr>${html}</div>`;
+		document.body.appendChild(target);
+		const claimed = target.querySelector("main")!;
+
+		App({ target }).render(...buildPortalFirstTree());
+		expect(target.querySelector("main")).toBe(claimed);
+		expect(target.querySelectorAll("p").length).toBe(0);
+		expect(document.body.querySelector(":scope > p")!.textContent).toBe("floating");
+		expect(warn).not.toHaveBeenCalled();
+		warn.mockRestore();
 	});
 
 	it("sweeps server head tags once the client Head mounts", () => {

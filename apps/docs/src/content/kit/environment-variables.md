@@ -130,7 +130,7 @@ The browser copy of `env.server.ts` is the part worth internalising: it does not
 
 ## Importing a server file from the browser
 
-`env.server.ts` is a [server file](/kit/loading-data) under the same rule that governs `db.server.ts` — anything named `*.server.ts` is server-only. Kit enforces that in two layers.
+`env.server.ts` is a [server file](/kit/loading-data) under the same rule that governs `db.server.ts` — anything named `*.server.ts` is server-only, as is a route's [`server.ts` endpoint](/kit/server-routes). Kit enforces that in two layers.
 
 **It fails the build, with the chain.** A client module importing a server file is an error in dev and on build, and because `$implement/router` imports every page eagerly, one bad import poisons the whole bundle. So the error shows how it got there:
 

@@ -7,6 +7,7 @@ import {
 	createServerEnvironment,
 	escapeText,
 	serializeChildren,
+	serializeNodes,
 	ServerComment,
 	ServerDocument,
 	ServerElement,
@@ -24,8 +25,9 @@ export type RenderToStringOptions = {
 
 export type RenderToStringResult = {
 	/**
-	 * Serialized body content. The server body is the render root, so `Portal`
-	 * output (which defaults to `document.body`) lands at the end of it.
+	 * Serialized body content: the app tree first, then any `Portal` output
+	 * (which defaults to `document.body`, the app tree's parent here just as it
+	 * is in the browser) after it.
 	 */
 	html: string;
 	/**
@@ -59,9 +61,15 @@ function toRouterLocation(input: ServerLocation | undefined): RouterLocation {
 function render<T>(
 	children: Child | Child[],
 	options: RenderToStringOptions,
-	project: (doc: ServerDocument) => T,
+	project: (doc: ServerDocument, root: ServerElement) => T,
 ): T {
 	const doc = new ServerDocument();
+	// The app mounts into a wrapper inside the body, mirroring the `[data-ssr]`
+	// wrapper the client mounts into. Mounting into the body itself would let
+	// `Portal` output (which targets the body) land in the middle of the app
+	// tree, where hydration's claim cursor runs into it and fails the pass.
+	const root = new ServerElement("div");
+	doc.body.appendChild(root);
 	const restoreDom = installDomEnvironment(createServerEnvironment(doc));
 	const restoreLocation = installServerLocation(toRouterLocation(options.location));
 	const mounted: IMountable[] = [];
@@ -70,10 +78,10 @@ function render<T>(
 		for (const factory of reconcileChildren({}, ...list)) {
 			const instance = factory();
 			mounted.push(instance);
-			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Server body is the SSR mount root.
-			mountChild(instance, doc.body as unknown as HTMLElement);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The wrapper inside the server body is the SSR mount root.
+			mountChild(instance, root as unknown as HTMLElement);
 		}
-		return project(doc);
+		return project(doc, root);
 	} finally {
 		for (const instance of mounted) {
 			try {
@@ -85,6 +93,16 @@ function render<T>(
 		restoreLocation();
 		restoreDom();
 	}
+}
+
+/**
+ * The rendered body content in document order: the app tree, then whatever
+ * `Portal` mounted straight into the body after it. Hydration walks the app
+ * tree in order and sweeps whatever it never claims, so portal output has to
+ * sit past the end of that walk rather than inside it.
+ */
+function bodyNodes(doc: ServerDocument, root: ServerElement): ServerChildNode[] {
+	return [...root.childNodes, ...doc.body.childNodes.filter((node) => node !== root)];
 }
 
 /**
@@ -103,8 +121,8 @@ export function renderToString(
 	children: Child | Child[],
 	options: RenderToStringOptions = {},
 ): RenderToStringResult {
-	return render(children, options, (doc) => {
-		const html = serializeChildren(doc.body);
+	return render(children, options, (doc, root) => {
+		const html = serializeNodes(bodyNodes(doc, root));
 		// marked so the client sweeps them once its own Head content mounts
 		for (const child of doc.head.childNodes) {
 			if ("setAttribute" in child) child.setAttribute("data-ssr", "");
@@ -153,13 +171,13 @@ function toRenderedNode(node: ServerChildNode): RenderedNode | null {
 		tag: node.localName,
 		attributes: Object.fromEntries(node.attributes),
 		style: node.styleObject(),
-		children: toRenderedNodes(node),
+		children: toRenderedNodes(node.childNodes),
 	};
 }
 
-function toRenderedNodes(parent: ServerElement): RenderedNode[] {
+function toRenderedNodes(children: readonly ServerChildNode[]): RenderedNode[] {
 	const nodes: RenderedNode[] = [];
-	for (const child of parent.childNodes) {
+	for (const child of children) {
 		const node = toRenderedNode(child);
 		if (node !== null) nodes.push(node);
 	}
@@ -180,9 +198,9 @@ export function renderToTree(
 	children: Child | Child[],
 	options: RenderToStringOptions = {},
 ): RenderToTreeResult {
-	return render(children, options, (doc) => ({
-		children: toRenderedNodes(doc.body),
-		head: toRenderedNodes(doc.head),
+	return render(children, options, (doc, root) => ({
+		children: toRenderedNodes(bodyNodes(doc, root)),
+		head: toRenderedNodes(doc.head.childNodes),
 		title: doc.title,
 	}));
 }

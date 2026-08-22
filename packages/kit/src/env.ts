@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { build } from "esbuild";
 import { formatSchemaIssues } from "./errors.ts";
+import type { ServerKind } from "./guard.ts";
 import { loadEnv } from "vite";
 
 /** The prefix every key in the public env file must carry, and the server file must not. */
@@ -398,11 +399,15 @@ export function serializeEnvModule(exports: Record<string, unknown>, file: strin
  * the import guard cannot see — computed dynamic imports, re-export chains,
  * anything that slips.
  */
-export function serverStubModule(names: string[], file: string): string {
+export function serverStubModule(
+	names: string[],
+	file: string,
+	kind: ServerKind = "server",
+): string {
 	const message =
-		`${file} is a server file and cannot run in the browser. ` +
+		`${file} is ${kind === "endpoint" ? "a route endpoint" : "a server file"} and cannot run in the browser. ` +
 		`Its values were never included in this bundle. ` +
-		`Import server-only modules from another *.server.ts, or use \`import type\` if you only need its types.`;
+		`Move what the client needs into a shared module, or use \`import type\` if you only need its types.`;
 	const bindings = names.map((name, index) => `__server_${index} as ${exportAlias(name)}`);
 	const lines = [
 		`// ${file} - server-only; the client copy holds no values`,

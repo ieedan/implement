@@ -355,10 +355,14 @@ function serializeElement(el: ServerElement): string {
 	return `<${tag}${attrs}>${serializeChildren(el, RAW_TEXT_ELEMENTS.has(tag))}</${tag}>`;
 }
 
-export function serializeChildren(parent: ServerElement, rawText = false): string {
+export function serializeNodes(nodes: readonly ServerChildNode[], rawText = false): string {
 	let html = "";
-	for (const child of parent.childNodes) html += serializeNode(child, rawText);
+	for (const child of nodes) html += serializeNode(child, rawText);
 	return html;
+}
+
+export function serializeChildren(parent: ServerElement, rawText = false): string {
+	return serializeNodes(parent.childNodes, rawText);
 }
 
 /**
