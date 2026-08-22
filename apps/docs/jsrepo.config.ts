@@ -51,6 +51,7 @@ function items(cwd: string): RegistryItem[] {
 export default defineConfig({
 	registry: ({ cwd }) => ({
 		name: "@implementjs/ui",
+		version: "0.0.0",
 		description: "Styled components built on @implementjs/primitives.",
 		homepage: "https://github.com/ieedan/implement",
 		repository: "https://github.com/ieedan/implement",
