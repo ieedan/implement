@@ -49,6 +49,13 @@ export default function adapter(options: VercelAdapterOptions = {}): Adapter {
 			// only the .func directory is uploaded, so nothing may be left for a
 			// node_modules that will not be there
 			bundle: true,
+			// the whole .func directory ships, so the bundle may keep its chunks
+			// — and it must, because inlining every dynamic import would evaluate
+			// the lazy ones at load. `@implementjs/kit/og` imports satori that
+			// way, and satori's harfbuzz build reads `__dirname` on evaluation,
+			// which an ESM bundle does not have: the function would then throw
+			// before it handled a single request
+			singleFile: false,
 			entry: ENTRY,
 		},
 		adapt(builder) {
