@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/router",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "The typed route-tree router for implement. Params as signals, persistent layouts, typed links and URL-synced search params.",
 	"keywords": [
 		"implement",

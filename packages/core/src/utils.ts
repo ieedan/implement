@@ -160,3 +160,26 @@ export function captureStack(modules: string[]): string | undefined {
 	while (frames.length > 0 && internal.test(frames[0]!)) frames.shift();
 	return frames.length > 0 ? frames.join("\n") : undefined;
 }
+
+/** True when `a` comes before `b` in document order. */
+export function precedes(a: Node, b: Node): boolean {
+	return (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+
+/**
+ * Drops every node from `start` up to (not including) `end` in one operation.
+ * Clearing ten thousand rows one `removeChild` at a time is ten thousand
+ * mutations of a live parent; a range deletion is one.
+ */
+export function removeRange(start: Node, end: Node): void {
+	const parent = start.parentNode;
+	if (parent === null || end.parentNode !== parent) {
+		// Not the arrangement this assumed — fall back to removing what we can.
+		start.parentNode?.removeChild(start);
+		return;
+	}
+	const range = start.ownerDocument!.createRange();
+	range.setStartBefore(start);
+	range.setEndBefore(end);
+	range.deleteContents();
+}
