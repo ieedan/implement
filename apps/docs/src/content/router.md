@@ -5,10 +5,16 @@ section: Building applications
 order: 20
 ---
 
-The router describes your whole app as one nested object. Keys are path segments, `"/"` renders a level, `layout` wraps everything beneath it, and `:param` segments surface as signals.
+The router ships as its own package, built on the same public API your own nodes get — see [custom nodes](/docs/custom-nodes) for what that surface is.
+
+```sh
+npm install @implementjs/router
+```
+
+It describes your whole app as one nested object. Keys are path segments, `"/"` renders a level, `layout` wraps everything beneath it, and `:param` segments surface as signals.
 
 ```ts
-import { Router } from "@implementjs/core";
+import { Router } from "@implementjs/router";
 
 const router = Router(
 	{
@@ -90,7 +96,7 @@ router.navigate("/issues", { noScroll: true });
 const url = router.href("/issues/:id", { id: 42 }); // "/issues/42"
 ```
 
-Both are typed against the tree like `Link`. `href` only builds the string — it never navigates, so it has nothing to scroll. For untyped navigation (external state, redirects by string) the standalone `navigateTo(href, { replace?, noScroll? })` is exported from the package root.
+Both are typed against the tree like `Link`. `href` only builds the string — it never navigates, so it has nothing to scroll. For untyped navigation (external state, redirects by string) there is `navigateTo(href, { replace?, noScroll? })`, which lives in `@implementjs/core` — navigation and the current location are core's, not the router's.
 
 ## Scroll restoration
 
@@ -128,10 +134,10 @@ Input({ value: query, placeholder: "Search…" });
 const results = derived([issues, query], (list, q) => list.filter((i) => i.name.includes(q)));
 ```
 
-Setting `null`, `""`, or the fallback removes the parameter from the URL. Without a fallback the value is `string | null`. It's also exported standalone as `searchParam` from the package root.
+Setting `null`, `""`, or the fallback removes the parameter from the URL. Without a fallback the value is `string | null`. It's also exported standalone as `searchParam` from `@implementjs/core`, along with `location`, `navigateTo`, and the navigation guards.
 
 ## Current limitations
 
 No redirects, route-level code splitting, relative navigation, or hash/base-path modes yet. A navigation to a `#hash` restores or resets scroll like any other — it does not scroll the fragment's element into view for you. See [`MISSING.md`](https://github.com/ieedan/implement/blob/main/MISSING.md) in the repo for the roadmap of sharp edges.
 
-With routing in place, all that's left is running and shipping the thing, which is where [Vite](/docs/vite) comes in.
+The router itself is built on parts the package exports — a swappable region, the current location, an effect. [Custom nodes](/docs/custom-nodes) shows the same pieces from the other side, and builds a small router out of them.

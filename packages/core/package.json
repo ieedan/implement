@@ -1,7 +1,7 @@
 {
 	"name": "@implementjs/core",
 	"version": "0.0.0",
-	"description": "Signals, element helpers and a router for implement. Plain TypeScript that builds real DOM nodes, no compiler.",
+	"description": "Signals, element helpers and the pieces nodes are built out of, for implement. Plain TypeScript that builds real DOM nodes, no compiler.",
 	"keywords": [
 		"implement",
 		"implementjs",
@@ -41,10 +41,6 @@
 			"types": "./src/components/elements.ts",
 			"default": "./src/components/elements.ts"
 		},
-		"./router": {
-			"types": "./src/router/index.ts",
-			"default": "./src/router/index.ts"
-		},
 		"./server": {
 			"types": "./src/server/index.ts",
 			"default": "./src/server/index.ts"
@@ -64,10 +60,6 @@
 			"./elements": {
 				"types": "./dist/components/elements.d.mts",
 				"default": "./dist/components/elements.mjs"
-			},
-			"./router": {
-				"types": "./dist/router/index.d.mts",
-				"default": "./dist/router/index.mjs"
 			},
 			"./server": {
 				"types": "./dist/server/index.d.mts",

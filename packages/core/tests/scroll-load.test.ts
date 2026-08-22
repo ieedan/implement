@@ -2,10 +2,12 @@
 import { expect, it } from "vitest";
 
 /**
- * A reload is the one navigation the router never sees, so the position of the
- * entry the document loads on comes back out of `sessionStorage`. Loading the
- * router only after the storage is seeded is what makes this a fresh document
- * as far as the module is concerned.
+ * A reload is the one navigation a router never sees, so the position of the
+ * entry the document loads on comes back out of `sessionStorage`. Core runs
+ * that restore itself off the first location subscription — no router needed,
+ * and nothing for a hand-written one to remember. Loading the module only
+ * after the storage is seeded is what makes this a fresh document as far as it
+ * is concerned.
  */
 it("restores the position of the entry the document loaded on", async () => {
 	history.replaceState({ "implement:scroll": 7 }, "", "/reloaded");
@@ -15,14 +17,20 @@ it("restores the position of the entry the document loaded on", async () => {
 	);
 	window.scrollTo(0, 0);
 
-	const { App, Div, Router } = await import("../src/index");
+	const { App, Div, ImplementEffect, location } = await import("../src/index");
 	const target = document.createElement("div");
 	document.body.appendChild(target);
 
-	const router = Router({ "/reloaded": () => Div("reloaded") });
-	const unmount = App({ target }).render(router);
+	// what a router is, as far as the restore is concerned: something following
+	// the location, and content that gives the page its height
+	const unmount = App({ target }).render(
+		ImplementEffect([location], () => {}),
+		Div("reloaded"),
+	);
 
 	expect(target.textContent).toBe("reloaded");
+	// the restore waits a microtask so the render it belongs behind has run
+	await Promise.resolve();
 	expect(window.scrollY).toBe(420);
 
 	unmount();

@@ -47,7 +47,7 @@ export default function Page({ params, url }: PageProps) {
 
 The `./$types` module is generated per route directory, so `params` is typed with exactly the params that exist at that level. A page under `[id]` gets `{ id: Readable<string> }`, the root page gets `{}`.
 
-Notice params are signals, not strings. Navigating from `/users/1` to `/users/2` doesn't remount the page, the router patches the param in place. Render `params.id` directly and it stays up to date, and use `params.id.onChange(refetch)` or [`Key`](/docs/key) when a change should reload data. This is the core router's behavior, read [Params are signals](/docs/router#params-are-signals) for the details.
+Notice params are signals, not strings. Navigating from `/users/1` to `/users/2` doesn't remount the page, the router patches the param in place. Render `params.id` directly and it stays up to date, and use `params.id.onChange(refetch)` or [`Key`](/docs/key) when a change should reload data. This is `@implementjs/router`'s behavior, read [Params are signals](/docs/router#params-are-signals) for the details.
 
 `url` is the router's location, a `Readable<RouterLocation>` of `{ path, search, hash }`.
 

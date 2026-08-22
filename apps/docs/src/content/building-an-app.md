@@ -37,8 +37,8 @@ import {
 	ImplementDocument,
 	ImplementHead,
 	ImplementLifecycle,
-	Router,
 } from "@implementjs/core";
+import { Router } from "@implementjs/router";
 
 export const router = Router(
 	{

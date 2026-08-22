@@ -47,9 +47,16 @@ const groups: PackageGroup[] = [
 			{
 				name: "@implementjs/core",
 				description:
-					"Signals, element helpers, and the router. Plain TypeScript that builds real DOM nodes, no compiler.",
+					"Signals, element helpers, and the pieces nodes are built out of. Plain TypeScript that builds real DOM nodes, no compiler.",
 				docs: { label: "Read the docs", to: "/docs" },
 				sourceDir: "core",
+			},
+			{
+				name: "@implementjs/router",
+				description:
+					"The typed route-tree router: params as signals, persistent layouts, typed links, and URL-synced search params. Built on core's public API.",
+				docs: { label: "Read the docs", to: "/docs" },
+				sourceDir: "router",
 			},
 			{
 				name: "@implementjs/kit",

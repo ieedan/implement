@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 const PACKAGE_DIRS = [
 	"core",
+	"router",
 	"kit",
 	"primitives",
 	"formish",

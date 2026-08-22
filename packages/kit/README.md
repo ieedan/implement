@@ -20,7 +20,7 @@ export default defineConfig({
 });
 ```
 
-kit has no runtime of its own. What ships to the browser is the same `@implementjs/core`
+kit has no runtime of its own. What ships to the browser is the same `@implementjs/router`
 router you could have written by hand, generated from the files on disk.
 
 A build prerenders every route it can reach. Pair it with an adapter to deploy a server

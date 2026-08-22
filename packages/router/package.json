@@ -1,22 +1,24 @@
 {
-	"name": "@implementjs/adapter-vercel",
+	"name": "@implementjs/router",
 	"version": "0.0.0",
-	"description": "Builds an implement kit app for Vercel, through the Build Output API.",
+	"description": "The typed route-tree router for implement. Params as signals, persistent layouts, typed links and URL-synced search params.",
 	"keywords": [
 		"implement",
 		"implementjs",
-		"kit",
-		"adapter",
-		"vercel",
-		"deploy"
+		"router",
+		"routing",
+		"navigation",
+		"spa",
+		"ui",
+		"frontend"
 	],
 	"license": "MIT",
 	"author": "Aidan Bleser",
-	"homepage": "https://implementjs.dev/kit/adapters",
+	"homepage": "https://implementjs.dev/docs/router",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ieedan/implement.git",
-		"directory": "packages/adapter-vercel"
+		"directory": "packages/router"
 	},
 	"bugs": {
 		"url": "https://github.com/ieedan/implement/issues"
@@ -47,14 +49,12 @@
 		"check": "tsc --noEmit",
 		"test": "vitest run"
 	},
-	"peerDependencies": {
-		"@implementjs/kit": "workspace:*"
+	"dependencies": {
+		"@implementjs/core": "workspace:*"
 	},
 	"devDependencies": {
-		"@implementjs/core": "workspace:*",
-		"@implementjs/kit": "workspace:*",
-		"@implementjs/router": "workspace:*",
 		"@types/node": "^26.2.0",
+		"happy-dom": "^20.0.11",
 		"tsdown": "^0.22.14",
 		"typescript": "^7.0.2",
 		"vite": "^7.3.0",
