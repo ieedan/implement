@@ -33,8 +33,6 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          # writes the .npmrc that NODE_AUTH_TOKEN authenticates through
-          registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       # the gate that actually holds: a changeset asking for more than this
       # repo's version line allows never reaches `changeset version`, whoever
@@ -52,5 +50,8 @@ jobs:
           commit-message: "chore: version packages"
           pr-title: "chore: version packages"
         env:
+          # npm authentication is OIDC: `id-token: write` above lets pnpm trade
+          # the runner's identity for a short-lived publish token, so there is
+          # no npm secret here. GITHUB_TOKEN is for the changelog, which reads
+          # the pull request each changeset came from.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
