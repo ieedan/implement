@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/formish",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Schema first forms for implement. The schema types the fields, validates the input and produces the submit handler's output.",
 	"keywords": [
 		"implement",

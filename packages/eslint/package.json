@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/eslint",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Lint rules for the implement mistakes types cannot catch. An ESLint plugin, and oxlint runs it too.",
 	"keywords": [
 		"implement",
