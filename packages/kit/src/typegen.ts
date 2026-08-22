@@ -4,14 +4,18 @@ import {
 	clientTypeReference,
 	dataChains,
 	generateClientModule,
+	matcherTypeExpr,
 	pageRoutes,
 	type ClientStyle,
 	type DataChain,
 	type PageRoute,
 } from "./codegen.ts";
-import { type RouteNode, type RouteTree } from "./scan.ts";
+import { type RouteNode, type RouteParam, type RouteTree } from "./scan.ts";
 
 export const IMPLEMENT_DIR = ".implement";
+
+/** Where param matchers live, relative to the app root. */
+export const DEFAULT_PARAMS_DIR = "src/params";
 
 const ENTRY_CLIENT = `import { App } from "@implementjs/core";
 import { installHydration } from "@implementjs/core/hydrate";
@@ -72,6 +76,7 @@ function entryServer(hasErrorPage: boolean): string {
 		'import * as hooks from "$implement/hooks";',
 		'import { createClient } from "$implement/client";',
 		'import { endpoints } from "$implement/endpoints";',
+		'import { matchers } from "$implement/params";',
 		'import { pages } from "$implement/pages";',
 		`import { ${hasErrorPage ? "errorPage, router" : "router"} } from "$implement/router";`,
 		"",
@@ -81,6 +86,8 @@ function entryServer(hasErrorPage: boolean): string {
 		"	hooks,",
 		"	pages,",
 		"	endpoints,",
+		"	// so a `[param=<name>]` route only serves what its matcher accepts",
+		"	matchers,",
 		"	// so `event.api` is this app's own client, bound to `event.fetch`",
 		"	createApiClient: createClient,",
 		"	renderPage: async ({ url, data, error }) => {",
@@ -125,20 +132,51 @@ export function generateTsconfig(aliases: Record<string, string>): string {
 	return `${JSON.stringify(tsconfig, null, "\t")}\n`;
 }
 
-function paramsType(params: string[]): string {
+/**
+ * `{ "id": Readable<number> }` — what a page or layout receives. A matched
+ * param carries what its matcher makes of the segment, read off the matcher
+ * module's own type.
+ */
+function paramsType(params: RouteParam[], paramsSpecifier: string): string {
 	if (params.length === 0) return "{}";
-	return `{ ${params.map((name) => `${JSON.stringify(name)}: Readable<string>`).join("; ")} }`;
+	const entries = params.map(
+		(param) =>
+			`${JSON.stringify(param.name)}: Readable<${matcherTypeExpr(param, paramsSpecifier)}>`,
+	);
+	return `{ ${entries.join("; ")} }`;
 }
 
-function serverParamsType(params: string[]): string {
+/** The same, as `event.params` carries it: the value itself, not a readable. */
+function serverParamsType(params: RouteParam[], paramsSpecifier: string): string {
 	if (params.length === 0) return "{}";
-	return `{ ${params.map((name) => `${JSON.stringify(name)}: string`).join("; ")} }`;
+	const entries = params.map(
+		(param) => `${JSON.stringify(param.name)}: ${matcherTypeExpr(param, paramsSpecifier)}`,
+	);
+	return `{ ${entries.join("; ")} }`;
 }
 
 /** The relative specifier resolving a routes-relative file from a route directory's \`$types\`. */
 function relativeImport(dir: string, file: string): string {
 	const up = dir === "" ? 0 : dir.split("/").length;
 	return up === 0 ? `./${file}` : `${"../".repeat(up)}${file}`;
+}
+
+/** Where the two generated directories sit, relative to the app root. */
+export type GenPaths = {
+	/** Routes directory (`src/routes`), forward slashes, no leading one. */
+	routes: string;
+	/** Param matchers directory (`src/params`), forward slashes, no leading one. */
+	params: string;
+};
+
+/**
+ * The params directory as a route directory's \`$types\` reaches it. The
+ * generated types resolve through the tsconfig's \`rootDirs\`, so a \`$types.d.ts\`
+ * addresses the app as if it sat in the route directory itself.
+ */
+function paramsSpecifier(paths: GenPaths, dir: string, extra = 0): string {
+	const up = paths.routes.split("/").length + (dir === "" ? 0 : dir.split("/").length) + extra;
+	return `${"../".repeat(up)}${paths.params}`;
 }
 
 /** \`Merge<Merge<{}, LoadData<...>>, LoadData<...>>\` over a route's server files. */
@@ -165,7 +203,8 @@ const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/en
 `;
 
 /** The \`./$types\` module for one route directory. */
-export function generateRouteTypes(node: RouteNode, chain: DataChain): string {
+export function generateRouteTypes(node: RouteNode, chain: DataChain, paths: GenPaths): string {
+	const params = paramsSpecifier(paths, node.dir);
 	const helpers =
 		chain.layoutFiles.length === 0 && chain.pageFiles.length === 0
 			? ""
@@ -181,8 +220,8 @@ type LoadData<T> = T extends (...args: never) => infer R
 import type { RouterError } from "@implementjs/router";
 ${node.endpoint === null ? "" : HANDLER_IMPORT}import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 ${helpers}
-export type RouteParams = ${paramsType(node.params)};
-export type ServerParams = ${serverParamsType(node.params)};
+export type RouteParams = ${paramsType(node.params, params)};
+export type ServerParams = ${serverParamsType(node.params, params)};
 export type LoadEvent = KitRequestEvent<ServerParams>;
 export type RequestEvent = KitRequestEvent<ServerParams>;
 export type LayoutData = ${dataType(node.dir, chain.layoutFiles)};
@@ -194,29 +233,57 @@ ${node.endpoint === null ? "" : HANDLER_EXPORT}`;
 }
 
 /** The \`./$types\` module for a \`.<ext>\` extension-endpoint directory. */
-export function generateExtensionTypes(node: RouteNode): string {
+export function generateExtensionTypes(node: RouteNode, paths: GenPaths): string {
+	// one level deeper than the route directory: the `.md/` the endpoint sits in
+	const params = paramsSpecifier(paths, node.dir, 1);
 	return `${HANDLER_IMPORT}import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 
-export type ServerParams = ${serverParamsType(node.params)};
+export type ServerParams = ${serverParamsType(node.params, params)};
 export type RequestEvent = KitRequestEvent<ServerParams>;
 ${HANDLER_EXPORT}`;
 }
 
-/** The ambient declarations typing the \`$implement/*\` virtual modules. */
+/**
+ * The ambient declarations typing the \`$implement/*\` virtual modules.
+ *
+ * This file sits at \`.implement/types/\`, which the tsconfig's \`rootDirs\` merges
+ * with the app root — so \`./src/params/integer.ts\` addresses the app's matcher
+ * from here the same way a route's \`$types\` addresses it from its own directory.
+ */
 export function generateRouterDeclaration(
 	routes: PageRoute[],
 	hasErrorPage: boolean,
+	paths: GenPaths,
+	matchers: string[],
 	client: ClientStyle = {},
 ): string {
+	const params = `./${paths.params}`;
 	const entries = routes
 		.map(
 			(route) =>
-				`\t\t${JSON.stringify(route.pattern)}: (params: ${paramsType(route.params)}) => Child;`,
+				`\t\t${JSON.stringify(route.pattern)}: (params: ${paramsType(route.params, params)}) => Child;`,
 		)
 		.join("\n");
 	const errorPage = hasErrorPage
 		? `\n\n\texport function errorPage(error: RouterError): Child;`
 		: "";
+	// the router does the client-side matching, and its `:param=<name>` keys are
+	// strings — so what a matcher produces reaches its types through the registry
+	// it declares for exactly this, filled in here from the app's own matchers
+	const paramTypes =
+		matchers.length === 0
+			? ""
+			: `\ndeclare module "@implementjs/router" {
+	interface ParamTypes {
+${matchers
+	.map(
+		(name) =>
+			`\t\t${JSON.stringify(name)}: import("@implementjs/kit/params").ParamType<typeof import(${JSON.stringify(`${params}/${name}.ts`)}).default>;`,
+	)
+	.join("\n")}
+	}
+}
+`;
 	return `declare module "$implement/router" {
 	import type { Child, Readable } from "@implementjs/core";
 	import type { RouterError, RouterHelper } from "@implementjs/router";
@@ -226,6 +293,13 @@ ${entries}
 	}>;${errorPage}
 }
 
+declare module "$implement/params" {
+	import type { ParamMatchers } from "@implementjs/kit/params";
+
+	/** The app's \`${paths.params}/*.ts\` matchers, keyed by filename. */
+	export const matchers: ParamMatchers;
+}
+${paramTypes}
 declare module "$implement/pages" {
 	import type { PageRoute } from "@implementjs/kit/server";
 
@@ -282,6 +356,8 @@ export {};
 export type SyncOptions = {
 	/** Routes directory relative to the app root. @default "src/routes" */
 	routes?: string;
+	/** Param matchers directory relative to the app root. @default "src/params" */
+	params?: string;
 	/** How the generated \`.implement/client.ts\` is shaped — \`KitOptions.api.client\`. */
 	client?: ClientStyle;
 	/** Extra aliases (name → path relative to the app root) for the generated tsconfig, on top of `@/lib` → `src/lib`. */
@@ -296,6 +372,10 @@ export type SyncOptions = {
  */
 export function writeGenerated(root: string, tree: RouteTree, options: SyncOptions = {}): void {
 	const routesDir = options.routes ?? "src/routes";
+	const paths: GenPaths = {
+		routes: normalizeDir(routesDir),
+		params: normalizeDir(options.params ?? DEFAULT_PARAMS_DIR),
+	};
 	const outDir = join(root, IMPLEMENT_DIR);
 	const typesDir = join(outDir, "types");
 	mkdirSync(typesDir, { recursive: true });
@@ -309,11 +389,17 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	);
 	writeIfChanged(
 		join(outDir, "client.ts"),
-		generateClientModule(tree, `/${routesDir.replaceAll("\\", "/")}`, options.client ?? {}),
+		generateClientModule(tree, `/${paths.routes}`, `/${paths.params}`, options.client ?? {}),
 	);
 	writeIfChanged(
 		join(typesDir, "$implement.d.ts"),
-		generateRouterDeclaration(pageRoutes(tree), tree.error !== null, options.client ?? {}),
+		generateRouterDeclaration(
+			pageRoutes(tree),
+			tree.error !== null,
+			paths,
+			tree.matchers,
+			options.client ?? {},
+		),
 	);
 	writeIfChanged(join(typesDir, "app.d.ts"), generateAppDeclaration());
 
@@ -333,13 +419,13 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 		) {
 			write(
 				join(typesDir, routesDir, node.dir, "$types.d.ts"),
-				generateRouteTypes(node, chains.get(node)!),
+				generateRouteTypes(node, chains.get(node)!, paths),
 			);
 		}
 		for (const extension of node.extensions) {
 			write(
 				join(typesDir, routesDir, node.dir, extension.extension, "$types.d.ts"),
-				generateExtensionTypes(node),
+				generateExtensionTypes(node, paths),
 			);
 		}
 		for (const child of node.children) emit(child);
@@ -349,10 +435,15 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	if (tree.error !== null && !expected.has(join(typesDir, routesDir, "$types.d.ts"))) {
 		write(
 			join(typesDir, routesDir, "$types.d.ts"),
-			generateRouteTypes(tree.root, chains.get(tree.root)!),
+			generateRouteTypes(tree.root, chains.get(tree.root)!, paths),
 		);
 	}
 	pruneStaleTypes(join(typesDir, routesDir), expected);
+}
+
+/** A configured directory as the generated files name it: forward slashes, no edge slashes. */
+function normalizeDir(dir: string): string {
+	return dir.replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+$/, "");
 }
 
 function writeIfChanged(file: string, content: string): void {

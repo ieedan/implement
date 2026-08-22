@@ -18,6 +18,7 @@ import {
 	type RequestHandler,
 	type RouteData,
 } from "./match.ts";
+import type { ParamMatchers } from "./params.ts";
 
 /**
  * Kit's server request pipeline: the `src/hooks.server.ts` contract
@@ -88,12 +89,25 @@ export type {
 export type {
 	EndpointRoute,
 	LoadEvent,
+	MatcherMode,
 	PageRoute,
 	RequestEvent,
 	RequestHandler,
 	RouteData,
 	ServerLoad,
 } from "./match.ts";
+
+// the app's `src/params/*.ts` reach these through `@implementjs/kit/params`;
+// re-exported so a `hooks.server.ts` naming the types does not need a second entry
+export {
+	isParamMatcher,
+	matcher,
+	mismatch,
+	type AnyParamMatcher,
+	type ParamMatcher,
+	type ParamMatchers,
+	type ParamType,
+} from "./params.ts";
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -292,6 +306,13 @@ export type KitServerOptions = {
 	pages: PageRoute[];
 	/** Every `server.ts` endpoint in the app. */
 	endpoints: EndpointRoute[];
+	/**
+	 * The app's param matchers, keyed by the name a `[param=<name>]` directory
+	 * uses — the generated `$implement/params` module. A route whose pattern
+	 * names one only serves a path its matcher accepts, and the value it
+	 * answers with is what `event.params` carries.
+	 */
+	matchers?: ParamMatchers;
 	renderPage: RenderPage;
 	/**
 	 * Builds `event.api`. The generated `.implement/entry-server.ts` passes
@@ -318,6 +339,7 @@ export type KitServer = {
  */
 export function createKitServer(options: KitServerOptions): KitServer {
 	const { hooks, pages, endpoints, renderPage, createApiClient } = options;
+	const matchers = options.matchers ?? {};
 	let started: Promise<void> | undefined;
 
 	async function respond(request: Request, respondOptions: RespondOptions = {}): Promise<Response> {
@@ -342,8 +364,8 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			? new URL(`${routePath}${requestUrl.search}${requestUrl.hash}`, requestUrl.origin)
 			: requestUrl;
 
-		const endpoint = isDataRequest ? null : matchEndpoint(endpoints, routePath);
-		const page = endpoint === null ? matchPage(pages, routePath) : null;
+		const endpoint = isDataRequest ? null : matchEndpoint(endpoints, routePath, matchers);
+		const page = endpoint === null ? matchPage(pages, routePath, matchers) : null;
 
 		const depth = respondOptions.depth ?? 0;
 		/**
@@ -383,7 +405,11 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			url,
 			fetch: internalFetch,
 			api: createApiClient?.({ fetch: internalFetch, baseUrl: url.origin }) ?? {},
-			params: endpoint?.params ?? page?.params ?? {},
+			// a matcher may hand back something other than a string, and the
+			// pipeline has no route to say which — the generated `./$types` are
+			// where a route learns what its own params are, and they are exact
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Matched params are typed per route through `./$types`.
+			params: (endpoint?.params ?? page?.params ?? {}) as Record<string, string>,
 			route: { id: endpoint?.route.id ?? page?.route.id ?? null },
 			locals: {},
 			isDataRequest,

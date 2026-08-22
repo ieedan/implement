@@ -30,15 +30,21 @@ const METHODS: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "
 
 /** One route of the generated table: its params, and the operations it serves. */
 export type ApiRoute = {
-	/** The params the route key binds, as the URL carries them. */
-	params: Record<string, string>;
+	/**
+	 * The params the route key binds. Strings, unless a `[id=<name>]` matcher
+	 * parses the segment into something else — a caller passes whatever the
+	 * matcher produces, and {@link buildUrl} stringifies it back into the URL.
+	 */
+	params: Record<string, unknown>;
 	operations: Partial<Record<Method, EndpointSpec>>;
 };
 
 /**
  * The generated table: route key → route. Keys are `routeId(pattern)` with any
- * extension appended — `/api/posts/[id]`, `/docs/[...slug].md` — which is the
- * URL with its params still in place.
+ * extension appended — `/api/posts/[id]`, `/posts/[id=integer]`,
+ * `/docs/[...slug].md` — which is the URL with its params still in place, a
+ * `=<name>` matcher included: two sibling routes may bind one name behind
+ * different matchers, and the key is what tells them apart.
  */
 export type ApiRoutes = Record<string, ApiRoute>;
 
@@ -401,8 +407,10 @@ export function buildUrl(
 	query: Record<string, unknown> | undefined,
 	baseUrl = "",
 ): string {
+	// `[id]`, `[...slug]`, and either with the `=<name>` of the matcher gating
+	// it — which names a matcher, not the param, so it is not part of the lookup
 	const path = key.replaceAll(
-		/\[(\.\.\.)?([^\]]+)\]/g,
+		/\[(\.\.\.)?([^\]=]+)(?:=[^\]]+)?\]/g,
 		(_, rest: string | undefined, name: string) => {
 			const value = stringify(params?.[name]);
 			if (value === null) throw new Error(`missing route param "${name}" for ${key}`);

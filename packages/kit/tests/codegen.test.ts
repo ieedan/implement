@@ -40,8 +40,8 @@ const tree: RouteTree = {
 				children: [
 					node({
 						dir: "docs/[...slug]",
-						segment: { kind: "rest", name: "slug" },
-						params: ["slug"],
+						segment: { kind: "rest", name: "slug", matcher: null },
+						params: [{ name: "slug", matcher: null }],
 						page: "docs/[...slug]/page.ts",
 					}),
 				],
@@ -49,6 +49,7 @@ const tree: RouteTree = {
 		],
 	}),
 	error: "error.ts",
+	matchers: [],
 };
 
 describe("generateRouterModule", () => {
@@ -130,6 +131,7 @@ describe("generateRouterModule", () => {
 				],
 			}),
 			error: null,
+			matchers: [],
 		};
 		const code = generateRouterModule(grouped, "/src/routes");
 		expect(code).toContain('"/(app)":');
@@ -158,6 +160,7 @@ describe("generateRouterModule", () => {
 				],
 			}),
 			error: null,
+			matchers: [],
 		};
 		const code = generateRouterModule(reset, "/src/routes");
 		// the page lands at the root under its full path, escaping dashboard's layout
@@ -191,6 +194,7 @@ describe("generateRouterModule", () => {
 				],
 			}),
 			error: null,
+			matchers: [],
 		};
 		const code = generateRouterModule(reset, "/src/routes");
 		// the subtree attaches at the root — the group key keeps matching pathless
@@ -218,8 +222,8 @@ const loaded: RouteTree = {
 				children: [
 					node({
 						dir: "docs/[...slug]",
-						segment: { kind: "rest", name: "slug" },
-						params: ["slug"],
+						segment: { kind: "rest", name: "slug", matcher: null },
+						params: [{ name: "slug", matcher: null }],
 						page: "docs/[...slug]/page.ts",
 						extensions: [{ extension: ".md", file: "docs/[...slug]/.md/server.ts" }],
 					}),
@@ -233,6 +237,7 @@ const loaded: RouteTree = {
 		],
 	}),
 	error: null,
+	matchers: [],
 };
 
 describe("dataChains", () => {
@@ -269,6 +274,7 @@ describe("dataChains", () => {
 				],
 			}),
 			error: null,
+			matchers: [],
 		};
 		const chains = dataChains(reset);
 		const print = reset.root.children[0]!.children[0]!;
@@ -310,7 +316,7 @@ describe("serverRoutes", () => {
 			{
 				pattern: "/docs/:...slug",
 				extension: ".md",
-				params: ["slug"],
+				params: [{ name: "slug", matcher: null }],
 				file: "docs/[...slug]/.md/server.ts",
 			},
 			{ pattern: "/api", extension: null, params: [], file: "api/server.ts" },
@@ -322,7 +328,11 @@ describe("apiRoutes", () => {
 	it("keys every endpoint by the URL it serves, extension appended", () => {
 		expect(apiRoutes(loaded)).toEqual([
 			{ key: "/docs.md", params: [], file: "docs/.md/server.ts" },
-			{ key: "/docs/[...slug].md", params: ["slug"], file: "docs/[...slug]/.md/server.ts" },
+			{
+				key: "/docs/[...slug].md",
+				params: [{ name: "slug", matcher: null }],
+				file: "docs/[...slug]/.md/server.ts",
+			},
 			{ key: "/api", params: [], file: "api/server.ts" },
 		]);
 	});
@@ -330,7 +340,7 @@ describe("apiRoutes", () => {
 
 describe("generateClientModule", () => {
 	it("reads each route's methods off the module type rather than the scan", () => {
-		const code = generateClientModule(loaded, "/src/routes");
+		const code = generateClientModule(loaded, "/src/routes", "/src/params");
 		expect(code).toContain('"/docs/[...slug].md": {');
 		expect(code).toContain('params: { "slug": string };');
 		expect(code).toContain(
@@ -342,12 +352,12 @@ describe("generateClientModule", () => {
 	});
 
 	it("builds on the entry the app's error style selects", () => {
-		const thrown = generateClientModule(loaded, "/src/routes", { errors: "throw" });
+		const thrown = generateClientModule(loaded, "/src/routes", "/src/params", { errors: "throw" });
 		expect(thrown).toContain("type MethodClient");
 		expect(thrown).toContain('return create({ ...options, errors: "throw" });');
 		expect(thrown).toContain("export const api: MethodClient<Api, ThrowWrapper> = createClient();");
 
-		const result = generateClientModule(loaded, "/src/routes", {
+		const result = generateClientModule(loaded, "/src/routes", "/src/params", {
 			errors: "neverthrow",
 			style: "path",
 		});

@@ -23,10 +23,39 @@ import {
 
 type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
-type SegmentParam<S extends string> = S extends `:...${infer Name}`
-	? { [K in Name]: Readable<string> }
-	: S extends `:${infer Name}`
-		? { [K in Name]: Readable<string> }
+/**
+ * What a `:param=<name>` segment carries, by matcher name. Empty here — a
+ * matcher's output type is the app's, not the router's, so an app (or
+ * `@implementjs/kit`'s generated types) declares it:
+ *
+ * ```ts
+ * declare module "@implementjs/router" {
+ * 	interface ParamTypes {
+ * 		integer: number;
+ * 	}
+ * }
+ * ```
+ *
+ * A matcher with nothing declared for it stays a `string`, which is what an
+ * unmatched param is anyway.
+ */
+// oxlint-disable-next-line typescript/no-empty-object-type -- Declaration-merging surface: apps fill it in.
+export interface ParamTypes {}
+
+/** `"id=integer"` → `"id"`; a param with no matcher is its own name. */
+type ParamOf<S extends string> = S extends `${infer Name}=${string}` ? Name : S;
+
+/** `"id=integer"` → `ParamTypes["integer"]`, defaulting to `string`. */
+type ValueOf<S extends string> = S extends `${string}=${infer Matcher}`
+	? Matcher extends keyof ParamTypes
+		? ParamTypes[Matcher]
+		: string
+	: string;
+
+type SegmentParam<S extends string> = S extends `:...${infer Body}`
+	? { [K in ParamOf<Body>]: Readable<ValueOf<Body>> }
+	: S extends `:${infer Body}`
+		? { [K in ParamOf<Body>]: Readable<ValueOf<Body>> }
 		: {};
 
 type PathParams<Path extends string> = Path extends `/${infer Rest}`
@@ -35,10 +64,10 @@ type PathParams<Path extends string> = Path extends `/${infer Rest}`
 		? SegmentParam<Head> & PathParams<Tail>
 		: SegmentParam<Path>;
 
-type ParamName<S extends string> = S extends `:...${infer Name}`
-	? Name
-	: S extends `:${infer Name}`
-		? Name
+type ParamName<S extends string> = S extends `:...${infer Body}`
+	? ParamOf<Body>
+	: S extends `:${infer Body}`
+		? ParamOf<Body>
 		: never;
 
 type PathParamNames<Path extends string> = Path extends `/${infer Rest}`
@@ -88,11 +117,27 @@ type RoutePaths<T, Prefix extends string = ""> = {
 				: RoutePaths<T[K], `${Prefix}${NormalizeKey<K>}`>;
 }[keyof T & string];
 
-type HrefParams<P extends string> = { [K in PathParamNames<P>]: string | number };
+/** The value each of a path's params carries, with any matcher's type applied. */
+type PathParamValues<Path extends string> = {
+	[K in keyof PathParams<Path>]: PathParams<Path>[K] extends Readable<infer V> ? V : string;
+};
 
-type LinkParamValue = string | number | Readable<string | number>;
+/**
+ * What a caller fills a `:param` with. A matched param's own type is offered
+ * first, and `string | number` stays allowed — building a URL only ever needs
+ * something to stringify, and the matcher runs on the way back in.
+ */
+type HrefParams<P extends string> = {
+	[K in keyof PathParamValues<P>]: PathParamValues<P>[K] | string | number;
+};
 
-type LinkParams<P extends string> = { [K in PathParamNames<P>]: LinkParamValue };
+type LinkParams<P extends string> = {
+	[K in keyof PathParamValues<P>]:
+		| PathParamValues<P>[K]
+		| string
+		| number
+		| Readable<PathParamValues<P>[K] | string | number>;
+};
 
 type HrefArgs<P extends string> = [PathParamNames<P>] extends [never]
 	? []
@@ -120,6 +165,12 @@ export type RouterError = {
 };
 
 export type RouterOptions = {
+	/**
+	 * The param matchers `:param=<name>` segments name, keyed by that name. A
+	 * key naming a matcher that is not in here fails when the router is built,
+	 * rather than becoming a route that quietly never matches.
+	 */
+	matchers?: RouteMatchers;
 	/**
 	 * Rendered when no route matches the current path (`code` 404) or a route
 	 * render throws (`code` 500, or the thrown `{ code, message }` as-is).
@@ -152,12 +203,48 @@ export type RouterHelper<T> = Mountable & {
 };
 
 // ---------------------------------------------------------------------------
+// Param matchers
+// ---------------------------------------------------------------------------
+
+/**
+ * What a matcher returns for a segment it does not serve: the route does not
+ * match, and matching carries on with the next one.
+ *
+ * A well-known symbol rather than a private one, so a matcher built elsewhere
+ * — `@implementjs/kit`'s `matcher()`, which cannot depend on this package —
+ * rejects with the very same value.
+ */
+export const mismatch: unique symbol = Symbol.for("implementjs:param-mismatch");
+
+export type Mismatch = typeof mismatch;
+
+/**
+ * A route param matcher: the gate a `:param=<name>` segment passes through,
+ * and the value the param carries once it has.
+ *
+ * ```ts
+ * const integer: RouteMatcher<number> = {
+ * 	match: (value) => (/^\d+$/.test(value) ? Number(value) : mismatch),
+ * };
+ * ```
+ *
+ * Declare the type it produces in {@link ParamTypes} and `:id=integer` renders
+ * with a `Readable<number>`.
+ */
+export type RouteMatcher<T = unknown> = { match: (value: string) => T | Mismatch };
+
+/** The matchers a route tree names, keyed by the name its `:param=<name>` keys use. */
+export type RouteMatchers = Record<string, RouteMatcher>;
+
+// ---------------------------------------------------------------------------
 // Runtime
 // ---------------------------------------------------------------------------
 
-type Segment = { param: false; value: string } | { param: true; name: string; rest: boolean };
+type Segment =
+	| { param: false; value: string }
+	| { param: true; name: string; rest: boolean; matcher: string | null };
 
-type RuntimeParams = Record<string, Readable<string>>;
+type RuntimeParams = Record<string, Readable<unknown>>;
 
 type LayoutEntry = { handler: (child: Mountable, params: RuntimeParams) => Child };
 
@@ -177,10 +264,14 @@ function parseKey(key: string): Segment[] {
 			.filter(Boolean)
 			// `(group)` segments scope layouts without matching any part of the path
 			.filter((part) => !(part.startsWith("(") && part.endsWith(")")))
-			.map((part) => {
-				if (part.startsWith(":...")) return { param: true, rest: true, name: part.slice(4) };
-				if (part.startsWith(":")) return { param: true, rest: false, name: part.slice(1) };
-				return { param: false, value: part };
+			.map((part): Segment => {
+				if (!part.startsWith(":")) return { param: false, value: part };
+				const rest = part.startsWith(":...");
+				const body = part.slice(rest ? 4 : 1);
+				const equals = body.indexOf("=");
+				return equals === -1
+					? { param: true, rest, name: body, matcher: null }
+					: { param: true, rest, name: body.slice(0, equals), matcher: body.slice(equals + 1) };
 			})
 	);
 }
@@ -188,6 +279,20 @@ function parseKey(key: string): Segment[] {
 function routePath(segments: Segment[]): string {
 	if (segments.length === 0) return "/";
 	return `/${segments.map((segment) => (segment.param ? `:${segment.name}` : segment.value)).join("/")}`;
+}
+
+/** Every matcher a compiled tree names, so an unknown one is caught up front. */
+function assertMatchersExist(routes: readonly LeafRoute[], matchers: RouteMatchers): void {
+	for (const route of routes) {
+		for (const segment of route.segments) {
+			if (!segment.param || segment.matcher === null) continue;
+			if (matchers[segment.matcher] === undefined) {
+				throw new Error(
+					`Route "${routePath(route.segments)}" matches ":${segment.name}" against "${segment.matcher}", which is not in the router's matchers`,
+				);
+			}
+		}
+	}
 }
 
 function assertRouteRender(value: unknown, at: string): LeafRoute["render"] {
@@ -253,9 +358,15 @@ function assertRestIsLast(segments: Segment[]): void {
 	}
 }
 
-/** Static segments outrank params, and params outrank catch-alls, position by position. */
+/**
+ * Static segments outrank matched params, which outrank plain params, which
+ * outrank catch-alls — a segment that can turn a path down is more specific
+ * than one that takes anything.
+ */
 function segmentRank(segment: Segment): number {
-	return segment.param ? (segment.rest ? 2 : 1) : 0;
+	if (!segment.param) return 0;
+	const base = segment.rest ? 3 : 1;
+	return segment.matcher === null ? base + 1 : base;
 }
 
 /** Static segments outrank params, and params outrank catch-alls, position by position. */
@@ -271,7 +382,8 @@ function compareRoutes(a: LeafRoute, b: LeafRoute): number {
 function matchRoute(
 	routes: readonly LeafRoute[],
 	path: string,
-): { route: LeafRoute; params: Record<string, string> } | null {
+	matchers: RouteMatchers,
+): { route: LeafRoute; params: Record<string, unknown> } | null {
 	const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
 	for (const route of routes) {
 		const last = route.segments[route.segments.length - 1];
@@ -280,36 +392,76 @@ function matchRoute(
 		if (hasRest ? parts.length < route.segments.length : route.segments.length !== parts.length) {
 			continue;
 		}
-		const params: Record<string, string> = {};
+		const params: Record<string, unknown> = {};
 		let matched = true;
 		for (let i = 0; i < route.segments.length; i++) {
 			const segment = route.segments[i]!;
-			if (segment.param) {
-				params[segment.name] = segment.rest ? parts.slice(i).join("/") : parts[i]!;
-			} else if (segment.value !== parts[i]) {
+			if (!segment.param) {
+				if (segment.value !== parts[i]) {
+					matched = false;
+					break;
+				}
+				continue;
+			}
+			const raw = segment.rest ? parts.slice(i).join("/") : parts[i]!;
+			if (segment.matcher === null) {
+				params[segment.name] = raw;
+				continue;
+			}
+			// a matcher that turns the segment down does not fail the navigation:
+			// a less specific route may still serve this path
+			const value = matchers[segment.matcher]!.match(raw);
+			if (value === mismatch) {
 				matched = false;
 				break;
 			}
+			params[segment.name] = value;
 		}
 		if (matched) return { route, params };
 	}
 	return null;
 }
 
-function buildHref(path: string, params: Record<string, string | number> = {}): string {
+/**
+ * A param value as the URL carries it. A matcher may parse a segment into
+ * anything, but only something with an obvious spelling can be put back — so
+ * an object that is not a `Date` says so here rather than becoming
+ * `[object Object]` in a link.
+ */
+function paramText(value: unknown, name: string, path: string): string {
+	switch (typeof value) {
+		case "string":
+			return value;
+		case "number":
+		case "bigint":
+		case "boolean":
+			return String(value);
+		default:
+			if (value instanceof Date) return value.toISOString();
+			throw new Error(
+				`Param "${name}" of "${path}" is a ${typeof value} — a URL segment needs a string, number, boolean, or Date`,
+			);
+	}
+}
+
+function buildHref(path: string, params: Record<string, unknown> = {}): string {
 	const built = path
 		.split("/")
 		.map((part) => {
 			if (!part.startsWith(":")) return part;
 			const rest = part.startsWith(":...");
-			const name = part.slice(rest ? 4 : 1);
+			const body = part.slice(rest ? 4 : 1);
+			// `:id=integer` names the matcher gating the segment, not the param
+			const equals = body.indexOf("=");
+			const name = equals === -1 ? body : body.slice(0, equals);
 			const value = params[name];
 			if (value === undefined) {
 				throw new Error(`Missing param "${name}" building href for "${path}"`);
 			}
-			if (!rest) return encodeURIComponent(`${value}`);
+			const text = paramText(value, name, path);
+			if (!rest) return encodeURIComponent(text);
 			// a catch-all value spans segments: encode each, keep the slashes
-			return `${value}`.split("/").filter(Boolean).map(encodeURIComponent).join("/");
+			return text.split("/").filter(Boolean).map(encodeURIComponent).join("/");
 		})
 		.join("/");
 	return built === "" ? "/" : built;
@@ -343,7 +495,11 @@ function toRouterError(thrown: unknown): RouterError {
  * A trailing `:...rest` segment catches one or more remaining segments,
  * surfacing them joined with `/` (`/docs/:...slug` matches `/docs/a/b` with
  * `slug` = `"a/b"`); static segments outrank `:param`s, which outrank
- * catch-alls. A `"(group)"` key nests a subtree (and its `layout`) without
+ * catch-alls. A `:param=<name>` segment runs the named {@link RouteMatcher}
+ * over the segment first: a value it turns down falls through to the next
+ * route, and one it accepts is what the param carries — so a matcher that
+ * parses gives the render a `Readable<number>` rather than a
+ * `Readable<string>`. A `"(group)"` key nests a subtree (and its `layout`) without
  * contributing a path segment, so siblings can share a layout that the URL
  * never shows.
  *
@@ -373,10 +529,12 @@ export function Router<T extends Routes<T>>(
 	const compiled: LeafRoute[] = [];
 	compileNode(routes, [], [], compiled);
 	compiled.sort(compareRoutes);
+	const matchers = options.matchers ?? {};
+	assertMatchersExist(compiled, matchers);
 
 	const mountable = (): IMountable => {
 		const root = Outlet();
-		const paramSignals = new Map<string, Signal<string>>();
+		const paramSignals = new Map<string, Signal<unknown>>();
 		const outlets: OutletHelper[] = [root];
 		let chain: unknown[] = [];
 
@@ -420,7 +578,7 @@ export function Router<T extends Routes<T>>(
 		};
 
 		const onLocation = ({ path }: RouterLocation) => {
-			const match = matchRoute(compiled, path);
+			const match = matchRoute(compiled, path, matchers);
 			if (!match) {
 				showFallback(NOT_FOUND);
 				return;
@@ -477,12 +635,12 @@ export function Router<T extends Routes<T>>(
 		)();
 	};
 
-	const href = (path: string, params?: Record<string, string | number>) => buildHref(path, params);
+	const href = (path: string, params?: Record<string, unknown>) => buildHref(path, params);
 
 	const navigate = (path: string, ...rest: unknown[]) => {
 		const takesParams = path.includes(":");
 		/* oxlint-disable typescript/no-unsafe-type-assertion -- Overloaded navigate rest args depend on whether the path has params. */
-		const params = takesParams ? (rest[0] as Record<string, string | number>) : undefined;
+		const params = takesParams ? (rest[0] as Record<string, unknown>) : undefined;
 		const navOptions = (takesParams ? rest[1] : rest[0]) as NavigateOptions | undefined;
 		/* oxlint-enable typescript/no-unsafe-type-assertion */
 		navigateTo(buildHref(path, params), navOptions);
@@ -491,12 +649,12 @@ export function Router<T extends Routes<T>>(
 	const Link = (props: LinkProps<string>, ...children: Child[]): Mountable => {
 		const { to, params, replace, noScroll, onClick, ...rest } = props;
 
-		const record: Record<string, LinkParamValue> = params ?? {};
+		const record: Record<string, unknown> = params ?? {};
 		const entries = Object.entries(record);
 		const reactive = entries
 			.map(([, value]) => value)
-			.filter((value): value is Readable<string | number> => isReadable(value));
-		const resolveParams = (): Record<string, string | number> =>
+			.filter((value): value is Readable<unknown> => isReadable(value));
+		const resolveParams = (): Record<string, unknown> =>
 			Object.fromEntries(
 				entries.map(([name, value]) => [name, isReadable(value) ? value.get() : value]),
 			);

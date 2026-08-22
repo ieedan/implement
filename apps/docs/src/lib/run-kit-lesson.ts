@@ -101,7 +101,7 @@ const PREVIEW_ORIGIN = "http://preview.local";
 /** Stand-in request event for kit lesson previews (no hooks.server.ts). */
 function previewEvent(
 	url: URL,
-	params: Record<string, string>,
+	params: Record<string, unknown>,
 	id: string | null,
 	fetch: typeof globalThis.fetch,
 	request = new Request(url),
@@ -109,7 +109,11 @@ function previewEvent(
 	return {
 		request,
 		url,
-		params,
+		// lesson routes are plain `[param]` directories, so these really are
+		// strings — `RequestEvent` allows more only because a param matcher may
+		// hand a real kit app something else
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Preview routes bind string params only.
+		params: params as Record<string, string>,
 		route: { id },
 		locals: {},
 		fetch,
@@ -225,7 +229,9 @@ export async function runKitApp(
 				: new Request(new URL(String(input), PREVIEW_ORIGIN), init);
 		const target = new URL(request.url);
 		if (target.origin !== new URL(PREVIEW_ORIGIN).origin) return await fetch(request);
-		const match = matchEndpoint(endpoints, normalizePath(target.pathname));
+		// `"structure"`: a lesson's routes are plain `[param]` directories, and the
+		// preview has no `src/params` to run matchers out of
+		const match = matchEndpoint(endpoints, normalizePath(target.pathname), "structure");
 		if (match === null) return new Response("Not Found", { status: 404 });
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint module handlers are keyed by HTTP method name.
 		const handler = match.route.module[request.method] as RequestHandler | undefined;
@@ -235,7 +241,7 @@ export async function runKitApp(
 
 	/** Runs the loads of the route serving `target`, or `null` when it has none. */
 	const loadData = (target: RouterLocation): Promise<RouteData | null> => {
-		const match = matchPage(pages, target.path);
+		const match = matchPage(pages, target.path, "structure");
 		if (match === null) return Promise.resolve(null);
 		const url = previewUrl(target);
 		return runLoads(match.route, previewEvent(url, match.params, match.route.id, previewFetch));
@@ -263,7 +269,7 @@ export async function runKitApp(
 
 	const endpointBody = async (
 		route: EndpointRoute,
-		params: Record<string, string>,
+		params: Record<string, unknown>,
 		target: RouterLocation,
 	): Promise<string> => {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint GET handler is optional on the dynamically imported module.
@@ -279,7 +285,7 @@ export async function runKitApp(
 
 	/** Resolves what the destination needs, returning the commit that shows it. */
 	const resolveTarget = async (destination: RouterLocation): Promise<() => void> => {
-		const match = matchEndpoint(endpoints, destination.path);
+		const match = matchEndpoint(endpoints, destination.path, "structure");
 		if (match !== null) {
 			const body = await endpointBody(match.route, match.params, destination);
 			return () => {
