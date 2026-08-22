@@ -1,9 +1,13 @@
 {
-	"name": "@implementjs/adapter-node",
+	"name": "@implementjs/router",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
 	"sideEffects": false,
+	"files": [
+		"src",
+		"!src/**/type-test.ts"
+	],
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
@@ -16,14 +20,12 @@
 		"check": "tsc --noEmit",
 		"test": "vitest run"
 	},
-	"peerDependencies": {
-		"@implementjs/kit": "workspace:*"
+	"dependencies": {
+		"@implementjs/core": "workspace:*"
 	},
 	"devDependencies": {
-		"@implementjs/core": "workspace:*",
-		"@implementjs/kit": "workspace:*",
-		"@implementjs/router": "workspace:*",
 		"@types/node": "^26.2.0",
+		"happy-dom": "^20.0.11",
 		"tsdown": "^0.22.14",
 		"typescript": "^7.0.2",
 		"vite": "^7.3.0",

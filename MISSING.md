@@ -6,7 +6,8 @@ exist are in [PAPERCUTS.md](PAPERCUTS.md).
 Already in place: arbitrary attributes (`href`, `disabled`, `aria-*`,
 `data-*` as typed props), element `this` / `Ref` bindings, lifecycle and
 effect ownership (`Implement.Lifecycle` / `Implement.Effect`), clsx-style
-`class` values, `Svg`, error boundaries, the router (typed params, typed
+`class` values, `Svg`, error boundaries, the router (`@implementjs/router`,
+built on core's public API: typed params, typed
 `Link`/`href`/`navigate`, persistent layouts, catch-alls, route groups,
 URL-synced search params, navigation guards, scroll restoration),
 `Implement.Document()` / `Window()`, SSR (`renderToString`), hydration,
@@ -37,8 +38,8 @@ restoration). What real apps still ask for:
 - **Redirects** — `"/"` → `/issues` can only be expressed by duplicating the
   render.
 - **Code splitting** — route renders are eager imports; no lazy route form.
-  (`@implementjs/kit` code-splits file routes; the core `Router` table does
-  not.)
+  (`@implementjs/kit` code-splits file routes; `@implementjs/router`'s table
+  does not.)
 - **`isActive` as a readable** — `Link` sets `aria-current` (enough for CSS),
   but breadcrumbs/parent-section highlighting need prefix matching in code.
 - **Relative navigation** — every `Link`/`navigate` is absolute.

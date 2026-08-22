@@ -31,7 +31,7 @@ When you click the button a single text node updates. Nothing re-renders and not
 - **Control flow is components too.** [`If`](/docs/if), [`Switch`](/docs/switch), [`ForEach`](/docs/foreach), [`Key`](/docs/key), and [`Await`](/docs/await) mount and unmount real DOM in response to signals.
 - **[Context](/docs/context)** passes values down the tree without prop drilling.
 - **Framework helpers** cover the rest: [lifecycle hooks](/docs/lifecycle), [error boundaries](/docs/boundary), [portals](/docs/portal), [raw HTML](/docs/html), [SVG](/docs/svg), [document head management](/docs/head), and [window/document event listeners](/docs/global-events).
-- **[A typed router](/docs/router)** describes your app as a nested route table with typed params, persistent layouts, typed links, and URL-synced search params.
+- **[A typed router](/docs/router)** describes your app as a nested route table with typed params, persistent layouts, typed links, and URL-synced search params. It ships as `@implementjs/router`, built on the same [node-authoring API](/docs/custom-nodes) you have.
 - **[Primitives](/primitives)** are unstyled, composable building blocks for common UI patterns, starting with [Accordion](/primitives/docs/accordion).
 
 ## The mental model

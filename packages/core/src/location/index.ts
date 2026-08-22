@@ -43,14 +43,14 @@ let serverSignal: Signal<RouterLocation> | null = null;
 let scopeSignal: Signal<RouterLocation> | null = null;
 
 /**
- * Run `fn` with `location` installed as the location signal, so routers
+ * Run `fn` with `source` installed as the location signal, so routers
  * mounted inside `fn` subscribe to it instead of the shared browser location.
  * Powers embedded previews (like the tutorial playground) that route without
- * touching the page URL — drive navigation afterwards by setting `location`.
+ * touching the page URL — drive navigation afterwards by setting `source`.
  */
-export function withLocationSignal<T>(location: Signal<RouterLocation>, fn: () => T): T {
+export function withLocationSignal<T>(source: Signal<RouterLocation>, fn: () => T): T {
 	const previous = scopeSignal;
-	scopeSignal = location;
+	scopeSignal = source;
 	try {
 		return fn();
 	} finally {
@@ -70,7 +70,7 @@ export function installServerLocation(location: RouterLocation): () => void {
 	};
 }
 
-/** Lazy singleton so importing the router has no side effects until it is used. */
+/** Lazy singleton so importing this module has no side effects until it is used. */
 export function locationSignal(): Signal<RouterLocation> {
 	if (scopeSignal) return scopeSignal;
 	if (serverSignal) return serverSignal;

@@ -7,16 +7,15 @@ import {
 	normalizePath,
 	P,
 	Pre,
-	Router,
 	signal,
 	withLocationSignal,
 	type Child,
 	type Mountable,
 	type Readable,
-	type RouterError,
 	type RouterLocation,
 	type Signal,
 } from "@implementjs/core";
+import { Router, type RouterError } from "@implementjs/router";
 import { createClient } from "@implementjs/kit/client";
 import {
 	matchEndpoint,

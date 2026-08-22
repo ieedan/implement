@@ -21,10 +21,6 @@
 			"types": "./src/components/elements.ts",
 			"default": "./src/components/elements.ts"
 		},
-		"./router": {
-			"types": "./src/router/index.ts",
-			"default": "./src/router/index.ts"
-		},
 		"./server": {
 			"types": "./src/server/index.ts",
 			"default": "./src/server/index.ts"

@@ -9,7 +9,7 @@ order: 1
 
 If you have used [SvelteKit](https://svelte.dev/docs/kit) this will feel very familiar, we borrowed the conventions on purpose.
 
-Under the hood kit is just a Vite plugin. It scans your routes directory, generates the router for you, and serves everything through `@implementjs/vite`'s SSR dev server and prerenderer. There's no runtime of its own, what ships to the browser is the same `@implementjs/core` router you could have written by hand.
+Under the hood kit is just a Vite plugin. It scans your routes directory, generates the router for you, and serves everything through `@implementjs/vite`'s SSR dev server and prerenderer. There's no runtime of its own, what ships to the browser is the same `@implementjs/router` router you could have written by hand.
 
 This docs site is built with kit, so everything you read here is running on it right now.
 

@@ -1,36 +1,25 @@
-import type { Child, IMountable, Mountable } from "../components";
-import { A } from "../components/elements";
 import {
+	A,
+	derived,
 	ImplementEffect,
 	ImplementLifecycle,
+	isReadable,
+	location,
+	navigateTo,
+	normalizePath,
 	Outlet,
+	searchParam,
+	signal,
+	type Child,
+	type ElementProps,
+	type IMountable,
+	type Mountable,
+	type NavigateOptions,
 	type OutletHelper,
-} from "../components/helpers";
-import type { ElementProps } from "../components/props";
-import { derived, isReadable, signal, type Readable, type Signal } from "../signal";
-import {
-	location,
-	navigateTo,
-	normalizePath,
-	searchParam,
-	type NavigateOptions,
+	type Readable,
 	type RouterLocation,
-} from "./location";
-
-export {
-	location,
-	navigateTo,
-	normalizePath,
-	registerNavigationGuard,
-	searchParam,
-	setNavigationResolver,
-	withLocationSignal,
-	type NavigateOptions,
-	type NavigationGuard,
-	type NavigationResolver,
-	type RouterLocation,
-	type SearchParam,
-} from "./location";
+	type Signal,
+} from "@implementjs/core";
 
 type Prettify<T> = { [K in keyof T]: T[K] } & {};
 

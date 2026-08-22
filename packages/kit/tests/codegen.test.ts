@@ -65,8 +65,8 @@ describe("generateRouterModule", () => {
 		expect(staticImports.map((match) => match[1])).toEqual(["/src/routes/error.ts"]);
 	});
 
-	it("adapts pages and layouts onto the core Router", () => {
-		expect(code).toContain('import { Router } from "@implementjs/core"');
+	it("adapts pages and layouts onto the Router", () => {
+		expect(code).toContain('import { Router } from "@implementjs/router"');
 		expect(code).toContain(".get()({ params, url: router.location, data: routeData([]) })");
 		expect(code).toContain(
 			".get()({ children, params, url: router.location, data: routeData([]) })",

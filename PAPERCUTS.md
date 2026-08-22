@@ -35,5 +35,5 @@ Concept-A routing means `router.ts` imports every view to build the table,
 while views import `router` for `Link`/`navigate`/`searchParam`. The ESM
 cycle resolves only because views touch `router` inside function bodies; one
 top-level `router.href(...)` in a view module would crash at load.
-(`@implementjs/kit` file routes avoid this; the core `Router` table does
-not.)
+(`@implementjs/kit` file routes avoid this; `@implementjs/router`'s table
+does not.)
