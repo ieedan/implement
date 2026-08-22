@@ -61,6 +61,8 @@ export type AdapterStageOptions = {
 	pages: string[];
 	/** Everything else the prerender wrote, as site-root-relative paths. */
 	files: string[];
+	/** Patterns the pipeline serves that the route scan does not know about (the live OpenAPI route). */
+	extraEndpoints?: string[];
 };
 
 /**
@@ -79,7 +81,7 @@ export async function runAdapter(options: AdapterStageOptions): Promise<void> {
 		assetsDir: config.build.assetsDir,
 		template: readFileSync(join(clientDir, "index.html"), "utf8"),
 		prerendered: { pages, files },
-		routes: describeRoutes(tree),
+		routes: describeRoutes(tree, options.extraEndpoints ?? []),
 	};
 
 	let serverDir: string | null = null;
@@ -121,13 +123,17 @@ export async function runAdapter(options: AdapterStageOptions): Promise<void> {
 }
 
 /** The app's route table as an adapter sees it. */
-function describeRoutes(tree: RouteTree): BuiltRoutes {
+function describeRoutes(tree: RouteTree, extraEndpoints: string[]): BuiltRoutes {
 	const endpoints = serverRoutes(tree);
 	return {
 		pages: pageRoutes(tree).map((route) => route.pattern),
-		endpoints: endpoints.map((route) => ({ pattern: route.pattern, extension: route.extension })),
-		// what an adapter checks before promising its host a static site
-		dynamic: endpoints.length > 0 || hasServerLoads(tree.root),
+		endpoints: [
+			...endpoints.map((route) => ({ pattern: route.pattern, extension: route.extension })),
+			// the OpenAPI route, when an app mounted a live one — it is served by
+			// the same pipeline, so a host routing by pattern has to know about it
+			...extraEndpoints.map((pattern) => ({ pattern, extension: null })),
+		],
+		dynamic: endpoints.length > 0 || extraEndpoints.length > 0 || hasServerLoads(tree.root),
 	};
 }
 

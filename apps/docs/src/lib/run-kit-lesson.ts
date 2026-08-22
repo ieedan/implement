@@ -17,6 +17,7 @@ import {
 	type RouterLocation,
 	type Signal,
 } from "@implementjs/core";
+import { createClient } from "@implementjs/kit/client";
 import {
 	matchEndpoint,
 	matchPage,
@@ -95,14 +96,28 @@ function RawResponse(text: Readable<string | null>): Mountable {
 	);
 }
 
+/** Where the preview's virtual requests come from — nothing serves it, but a `Request` needs an origin. */
+const PREVIEW_ORIGIN = "http://preview.local";
+
 /** Stand-in request event for kit lesson previews (no hooks.server.ts). */
-function previewEvent(url: URL, params: Record<string, string>, id: string | null): RequestEvent {
+function previewEvent(
+	url: URL,
+	params: Record<string, string>,
+	id: string | null,
+	fetch: typeof globalThis.fetch,
+	request = new Request(url),
+): RequestEvent {
 	return {
-		request: new Request(url),
+		request,
 		url,
 		params,
 		route: { id },
 		locals: {},
+		fetch,
+		// the lesson's own endpoints, not the docs site's, so the app's `App.Api`
+		// is the wrong shape here — `createClient` takes the client type from its
+		// call site, which is what makes this honest rather than a cast
+		api: createClient<App.Api>({ fetch, baseUrl: PREVIEW_ORIGIN }),
 		isDataRequest: false,
 		platform: undefined,
 		setHeaders: () => {},
@@ -111,7 +126,7 @@ function previewEvent(url: URL, params: Record<string, string>, id: string | nul
 }
 
 function previewUrl(target: RouterLocation): URL {
-	return new URL(target.path + target.search, "http://preview.local");
+	return new URL(target.path + target.search, PREVIEW_ORIGIN);
 }
 
 /**
@@ -198,12 +213,33 @@ export async function runKitApp(
 	 * `hooks.server.ts` would otherwise drive.
 	 */
 
+	/**
+	 * `event.fetch` for the preview. A same-origin request is answered by the
+	 * lesson's own `server.ts` files, right here in the frame — the preview's
+	 * version of kit dispatching in-process — and anything else goes out over
+	 * the network as usual.
+	 */
+	const previewFetch: typeof fetch = async (input, init) => {
+		const request =
+			input instanceof Request
+				? new Request(input, init)
+				: new Request(new URL(String(input), PREVIEW_ORIGIN), init);
+		const target = new URL(request.url);
+		if (target.origin !== new URL(PREVIEW_ORIGIN).origin) return await fetch(request);
+		const match = matchEndpoint(endpoints, normalizePath(target.pathname));
+		if (match === null) return new Response("Not Found", { status: 404 });
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Endpoint module handlers are keyed by HTTP method name.
+		const handler = match.route.module[request.method] as RequestHandler | undefined;
+		if (handler === undefined) return new Response(null, { status: 405 });
+		return await handler(previewEvent(target, match.params, match.route.id, previewFetch, request));
+	};
+
 	/** Runs the loads of the route serving `target`, or `null` when it has none. */
 	const loadData = (target: RouterLocation): Promise<RouteData | null> => {
 		const match = matchPage(pages, target.path);
 		if (match === null) return Promise.resolve(null);
 		const url = previewUrl(target);
-		return runLoads(match.route, previewEvent(url, match.params, match.route.id));
+		return runLoads(match.route, previewEvent(url, match.params, match.route.id, previewFetch));
 	};
 
 	// The preview's stand-in for kit's runtime data store, scoped per app.
@@ -237,7 +273,7 @@ export async function runKitApp(
 		if (handler === undefined) {
 			return `405 Method Not Allowed — ${ROUTES_DIR}/${route.file} exports no GET handler.`;
 		}
-		const response = await handler(previewEvent(url, params, route.id));
+		const response = await handler(previewEvent(url, params, route.id, previewFetch));
 		const body = await response.text();
 		return response.ok ? body : `HTTP ${response.status}\n\n${body}`;
 	};

@@ -18,6 +18,8 @@ function event(path = "/docs/install", routeId: string | null = "/docs/[...slug]
 		params: {},
 		route: { id: routeId },
 		locals: {},
+		fetch: globalThis.fetch,
+		api: {},
 		isDataRequest: false,
 		platform: undefined,
 		setHeaders: () => {},

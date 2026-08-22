@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { build } from "esbuild";
+import { formatSchemaIssues } from "./errors.ts";
 import { loadEnv } from "vite";
 
 /** The prefix every key in the public env file must carry, and the server file must not. */
@@ -108,7 +109,9 @@ export function validateEnv(
 			result[key] = validated.value;
 			continue;
 		}
-		failures.push(`${key} - ${value === undefined ? "not set" : formatIssues(validated.issues)}`);
+		failures.push(
+			`${key} - ${value === undefined ? "not set" : formatSchemaIssues(validated.issues)}`,
+		);
 	}
 
 	if (failures.length > 0) {
@@ -119,17 +122,6 @@ export function validateEnv(
 		);
 	}
 	return result;
-}
-
-function formatIssues(issues: readonly StandardSchemaV1.Issue[]): string {
-	return issues
-		.map((issue) => {
-			const path = (issue.path ?? [])
-				.map((segment) => (typeof segment === "object" ? String(segment.key) : String(segment)))
-				.join(".");
-			return path === "" ? issue.message : `${path}: ${issue.message}`;
-		})
-		.join("; ");
 }
 
 /**

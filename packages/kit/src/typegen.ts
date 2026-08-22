@@ -1,6 +1,14 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
-import { dataChains, pageRoutes, type DataChain, type PageRoute } from "./codegen.ts";
+import {
+	clientTypeReference,
+	dataChains,
+	generateClientModule,
+	pageRoutes,
+	type ClientStyle,
+	type DataChain,
+	type PageRoute,
+} from "./codegen.ts";
 import { type RouteNode, type RouteTree } from "./scan.ts";
 
 export const IMPLEMENT_DIR = ".implement";
@@ -62,6 +70,7 @@ function entryServer(hasErrorPage: boolean): string {
 		'import { preloadRoute, seedData } from "@implementjs/kit/runtime";',
 		'import { createKitServer } from "@implementjs/kit/server";',
 		'import * as hooks from "$implement/hooks";',
+		'import { createClient } from "$implement/client";',
 		'import { endpoints } from "$implement/endpoints";',
 		'import { pages } from "$implement/pages";',
 		`import { ${hasErrorPage ? "errorPage, router" : "router"} } from "$implement/router";`,
@@ -72,6 +81,8 @@ function entryServer(hasErrorPage: boolean): string {
 		"	hooks,",
 		"	pages,",
 		"	endpoints,",
+		"	// so `event.api` is this app's own client, bound to `event.fetch`",
+		"	createApiClient: createClient,",
 		"	renderPage: async ({ url, data, error }) => {",
 		"		if (data !== null) seedData(data);",
 		"		// renderToString walks the tree synchronously, so the route's own",
@@ -97,7 +108,9 @@ export const DEFAULT_ALIASES: Record<string, string> = { "@/lib": "src/lib" };
  * against this file, so root-relative targets get a \`../\` prefix).
  */
 export function generateTsconfig(aliases: Record<string, string>): string {
-	const paths: Record<string, string[]> = {};
+	// the generated client is a real file beside this config, so TypeScript
+	// resolves `$implement/client` to it and reads the app's own route table
+	const paths: Record<string, string[]> = { "$implement/client": ["./client.ts"] };
 	for (const [name, target] of Object.entries(aliases)) {
 		const normalized = target.replaceAll("\\", "/").replace(/\/+$/, "");
 		const base = isAbsolute(normalized) ? normalized : `../${normalized}`;
@@ -138,6 +151,19 @@ function dataType(dir: string, files: string[]): string {
 	return expr;
 }
 
+/**
+ * The \`handler\` a route's \`./$types\` exports, bound to that directory's params.
+ * Only endpoint directories get it: a directory serves a page or an endpoint,
+ * never both, so a page's \`$types\` has no value export at all and nothing can
+ * drag server code into the client bundle through it.
+ */
+const HANDLER_EXPORT = `
+export const handler: HandlerBuilder<ServerParams>;
+`;
+
+const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/endpoint";
+`;
+
 /** The \`./$types\` module for one route directory. */
 export function generateRouteTypes(node: RouteNode, chain: DataChain): string {
 	const helpers =
@@ -152,7 +178,7 @@ type LoadData<T> = T extends (...args: never) => infer R
 	: {};
 `;
 	return `import type { Mountable, Readable, RouterError, RouterLocation } from "@implementjs/core";
-import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
+${node.endpoint === null ? "" : HANDLER_IMPORT}import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 ${helpers}
 export type RouteParams = ${paramsType(node.params)};
 export type ServerParams = ${serverParamsType(node.params)};
@@ -163,20 +189,24 @@ export type PageData = ${dataType(node.dir, chain.pageFiles)};
 export type PageProps = { params: RouteParams; url: Readable<RouterLocation>; data: Readable<PageData> };
 export type LayoutProps = { children: Mountable; params: RouteParams; url: Readable<RouterLocation>; data: Readable<LayoutData> };
 export type ErrorProps = { error: RouterError; url: Readable<RouterLocation> };
-`;
+${node.endpoint === null ? "" : HANDLER_EXPORT}`;
 }
 
 /** The \`./$types\` module for a \`.<ext>\` extension-endpoint directory. */
 export function generateExtensionTypes(node: RouteNode): string {
-	return `import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
+	return `${HANDLER_IMPORT}import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 
 export type ServerParams = ${serverParamsType(node.params)};
 export type RequestEvent = KitRequestEvent<ServerParams>;
-`;
+${HANDLER_EXPORT}`;
 }
 
 /** The ambient declarations typing the \`$implement/*\` virtual modules. */
-export function generateRouterDeclaration(routes: PageRoute[], hasErrorPage: boolean): string {
+export function generateRouterDeclaration(
+	routes: PageRoute[],
+	hasErrorPage: boolean,
+	client: ClientStyle = {},
+): string {
 	const entries = routes
 		.map(
 			(route) =>
@@ -213,6 +243,15 @@ declare module "$implement/hooks" {
 	export const handleError: HandleServerError | undefined;
 	export const init: ServerInit | undefined;
 }
+
+declare namespace App {
+	/**
+	 * \`event.api\` — the client over this app's own routes, bound to
+	 * \`event.fetch\`. Merged into the empty \`interface Api\` kit declares, the
+	 * same way an app's \`src/app.d.ts\` fills in \`Locals\`.
+	 */
+	interface Api extends ${clientTypeReference(client, 'import("../client.ts").Api')} {}
+}
 `;
 }
 
@@ -229,6 +268,8 @@ export function generateAppDeclaration(): string {
 		interface Error {
 			message: string;
 		}
+		/** The generated client on \`event.api\`, filled in by \`$implement.d.ts\`. */
+		interface Api {}
 	}
 }
 
@@ -239,6 +280,8 @@ export {};
 export type SyncOptions = {
 	/** Routes directory relative to the app root. @default "src/routes" */
 	routes?: string;
+	/** How the generated \`.implement/client.ts\` is shaped — \`KitOptions.api.client\`. */
+	client?: ClientStyle;
 	/** Extra aliases (name → path relative to the app root) for the generated tsconfig, on top of `@/lib` → `src/lib`. */
 	alias?: Record<string, string>;
 };
@@ -263,8 +306,12 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 		generateTsconfig({ ...DEFAULT_ALIASES, ...options.alias }),
 	);
 	writeIfChanged(
+		join(outDir, "client.ts"),
+		generateClientModule(tree, `/${routesDir.replaceAll("\\", "/")}`, options.client ?? {}),
+	);
+	writeIfChanged(
 		join(typesDir, "$implement.d.ts"),
-		generateRouterDeclaration(pageRoutes(tree), tree.error !== null),
+		generateRouterDeclaration(pageRoutes(tree), tree.error !== null, options.client ?? {}),
 	);
 	writeIfChanged(join(typesDir, "app.d.ts"), generateAppDeclaration());
 

@@ -99,6 +99,26 @@ export type RequestEvent<Params extends Record<string, string> = Record<string, 
 	route: { id: string | null };
 	/** Per-request state set by `src/hooks.server.ts`, typed through `App.Locals`. */
 	locals: App.Locals;
+	/**
+	 * `fetch`, bound to this request. Relative URLs resolve against
+	 * `event.url`, `cookie` and `authorization` are forwarded on same-origin
+	 * requests, and a same-origin request is dispatched **in-process** — back
+	 * through the pipeline, hooks and all, with no socket in between. So a load
+	 * calling its own app's endpoint costs a function call, not a round trip.
+	 */
+	fetch: typeof fetch;
+	/**
+	 * The generated API client bound to {@link RequestEvent.fetch} — the same
+	 * `api` as `$implement/client`, answering from inside the process.
+	 *
+	 * ```ts
+	 * const { data, error } = await api.GET("/api/posts/[id]", { params: { id } });
+	 * ```
+	 *
+	 * Typed through `App.Api`, which the generated `.implement/` types fill in
+	 * from the app's own route tree.
+	 */
+	api: App.Api;
 	/** Whether this is a client navigation's `__data.json` request rather than a document request. */
 	isDataRequest: boolean;
 	/**

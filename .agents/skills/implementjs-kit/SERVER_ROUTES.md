@@ -27,6 +27,8 @@ export async function POST({ request }: RequestEvent): Promise<Response> {
 
 `RequestEvent` comes from the generated `./$types`, the same place `PageProps` and `LoadEvent` do, so `params` is typed with exactly the params that exist at that level. Handlers may be sync or async.
 
+To type the _edges_ too — a validated body and query, a typed result, and a generated client for callers — wrap the handler in `handler()` from the same `./$types`. See [API Routes](./API_ROUTES.md). It returns a plain handler, so everything on this page still holds.
+
 ### The event
 
 The event is the same one a load gets — see [Loading Data](./LOADING_DATA.md#the-event) for the full table. In short: `request`, `params` (plain strings, not signals), `url`, `locals`, `route`, `isDataRequest`, `setHeaders`, and `getClientAddress()`.

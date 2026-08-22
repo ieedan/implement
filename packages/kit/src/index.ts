@@ -1,16 +1,18 @@
-import { existsSync } from "node:fs";
-import { basename, join, resolve, sep } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { crawlRoutes, implement, normalizeRoute, type PrerenderOptions } from "@implementjs/vite";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
 import type { Adapter } from "./adapter.ts";
 import { OUTPUT_DIR, runAdapter } from "./build.ts";
 import {
+	apiRoutes,
 	generateEndpointsModule,
 	generateHooksModule,
 	generatePagesModule,
 	generateRouterModule,
 	serverRoutes,
 	staticRoutePaths,
+	type ClientStyle,
 } from "./codegen.ts";
 import {
 	ENDPOINTS_ID,
@@ -36,6 +38,7 @@ import {
 	type ImporterLookup,
 } from "./guard.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
+import { buildOpenApiDocument, type OpenApiEndpoint, type OpenApiOptions } from "./openapi.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
 import type { KitPluginApi } from "./sync.ts";
@@ -50,13 +53,23 @@ export type {
 	BuiltRoutes,
 	Prerendered,
 } from "./adapter.ts";
-export type { DataChain, PageRoute, ServerRoute } from "./codegen.ts";
+export type { ClientStyle, DataChain, PageRoute, ServerRoute } from "./codegen.ts";
+export type { OpenApiDocument, OpenApiOptions, ToJsonSchema } from "./openapi.ts";
 export type { PrerenderDefault } from "./prerender.ts";
 export { defineEnv, PUBLIC_PREFIX, type Env, type EnvKind, type EnvSchemas } from "./env.ts";
 export type { ExtensionEndpoint, RouteTree } from "./scan.ts";
 export { sync, type KitPluginApi } from "./sync.ts";
 
 const ROUTER_ID = "$implement/router";
+/** The generated client, aliased to the real `.implement/client.ts` file. */
+const CLIENT_ID = "$implement/client";
+/**
+ * What a route file's `./$types` resolves to at runtime. The declaration half
+ * is per-route (`.implement/types/…/$types.d.ts`); the runtime half is the same
+ * for every route, because params are purely type-level.
+ */
+const TYPES_ID = "\0$implement/route-types";
+const TYPES_MODULE = 'export { handler } from "@implementjs/kit/endpoint";\n';
 const RESOLVED_ROUTER_ID = "\0$implement/router";
 const RESOLVED_PAGES_ID = `\0${PAGES_ID}`;
 const RESOLVED_ENDPOINTS_ID = `\0${ENDPOINTS_ID}`;
@@ -66,6 +79,12 @@ const SERVER_IDS = [RESOLVED_PAGES_ID, RESOLVED_ENDPOINTS_ID, RESOLVED_HOOKS_ID]
 const ENTRY_SERVER = `/${IMPLEMENT_DIR}/entry-server.ts`;
 /** Deliberately unmatched, so the fallback renders for the 404 page. */
 const NOT_FOUND_ROUTE = "/__implement__/not-found";
+
+/** Writes a file, creating its directory — the build's own small needs. */
+function write(file: string, contents: string): void {
+	mkdirSync(dirname(file), { recursive: true });
+	writeFileSync(file, contents);
+}
 
 const DEFAULT_ENV_PUBLIC = "src/lib/env.public.ts";
 const DEFAULT_ENV_SERVER = "src/lib/env.server.ts";
@@ -128,12 +147,41 @@ export type KitOptions = {
 	 */
 	alias?: Record<string, string>;
 	/**
+	 * The typed API layer over the app's `server.ts` endpoints.
+	 *
+	 * The client is always generated — `$implement/client` exports a ready-made
+	 * `api`, and `event.api` binds the same client to the in-process fetch — so
+	 * this is only here to change its shape. An OpenAPI document is the
+	 * opposite: nothing is produced unless `openapi` is set, because a route
+	 * table is not something to publish by accident.
+	 *
+	 * ```ts
+	 * kit({
+	 * 	api: {
+	 * 		client: { style: "method", errors: "result" },
+	 * 		openapi: { info: { title: "Docs API", version: "1.0.0" }, output: "static/openapi.json" },
+	 * 	},
+	 * });
+	 * ```
+	 */
+	api?: KitApiOptions;
+	/**
 	 * Where the two environment-variable files live, relative to the Vite root.
 	 * A file that does not exist simply turns that half of the feature off.
 	 *
 	 * @default { public: "src/lib/env.public.ts", server: "src/lib/env.server.ts" }
 	 */
 	env?: { public?: string; server?: string };
+};
+
+export type KitApiOptions = {
+	/** How the generated client is called and what it hands back. */
+	client?: ClientStyle;
+	/**
+	 * The OpenAPI 3.1 document for the app's endpoints. Omit this — the default
+	 * — and none is produced: no file is written and no route is mounted.
+	 */
+	openapi?: OpenApiOptions;
 };
 
 /** One of the two env files, resolved against the Vite root. */
@@ -241,7 +289,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	const routesBase = `/${routes.replaceAll("\\", "/")}`;
 	const hooksPath = (options.hooks ?? "src/hooks.server.ts").replaceAll("\\", "/");
 	const aliases = { ...DEFAULT_ALIASES, ...options.alias };
-	const genOptions = { routes, alias: options.alias };
+	const genOptions = { routes, alias: options.alias, client: options.api?.client };
 	let root = process.cwd();
 	let routesDir = join(root, routes);
 	let hooksFile = join(root, hooksPath);
@@ -274,6 +322,49 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	const scan = (): RouteTree => {
 		tree = scanRoutes(routesDir);
 		return tree;
+	};
+
+	const openapi = options.api?.openapi;
+	/** What generated code can carry: everything but the converter function. */
+	const openapiRoute = openapi === undefined ? undefined : { ...openapi, toJsonSchema: undefined };
+	let publicDir: string | false = false;
+
+	/**
+	 * Every endpoint with its module evaluated — the one thing the document
+	 * needs that nothing else does. `load` is the dev server's `ssrLoadModule`
+	 * or the build's module runner; both run in Node, so the schema library
+	 * stays out of the production bundle.
+	 */
+	const openApiEndpoints = async (
+		load: (id: string) => Promise<Record<string, unknown>>,
+	): Promise<OpenApiEndpoint[]> => {
+		const routes = apiRoutes(tree ?? scan());
+		const modules = await Promise.all(routes.map((route) => load(`${routesBase}/${route.file}`)));
+		return routes.map((route, index) => ({ ...route, module: modules[index]! }));
+	};
+
+	/** The document as a file, with every warning reported against the route it came from. */
+	const openApiJson = async (
+		load: (id: string) => Promise<Record<string, unknown>>,
+		warn: (message: string) => void,
+	): Promise<string> => {
+		const { document, warnings } = await buildOpenApiDocument(
+			await openApiEndpoints(load),
+			openapi!,
+		);
+		for (const warning of warnings) warn(`openapi — ${warning}`);
+		return `${JSON.stringify(document, null, "\t")}\n`;
+	};
+
+	/**
+	 * The URL `output` will be served at once the build has written it — only
+	 * when it lands inside the public dir, since nothing else is served by path.
+	 * Dev answers that URL from the live route tree instead of the stale file.
+	 */
+	const openApiPublicUrl = (): string | null => {
+		if (openapi?.output === undefined || publicDir === false) return null;
+		const inside = relative(publicDir, resolve(root, openapi.output)).replaceAll("\\", "/");
+		return inside.startsWith("..") ? null : `/${inside}`;
 	};
 
 	const adapter = options.adapter;
@@ -315,7 +406,25 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		},
 		after: async ({ routes: prerendered, outDir, load }) => {
 			const scanned = tree ?? scan();
-			prerenderedFiles = await prerenderServerFiles({
+			const extras: string[] = [];
+			if (openapi !== undefined) {
+				const json = await openApiJson(load, (message) => {
+					console.warn(message);
+				});
+				if (openapi.output !== undefined) {
+					// two copies: the source one, so the next build's publicDir sweep
+					// ships it like any other static file, and one straight into this
+					// build's output, so the build that produced the document is not
+					// the one build missing it
+					write(resolve(root, openapi.output), json);
+					const url = openApiPublicUrl();
+					if (url !== null) {
+						write(join(outDir, url.slice(1)), json);
+						extras.push(url);
+					}
+				}
+			}
+			const written = await prerenderServerFiles({
 				routes: prerendered,
 				outDir,
 				load,
@@ -326,6 +435,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				logger: console,
 				source: { root, routes },
 			});
+			prerenderedFiles = [...extras, ...written];
 		},
 	};
 
@@ -337,9 +447,15 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		api,
 		config(userConfig, env) {
 			const appRoot = resolve(userConfig.root ?? ".");
-			const alias = Object.fromEntries(
-				Object.entries(aliases).map(([name, target]) => [name, resolve(appRoot, target)]),
-			);
+			const alias = {
+				...Object.fromEntries(
+					Object.entries(aliases).map(([name, target]) => [name, resolve(appRoot, target)]),
+				),
+				// a real generated file rather than a virtual module: the browser
+				// imports it, TypeScript resolves it through the generated
+				// tsconfig's paths, and both want the same thing on disk
+				[CLIENT_ID]: resolve(appRoot, `${IMPLEMENT_DIR}/client.ts`),
+			};
 			// the server build kit runs for an adapter loads this same config, and
 			// none of the client build's entry, output, or asset wiring is its
 			// business — it has an entry of its own and writes somewhere else
@@ -387,6 +503,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			// .env to work — kit sources the raw values here and hands them to the evaluator.
 			// `envDir: false` turns .env files off entirely, leaving the environment itself.
 			envValues = config.envDir === false ? process.env : loadRawEnv(config.mode, config.envDir);
+			publicDir = config.publicDir;
 			aliasTargets = Object.fromEntries(
 				Object.entries(aliases).map(([name, target]) => [name, resolve(root, target)]),
 			);
@@ -421,7 +538,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				}
 				if (id === RESOLVED_PAGES_ID) return generatePagesModule(tree ?? scan(), routesBase);
 				if (id === RESOLVED_ENDPOINTS_ID)
-					return generateEndpointsModule(tree ?? scan(), routesBase);
+					return generateEndpointsModule(tree ?? scan(), routesBase, openapiRoute);
 				return generateHooksModule(hooksSpecifier());
 			}
 			return null;
@@ -519,6 +636,27 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			// assets, source modules, and `static/` are served before the app's
 			// pipeline sees a request — the order a deployed kit app has too
 			return () => {
+				// `output` is a file the build writes; in dev it is stale or absent,
+				// so its URL is answered from the routes as they are right now. The
+				// live `path`, when there is one, is a real endpoint and needs
+				// nothing here.
+				const documentUrl = openApiPublicUrl();
+				if (documentUrl !== null) {
+					server.middlewares.use((req, res, next) => {
+						if (new URL(req.url ?? "/", "http://localhost").pathname !== documentUrl) {
+							return next();
+						}
+						openApiJson(
+							(id) => server.ssrLoadModule(id) as Promise<Record<string, unknown>>,
+							(message) => {
+								server.config.logger.warn(message);
+							},
+						).then((json) => {
+							res.setHeader("content-type", "application/json; charset=utf-8");
+							res.end(json);
+						}, next);
+					});
+				}
 				server.middlewares.use((req, res, next) => {
 					if (res.writableEnded) return next();
 					handleServerRequest({
@@ -602,8 +740,31 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		},
 	};
 
+	/**
+	 * `./$types` as a module, not just a declaration. The generated `.d.ts` for
+	 * an endpoint directory exports a `handler` bound to that route's params;
+	 * this is where that export comes from at runtime — the same two lines for
+	 * every route, since params are purely type-level.
+	 *
+	 * `enforce: "pre"` for the reason the guard has it: `vite:alias` resolves
+	 * and short-circuits ahead of a normally-ordered `resolveId`.
+	 */
+	const typesPlugin: Plugin = {
+		name: "implement-kit-types",
+		enforce: "pre",
+		resolveId(source, importer) {
+			if (source !== "./$types" || importer === undefined) return null;
+			const file = normalizeFile(withoutQuery(importer));
+			return file.startsWith(`${normalizeFile(routesDir)}/`) ? TYPES_ID : null;
+		},
+		load(id) {
+			return id === TYPES_ID ? TYPES_MODULE : null;
+		},
+	};
+
 	return [
 		guardPlugin,
+		typesPlugin,
 		kitPlugin,
 		shellOutputPlugin(),
 		implement({
@@ -624,6 +785,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 								routesBase,
 								pages: prerendered,
 								files: prerenderedFiles,
+								extraEndpoints: openapi?.path === undefined ? [] : [openapi.path],
 							});
 						},
 		}),

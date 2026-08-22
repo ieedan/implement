@@ -9,7 +9,104 @@
  * the plugin half can use it without pulling anything in.
  */
 
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { RequestEvent } from "./match.ts";
+
+// ---------------------------------------------------------------------------
+// error() / redirect()
+// ---------------------------------------------------------------------------
+
+/**
+ * The expected-failure half of the pipeline lives here rather than in
+ * `./server.ts` so `./endpoint.ts` can throw one without importing the server
+ * back — a validated handler answering a bad request is the same `HttpError`
+ * a load's `error(404)` is, and `hooks.server.ts` must not be able to tell
+ * them apart. `./server.ts` re-exports every name below, which is where apps
+ * import them from.
+ */
+
+/** Thrown by {@link error}: an expected failure with a status and a body. */
+export class HttpError {
+	readonly status: number;
+	readonly body: App.Error;
+
+	constructor(status: number, body: App.Error) {
+		this.status = status;
+		this.body = body;
+	}
+
+	toString(): string {
+		return JSON.stringify(this.body);
+	}
+}
+
+/** Thrown by {@link redirect}. */
+export class Redirect {
+	readonly status: number;
+	readonly location: string;
+
+	constructor(status: number, location: string) {
+		this.status = status;
+		this.location = location;
+	}
+}
+
+/**
+ * Throws an expected error: the request ends with `status` and `body`, the
+ * error page renders it, and `handleError` is not called.
+ *
+ * ```ts
+ * if (event.locals.user === null) error(401, "Not logged in");
+ * ```
+ */
+export function error(status: number, body: App.Error | string): never {
+	if (status < 400 || status > 599) {
+		throw new Error(`error() status must be between 400 and 599, got ${status}`);
+	}
+	throw new HttpError(status, typeof body === "string" ? { message: body } : body);
+}
+
+/**
+ * Throws a redirect: the request ends with `status` and a `location` header.
+ *
+ * ```ts
+ * if (event.locals.user === null) redirect(303, "/login");
+ * ```
+ */
+export function redirect(status: number, location: string | URL): never {
+	if (status < 300 || status > 308) {
+		throw new Error(`redirect() status must be between 300 and 308, got ${status}`);
+	}
+	throw new Redirect(status, location.toString());
+}
+
+export function isHttpError(thrown: unknown): thrown is HttpError {
+	return thrown instanceof HttpError;
+}
+
+export function isRedirect(thrown: unknown): thrown is Redirect {
+	return thrown instanceof Redirect;
+}
+
+/**
+ * Standard Schema issues as one line: `title: too short; tags.0: expected a
+ * string`. Shared by the env files, which report a whole file at once, and by
+ * validated endpoints, which report one request part at a time.
+ */
+export function formatSchemaIssues(issues: readonly StandardSchemaV1.Issue[]): string {
+	return issues
+		.map((issue) => {
+			const path = (issue.path ?? [])
+				.map((segment) => (typeof segment === "object" ? String(segment.key) : String(segment)))
+				.join(".");
+			return path === "" ? issue.message : `${path}: ${issue.message}`;
+		})
+		.join("; ");
+}
+
+// ---------------------------------------------------------------------------
+// Attribution
+// ---------------------------------------------------------------------------
 
 /** What the pipeline was doing when an unexpected error came out of the app. */
 export type ErrorSource =

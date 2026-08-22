@@ -2,7 +2,7 @@
 title: Adapters
 description: Build the app for the place it runs — a static host, a Node server, Vercel, Cloudflare.
 section: Guides
-order: 16
+order: 17
 ---
 
 `vite build` on its own writes a static site: pages and `GET` endpoints become files, and anything that has to run when a request arrives — a `POST` endpoint, a webhook, an upload, a load that reads the session — has nowhere to go. An **adapter** is what gives it somewhere.
