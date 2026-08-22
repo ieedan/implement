@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import {
 	clientTypeReference,
 	dataChains,
@@ -197,6 +197,7 @@ function dataType(dir: string, files: string[]): string {
  */
 const HANDLER_EXPORT = `
 export const handler: HandlerBuilder<ServerParams>;
+export { json } from "@implementjs/kit/endpoint";
 `;
 
 const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/endpoint";
@@ -322,11 +323,21 @@ declare module "$implement/hooks" {
 
 declare namespace App {
 	/**
+	 * The client over this app's own routes, as \`api.client\` shapes it.
+	 *
+	 * It is named before it is extended because an interface may only extend a
+	 * name — extending an inline \`import(…)\` type is \`TS2499\`. An app compiling
+	 * its generated types with \`skipLibCheck\` never sees that error, and is
+	 * simply left with an \`Api\` that has nothing on it.
+	 */
+	type GeneratedApi = ${clientTypeReference(client, 'import("../client.ts").Api')};
+
+	/**
 	 * \`event.api\` — the client over this app's own routes, bound to
 	 * \`event.fetch\`. Merged into the empty \`interface Api\` kit declares, the
 	 * same way an app's \`src/app.d.ts\` fills in \`Locals\`.
 	 */
-	interface Api extends ${clientTypeReference(client, 'import("../client.ts").Api')} {}
+	interface Api extends GeneratedApi {}
 }
 `;
 }
@@ -365,12 +376,55 @@ export type SyncOptions = {
 };
 
 /**
+ * `neverthrow` is an optional peer, so an app can pick the error style that
+ * needs it without having it — and the way that fails is the worst kind of
+ * quiet. The generated `.implement/client.ts` imports
+ * `@implementjs/kit/client/neverthrow`, whose own `import … from "neverthrow"`
+ * resolves to nothing: `Api` never resolves, `event.api` and `$implement/client`
+ * fall back to `any`, and the only sign of it is a `Cannot find module
+ * "neverthrow"` from `tsc` pointing inside a generated file nobody wrote. So
+ * codegen refuses instead — the option is read here, and here is where saying
+ * so is useful.
+ */
+export function assertClientDependencies(root: string, client: ClientStyle): void {
+	if (client.errors !== "neverthrow") return;
+	if (isInstalled(root, "neverthrow")) return;
+	throw new Error(
+		[
+			'api.client.errors is "neverthrow", but the `neverthrow` package is not installed.',
+			"It is an optional peer dependency of @implementjs/kit — the error style that needs it is the only thing that pulls it in.",
+			'Install it (`npm i neverthrow`), or pick "result" or "throw" instead.',
+		].join("\n"),
+	);
+}
+
+/**
+ * Whether a package is installed anywhere node would look for it from the app.
+ * Walked rather than `require.resolve`d: this asks about the app's tree, not
+ * about the process doing the asking, and the answer has to be the same from a
+ * dev server, a build, and the `sync` CLI. Yarn PnP has no tree to walk and
+ * resolves through its loader instead, so there the question is not ours to
+ * answer.
+ */
+function isInstalled(root: string, name: string): boolean {
+	if (process.versions["pnp"] !== undefined) return true;
+	let dir = resolve(root);
+	for (;;) {
+		if (existsSync(join(dir, "node_modules", name, "package.json"))) return true;
+		const parent = dirname(dir);
+		if (parent === dir) return false;
+		dir = parent;
+	}
+}
+
+/**
  * Writes the generated \`.implement/\` directory for an app: virtual-entry
  * files, the tsconfig apps extend, and per-route \`./$types\` declarations.
  * Idempotent — files are only rewritten when their content changed, and
  * stale \`$types\` files from removed routes are pruned.
  */
 export function writeGenerated(root: string, tree: RouteTree, options: SyncOptions = {}): void {
+	assertClientDependencies(root, options.client ?? {});
 	const routesDir = options.routes ?? "src/routes";
 	const paths: GenPaths = {
 		routes: normalizeDir(routesDir),

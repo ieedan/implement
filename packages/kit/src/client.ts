@@ -184,14 +184,52 @@ export type MethodClient<A extends ApiRoutes, W extends Wrapper = ResultWrapper>
 	) => Apply<W, DataOf<A, K, M>>;
 };
 
-/** Route-first: `api["/api/posts/[id]"].GET({ params })`. */
-export type PathClient<A extends ApiRoutes, W extends Wrapper = ResultWrapper> = {
-	[K in keyof A]: {
-		[M in Extract<keyof A[K]["operations"], Method>]: (
-			...options: CallArgs<A, K, M>
-		) => Apply<W, DataOf<A, K, M>>;
-	};
+/**
+ * Route-first, nested by segment: `api.api.posts["[id]"].GET({ params })`.
+ *
+ * The tree is the route table's keys split on `/`, so it reads the way the
+ * URLs do and autocompletes a segment at a time — every level offers only the
+ * segments that actually continue a route, and the methods a route serves sit
+ * at its leaf. A route's own methods share a level with the routes nested
+ * under it, which is what `/api` and `/api/posts/[id]` both existing means, so
+ * the seven method names are reserved: a segment spelled `GET` is not
+ * reachable this way.
+ */
+export type NestedClient<A extends ApiRoutes, W extends Wrapper = ResultWrapper> = NestedAt<
+	A,
+	W,
+	""
+>;
+
+/**
+ * One level of the tree: the calls the route at `Prefix` serves, plus the
+ * segments that continue it. `Prefix` is the route key built up so far, which
+ * is `""` at the root — where the route key, if there is one, is `/`.
+ */
+type NestedAt<A extends ApiRoutes, W extends Wrapper, Prefix extends string> = CallsAt<
+	A,
+	W,
+	Prefix extends "" ? "/" : Prefix
+> & {
+	[S in Segment<A, Prefix>]: NestedAt<A, W, `${Prefix}/${S}`>;
 };
+
+/** What the route keyed exactly `K` serves — nothing, when no route is keyed that. */
+type CallsAt<A extends ApiRoutes, W extends Wrapper, K extends string> = K extends keyof A
+	? {
+			[M in Extract<keyof A[K]["operations"], Method>]: (
+				...options: CallArgs<A, K, M>
+			) => Apply<W, DataOf<A, K, M>>;
+		}
+	: EmptyObject;
+
+/** Every segment that follows `Prefix/` in some route key, up to the next `/`. */
+type Segment<A extends ApiRoutes, Prefix extends string> = {
+	[K in keyof A]: K extends `${Prefix}/${infer Rest}` ? Exclude<Head<Rest>, ""> : never;
+}[keyof A];
+
+/** What is left of a key once `Prefix/` is gone, up to the next `/`: `posts/[id]` → `posts`. */
+type Head<S extends string> = S extends `${infer First}/${string}` ? First : S;
 
 /** The ready-made client `$implement/client` exports: method-first, `{ data, error }`. */
 export type TypedClient<A extends ApiRoutes> = MethodClient<A>;
@@ -253,12 +291,17 @@ export type ClientOptions = {
 	fetch?: typeof fetch;
 	/** How a call's outcome reaches the caller. @default "result" */
 	errors?: "result" | "throw";
-	/** `"method"` for `api.GET(path, …)`, `"path"` for `api[path].GET(…)`. @default "method" */
-	style?: "method" | "path";
+	/**
+	 * `"method"` for `api.GET(path, …)`, `"nested"` for the route's own segments
+	 * — `api.api.posts["[id]"].GET(…)`.
+	 *
+	 * @default "method"
+	 */
+	style?: "method" | "nested";
 };
 
 /** The loosely-typed shape of one call's options, as the runtime sees it. */
-type CallInput = RequestOptions & {
+export type CallInput = RequestOptions & {
 	params?: Record<string, unknown>;
 	query?: Record<string, unknown>;
 	body?: unknown;
@@ -280,22 +323,44 @@ type CallInput = RequestOptions & {
 export function createClient<C>(options: ClientOptions = {}): C {
 	const send = (method: Method, path: string, input?: CallInput) =>
 		dispatch(method, path, input, options);
-	if (options.style === "path") {
-		const client = new Proxy(
-			{},
-			{
-				get: (_, key) =>
-					typeof key === "string"
-						? methodsFor((method) => (input?: CallInput) => send(method, key, input))
-						: undefined,
-			},
-		);
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The generated table is what types this; the runtime is method dispatch either way.
-		return client as C;
-	}
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Same: the shape is fixed, the types come from the generated table.
+	if (options.style === "nested") return createNested<C>(send);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The shape is fixed; the types come from the generated table.
 	return methodsFor(
 		(method) => (path: string, input?: CallInput) => send(method, path, input),
+	) as C;
+}
+
+/** The method names a nested level answers to rather than reading as a segment. */
+const METHOD_NAMES = new Set<string>(METHODS);
+
+/**
+ * The nested tree, over whatever one call turns out to be — both client entries
+ * build theirs with this, the `neverthrow` one wrapping the outcome on the way
+ * out.
+ *
+ * There is nothing to enumerate: the route keys live only in the types, so the
+ * proxy accumulates segments as they are read and dispatches on the first
+ * method name it sees.
+ */
+// oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- As with `createClient`: the tree's type comes from the call site's annotation.
+export function createNested<C>(
+	send: (method: Method, path: string, input?: CallInput) => unknown,
+	prefix = "",
+): C {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The generated table is what types this; the runtime is segment accumulation either way.
+	return new Proxy(
+		{},
+		{
+			get: (_, key) => {
+				if (typeof key !== "string") return undefined;
+				if (!METHOD_NAMES.has(key)) return createNested(send, `${prefix}/${key}`);
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `METHOD_NAMES` is built from `METHODS`, so a hit is a `Method`.
+				const method = key as Method;
+				// a route at the root of the tree is keyed "/", not ""
+				const path = prefix === "" ? "/" : prefix;
+				return (input?: CallInput) => send(method, path, input);
+			},
+		},
 	) as C;
 }
 

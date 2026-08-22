@@ -177,8 +177,13 @@ if (values.version === true) {
 		if (!(error instanceof Error)) fail(String(error));
 		console.error(`> ${error.message}`);
 		// the message is the useful part, but the stack is where a config that
-		// threw on load actually threw, which is worth keeping
-		if (error.stack !== undefined) console.error(error.stack.split("\n").slice(1).join("\n"));
+		// threw on load actually threw, which is worth keeping. Only the frames:
+		// a stack opens with the message, and a message worth several lines is
+		// not worth printing twice.
+		if (error.stack !== undefined) {
+			const frames = error.stack.split("\n").filter((line) => /^\s+at /.test(line));
+			if (frames.length > 0) console.error(frames.join("\n"));
+		}
 		process.exit(1);
 	}
 } else {

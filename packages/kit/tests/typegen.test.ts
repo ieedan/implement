@@ -135,8 +135,16 @@ describe("App.Api", () => {
 		const declaration = generateRouterDeclaration(routes, false, PATHS, []);
 		expect(declaration).toContain("declare namespace App {");
 		expect(declaration).toContain(
-			'interface Api extends import("@implementjs/kit/client").TypedClient<import("../client.ts").Api> {}',
+			'type GeneratedApi = import("@implementjs/kit/client").TypedClient<import("../client.ts").Api>;',
 		);
+	});
+
+	it("names the client before extending it, since an interface may only extend a name", () => {
+		const declaration = generateRouterDeclaration(routes, false, PATHS, []);
+		// `interface Api extends import("…").Client<…> {}` is TS2499, which
+		// `skipLibCheck` hides — leaving `App.Api` empty and `event.api` useless
+		expect(declaration).toContain("interface Api extends GeneratedApi {}");
+		expect(declaration).not.toContain("interface Api extends import(");
 	});
 
 	it("follows the app's chosen error style", () => {
@@ -144,9 +152,9 @@ describe("App.Api", () => {
 			'import("@implementjs/kit/client/neverthrow").ResultClient<import("../client.ts").Api>',
 		);
 		expect(
-			generateRouterDeclaration(routes, false, PATHS, [], { errors: "throw", style: "path" }),
+			generateRouterDeclaration(routes, false, PATHS, [], { errors: "throw", style: "nested" }),
 		).toContain(
-			'import("@implementjs/kit/client").PathClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
+			'import("@implementjs/kit/client").NestedClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
 		);
 	});
 
@@ -232,6 +240,34 @@ describe("writeGenerated", () => {
 		const declaration = readFileSync(join(app, ".implement/types/$implement.d.ts"), "utf8");
 		expect(declaration).toContain('declare module "$implement/pages"');
 		expect(declaration).toContain('declare module "$implement/endpoints"');
+	});
+
+	it("says so when the neverthrow style is picked without the package", () => {
+		const app = makeApp(["page.ts"]);
+		const tree = scanRoutes(join(app, "src/routes"));
+		expect(() => writeGenerated(app, tree, { client: { errors: "neverthrow" } })).toThrow(
+			/`neverthrow` package is not installed/,
+		);
+		// nothing half-generated: the check runs before anything is written
+		expect(existsSync(join(app, ".implement/client.ts"))).toBe(false);
+
+		// the other two styles never need it
+		expect(() => writeGenerated(app, tree, { client: { errors: "throw" } })).not.toThrow();
+	});
+
+	it("generates the neverthrow client once the package resolves", () => {
+		const app = makeApp(["page.ts"]);
+		const installed = join(app, "node_modules/neverthrow");
+		mkdirSync(installed, { recursive: true });
+		writeFileSync(join(installed, "package.json"), '{ "name": "neverthrow", "main": "index.js" }');
+		writeFileSync(join(installed, "index.js"), "export {};\n");
+
+		writeGenerated(app, scanRoutes(join(app, "src/routes")), {
+			client: { errors: "neverthrow" },
+		});
+		expect(readFileSync(join(app, ".implement/client.ts"), "utf8")).toContain(
+			"export const api: ResultClient<Api> = createClient();",
+		);
 	});
 
 	it("prunes $types for removed routes", () => {

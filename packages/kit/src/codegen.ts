@@ -583,8 +583,8 @@ export function apiRoutes(tree: RouteTree): ApiRoute[] {
 
 /** How the generated `createClient` is called and what it hands back. */
 export type ClientStyle = {
-	/** `"method"` for `api.GET(path, …)`, `"path"` for `api[path].GET(…)`. @default "method" */
-	style?: "method" | "path";
+	/** `"method"` for `api.GET(path, …)`, `"nested"` for `api.api.posts["[id]"].GET(…)`. @default "method" */
+	style?: "method" | "nested";
 	/** How a call's outcome reaches the caller. @default "result" */
 	errors?: "result" | "throw" | "neverthrow";
 };
@@ -601,24 +601,24 @@ export type ClientType = {
 
 /** Which of the six client types an app's options select. */
 export function clientType(options: ClientStyle): ClientType {
-	const path = options.style === "path";
+	const nested = options.style === "nested";
 	if (options.errors === "neverthrow") {
 		return {
 			module: "@implementjs/kit/client/neverthrow",
-			name: path ? "ResultPathClient" : "ResultClient",
+			name: nested ? "ResultNestedClient" : "ResultClient",
 			wrapper: null,
 		};
 	}
 	if (options.errors === "throw") {
 		return {
 			module: "@implementjs/kit/client",
-			name: path ? "PathClient" : "MethodClient",
+			name: nested ? "NestedClient" : "MethodClient",
 			wrapper: "ThrowWrapper",
 		};
 	}
 	return {
 		module: "@implementjs/kit/client",
-		name: path ? "PathClient" : "TypedClient",
+		name: nested ? "NestedClient" : "TypedClient",
 		wrapper: null,
 	};
 }
@@ -692,8 +692,14 @@ export function generateClientModule(
 	const imported = ["createClient as create", "type ClientOptions", "type Operations"]
 		.concat(names.map((name) => `type ${name}`))
 		.join(",\n\t");
+	// whatever the app fixed in its config, the generated `createClient` fixes
+	// too — the type says `throw`/nested, so the call has to actually be that
+	const fixed = [
+		options.errors === "throw" ? `errors: "throw"` : null,
+		options.style === "nested" ? `style: "nested"` : null,
+	].filter((entry) => entry !== null);
 	const call =
-		options.errors === "throw" ? `create({ ...options, errors: "throw" })` : "create(options)";
+		fixed.length === 0 ? "create(options)" : `create({ ...options, ${fixed.join(", ")} })`;
 	const table = entries.length === 0 ? "{}" : `{\n${entries.join("\n")}\n}`;
 	return `${[
 		`import {\n\t${imported},\n} from ${JSON.stringify(client.module)};`,
