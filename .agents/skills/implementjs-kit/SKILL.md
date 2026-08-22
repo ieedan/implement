@@ -1,19 +1,39 @@
 ---
 name: implementjs-kit
-description: Use `@implementjs/kit` to build fullstack apps with implementjs. Learn about file based routing, and environment variables.
+description: Use `@implementjs/kit` to build fullstack apps with implementjs. File-based routing, data loading, server and API routes, environment variables, and adapters.
 ---
 
-Implement is a UI library that allows you to write your code in pure TypeScript. There is no runtime, no templating, no compiler. This allows you to have far more control over implement than any other framework.
+`@implementjs/kit` is the fullstack framework for implement: you write pages and layouts as files in `src/routes`, and kit generates a typed router, renders on the server, and prerenders or builds for a host through an adapter.
 
-This skill is focused on `@implementjs/kit` so we won't be focusing on `@implementjs/core` in this skill. If you are not familiar with `@implementjs/core` you can read the [implementjs](../implementjs/SKILL.md) skill.
+This skill covers kit only. For the UI layer underneath it — markup, signals, control flow — use the **implementjs** skill.
 
-If you haven't yet started an app or need a better idea of the structure of an app you can read the [Getting Started](./GETTING_STARTED.md) guide.
+## Reading the docs
 
-All the resource you need to use `@implementjs/kit`:
+Every page below is the live documentation, served as plain markdown. **Fetch the URL exactly as written, with the `.md`.** Dropping it returns the rendered page instead — roughly 90kb of HTML for the same content, because the site is prerendered and served off a CDN, so `Accept: text/markdown` never reaches the server.
 
-- [Router](./ROUTER.md) - How to use the router to navigate between pages
-- [Loading Data](./LOADING_DATA.md) - How to load data from the server
-- [Server Routes](./SERVER_ROUTES.md) - How to serve raw responses with `server.ts` endpoints
-- [API Routes](./API_ROUTES.md) - How to type an endpoint's edges: validated handlers, the generated client, and OpenAPI
-- [Environment Variables](./ENVIRONMENT_VARIABLES.md) - How to use environment variables
-- [Adapters](./ADAPTERS.md) - How to build the app for where it runs: a static host, a Node server, Vercel, Cloudflare
+Links _inside_ a fetched page already point at the `.md` twins, so following a cross-reference keeps you in markdown.
+
+Start with **Introduction**, which covers project layout, `src/lib`, the generated `.implement/` directory, and the Vite plugin's options. Then fetch the guide the task needs.
+
+<!-- pages:start -->
+
+### Start Here
+
+- [Introduction](https://implementjs.dev/kit.md) — File-based routing, SSR, and prerendering for implement apps.
+
+### Guides
+
+- [Routing](https://implementjs.dev/kit/routing.md) — The file conventions, params, layouts, and generated types.
+- [SSR & Prerendering](https://implementjs.dev/kit/ssr-and-prerendering.md) — Server-rendered pages in dev, a prerendered static site on build.
+- [Loading Data](https://implementjs.dev/kit/loading-data.md) — Load functions run on the server and feed pages and layouts their data.
+- [Server Routes](https://implementjs.dev/kit/server-routes.md) — server.ts endpoints serve raw responses — JSON, markdown, anything.
+- [API Routes](https://implementjs.dev/kit/api-routes.md) — Validated handlers, a generated typed client, and an optional OpenAPI document — off one definition.
+- [Server Hooks](https://implementjs.dev/kit/hooks.md) — hooks.server.ts runs on every server request — middleware, locals, and error handling.
+- [Environment Variables](https://implementjs.dev/kit/environment-variables.md) — Typed environment variables that cannot leak — two files, one validated at build time.
+- [Adapters](https://implementjs.dev/kit/adapters.md) — Build the app for the place it runs — a static host, a Node server, Vercel, Cloudflare.
+
+<!-- pages:end -->
+
+## Related skills
+
+- **implementjs** — `@implementjs/core`: elements, signals, control flow, lifecycle, and context.

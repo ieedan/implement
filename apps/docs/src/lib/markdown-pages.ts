@@ -1,11 +1,13 @@
 import {
 	createPages,
+	eslintPages,
 	formishPages,
 	kitPages,
 	lucidePages,
 	modeWatcherPages,
 	pages,
 	primitivePages,
+	uiPages,
 } from "@/lib/content";
 
 /**
@@ -22,6 +24,8 @@ const collections = [
 	createPages,
 	formishPages,
 	modeWatcherPages,
+	uiPages,
+	eslintPages,
 ];
 
 const permalinks = new Set(

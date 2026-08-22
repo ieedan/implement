@@ -22,7 +22,7 @@ import interSemiBold from "@fontsource/inter/files/inter-latin-600-normal.woff?i
 import type { Mountable } from "@implementjs/core";
 import { Div, ImageResponse, Span, type OgFont } from "@implementjs/kit/og";
 import { OG_HEIGHT, OG_WIDTH } from "./og-tags";
-import { SITE_URL } from "./site";
+import { SITE_ORIGIN } from "./site";
 import { Logo } from "@/lib/components/logo";
 
 /** The dark palette from `app.css`, which is what the mark was drawn for. */
@@ -31,7 +31,7 @@ const FOREGROUND = "#fff";
 const MUTED = "#a1a1a1";
 const BORDER = "#222";
 
-const HOST = new URL(SITE_URL).host;
+const HOST = new URL(SITE_ORIGIN).host;
 
 /**
  * The font files as bytes.

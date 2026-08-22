@@ -8,8 +8,9 @@ Already in place: arbitrary attributes (`href`, `disabled`, `aria-*`,
 effect ownership (`Implement.Lifecycle` / `Implement.Effect`), clsx-style
 `class` values, `Svg`, error boundaries, the router (typed params, typed
 `Link`/`href`/`navigate`, persistent layouts, catch-alls, route groups,
-URL-synced search params, navigation guards), `Implement.Document()` /
-`Window()`, SSR (`renderToString`), hydration, and `create-implement-app`.
+URL-synced search params, navigation guards, scroll restoration),
+`Implement.Document()` / `Window()`, SSR (`renderToString`), hydration, and
+`create-implement-app`.
 
 Focus trapping, keyboard menus, and collision-aware floating live in
 `@implementjs/primitives` (dialog, dropdown/context menu, popover, …).
@@ -28,16 +29,14 @@ delete most of that plumbing.
 ## 2. Router: the second 80%
 
 The core is there (typed tree, params as readables, layouts that survive
-navigation, typed links, catch-alls, search params, fallback, guards). What
-real apps still ask for:
+navigation, typed links, catch-alls, search params, fallback, guards, scroll
+restoration). What real apps still ask for:
 
 - **Redirects** — `"/"` → `/issues` can only be expressed by duplicating the
   render.
 - **Code splitting** — route renders are eager imports; no lazy route form.
   (`@implementjs/kit` code-splits file routes; the core `Router` table does
   not.)
-- **Scroll restoration** — pushes scroll to top, but back/forward doesn't
-  restore the previous scroll position.
 - **`isActive` as a readable** — `Link` sets `aria-current` (enough for CSS),
   but breadcrumbs/parent-section highlighting need prefix matching in code.
 - **Relative navigation** — every `Link`/`navigate` is absolute.

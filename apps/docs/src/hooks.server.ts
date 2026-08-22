@@ -18,6 +18,17 @@ function acceptsMarkdown(accept: string | null): boolean {
 }
 
 /**
+ * Pages that used to live somewhere else. The prerender no longer writes these
+ * paths, so a request for one reaches the function and lands here — which is
+ * the only place a redirect can be put: the Vercel adapter ships a Build Output
+ * API directory, and `vercel.json`'s own `redirects` are ignored for those.
+ */
+const moved: Record<string, string> = {
+	"/docs/linting": "/eslint",
+	"/docs/linting.md": "/eslint.md",
+};
+
+/**
  * Content negotiation for the docs. Every docs page has a plain-markdown twin
  * at its own URL plus `.md`, so a client that asks for markdown — an agent, a
  * reader, `curl -H "accept: text/markdown"` — gets sent there instead of the
@@ -25,6 +36,9 @@ function acceptsMarkdown(accept: string | null): boolean {
  * and nothing but the header is read on the way past.
  */
 export const handle: Handle = async ({ event, resolve }) => {
+	const destination = moved[event.url.pathname];
+	if (destination !== undefined) redirect(308, `${destination}${event.url.search}`);
+
 	if (acceptsMarkdown(event.request.headers.get("accept"))) {
 		const markdown = markdownTwin(event.url.pathname);
 		if (markdown !== null) {

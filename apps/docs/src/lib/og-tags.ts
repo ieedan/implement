@@ -8,7 +8,7 @@
  */
 
 import { ImplementHead, type HeadChild } from "@implementjs/core";
-import { absolute } from "./site";
+import { SITE_ORIGIN } from "./site";
 
 /** The size every social platform crops against, and what the tags advertise. */
 export const OG_WIDTH = 1200;
@@ -16,6 +16,9 @@ export const OG_HEIGHT = 630;
 
 /** The image a page falls back to when it has no generated twin of its own. */
 export const DEFAULT_OG_IMAGE = "/og.png";
+
+/** `SITE_ORIGIN` prefixed, the way `markdown.ts` builds its absolute links. */
+const absolute = (path: string): string => `${SITE_ORIGIN}${path}`;
 
 export type OgTagsOptions = {
 	title: string;

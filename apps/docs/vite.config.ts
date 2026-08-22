@@ -32,6 +32,7 @@ function entries(): string[] {
 		...collect("lucide.json", "Lucide"),
 		...collect("kit.json", "Kit"),
 		...collect("create.json", "Create"),
+		...collect("eslint.json", "ESLint"),
 		...collect("tutorials.json"),
 	];
 }

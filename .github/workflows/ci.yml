@@ -87,6 +87,25 @@ jobs:
       - run: pnpm registry
       - run: git diff --exit-code apps/docs/registry.json
 
+  skills:
+    name: Skills
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # the skills index the docs collections, which velite builds
+      - run: pnpm --filter @apps/docs generate
+      # the agent skills link out to the published `.md` twins rather than
+      # carrying a copy of the docs — regenerate the link index and fail if a
+      # page was added or renamed without it.
+      - run: pnpm skills
+      - run: git diff --exit-code .agents/skills
+
   jscpd:
     name: Duplication
     runs-on: ubuntu-latest

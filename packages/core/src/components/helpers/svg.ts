@@ -2,7 +2,7 @@ import { dom } from "../../dom";
 import { isDetaching } from "../../tree";
 import { subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
-import { applySvgProps, type Bindable, type SvgProps } from "../props";
+import { applySvgProps, runTeardown, type Bindable, type SvgProps, type Teardown } from "../props";
 import type { Mountable } from "../types";
 
 export type { SvgProps } from "../props";
@@ -31,13 +31,13 @@ export function Svg(source: Bindable<string>, props: SvgProps = {}): Mountable {
 		 */
 		let current: ChildNode | null = null;
 		let element: SVGSVGElement | null = null;
-		let unsubscribeProps: Unsubscribe | null = null;
+		let unsubscribeProps: Teardown | null = null;
 		let unsubscribeSource: Unsubscribe | null = null;
 
 		/** Let go of the current element (its props binding and `this`). */
 		const release = () => {
 			if (element) props.this?.set(null);
-			unsubscribeProps?.();
+			if (unsubscribeProps !== null) runTeardown(unsubscribeProps);
 			unsubscribeProps = null;
 			element = null;
 		};

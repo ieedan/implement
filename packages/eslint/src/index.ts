@@ -13,8 +13,8 @@ import validRole from "./rules/valid-role.ts";
 
 /**
  * Lint rules for implement apps, written against ESLint's plugin API and run
- * by either linter — see the `Linting` page in the docs for the setup on each
- * side. Nothing in here reads type information, which is what lets the same
+ * by either linter — see https://implementjs.dev/eslint/setup for the setup on
+ * each side. Nothing in here reads type information, which is what lets the same
  * rules run under oxlint, where custom rules do not get a type checker.
  */
 export const rules: Record<string, Rule.RuleModule> = {

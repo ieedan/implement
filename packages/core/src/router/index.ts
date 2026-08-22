@@ -7,6 +7,7 @@ import { asParent, mountChild, isDetaching } from "../tree";
 import type { Unsubscribe } from "../types";
 import { syncDomOrder } from "../utils";
 import {
+	isPageLocation,
 	locationSignal,
 	navigateTo,
 	normalizePath,
@@ -14,6 +15,7 @@ import {
 	type NavigateOptions,
 	type RouterLocation,
 } from "./location";
+import { restoreInitialScroll } from "./scroll";
 
 export {
 	navigateTo,
@@ -114,6 +116,11 @@ export type LinkProps<P extends string> = Omit<ElementProps<"a">, "href"> & {
 	to: P;
 	/** Replace the current history entry instead of pushing a new one. */
 	replace?: boolean;
+	/**
+	 * Follow the link without scrolling to the top of the page. See
+	 * {@link NavigateOptions.noScroll}.
+	 */
+	noScroll?: boolean;
 } & ([PathParamNames<P>] extends [never] ? { params?: undefined } : { params: LinkParams<P> });
 
 export type RouterError = {
@@ -147,6 +154,7 @@ export type RouterHelper<T> = Mountable & {
 	 * An `A` that navigates through the router. Modifier keys, non-left
 	 * clicks, and `target` are respected. Sets `aria-current="page"` while
 	 * the link's path is the current one (style with `aria-[current=page]:`).
+	 * Following one scrolls to the top unless `noScroll` says otherwise.
 	 */
 	Link<P extends RoutePaths<T> & string>(props: LinkProps<P>, ...children: Child[]): Mountable;
 	/** URL-synced query-string value. See {@link searchParam}. */
@@ -543,6 +551,9 @@ export function Router<T extends Routes<T>>(
 			mount(parent: HTMLElement) {
 				mountChild(rootNode, parent);
 				unsubscribe = subscribe([locationSignal()], onLocation);
+				// a reload lands here rather than at a `popstate`, and the first
+				// render is the earliest the page is tall enough to scroll through
+				if (isPageLocation()) restoreInitialScroll();
 			},
 			unmount() {
 				unsubscribe?.();
@@ -570,7 +581,7 @@ export function Router<T extends Routes<T>>(
 	};
 
 	const Link = (props: LinkProps<string>, ...children: Child[]): Mountable => {
-		const { to, params, replace, onClick, ...rest } = props;
+		const { to, params, replace, noScroll, onClick, ...rest } = props;
 
 		const record: Record<string, LinkParamValue> = params ?? {};
 		const entries = Object.entries(record);
@@ -607,7 +618,7 @@ export function Router<T extends Routes<T>>(
 					const target = isReadable(rest.target) ? rest.target.get() : rest.target;
 					if (target && target !== "_self") return;
 					event.preventDefault();
-					navigateTo(currentHref(), { replace });
+					navigateTo(currentHref(), { replace, noScroll });
 				},
 			},
 			...children,

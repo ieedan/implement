@@ -1,15 +1,11 @@
 /**
- * The site's canonical origin.
+ * The origin the docs are published under. Hardcoded rather than read off the
+ * request: every page is prerendered, and the prerenderer dispatches against a
+ * placeholder origin (`http://implement.internal`), so `event.url` would bake a
+ * hostname that resolves nowhere into the built files.
  *
- * Open Graph gives no meaning to a relative url — a crawler resolves
- * `og:image` against nothing — so the absolute form has to come from
- * somewhere, and a prerendered page has no request to take it from. A
- * constant is the whole answer at this size; the day the origin needs to
- * differ per deployment it becomes a `PUBLIC_SITE_URL` in `env.public.ts`.
+ * Read by the `.md` routes, which rewrite the pages' site-relative links to
+ * absolute ones, and by `scripts/skills.ts`, which links the agent skills at
+ * the same twins.
  */
-export const SITE_URL = "https://implement.dev";
-
-/** An absolute url for `path`, which is what the social meta tags need. */
-export function absolute(path: string): string {
-	return new URL(path, SITE_URL).href;
-}
+export const SITE_ORIGIN = "https://implementjs.dev";
