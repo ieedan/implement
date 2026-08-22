@@ -23,6 +23,7 @@ import {
 	UnderlineIcon,
 } from "@implementjs/lucide";
 import { SiteHeader } from "../components/site-header";
+import { ogTags } from "../og-tags";
 import {
 	Accordion,
 	AccordionContent,
@@ -752,6 +753,11 @@ export function PrimitivesHome(): Mountable {
 			ImplementHead.Meta({
 				name: "description",
 				content: "Unstyled, composable building blocks for common UI patterns.",
+			}),
+			...ogTags({
+				title: "Primitives ~ implement",
+				description: "Unstyled, composable building blocks for common UI patterns.",
+				url: "/primitives",
 			}),
 		),
 		SiteHeader(),

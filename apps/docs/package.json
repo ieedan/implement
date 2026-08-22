@@ -34,6 +34,7 @@
 	"devDependencies": {
 		"@implementjs/adapter-vercel": "workspace:*",
 		"@implementjs/kit": "workspace:*",
+		"@fontsource/inter": "^5.3.0",
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",

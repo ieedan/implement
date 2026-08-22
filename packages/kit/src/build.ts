@@ -148,6 +148,15 @@ function hasServerLoads(node: RouteNode): boolean {
  * own, with the finished client build's shell and chunk names baked into the
  * manifest it carries.
  */
+/**
+ * Packages the server build may never bundle, whatever the adapter asked for:
+ * their published entry loads a platform-specific `.node` binary, which is not
+ * javascript and has no bundled form. Left external they resolve from the
+ * host's `node_modules` at runtime, which is the only way a native addon ever
+ * loads.
+ */
+const NATIVE_DEPENDENCIES = ["@resvg/resvg-js"];
+
 async function buildServer(options: {
 	adapter: Adapter;
 	config: ResolvedConfig;
@@ -220,6 +229,11 @@ async function buildServer(options: {
 			// deployed on its own, and a workspace link is not a dependency the
 			// host will install
 			noExternal: bundle ? true : [/^@implementjs\//],
+			// a native addon is a `.node` binary no bundler can read, so it stays
+			// external however much the host wants a single artifact. `@implementjs
+			// /kit/og` imports this one lazily and only to rasterize, so a build
+			// that prerenders its images never reaches it — see `../src/og.ts`
+			external: NATIVE_DEPENDENCIES,
 			...(conditions === undefined ? {} : { resolve: { conditions } }),
 		},
 		build: {

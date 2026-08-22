@@ -31,6 +31,10 @@
 			"types": "./src/handler.ts",
 			"default": "./src/handler.ts"
 		},
+		"./og": {
+			"types": "./src/og.ts",
+			"default": "./src/og.ts"
+		},
 		"./openapi": {
 			"types": "./src/openapi.ts",
 			"default": "./src/openapi.ts"
@@ -62,8 +66,11 @@
 	"dependencies": {
 		"@implementjs/core": "workspace:*",
 		"@implementjs/vite": "workspace:*",
+		"@resvg/resvg-js": "^2.6.2",
 		"@standard-schema/spec": "^1.1.0",
-		"esbuild": "^0.28.2"
+		"esbuild": "^0.28.2",
+		"satori": "^0.33.3",
+		"ultrahtml": "^1.7.0"
 	},
 	"peerDependencies": {
 		"neverthrow": "^8.0.0",
