@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/adapter-cloudflare",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"description": "Builds an implement kit app into a Cloudflare worker with static assets beside it.",
 	"keywords": [
 		"implement",
