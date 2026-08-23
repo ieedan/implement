@@ -3,12 +3,13 @@
 # @implementjs/formish
 
 Schema-first forms for [implement](https://github.com/ieedan/implement). The schema types
-the fields, validates the input and produces the output your submit handler receives — any
-[Standard Schema](https://standardschema.dev) library works, so valibot, zod and arktype
-are all fair game.
+the fields, validates the input and produces the output your submit handler receives.
+Schemas are [valibot](https://valibot.dev), and formish reads them: it walks the schema
+when the form is created and gives every field a starting value, so a field validates
+whether or not you ever render one for it.
 
 ```sh
-npm install @implementjs/formish
+npm install @implementjs/formish valibot
 ```
 
 ```ts
@@ -47,11 +48,16 @@ Fields are addressed by path (`["todos", 0, "label"]`), which is what makes them
 against the schema without a second set of type definitions. Array fields render by item
 id, so a row keeps its state when the list is reordered.
 
+Because the schema — not the DOM — says which fields exist, `input` holds the whole shape
+before anything mounts (`{ email: "", password: "" }` above). A field you forget to render
+is a field the schema still validates, with its own message, rather than a form that
+quietly refuses to submit. Where a required field starts is configurable per type with
+`emptyInput`, which defaults to `{ string: "", boolean: false }`.
+
 Full documentation: [/formish](https://github.com/ieedan/implement/tree/main/apps/docs/src/content/formish)
 
 ## Credits
 
 The API is modeled on [Formisch](https://formisch.dev) by Fabian Hiller (MIT), which does
 the same job for React, Solid, Vue, Svelte and friends. This is an implement-native take on
-it: implement signals instead of framework adapters, and Standard Schema instead of a
-valibot dependency.
+it: implement signals instead of framework adapters.

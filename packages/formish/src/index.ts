@@ -41,13 +41,7 @@ export {
 	type SwapConfig,
 } from "./lib/methods";
 export type { Path, PathKey, RequiredPath } from "./lib/path";
-export type {
-	InferInput,
-	InferOutput,
-	StandardIssue,
-	StandardResult,
-	StandardSchemaV1,
-} from "./lib/standard-schema";
+export { DEFAULT_EMPTY_INPUT, type EmptyInput } from "./lib/schema";
 export type { ValidateConfig } from "./lib/validate";
 export type {
 	ArrayPath,
@@ -59,6 +53,8 @@ export type {
 	FormConfig,
 	FormInput,
 	FormSchema,
+	InferInput,
+	InferOutput,
 	ItemValue,
 	PartialInput,
 	PathValue,

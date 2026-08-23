@@ -12,13 +12,13 @@ import {
 	writeInput,
 	type InternalFormStore,
 } from "./store";
-import type { InferInput } from "./standard-schema";
 import { validateIfRequired } from "./validate";
 import type {
 	FieldElementProps,
 	FieldErrors,
 	FieldPath,
 	FormSchema,
+	InferInput,
 	PartialInput,
 	PathValue,
 } from "./types";

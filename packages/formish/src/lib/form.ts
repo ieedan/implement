@@ -31,15 +31,15 @@ export interface FormStore<TSchema extends FormSchema = FormSchema> {
 }
 
 /**
- * Creates a form from a schema. The schema types the fields, validates the
- * input and produces the output a submit handler receives — anything
- * implementing [Standard Schema](https://standardschema.dev) works, so valibot,
- * zod and arktype are all fair game.
+ * Creates a form from a [valibot](https://valibot.dev) schema. The schema types
+ * the fields, validates the input and produces the output a submit handler
+ * receives — and, because formish walks it up front, gives every field a
+ * starting value whether or not anything ever renders one.
  *
  * ```ts
  * const form = createForm({
  * 	schema: v.object({ email: v.pipe(v.string(), v.email()) }),
- * 	initialInput: { email: "" },
+ * 	initialInput: { email: "hi@example.com" },
  * });
  * ```
  */
@@ -48,8 +48,9 @@ export function createForm<TSchema extends FormSchema>(
 ): FormStore<TSchema> {
 	const store = createFormStore(config);
 
-	// deferred so the first validation reports on a mounted form: its elements
-	// are what tell an empty text field apart from a missing one
+	// deferred so nothing is validated before the caller holds the store; what
+	// is validated does not depend on it, since the schema has already filled
+	// the fields in
 	if (store.validate === "initial") {
 		queueMicrotask(() => void validateInput(store));
 	}

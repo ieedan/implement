@@ -35,11 +35,12 @@ describe("server rendering", () => {
 		expect(html).toMatch(/novalidate/i);
 	});
 
-	it("validates without a DOM to read empty fields from", async () => {
+	it("validates the same without a DOM, because the schema is what seeds it", async () => {
 		const form = createForm({ schema: LoginSchema });
 		const result = await validate(form);
 
-		expect(result.issues).toBeDefined();
-		expect(getInput(form)).toEqual({});
+		expect(getInput(form)).toEqual({ email: "" });
+		// the schema's own message, not a type error about a missing value
+		expect(result.issues?.[0]?.message).toBe("Enter your email");
 	});
 });

@@ -9,10 +9,29 @@ order: 1
 
 <div data-demo="sign-up-form" data-demo-description="A sign up form with an email and a password field. Leaving a field invalid and blurring it shows the schema's message underneath; submitting with valid input reports the email that signed up."></div>
 
-Every schema library that implements [Standard Schema](https://standardschema.dev) works — [valibot](https://valibot.dev), [zod](https://zod.dev), [arktype](https://arktype.io) — and formish depends on none of them. These docs use valibot.
+Schemas are [valibot](https://valibot.dev). Formish reads the schema itself, not just the values it rejects: at `createForm` it walks the schema and gives every field a starting value, which is what lets a field validate whether or not you ever render it.
 
 > [!NOTE]
-> The API is modeled on [Formisch](https://formisch.dev) by Fabian Hiller, which does the same job for React, Solid, Vue and Svelte. If you have used it, you already know this library; the differences are that state arrives as [readables](/docs/signals) instead of framework reactivity, and the schema is any Standard Schema rather than valibot specifically.
+> The API is modeled on [Formisch](https://formisch.dev) by Fabian Hiller, which does the same job for React, Solid, Vue and Svelte. If you have used it, you already know this library; the difference is that state arrives as [readables](/docs/signals) instead of framework reactivity.
+
+## Every field starts at a value
+
+A form's fields are whatever the schema says they are. Formish walks it once, up front, and fills in a starting value for each one — `""` for a string, `false` for a boolean, `[]` for an array, `null` for a nullable — so `input` holds the whole shape before anything is rendered:
+
+```ts
+const form = createForm({
+	schema: v.object({
+		email: v.pipe(v.string(), v.email("Enter a valid email")),
+		nickname: v.string(),
+	}),
+});
+
+getInput(form); // { email: "", nickname: "" }
+```
+
+The practical effect is that **forgetting to render a field does not quietly break the form**. `nickname` above has nothing left to satisfy, so the form still submits, with `nickname: ""`. If it were `v.pipe(v.string(), v.minLength(1, "Pick a nickname"))`, submission would be blocked — but the error is the schema's own message on `["nickname"]`, which `getAllErrors` will show you, rather than a type error about a value nothing on screen was ever going to supply.
+
+Fields that accept nothing are left that way: an optional field stays missing, and a nullable one starts at `null`. Where a required field starts is configurable per type with [`emptyInput`](/formish/validation#where-fields-start).
 
 ## Installation
 

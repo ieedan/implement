@@ -40,7 +40,7 @@ Field({ of: form, path: ["tags"], array: true }, (field) =>
 );
 ```
 
-`array: true` is the one hint formish needs. A group that starts out empty looks exactly like a single checkbox from the DOM's side, and a Standard Schema cannot be asked which it is — so you say. A field that already holds a list, or a `multiple` select or file input, needs no hint.
+`array: true` is a hint formish rarely needs now: the schema already says which fields hold a list, and a `v.array(...)` field starts at `[]` whether or not anything renders it. Reach for it when the schema cannot answer — a list inside a `v.union` or a `v.record`, which formish does not walk into.
 
 ## Radio group
 
