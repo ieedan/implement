@@ -1,5 +1,6 @@
 {
 	"name": "@implementjs/ui",
+	"bugs": "https://github.com/ieedan/implement/issues",
 	"description": "Styled components built on @implementjs/primitives.",
 	"homepage": "https://github.com/ieedan/implement",
 	"repository": "https://github.com/ieedan/implement",

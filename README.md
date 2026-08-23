@@ -14,6 +14,22 @@ That rebuilds `apps/docs/registry.json`, which is committed: it is the manifest 
 
 `create-implement-app --ui --link .` scaffolds an app that reads this checkout's registry directly.
 
+### Publishing to jsrepo.com
+
+The registry is also published to [jsrepo.com](https://www.jsrepo.com), which is what makes the `npx jsrepo add @implementjs/ui/button` in every component's docs resolve for someone who has never seen this repository. `apps/docs/README.md` goes up with it as the registry's page.
+
+A published version is immutable, so the registry needs a version line that moves, and [changesets](#releasing) owns it like everything else here. [`packages/ui`](packages/ui) is what it owns: a package holding no code, only the `version` and `CHANGELOG.md` for the registry the docs app builds. It is `private`, so it never reaches npm — but it is in the workspace, which is what makes `pnpm changeset` list `@implementjs/ui` under its own name and bump it only when a changeset says so. `jsrepo.config.ts` reads that version, and `pnpm changeset:version` rebuilds `registry.json` right after the bump, so the committed manifest and the published one never disagree.
+
+The `Registry` job in [`release.yml`](.github/workflows/release.yml) does the publishing, on every push to `main`. The question it answers is "is this the version to publish, and has it already gone out" rather than "did anything change". A pending changeset settles the first — `main` is mid-release, and the version on disk is one the repo has already decided to bump past. A `@implementjs/ui@<version>` tag settles the second. Between them, a re-run, a version pull request, and a commit that touched nothing all do nothing. The tag is written after the publish succeeds, never before, so a publish that failed is one the next push tries again.
+
+Two things have to exist for any of that to work: the `@implementjs` scope on jsrepo.com, and a `JSREPO_TOKEN` repository secret holding a token for it. Without the secret the job fails rather than skipping — a publish that quietly never happens is the worse failure.
+
+To publish by hand, from a checkout logged in with `npx jsrepo auth jsrepo`:
+
+```sh
+pnpm registry:publish
+```
+
 ## Deploying the docs
 
 `apps/docs` builds for Vercel through [`@implementjs/adapter-vercel`](packages/adapter-vercel) — the docs are its dogfood. `vite build` writes [Build Output API v3](https://vercel.com/docs/build-output-api/v3) into `apps/docs/.vercel/output`: everything prerendered as static files on the CDN, and the app as a bundled Node function behind them for whatever the filesystem misses.
@@ -32,7 +48,9 @@ cd apps/docs && vercel deploy --prebuilt
 ## Releasing
 
 Versions and changelogs are managed by [changesets](https://changesets.dev). A branch that
-changes a package carries a changeset describing the change, committed alongside the code:
+changes a package — or the components the [registry](#publishing-to-jsrepocom) ships, which is
+what `@implementjs/ui` names — carries a changeset describing the change, committed alongside
+the code:
 
 ```sh
 pnpm changeset

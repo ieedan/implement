@@ -68,8 +68,8 @@ export function linkProtocol(packageManager: string): string {
 }
 
 /**
- * Every `@implementjs/*` package in a local clone of the implement repo, keyed by package name.
- * Looks at `packages/*` and at the root itself, so `--link ../implement` and
+ * Every published `@implementjs/*` package in a local clone of the implement repo, keyed by package
+ * name. Looks at `packages/*` and at the root itself, so `--link ../implement` and
  * `--link ../implement/packages/core` both work.
  */
 export function findLinkablePackages(
@@ -78,7 +78,7 @@ export function findLinkablePackages(
 	const found = new Map<string, AbsolutePath>();
 
 	const consider = (dir: AbsolutePath) => {
-		const name = packageName(dir);
+		const name = linkableName(dir);
 		if (name?.startsWith(IMPLEMENT_SCOPE)) found.set(name, dir);
 	};
 
@@ -117,14 +117,21 @@ export function linkSpecifiers({
 	);
 }
 
-function packageName(dir: AbsolutePath): string | undefined {
+/**
+ * The name a directory can be linked under, or `undefined` if it cannot be linked at all. A private
+ * package is one npm never has, so a `link:` specifier naming it would resolve for exactly as long
+ * as the clone stays where it is — `@implementjs/ui` is one of those: a jsrepo registry whose
+ * package in the workspace carries nothing but its version.
+ */
+function linkableName(dir: AbsolutePath): string | undefined {
 	const packagePath = joinAbsolute(dir, "package.json");
 	if (!exists(packagePath)) return undefined;
 
 	try {
 		const parsed: unknown = JSON.parse(fs.readFileSync(packagePath, "utf8"));
 		if (typeof parsed !== "object" || parsed === null) return undefined;
-		const { name } = parsed as { name?: unknown };
+		const { name, private: isPrivate } = parsed as { name?: unknown; private?: unknown };
+		if (isPrivate === true) return undefined;
 		return typeof name === "string" ? name : undefined;
 	} catch {
 		// a package.json we can't read is a package we can't link

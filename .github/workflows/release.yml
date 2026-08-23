@@ -11,7 +11,8 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  # push the version commit and the release tags
+  # push the version commit, the release tags, and the tag that records which
+  # registry version jsrepo.com already has
   contents: write
   # open and update the version pull request
   pull-requests: write
@@ -55,3 +56,68 @@ jobs:
           # no npm secret here. GITHUB_TOKEN is for the changelog, which reads
           # the pull request each changeset came from.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  registry:
+    name: Registry
+    # a registry version claims the packages it is built against, so it waits
+    # for the release that publishes them
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # the tags are the record of what has already gone out, and a shallow
+          # checkout carries none of them
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      # jsrepo.com holds a published version forever, so the question this
+      # workflow has to answer on every push is not "did the registry change"
+      # but "is this the version to publish, and has it already gone out".
+      #
+      # A pending changeset answers the first: `main` is mid-release and the
+      # version on disk is one the repo has already decided to bump past, so
+      # publishing it would burn a number nothing will ever refer to. The tag
+      # answers the second, and is written after a publish succeeds and nowhere
+      # else — which leaves a re-run, a version pull request and an unrelated
+      # commit all doing nothing rather than failing on a republish.
+      - name: Find the version to publish
+        id: version
+        run: |
+          version="$(node -p "require('./packages/ui/package.json').version")"
+          tag="@implementjs/ui@$version"
+          pending="$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' -print -quit)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ -n "$pending" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "A release is pending, so \`$version\` is not the version to publish." >> "$GITHUB_STEP_SUMMARY"
+          elif git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "\`$tag\` is already published." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - run: pnpm install --frozen-lockfile
+        if: steps.version.outputs.publish == 'true'
+      - name: Publish
+        if: steps.version.outputs.publish == 'true'
+        # jsrepo resolves `@/lib` imports through `.implement/tsconfig.json`, so
+        # the registry needs syncing first or every aliased import is dropped.
+        run: |
+          pnpm --filter @apps/docs sync
+          pnpm registry:publish
+        env:
+          # a jsrepo.com token for the `@implementjs` scope. The CLI reads it
+          # instead of the machine-local login `jsrepo auth jsrepo` writes,
+          # which is the whole of what makes this runnable unattended.
+          JSREPO_TOKEN: ${{ secrets.JSREPO_TOKEN }}
+      # after the publish, never before: a tag written first would mark the
+      # version done and leave a failed publish with nothing to retry it.
+      - name: Record what went out
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
