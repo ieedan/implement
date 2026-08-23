@@ -6,20 +6,57 @@ const SCROLLBAR_WIDTH_VAR = `--${LIB_PREFIX}-scrollbar-width`;
 let lockCount = 0;
 let originalBodyStyle: string | null = null;
 let stopTouchMove: (() => void) | null = null;
+/** Where the finger went down, so a move knows which way it is going. */
+let touchStart: { x: number; y: number } | null = null;
 
-/** True on iPhone/iPad, where `overflow: hidden` on body does not stop scroll. */
-function isIos(): boolean {
-	if (typeof navigator === "undefined") return false;
-	return (
-		/iP(ad|hone|od)/.test(navigator.platform) ||
-		(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-	);
+/** True when `el` is a scroll container with `delta` px still to give along `axis`. */
+function hasRoom(el: Element, axis: "x" | "y", delta: number): boolean {
+	const style = getComputedStyle(el);
+	const overflow = axis === "y" ? style.overflowY : style.overflowX;
+	if (overflow !== "auto" && overflow !== "scroll" && overflow !== "overlay") return false;
+	const scrollSize = axis === "y" ? el.scrollHeight : el.scrollWidth;
+	const clientSize = axis === "y" ? el.clientHeight : el.clientWidth;
+	if (scrollSize <= clientSize + 1) return false;
+	const position = axis === "y" ? el.scrollTop : el.scrollLeft;
+	// a finger moving down reveals what is above it, which needs room at the start
+	return delta > 0 ? position > 0 : position + clientSize < scrollSize - 1;
 }
 
+/**
+ * True when something between the finger and the body still has somewhere to
+ * go. The body and the document are deliberately not candidates — the page is
+ * the thing being held still.
+ */
+function touchCanScroll(target: EventTarget | null, dx: number, dy: number): boolean {
+	const axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+	const delta = axis === "x" ? dx : dy;
+	if (delta === 0) return true;
+	for (
+		let el: Element | null = target instanceof Element ? target : null;
+		el !== null && el !== document.body && el !== document.documentElement;
+		el = el.parentElement
+	) {
+		if (hasRoom(el, axis, delta)) return true;
+	}
+	return false;
+}
+
+function onTouchStart(e: TouchEvent) {
+	const touch = e.touches.length === 1 ? e.touches[0] : undefined;
+	touchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+}
+
+/**
+ * The page behind a modal has to be held still by hand. `overflow: hidden` on
+ * the body does not do it on iOS Safari, and once a scroll gesture is under way
+ * the browser stops listening — so the first move of every touch is either let
+ * through to something that can scroll, or cancelled outright.
+ */
 function preventBackgroundTouchMove(e: TouchEvent) {
-	// inner overlay scrolling still works; this only blocks the page behind
-	if (e.target !== document.documentElement) return;
-	if (e.touches.length > 1) return;
+	if (touchStart === null || e.touches.length > 1 || !e.cancelable) return;
+	const touch = e.touches[0];
+	if (!touch) return;
+	if (touchCanScroll(e.target, touch.clientX - touchStart.x, touch.clientY - touchStart.y)) return;
 	e.preventDefault();
 }
 
@@ -60,12 +97,16 @@ export function lockBodyScroll(): () => void {
 		}
 		document.body.style.overflow = "hidden";
 
-		if (isIos()) {
-			document.addEventListener("touchmove", preventBackgroundTouchMove, { passive: false });
-			stopTouchMove = () => {
-				document.removeEventListener("touchmove", preventBackgroundTouchMove);
-			};
-		}
+		// Not gated on sniffing for iOS. The `navigator.platform` test that used to
+		// do it is deprecated and already lies about the iPad; on a device where
+		// `overflow: hidden` was enough, this listener has nothing left to cancel.
+		document.addEventListener("touchstart", onTouchStart, { passive: true });
+		document.addEventListener("touchmove", preventBackgroundTouchMove, { passive: false });
+		stopTouchMove = () => {
+			document.removeEventListener("touchstart", onTouchStart);
+			document.removeEventListener("touchmove", preventBackgroundTouchMove);
+			touchStart = null;
+		};
 	}
 
 	lockCount += 1;
