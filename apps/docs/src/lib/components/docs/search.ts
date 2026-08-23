@@ -15,8 +15,11 @@ import {
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import { ArrowRightIcon, SearchIcon } from "@implementjs/lucide";
-import { DialogTrigger as DialogTriggerPrimitive } from "@implementjs/primitives";
+import { ArrowRightIcon, SearchIcon, XIcon } from "@implementjs/lucide";
+import {
+	DialogClose as DialogClosePrimitive,
+	DialogTrigger as DialogTriggerPrimitive,
+} from "@implementjs/primitives";
 import { copyText } from "@/lib/copy-text";
 import {
 	prepareSearchIndex,
@@ -148,8 +151,14 @@ function hitValue(area: SearchArea, result: SearchResult): string {
 	return `${area.key} ${result.href} ${fold(rowKey(result))}`;
 }
 
+/** The look of a key cap: a small bordered chip. */
 const kbdClass =
-	"pointer-events-none flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1 font-sans text-[10px] font-medium text-muted-foreground select-none";
+	"flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1 font-sans text-[10px] font-medium text-muted-foreground select-none";
+/**
+ * A key cap that is only naming a key. Every one of these sits inside something
+ * clickable — the trigger, the actions menu — so it must not swallow the click.
+ */
+const kbdHintClass = `pointer-events-none ${kbdClass}`;
 
 const SEARCH_INPUT_ID = "docs-search-input";
 
@@ -415,7 +424,7 @@ export function DocsSearch(): Mountable {
 			},
 			SearchIcon({ class: "size-4 shrink-0", "aria-hidden": true }),
 			Span({ class: "flex-1 text-left max-sm:hidden" }, "Search docs..."),
-			Kbd({ class: [kbdClass, "max-sm:hidden"] }, "⌘K"),
+			Kbd({ class: [kbdHintClass, "max-sm:hidden"] }, "⌘K"),
 		),
 		// A palette above the page on a desktop, a drawer up from the bottom edge
 		// on a phone — where the panel is tall enough to keep the input above the
@@ -464,7 +473,22 @@ export function DocsSearch(): Mountable {
 							(entry) => AreaChip(area, entry.get().key, entry.get().label),
 						),
 					),
-					Kbd({ class: [kbdClass, "shrink-0 max-md:hidden"] }, "esc"),
+					// the chip named the key that closes the palette without being able to
+					// close it, which on a phone named a key that is not there either
+					DialogClosePrimitive(
+						{
+							class: [
+								kbdClass,
+								"shrink-0 cursor-pointer transition-colors hover:bg-accent hover:text-foreground",
+								// a key cap is the right size for something a mouse points at
+								// and a poor one for a thumb, so the ✕ gets a bigger box
+								"max-md:h-7 max-md:min-w-7",
+							],
+							"aria-label": "Close search",
+						},
+						Span({ "aria-hidden": true, class: "max-md:hidden" }, "esc"),
+						XIcon({ class: "size-3.5 md:hidden", "aria-hidden": true }),
+					),
 				),
 				CommandInput({ id: SEARCH_INPUT_ID, placeholder: "Search docs..." }),
 				CommandList(
@@ -499,7 +523,7 @@ export function DocsSearch(): Mountable {
 								hit === null ? "Go to page" : `Go to ${hit.result.page.title}`,
 							),
 						),
-						Kbd({ class: [kbdClass, "max-md:hidden"] }, "⏎"),
+						Kbd({ class: [kbdHintClass, "max-md:hidden"] }, "⏎"),
 					),
 					Div({ class: "h-4 w-px bg-border", "aria-hidden": true }),
 					DropdownMenu(
@@ -511,7 +535,7 @@ export function DocsSearch(): Mountable {
 								class: "gap-2 text-xs text-muted-foreground hover:text-foreground",
 							},
 							"Actions",
-							Kbd({ class: [kbdClass, "max-md:hidden"] }, "⌘K"),
+							Kbd({ class: [kbdHintClass, "max-md:hidden"] }, "⌘K"),
 						),
 						DropdownMenuContent(
 							{ side: "top", align: "end", class: "w-64" },
