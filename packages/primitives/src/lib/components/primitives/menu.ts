@@ -506,47 +506,6 @@ export const MenuItem = createComponent(function MenuItem(
 	});
 });
 
-export type MenuCheckboxItemProps = MenuItemProps & {
-	checked?: Signal<boolean> | boolean;
-};
-
-export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
-	{
-		id = getId(),
-		checked = false,
-		onSelect = noop,
-		disabled = false,
-		closeOnSelect = true,
-		...restProps
-	}: MenuCheckboxItemProps,
-	...children: Child[]
-) {
-	return MenuCtx.Use((state) => {
-		const checkedSignal = signal(checked);
-		return Div(
-			mergeProps(
-				menuItemProps(state, {
-					id,
-					disabled: signal(disabled),
-					closeOnSelect,
-					select: () => {
-						checkedSignal.toggle();
-						onSelect();
-					},
-				}),
-				{
-					role: "menuitemcheckbox",
-					[state.attr("checkbox-item")]: "",
-					"aria-checked": checkedSignal,
-					"data-state": checkedSignal.bind((checked) => (checked ? "checked" : "unchecked")),
-				},
-				restProps,
-			),
-			...children,
-		);
-	});
-});
-
 class MenuGroupState {
 	headingId = signal<string | null>(null);
 }
@@ -592,6 +551,111 @@ export const MenuGroupHeading = createComponent(function MenuGroupHeading(
 				...children,
 			);
 		});
+	});
+});
+
+export type MenuCheckboxGroupProps = ComponentProps<typeof Div> & {
+	/** The values of the checked items. Pass a signal to control them from outside. */
+	value?: Signal<string[]> | string[];
+};
+
+class MenuCheckboxGroupState extends MenuGroupState {
+	value: Signal<string[]>;
+	constructor(value: MenuCheckboxGroupProps["value"]) {
+		super();
+		this.value = signal(value ?? []);
+	}
+
+	toggle(item: string) {
+		this.value.update((values) =>
+			values.includes(item) ? values.filter((value) => value !== item) : [...values, item],
+		);
+	}
+}
+
+const MenuCheckboxGroupCtx = context<MenuCheckboxGroupState>("MenuCheckboxGroupCtx");
+
+export const MenuCheckboxGroup = createComponent(function MenuCheckboxGroup(
+	{ id = getId(), value, ...restProps }: MenuCheckboxGroupProps,
+	...children: Child[]
+) {
+	return MenuCtx.Use((state) => {
+		const group = new MenuCheckboxGroupState(value);
+		return MenuGroupCtx.Provide(group).To(
+			MenuCheckboxGroupCtx.Provide(group).To(
+				Div(
+					mergeProps(
+						{
+							id,
+							role: "group",
+							[state.attr("checkbox-group")]: "",
+							"aria-labelledby": group.headingId.bind((headingId) => headingId ?? undefined),
+						},
+						restProps,
+					),
+					...children,
+				),
+			),
+		);
+	});
+});
+
+export type MenuCheckboxItemProps = MenuItemProps & {
+	checked?: Signal<boolean> | boolean;
+	/** Identifies the item inside a MenuCheckboxGroup. Must be unique within the group. */
+	value?: string;
+};
+
+export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
+	{
+		id = getId(),
+		checked = false,
+		value,
+		onSelect = noop,
+		disabled = false,
+		closeOnSelect = true,
+		...restProps
+	}: MenuCheckboxItemProps,
+	...children: Child[]
+) {
+	return MenuCtx.Use((state) => {
+		return MenuCheckboxGroupCtx.UseOr((group) => {
+			// inside a group the array owns the checked state, and a value is what
+			// names the item in it; anywhere else the item owns its own boolean
+			const membership = group !== null && value !== undefined ? { group, value } : null;
+			const checkedSignal = signal(checked);
+			const isChecked =
+				membership === null
+					? checkedSignal
+					: membership.group.value.bind((values) => values.includes(membership.value));
+
+			return Div(
+				mergeProps(
+					menuItemProps(state, {
+						id,
+						disabled: signal(disabled),
+						closeOnSelect,
+						select: () => {
+							if (membership === null) {
+								checkedSignal.toggle();
+							} else {
+								membership.group.toggle(membership.value);
+							}
+							onSelect();
+						},
+					}),
+					{
+						role: "menuitemcheckbox",
+						[state.attr("checkbox-item")]: "",
+						"data-value": value,
+						"aria-checked": isChecked,
+						"data-state": isChecked.bind((checked) => (checked ? "checked" : "unchecked")),
+					},
+					restProps,
+				),
+				...children,
+			);
+		}, null);
 	});
 });
 

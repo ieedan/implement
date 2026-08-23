@@ -10,6 +10,7 @@ import {
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import {
+	MenuCheckboxGroup,
 	MenuCheckboxItem,
 	MenuContent,
 	MenuCtx,
@@ -25,6 +26,7 @@ import {
 	MenuSubContent,
 	MenuSubTrigger,
 	menuTriggerProps,
+	type MenuCheckboxGroupProps,
 	type MenuCheckboxItemProps,
 	type MenuContentProps,
 	type MenuGroupHeadingProps,
@@ -97,6 +99,9 @@ export const DropdownMenuContent = MenuContent;
 
 export type DropdownMenuItemProps = MenuItemProps;
 export const DropdownMenuItem = MenuItem;
+
+export type DropdownMenuCheckboxGroupProps = MenuCheckboxGroupProps;
+export const DropdownMenuCheckboxGroup = MenuCheckboxGroup;
 
 export type DropdownMenuCheckboxItemProps = MenuCheckboxItemProps;
 export const DropdownMenuCheckboxItem = MenuCheckboxItem;

@@ -106,17 +106,39 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			],
 		},
 		{
+			name: `${prefix}CheckboxGroup`,
+			element: "Div",
+			description:
+				"Wraps checkbox items and owns which of them are checked, as one array of values.",
+			props: [
+				{
+					name: "value",
+					type: "Signal<string[]> | string[]",
+					default: "[]",
+					description:
+						"The values of the checked items. Pass a signal to control them from outside.",
+				},
+			],
+			dataAttributes: [{ name: `data-${variant}-checkbox-group`, value: "Present" }],
+		},
+		{
 			name: `${prefix}CheckboxItem`,
 			element: "Div",
 			description:
 				'An item holding a checked state. Sets role="menuitemcheckbox" and aria-checked.',
 			props: [
 				{
+					name: "value",
+					type: "string",
+					description:
+						"Identifies the item inside a checkbox group. Must be unique within the group; ignored outside one.",
+				},
+				{
 					name: "checked",
 					type: "Signal<boolean> | boolean",
 					default: "false",
 					description:
-						"The checked state; selecting toggles it. Pass a signal to control it from outside.",
+						"The checked state; selecting toggles it. Pass a signal to control it from outside. Inside a checkbox group the group's value owns it instead.",
 				},
 				{
 					name: "closeOnSelect",
@@ -133,6 +155,7 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			],
 			dataAttributes: [
 				{ name: `data-${variant}-checkbox-item`, value: "Present" },
+				{ name: "data-value", value: "The item's value, when it has one" },
 				{ name: "data-state", value: '"checked" | "unchecked"' },
 				{ name: "data-highlighted", value: "Present while focused" },
 				{ name: "data-disabled", value: "Present when disabled" },

@@ -41,7 +41,7 @@ The bar is one Tab stop. Left and Right arrows move between triggers (wrapping u
 
 ## Items and structure
 
-Panels hold the shared menu set: `MenubarItem` with `onSelect` and `closeOnSelect`, `MenubarCheckboxItem`, `MenubarRadioGroup` and `MenubarRadioItem`, `MenubarGroup` with `MenubarGroupHeading`, `MenubarSeparator`, and nested [submenus](/primitives/docs/dropdown-menu#submenus) via `MenubarSub`, `MenubarSubTrigger`, and `MenubarSubContent` — inside a submenu, Left and Right move within it rather than switching menubar menus.
+Panels hold the shared menu set: `MenubarItem` with `onSelect` and `closeOnSelect`, `MenubarCheckboxItem` (grouped into one array of values by `MenubarCheckboxGroup`), `MenubarRadioGroup` and `MenubarRadioItem`, `MenubarGroup` with `MenubarGroupHeading`, `MenubarSeparator`, and nested [submenus](/primitives/docs/dropdown-menu#submenus) via `MenubarSub`, `MenubarSubTrigger`, and `MenubarSubContent` — inside a submenu, Left and Right move within it rather than switching menubar menus.
 
 ## Accessibility and styling
 

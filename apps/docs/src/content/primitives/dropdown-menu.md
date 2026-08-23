@@ -48,6 +48,22 @@ const showStatusBar = signal(true);
 DropdownMenuCheckboxItem({ checked: showStatusBar, closeOnSelect: false }, "Status bar");
 ```
 
+When several checkbox items belong together, `DropdownMenuCheckboxGroup` holds all of them as one array of values instead of a boolean each. Give every item inside it a `value`, and the group's array is the set that is checked — selecting an item adds or removes its value:
+
+```ts
+const visible = signal(["status-bar", "activity-bar"]);
+
+DropdownMenuCheckboxGroup(
+	{ value: visible },
+	DropdownMenuGroupHeading("Panels"),
+	DropdownMenuCheckboxItem({ value: "status-bar", closeOnSelect: false }, "Status bar"),
+	DropdownMenuCheckboxItem({ value: "activity-bar", closeOnSelect: false }, "Activity bar"),
+	DropdownMenuCheckboxItem({ value: "panel", closeOnSelect: false }, "Panel"),
+);
+```
+
+The group is a `role="group"` like `DropdownMenuGroup`, so a `DropdownMenuGroupHeading` placed inside names it. Inside a group the group's array owns each item's checked state and the item's own `checked` prop is ignored; an item with no `value` keeps its own boolean.
+
 ## Structure
 
 `DropdownMenuGroup` wraps related items in `role="group"`; give the group a name with `DropdownMenuGroupHeading`, and the group labels itself with it. `DropdownMenuSeparator` draws a `role="separator"` line between sections. `DropdownMenuPortal` is the core Portal helper for escaping overflow and stacking contexts.

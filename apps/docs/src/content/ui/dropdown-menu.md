@@ -73,6 +73,16 @@ DropdownMenuRadioGroup(
 );
 ```
 
+`DropdownMenuCheckboxGroup` holds a set of checkbox items as one array of values, each item named by its own `value`:
+
+```ts
+DropdownMenuCheckboxGroup(
+	{ value: visible },
+	DropdownMenuCheckboxItem({ value: "status-bar", closeOnSelect: false }, "Status bar"),
+	DropdownMenuCheckboxItem({ value: "panel", closeOnSelect: false }, "Panel"),
+);
+```
+
 ## The shared menu styles
 
 This file is the source of the menu look. `menuContentClasses`, `menuItemClasses`, `menuGroupHeadingClasses`, and the indicator helpers are exported and reused by the [context menu](/ui/context-menu), the [menubar](/ui/menubar), and the [select](/ui/select) — so those three install this file alongside their own, and restyling every menu at once means editing one.

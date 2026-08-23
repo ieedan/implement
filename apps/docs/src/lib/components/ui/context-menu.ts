@@ -1,6 +1,7 @@
 import { type Child, type ComponentProps } from "@implementjs/core";
 import {
 	ContextMenu as ContextMenuPrimitive,
+	ContextMenuCheckboxGroup as ContextMenuCheckboxGroupPrimitive,
 	ContextMenuCheckboxItem as ContextMenuCheckboxItemPrimitive,
 	ContextMenuContent as ContextMenuContentPrimitive,
 	ContextMenuGroup as ContextMenuGroupPrimitive,
@@ -66,6 +67,11 @@ export const ContextMenuItem = createComponent(function ContextMenuItem(
 		...children,
 	);
 });
+
+export type ContextMenuCheckboxGroupProps = ComponentProps<
+	typeof ContextMenuCheckboxGroupPrimitive
+>;
+export const ContextMenuCheckboxGroup = ContextMenuCheckboxGroupPrimitive;
 
 export type ContextMenuCheckboxItemProps = ComponentProps<typeof ContextMenuCheckboxItemPrimitive>;
 

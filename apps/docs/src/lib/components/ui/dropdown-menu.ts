@@ -2,6 +2,7 @@ import { Span, type Child, type ComponentProps } from "@implementjs/core";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "@implementjs/lucide";
 import {
 	DropdownMenu as DropdownMenuPrimitive,
+	DropdownMenuCheckboxGroup as DropdownMenuCheckboxGroupPrimitive,
 	DropdownMenuCheckboxItem as DropdownMenuCheckboxItemPrimitive,
 	DropdownMenuContent as DropdownMenuContentPrimitive,
 	DropdownMenuGroup as DropdownMenuGroupPrimitive,
@@ -142,6 +143,11 @@ export const DropdownMenuItem = createComponent(function DropdownMenuItem(
 		...children,
 	);
 });
+
+export type DropdownMenuCheckboxGroupProps = ComponentProps<
+	typeof DropdownMenuCheckboxGroupPrimitive
+>;
+export const DropdownMenuCheckboxGroup = DropdownMenuCheckboxGroupPrimitive;
 
 export type DropdownMenuCheckboxItemProps = ComponentProps<
 	typeof DropdownMenuCheckboxItemPrimitive

@@ -12,6 +12,7 @@ import type { VirtualAnchor } from "../helpers/floating-ui";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import {
+	MenuCheckboxGroup,
 	MenuCheckboxItem,
 	MenuContent,
 	MenuCtx,
@@ -26,6 +27,7 @@ import {
 	MenuSub,
 	MenuSubContent,
 	MenuSubTrigger,
+	type MenuCheckboxGroupProps,
 	type MenuCheckboxItemProps,
 	type MenuContentProps,
 	type MenuGroupHeadingProps,
@@ -154,6 +156,9 @@ export const ContextMenuContent = MenuContent;
 
 export type ContextMenuItemProps = MenuItemProps;
 export const ContextMenuItem = MenuItem;
+
+export type ContextMenuCheckboxGroupProps = MenuCheckboxGroupProps;
+export const ContextMenuCheckboxGroup = MenuCheckboxGroup;
 
 export type ContextMenuCheckboxItemProps = MenuCheckboxItemProps;
 export const ContextMenuCheckboxItem = MenuCheckboxItem;
