@@ -105,6 +105,10 @@ Mark anything that wants the gesture for itself — a slider, a map — with `da
 DrawerContent(DrawerTitle("Layers"), Div({ "data-drawer-no-drag": "" }, MapCanvas()));
 ```
 
+## Keyboards
+
+A panel with a field in it opens above the on-screen keyboard rather than under it, and shrinks to whatever room is left — so the browser never has to scroll the page to reach what you just focused. That is `--ip-drawer-keyboard-inset` from the [primitive](/primitives/docs/drawer#on-screen-keyboards), spent on the panel's `bottom` and `max-height`. Overriding either of those is the one thing that will undo it.
+
 ## Scaling the page behind
 
 `scaleBackground: true` marks the document while the drawer is open and leaves the transform to your stylesheet, so the page can shrink back the way it does on iOS. Put `data-drawer-wrapper` on the element that should shrink and add this to your CSS:

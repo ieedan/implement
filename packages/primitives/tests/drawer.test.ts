@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App, Button, signal } from "@implementjs/core";
 import {
 	Drawer,
@@ -332,6 +332,46 @@ describe("drawer", () => {
 
 		drag(element(content, "[data-overflowing]"), { y: 300 }, { y: 0 });
 		expect(open.get()).toBe(false);
+	});
+
+	it("publishes how much of the viewport a keyboard has taken", async () => {
+		// a keyboard shrinks the visual viewport and leaves the layout one alone,
+		// which is the only reason its height can be worked out at all
+		const layout = window.innerHeight;
+		const viewport = { height: layout, offsetTop: 0, listeners: new Map<string, () => void>() };
+		vi.stubGlobal("visualViewport", {
+			get height() {
+				return viewport.height;
+			},
+			get offsetTop() {
+				return viewport.offsetTop;
+			},
+			addEventListener: (type: string, fn: () => void) => viewport.listeners.set(type, fn),
+			removeEventListener: (type: string) => viewport.listeners.delete(type),
+		});
+
+		const open = signal(true);
+		const { target } = await mount(DrawerFixture({ open }));
+		const content = element(target, "[data-drawer-content]");
+		const inset = () => content.style.getPropertyValue("--ip-drawer-keyboard-inset");
+
+		expect(inset()).toBe("0px");
+
+		viewport.height = layout - 336;
+		viewport.listeners.get("resize")?.();
+		expect(inset()).toBe("336px");
+
+		// the visual viewport scrolls inside the layout one, moving the bottom edge
+		viewport.offsetTop = 40;
+		viewport.listeners.get("scroll")?.();
+		expect(inset()).toBe("296px");
+
+		// and it is only the drawer's business while the drawer is open
+		open.set(false);
+		expect(inset()).toBe("0px");
+		expect(viewport.listeners.size).toBe(0);
+
+		vi.unstubAllGlobals();
 	});
 
 	it("ignores a drag that started on a no-drag region", async () => {

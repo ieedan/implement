@@ -86,6 +86,25 @@ Two things a drag deliberately does not do. It does not start from a scroll cont
 > [!NOTE]
 > Give scrollable regions inside the panel `overscroll-behavior: contain`. Without it a touch that runs past the end of the list scrolls the page behind the drawer instead of doing nothing.
 
+## On-screen keyboards
+
+A `fixed` panel is placed against the layout viewport, and a phone keyboard does not shrink that — it shrinks the _visual_ viewport on top of it. So a bottom drawer opens underneath the keyboard, and the browser scrolls the page to chase whatever the reader just focused. A drawer with a field in it is exactly where that happens.
+
+`DrawerContent` writes `--ip-drawer-keyboard-inset`: how much of the bottom of the viewport the keyboard has taken, in px, and `0px` when it has taken none. Sit on top of it, and cap the panel at what is left:
+
+```ts
+DrawerContent({
+	class: [
+		"fixed inset-x-0 bottom-[var(--ip-drawer-keyboard-inset,0px)]",
+		"max-h-[min(85dvh,calc(100dvh-var(--ip-drawer-keyboard-inset,0px)-1.5rem))]",
+	],
+});
+```
+
+A panel that fits above the keyboard is a panel the browser never has to scroll, so the drawer stays where it was put and the field stays where the reader is looking.
+
+The measurement is live for as long as the drawer is open, and it comes from `visualViewport` — the same reading Vaul takes. Nothing reads it for you, so a drawer that never holds a field can ignore it.
+
 ## Snap points
 
 `snapPoints` gives the panel resting positions, ordered least to most of the screen. A number is a fraction of the viewport and a string is a length the viewport does not enter into:
@@ -184,7 +203,7 @@ The handle is `aria-hidden`, so it is not a control anyone can reach — Escape,
 
 ## What is not ported
 
-Vaul's non-modal drawer (`modal={false}`), its iOS keyboard repositioning (`repositionInputs`, `fixed`), and its scroll restoration are not here. `preventScroll: false` covers the part of the first one that is about the page behind still scrolling.
+Vaul's non-modal drawer (`modal={false}`) and its scroll restoration are not here. `preventScroll: false` covers the part of the first one that is about the page behind still scrolling. Vaul's keyboard repositioning is here in measurement form — see [On-screen keyboards](#on-screen-keyboards) — but it does not resize the panel for you the way `repositionInputs` and `fixed` do.
 
 ## API Reference
 

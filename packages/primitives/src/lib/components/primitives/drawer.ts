@@ -70,6 +70,7 @@ const OFFSET_Y_VAR = `--${LIB_PREFIX}-drawer-offset-y`;
 const PROGRESS_VAR = `--${LIB_PREFIX}-drawer-progress`;
 const FADE_VAR = `--${LIB_PREFIX}-drawer-fade`;
 const SCALE_VAR = `--${LIB_PREFIX}-drawer-scale`;
+const KEYBOARD_VAR = `--${LIB_PREFIX}-drawer-keyboard-inset`;
 const BACKGROUND_ATTRIBUTE = "data-drawer-open";
 const NO_DRAG_SELECTOR = "[data-drawer-no-drag]";
 
@@ -199,6 +200,12 @@ export class DrawerState extends ModalState {
 	panelSize = signal(0);
 	/** The mounted panel, republished from the modal base's content ref. */
 	contentElement = signal<HTMLElement | null>(null);
+	/**
+	 * How much of the bottom of the viewport an on-screen keyboard is covering.
+	 * A fixed panel is placed against the layout viewport, which the keyboard
+	 * does not shrink, so without this a bottom drawer opens underneath it.
+	 */
+	keyboardInset = signal(0);
 
 	readonly snapOffsets: Readable<number[]>;
 	readonly activeIndex: Readable<number>;
@@ -312,6 +319,22 @@ export class DrawerState extends ModalState {
 		this.viewportSize.set(this.vertical ? window.innerHeight : window.innerWidth);
 	}
 
+	/**
+	 * The keyboard's height, as the gap between the layout viewport a fixed panel
+	 * is placed against and the visual viewport actually on screen. Both iOS
+	 * Safari and Android Chrome leave `innerHeight` alone when the keyboard opens
+	 * and shrink `visualViewport` instead, which is what makes this readable.
+	 */
+	measureKeyboard() {
+		if (typeof window === "undefined") return;
+		const viewport = window.visualViewport;
+		if (!viewport) return;
+		const inset = window.innerHeight - viewport.height - viewport.offsetTop;
+		// rounded because the viewport reports fractions mid-animation, and a
+		// panel that reflows on every hundredth of a pixel is a panel that jitters
+		this.keyboardInset.set(Math.max(0, Math.round(inset)));
+	}
+
 	measurePanel() {
 		const el = this.contentElement.get();
 		if (!el) return;
@@ -337,6 +360,7 @@ export class DrawerState extends ModalState {
 					this.vertical ? `${d * this.sign}px` : "0px",
 				),
 				[PROGRESS_VAR]: this.progress.bind(String),
+				[KEYBOARD_VAR]: this.keyboardInset.bind((px) => `${px}px`),
 			},
 		};
 	}
@@ -509,7 +533,33 @@ export class DrawerState extends ModalState {
 			}),
 		);
 
+		// only while open: a keyboard raised for something else on the page is not
+		// this drawer's business, and the listener is not worth holding either
+		let stopKeyboard: (() => void) | null = null;
+		const watchKeyboard = (open: boolean) => {
+			stopKeyboard?.();
+			stopKeyboard = null;
+			if (!open) {
+				this.keyboardInset.set(0);
+				return;
+			}
+			const viewport = typeof window === "undefined" ? null : window.visualViewport;
+			if (!viewport) return;
+			const measure = () => this.measureKeyboard();
+			measure();
+			viewport.addEventListener("resize", measure);
+			// the visual viewport scrolls within the layout one, which moves the
+			// bottom edge without changing its height
+			viewport.addEventListener("scroll", measure);
+			stopKeyboard = () => {
+				viewport.removeEventListener("resize", measure);
+				viewport.removeEventListener("scroll", measure);
+			};
+		};
+		stops.push(() => stopKeyboard?.());
+
 		const sync = (open: boolean) => {
+			watchKeyboard(open);
 			if (open) {
 				this.openedAt = Date.now();
 				this.measureViewport();

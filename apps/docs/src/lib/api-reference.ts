@@ -2900,6 +2900,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					description:
 						"How far the drag has pulled the panel from its resting position, 0 to 1. Also written to the document while scaleBackground is on.",
 				},
+				{
+					name: "--ip-drawer-keyboard-inset",
+					description:
+						"How much of the bottom of the viewport an on-screen keyboard has taken, in px, and 0px when it has taken none. A fixed panel sits against the layout viewport, which the keyboard does not shrink — spend this on bottom and max-height so the panel opens above the keyboard rather than under it.",
+				},
 			],
 		},
 		{
