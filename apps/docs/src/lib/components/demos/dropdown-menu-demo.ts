@@ -1,6 +1,7 @@
 import { signal } from "@implementjs/core";
 import {
 	DropdownMenu,
+	DropdownMenuCheckboxGroup,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuGroup,
@@ -18,6 +19,7 @@ import {
 export default function DropdownMenuDemo() {
 	const showStatusBar = signal(true);
 	const position = signal<string | null>("bottom");
+	const visible = signal(["activity-bar"]);
 
 	return DropdownMenu(
 		DropdownMenuTrigger("Open menu"),
@@ -40,6 +42,13 @@ export default function DropdownMenuDemo() {
 			),
 			DropdownMenuSeparator(),
 			DropdownMenuCheckboxItem({ checked: showStatusBar, closeOnSelect: false }, "Status bar"),
+			DropdownMenuSeparator(),
+			DropdownMenuCheckboxGroup(
+				{ value: visible },
+				DropdownMenuGroupHeading("Panels"),
+				DropdownMenuCheckboxItem({ value: "activity-bar", closeOnSelect: false }, "Activity bar"),
+				DropdownMenuCheckboxItem({ value: "terminal", closeOnSelect: false }, "Terminal"),
+			),
 			DropdownMenuSeparator(),
 			DropdownMenuRadioGroup(
 				{ value: position },

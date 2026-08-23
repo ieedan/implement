@@ -9,12 +9,13 @@ order: 50
 
 ### `createForm(config)`
 
-| Option         | Type                                                                | Default    | What it does                                               |
-| -------------- | ------------------------------------------------------------------- | ---------- | ---------------------------------------------------------- |
-| `schema`       | Standard Schema with an object input                                | required   | Types the fields, validates the input, produces the output |
-| `initialInput` | `DeepPartial<Input>`                                                | `{}`       | What the fields start at                                   |
-| `validate`     | `"initial" \| "touch" \| "input" \| "change" \| "blur" \| "submit"` | `"submit"` | When a field first reports errors                          |
-| `revalidate`   | the same, without `"initial"`                                       | `"input"`  | When a field that already has errors reports again         |
+| Option         | Type                                                                | Default                          | What it does                                                 |
+| -------------- | ------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------ |
+| `schema`       | valibot schema with an object input                                 | required                         | Types the fields, validates the input, produces the output   |
+| `initialInput` | `DeepPartial<Input>`                                                | `{}`                             | What the fields start at, over the schema's own empty values |
+| `emptyInput`   | `EmptyInput`                                                        | `{ string: "", boolean: false }` | Where a required field of a given type starts                |
+| `validate`     | `"initial" \| "touch" \| "input" \| "change" \| "blur" \| "submit"` | `"submit"`                       | When a field first reports errors                            |
+| `revalidate`   | the same, without `"initial"`                                       | `"input"`                        | When a field that already has errors reports again           |
 
 Returns a **form store**:
 
@@ -108,4 +109,6 @@ Each takes the form store first. Every `path` is checked against the schema.
 
 ## Types
 
-`FormSchema`, `FormConfig`, `FormStore`, `FieldStore`, `FieldArrayStore`, `FieldPath`, `ArrayPath`, `PathValue`, `Path`, `PathKey`, `FieldErrors`, `FieldElement`, `FieldElementProps`, `ValidationMode`, `RevalidationMode`, `DeepPartial`, `PartialInput`, `SubmitHandler`, and the Standard Schema types `StandardSchemaV1`, `InferInput`, `InferOutput`.
+`FormSchema`, `FormConfig`, `FormStore`, `FieldStore`, `FieldArrayStore`, `FieldPath`, `ArrayPath`, `PathValue`, `Path`, `PathKey`, `FieldErrors`, `FieldElement`, `FieldElementProps`, `ValidationMode`, `RevalidationMode`, `DeepPartial`, `PartialInput`, `SubmitHandler`, `EmptyInput`, `InferInput`, and `InferOutput`.
+
+The value `DEFAULT_EMPTY_INPUT` is exported too, for building an `emptyInput` on top of the defaults.

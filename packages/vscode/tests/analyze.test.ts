@@ -190,9 +190,11 @@ describe("components in this project", () => {
 	});
 
 	it("reads props plus a rest parameter", () => {
-		expect(props('import { Link } from "../router";\nconst l = Link(|)', { fileName: HOME })).toBe(
-			"const l = Link({}, |)",
-		);
+		expect(
+			props('import { Sheet } from "../components/ui/sheet";\nconst s = Sheet(|)', {
+				fileName: HOME,
+			}),
+		).toBe("const s = Sheet({}, |)");
 	});
 
 	it("reads destructured props through a path alias", () => {

@@ -35,11 +35,6 @@ export function namePath(name: string): Path {
 	return name.split(".").map((key) => (/^\d+$/.test(key) ? Number(key) : key));
 }
 
-/** Whether this is a name the form gave a field of its own. */
-export function isFieldName(name: string): boolean {
-	return pathsByName.has(name);
-}
-
 /** The name of the form root, whose path is empty. */
 export const ROOT_NAME = pathName([]);
 

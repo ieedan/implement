@@ -43,6 +43,52 @@ import type { MaybePromise } from "./server.ts";
 /** The HTTP methods a `server.ts` may export a handler for. */
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD";
 
+/** The phantom key a {@link json} response carries its body type on. */
+declare const JSON_BODY: unique symbol;
+
+/**
+ * A `Response` that remembers the type of the JSON body it carries. The key is
+ * a phantom — nothing sets it at runtime — and it is required rather than
+ * optional so a plain `Response` is not one of these by accident.
+ */
+export interface JsonResponse<T> extends Response {
+	readonly [JSON_BODY]: T;
+}
+
+/**
+ * `Response.json`, with the body's type kept.
+ *
+ * Returning a `Response` from `handle` opts out of response handling, which is
+ * the point for a stream or a redirect — but it also opts the caller out of
+ * knowing what came back, and wanting a `201` is not a reason to lose that.
+ * `json` is the way to set a status and stay typed:
+ *
+ * ```ts
+ * export const POST = handler({
+ * 	body: NewIssue,
+ * 	handle: async ({ body }) => json(await createIssue(body), { status: 201 }),
+ * });
+ *
+ * const { data } = await api.POST("/api/issues", { body }); // the issue, not `never`
+ * ```
+ *
+ * A plain `Response` is still the escape hatch for a body that is not JSON,
+ * and a caller reads `data` as `never` for one — there is nothing to say about
+ * it. With a `response` schema the schema is what types `data`, and returning
+ * any `Response`, this one included, skips that validation.
+ */
+export function json<T>(body: T, init?: ResponseInit): JsonResponse<T> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The phantom key is type-level only; the value is the `Response` it says it is.
+	return Response.json(body, init) as JsonResponse<T>;
+}
+
+/**
+ * What a caller receives for what `handle` returned. A plain `Response` opts
+ * out of response handling, so it says nothing about `data`; a {@link json}
+ * says exactly what it carries.
+ */
+type HandlerData<R> = R extends JsonResponse<infer T> ? T : R extends Response ? never : R;
+
 /**
  * Query params as the parser produces them: one value for a key is a `string`,
  * a key that repeats is a `string[]`. This is what `event.query` holds when a
@@ -62,7 +108,7 @@ export type FormRecord = Record<string, FormDataEntryValue | FormDataEntryValue[
  * the module.
  */
 export type EndpointSpec = {
-	/** What `handle` sees as `event.params` — the route's strings, or the `params` schema's output. */
+	/** What `handle` sees as `event.params` — what the route bound, or the `params` schema's output. */
 	params: unknown;
 	/** What a caller may send as `query`, or `undefined` when nothing declares it. */
 	query: unknown;
@@ -94,7 +140,11 @@ export type Handler<S extends EndpointSpec = EndpointSpec> = ((
 
 /** The event a validated `handle` receives: the request event with the parsed parts on it. */
 export type HandlerEvent<Params, Query, Body> = Omit<RequestEvent, "params"> & {
-	/** The route's params — strings, or the `params` schema's output when one is declared. */
+	/**
+	 * The route's params: what the route bound — strings, or whatever a
+	 * `[id=<name>]` matcher parsed them into — or the `params` schema's output
+	 * when the handler declares one.
+	 */
 	params: Params;
 	/** `url.searchParams`, or the `query` schema's output when one is declared. */
 	query: Query;
@@ -165,7 +215,10 @@ type BodyInputOf<BS> = BS extends Schema ? StandardSchemaV1.InferInput<BS> : und
 
 /** The parts of a definition that do not depend on whether a `response` schema is present. */
 type Parts<PS, QS, BS> = {
-	/** Overrides the route's string params — coerce an `[id]` to a number here. */
+	/**
+	 * Overrides what the route bound — coerce an `[id]` to a number here. A
+	 * `[id=integer]` matcher already did that, and for every route naming it.
+	 */
 	params?: PS;
 	/** Validates `url.searchParams`, flattened to one value (or an array) per key. */
 	query?: QS;
@@ -178,8 +231,11 @@ type Parts<PS, QS, BS> = {
  * params. Two call signatures: with a `response` schema `handle` must return
  * something the schema accepts, and without one the return type flows straight
  * through to the client.
+ *
+ * `P` is what the route binds: strings, unless a `[id=<name>]` param matcher
+ * parsed the segment into something else on the way in.
  */
-export interface HandlerBuilder<P extends Record<string, string> = Record<string, string>> {
+export interface HandlerBuilder<P extends Record<string, unknown> = Record<string, string>> {
 	<
 		PS extends Schema | undefined = undefined,
 		QS extends Schema | undefined = undefined,
@@ -216,9 +272,9 @@ export interface HandlerBuilder<P extends Record<string, string> = Record<string
 		params: ParamsOf<PS, P>;
 		query: QueryInputOf<QS>;
 		body: BodyInputOf<BS>;
-		// returning a `Response` opts out of response handling, so it is never
-		// part of what a caller receives as `data`
-		data: Exclude<Awaited<R>, Response>;
+		// returning a plain `Response` opts out of response handling, so it is
+		// never part of what a caller receives as `data`; `json()` keeps its body
+		data: HandlerData<Awaited<R>>;
 	}>;
 }
 

@@ -2,21 +2,35 @@ import { MissingLinkedPackageError } from "@/utils/errors";
 import type { TemplateContext } from "@/templates/types";
 
 /**
- * Scaffolded apps ask for the latest tag of each implement package, so a new app starts on the
- * current release. Inside the monorepo `--workspace` swaps these for `workspace:*`.
+ * The implement packages, at the lowest release a scaffolded app may start on. These are floors,
+ * not pins: `~0.0.3` is `>=0.0.3 <0.1.0`, so an app installs whatever patch is newest at install
+ * time and never a minor.
+ *
+ * A tilde and not a caret, which on this version line is the whole point — `^0.0.3` is
+ * `>=0.0.3 <0.0.4`, an exact pin, so every release would need a new number written in here.
+ * A tilde is a floor a release moves past on its own.
+ *
+ * So nothing here changes when a package is published. Raise a floor when a template starts
+ * using something the older release does not have, and swap the whole line for `^0.1.0` once
+ * these leave `0.0.x` — a caret is the right sigil the moment there is a non-zero minor.
+ *
+ * Inside the monorepo `--workspace` swaps these for `workspace:*` and `--link` for a path, so
+ * neither reads a version at all.
  */
-export const IMPLEMENT_VERSION = "latest";
+export const IMPLEMENT_VERSIONS = {
+	"@implementjs/core": "~0.0.3",
+	"@implementjs/eslint": "~0.0.1",
+	"@implementjs/formish": "~0.0.3",
+	"@implementjs/kit": "~0.0.4",
+	"@implementjs/lucide": "~0.0.3",
+	"@implementjs/mode-watcher": "~0.0.3",
+	"@implementjs/primitives": "~0.0.3",
+	"@implementjs/router": "~0.0.4",
+} as const satisfies Record<string, string>;
 
-/** Everything a template can put in a generated `package.json`, pinned in one place. */
+/** Everything a template can put in a generated `package.json`, spelled in one place. */
 export const VERSIONS = {
-	"@implementjs/core": IMPLEMENT_VERSION,
-	"@implementjs/eslint": IMPLEMENT_VERSION,
-	"@implementjs/formish": IMPLEMENT_VERSION,
-	"@implementjs/kit": IMPLEMENT_VERSION,
-	"@implementjs/lucide": IMPLEMENT_VERSION,
-	"@implementjs/mode-watcher": IMPLEMENT_VERSION,
-	"@implementjs/primitives": IMPLEMENT_VERSION,
-	"@implementjs/router": IMPLEMENT_VERSION,
+	...IMPLEMENT_VERSIONS,
 	"@tailwindcss/vite": "^4.3.3",
 	"@types/node": "^26.2.0",
 	jsrepo: "^3.8.1",

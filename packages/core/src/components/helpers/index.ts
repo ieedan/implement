@@ -1,5 +1,6 @@
 export { Await, type AwaitHelper } from "./await";
 export { ImplementBoundary, type BoundaryHelper } from "./boundary";
+export { Dynamic } from "./dynamic";
 export { ForEach } from "./foreach";
 export { Fragment, type FragmentProps } from "./fragment";
 export { type DocumentProps, type WindowProps } from "./global-events";

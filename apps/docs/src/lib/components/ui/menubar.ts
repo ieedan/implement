@@ -1,6 +1,7 @@
 import { type Child, type ComponentProps } from "@implementjs/core";
 import {
 	Menubar as MenubarPrimitive,
+	MenubarCheckboxGroup as MenubarCheckboxGroupPrimitive,
 	MenubarCheckboxItem as MenubarCheckboxItemPrimitive,
 	MenubarContent as MenubarContentPrimitive,
 	MenubarGroup as MenubarGroupPrimitive,
@@ -101,6 +102,9 @@ export const MenubarItem = createComponent(function MenubarItem(
 		...children,
 	);
 });
+
+export type MenubarCheckboxGroupProps = ComponentProps<typeof MenubarCheckboxGroupPrimitive>;
+export const MenubarCheckboxGroup = MenubarCheckboxGroupPrimitive;
 
 export type MenubarCheckboxItemProps = ComponentProps<typeof MenubarCheckboxItemPrimitive>;
 

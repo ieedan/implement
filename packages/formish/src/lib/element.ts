@@ -3,11 +3,11 @@ import { fieldElements, readInput, type InternalFormStore } from "./store";
 import type { FieldElement } from "./types";
 
 /**
- * Whether a field holds a list. Without a schema to ask, the value it already
- * holds answers first, then the element itself — a `multiple` select or file
- * input is a list even before anything is picked. Pass `array` on the field
- * config for a group that starts out empty and has no `multiple` attribute,
- * such as a set of checkboxes.
+ * Whether a field holds a list. The schema answers for every field it names,
+ * then the value the field already holds, then the element itself — a
+ * `multiple` select or file input is a list even before anything is picked.
+ * Pass `array` on the field config for the rest: a group the schema cannot see
+ * into, such as one branch of a union.
  */
 export function isArrayField(
 	store: InternalFormStore,
@@ -65,15 +65,4 @@ export function getElementInput(
 	}
 
 	return element.value;
-}
-
-/**
- * Whether an element reports an empty value as the empty string — a text
- * field, in other words. A number or date input reports `""` too, but the
- * field behind it is not a string, so it stays missing instead.
- */
-export function isTextLike(element: FieldElement): boolean {
-	if (element instanceof HTMLTextAreaElement) return true;
-	if (!(element instanceof HTMLInputElement)) return false;
-	return ["text", "email", "password", "search", "tel", "url", ""].includes(element.type);
 }

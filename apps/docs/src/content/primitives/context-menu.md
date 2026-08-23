@@ -33,7 +33,7 @@ The trigger intercepts the `contextmenu` event, so the browser menu is replaced 
 
 ## Items, structure, and keyboard
 
-Everything inside the panel is the shared menu set: `ContextMenuItem` with `onSelect` and `closeOnSelect`, `ContextMenuCheckboxItem`, `ContextMenuRadioGroup` and `ContextMenuRadioItem`, `ContextMenuGroup` with `ContextMenuGroupHeading`, `ContextMenuSeparator`, and nested [submenus](/primitives/docs/dropdown-menu#submenus) via `ContextMenuSub`, `ContextMenuSubTrigger`, and `ContextMenuSubContent`. The keyboard model matches the [dropdown menu](/primitives/docs/dropdown-menu#keyboard): arrows move, typing jumps, Enter and Space activate, ArrowRight and ArrowLeft enter and leave submenus, Escape closes.
+Everything inside the panel is the shared menu set: `ContextMenuItem` with `onSelect` and `closeOnSelect`, `ContextMenuCheckboxItem` (grouped into one array of values by `ContextMenuCheckboxGroup`), `ContextMenuRadioGroup` and `ContextMenuRadioItem`, `ContextMenuGroup` with `ContextMenuGroupHeading`, `ContextMenuSeparator`, and nested [submenus](/primitives/docs/dropdown-menu#submenus) via `ContextMenuSub`, `ContextMenuSubTrigger`, and `ContextMenuSubContent`. The keyboard model matches the [dropdown menu](/primitives/docs/dropdown-menu#keyboard): arrows move, typing jumps, Enter and Space activate, ArrowRight and ArrowLeft enter and leave submenus, Escape closes.
 
 ## Styling
 

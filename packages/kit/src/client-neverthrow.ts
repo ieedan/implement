@@ -20,11 +20,14 @@ import { err, ok, ResultAsync } from "neverthrow";
 import {
 	ApiError,
 	createClient as createResultClient,
+	createNested,
 	type ApiRoutes,
+	type CallInput,
 	type ClientOptions,
+	type Method,
 	type MethodClient,
+	type NestedClient,
 	type Outcome,
-	type PathClient,
 	type Wrapper,
 } from "./client.ts";
 
@@ -48,8 +51,8 @@ export interface NeverthrowWrapper extends Wrapper {
 /** Method-first (`api.GET(path, …)`), returning a `ResultAsync`. */
 export type ResultClient<A extends ApiRoutes> = MethodClient<A, NeverthrowWrapper>;
 
-/** Route-first (`api[path].GET(…)`), returning a `ResultAsync`. */
-export type ResultPathClient<A extends ApiRoutes> = PathClient<A, NeverthrowWrapper>;
+/** Nested by segment (`api.api.posts["[id]"].GET(…)`), returning a `ResultAsync`. */
+export type ResultNestedClient<A extends ApiRoutes> = NestedClient<A, NeverthrowWrapper>;
 
 /** The loosely-typed shape every call has once the generated types are erased. */
 type Call = (...args: unknown[]) => Promise<Outcome<unknown>>;
@@ -61,15 +64,18 @@ type Call = (...args: unknown[]) => Promise<Outcome<unknown>>;
  */
 // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- As in `./client.ts`: the client's type comes from the call site.
 export function createClient<C>(options: Omit<ClientOptions, "errors"> = {}): C {
-	const client = createResultClient<Record<string, unknown>>({ ...options, errors: "result" });
-	// the path style hands back a fresh object of methods per key, so the wrap
-	// has to happen on the way out of the proxy rather than once up front
-	if (options.style === "path") {
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The generated table types this; the runtime is method dispatch either way.
-		return new Proxy(
-			{},
-			{ get: (_, key) => (typeof key === "string" ? wrapAll(client[key]) : undefined) },
-		) as C;
+	const client = createResultClient<Record<Method, (path: string, input?: CallInput) => unknown>>({
+		...options,
+		errors: "result",
+		style: "method",
+	});
+	// the nested style hands back a fresh call per leaf, so the wrap has to
+	// happen on the way out of the proxy rather than once up front
+	if (options.style === "nested") {
+		return createNested<C>((method, path, input) =>
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `createClient` above is the method client, so every call answers with an `Outcome`.
+			wrap(client[method](path, input) as Promise<Outcome<unknown>>),
+		);
 	}
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Same.
 	return wrapAll(client) as C;

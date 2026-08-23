@@ -10,6 +10,7 @@ import {
 	type Path,
 	type PathKey,
 } from "./path";
+import { DEFAULT_EMPTY_INPUT, seedField, seedInput, type EmptyInput } from "./schema";
 import type {
 	FieldElement,
 	FieldErrors,
@@ -54,6 +55,9 @@ export interface InternalFormStore {
 	readonly isSubmitted: Signal<boolean>;
 	readonly isValidating: Signal<boolean>;
 
+	/** Where a required field of a given type starts, defaults already merged in. */
+	readonly emptyInput: EmptyInput;
+
 	/** Orders validations so a slow one cannot overwrite a newer one's result. */
 	validationId: number;
 	readonly validate: ValidationMode;
@@ -69,7 +73,17 @@ export function createId(): string {
 }
 
 export function createFormStore(config: FormConfig<FormSchema>): InternalFormStore {
-	const initialInput = (config.initialInput ?? {}) as Record<string, unknown>;
+	const emptyInput = { ...DEFAULT_EMPTY_INPUT, ...config.emptyInput };
+	const arrayFields = new Set<string>();
+
+	// the schema is what says which fields exist — not what happens to be
+	// rendered — so every one of them starts at a value, whether or not
+	// anything ever mounts an element for it
+	const initialInput = seedInput(config.schema, config.initialInput, {
+		emptyInput,
+		onArrayField: (path) => arrayFields.add(pathName(path)),
+	});
+
 	return {
 		schema: config.schema,
 		element: ref<HTMLFormElement>(),
@@ -80,14 +94,27 @@ export function createFormStore(config: FormConfig<FormSchema>): InternalFormSto
 		touched: signal<ReadonlySet<string>>(new Set()),
 		edited: signal<ReadonlySet<string>>(new Set()),
 		items: new Map(),
-		arrayFields: new Set(),
+		arrayFields,
 		isSubmitting: signal(false),
 		isSubmitted: signal(false),
 		isValidating: signal(false),
+		emptyInput,
 		validationId: 0,
 		validate: config.validate ?? "submit",
 		revalidate: config.revalidate ?? "input",
 	};
+}
+
+/**
+ * Fills in the fields the schema names below `path` on a value headed there —
+ * a new array item, or a new starting point for `reset`. What the caller gave
+ * always wins; this only reaches the fields it left out.
+ */
+export function seedValue(store: InternalFormStore, path: Path, input: unknown): unknown {
+	return seedField(store.schema, path, input, {
+		emptyInput: store.emptyInput,
+		onArrayField: (target) => store.arrayFields.add(pathName(target)),
+	});
 }
 
 export function readInput(store: InternalFormStore, path: Path): unknown {

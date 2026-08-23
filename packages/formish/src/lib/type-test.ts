@@ -1,25 +1,20 @@
 import type { Readable } from "@implementjs/core";
+import * as v from "valibot";
 import { Field, FieldArray } from "./components";
 import { useField } from "./field";
 import { useFieldArray } from "./field-array";
 import { createForm } from "./form";
 import { getInput, insert, remove, setInput } from "./methods";
-import type { StandardSchemaV1 } from "./standard-schema";
 
-/**
- * A stand-in schema, so the type tests do not depend on a schema library being
- * installed. Only the types matter here — nothing is validated.
- */
-declare function schemaOf<TInput>(): StandardSchemaV1<TInput, TInput>;
+/** Only the types matter here — nothing in this file is validated or run. */
+const SignUpSchema = v.object({
+	email: v.string(),
+	age: v.number(),
+	profile: v.object({ name: v.string(), nickname: v.optional(v.string()) }),
+	todos: v.array(v.object({ label: v.string(), tags: v.array(v.string()) })),
+});
 
-type SignUp = {
-	email: string;
-	age: number;
-	profile: { name: string; nickname?: string };
-	todos: { label: string; tags: string[] }[];
-};
-
-const form = createForm({ schema: schemaOf<SignUp>() });
+const form = createForm({ schema: SignUpSchema });
 
 const email = useField(form, { path: ["email"] });
 const age = useField(form, { path: ["age"] });

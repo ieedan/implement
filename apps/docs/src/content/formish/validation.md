@@ -45,17 +45,32 @@ const message = derived([field.errors, field.isTouched], (errors, touched) =>
 If(message).Then(FieldError(message));
 ```
 
-## Empty fields
+## Where fields start
 
-A field nobody has typed into holds nothing, which would make a required string fail as "expected string, received undefined" rather than with your own message. So before validating, formish fills in what the user can already see: a text input that is empty validates as `""`, an unchecked checkbox as `false`, and a group with nothing selected as `[]`.
-
-The store itself is untouched — only the value handed to the schema is filled in. Write your messages for the empty case and they are what the user gets:
+A field nobody has typed into holds nothing, which would make a required string fail as "expected string, received undefined" rather than with your own message. So formish walks the schema when the form is created and gives every field a starting value: `""` for a string, `false` for a boolean, `[]` for an array, `null` for a nullable. Write your messages for the empty case and they are what the user gets:
 
 ```ts
 v.pipe(v.string(), v.minLength(1, "Enter your email"));
 ```
 
-A field with no empty value to stand in for — a number, a date — stays missing, and the schema reports it as such.
+This comes from the schema, not from the DOM, so it does not depend on what is currently rendered. A field behind a collapsed section, on a tab nobody has opened, or with no `Field` written for it at all validates exactly like one that is on screen.
+
+A field with no empty value to stand in for — a number, a date — stays missing, and the schema reports it as such. Name one per type to change that:
+
+```ts
+createForm({
+	schema: SignUpSchema,
+	emptyInput: {
+		number: 0, // required numbers start at 0 instead of missing
+		string: undefined, // opt a type out entirely
+	},
+});
+```
+
+`emptyInput` is merged over the defaults (`{ string: "", boolean: false }`), so naming `number` leaves the other two in place. Optional fields are never affected — they accept a missing value already.
+
+> [!NOTE]
+> Formish walks objects, arrays, tuples, intersections and the optional/nullable wrappers. It does not walk into a `v.union`, a `v.variant` or a `v.record`, since there is no single branch or key set to seed from; those fields hold whatever `initialInput` gives them.
 
 ## Validating by hand
 

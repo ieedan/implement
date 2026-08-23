@@ -179,7 +179,7 @@ export async function prerenderServerFiles(options: {
 			];
 		} else if (endpoint.extension !== null) {
 			targets = routes
-				.filter((route) => matchRoutePattern(endpoint.pattern, route) !== null)
+				.filter((route) => matchRoutePattern(endpoint.pattern, route, "structure") !== null)
 				.map((route) => extensionPattern(route, endpoint.extension!));
 		} else {
 			logger.warn(

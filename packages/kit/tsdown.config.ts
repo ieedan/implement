@@ -10,6 +10,7 @@ export default defineConfig({
 		"src/handler.ts",
 		"src/node.ts",
 		"src/openapi.ts",
+		"src/params.ts",
 		"src/runtime.ts",
 		"src/server.ts",
 		"src/sync.ts",

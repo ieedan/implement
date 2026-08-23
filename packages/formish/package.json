@@ -1,16 +1,13 @@
 {
 	"name": "@implementjs/formish",
-	"version": "0.0.2",
+	"version": "0.0.4",
 	"description": "Schema first forms for implement. The schema types the fields, validates the input and produces the submit handler's output.",
 	"keywords": [
 		"implement",
 		"implementjs",
 		"forms",
 		"validation",
-		"standard-schema",
-		"valibot",
-		"zod",
-		"arktype"
+		"valibot"
 	],
 	"license": "MIT",
 	"author": "Aidan Bleser",
@@ -51,6 +48,9 @@
 	},
 	"dependencies": {
 		"@implementjs/core": "workspace:*"
+	},
+	"peerDependencies": {
+		"valibot": ">=1.4.1 <2"
 	},
 	"devDependencies": {
 		"@types/node": "^26.2.0",

@@ -15,6 +15,7 @@ import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import {
+	MenuCheckboxGroup,
 	MenuCheckboxItem,
 	MenuContent,
 	MenuGroup,
@@ -29,6 +30,7 @@ import {
 	MenuSubContent,
 	MenuSubTrigger,
 	menuTriggerProps,
+	type MenuCheckboxGroupProps,
 	type MenuCheckboxItemProps,
 	type MenuContentProps,
 	type MenuGroupHeadingProps,
@@ -240,6 +242,9 @@ export const MenubarContent = MenuContent;
 
 export type MenubarItemProps = MenuItemProps;
 export const MenubarItem = MenuItem;
+
+export type MenubarCheckboxGroupProps = MenuCheckboxGroupProps;
+export const MenubarCheckboxGroup = MenuCheckboxGroup;
 
 export type MenubarCheckboxItemProps = MenuCheckboxItemProps;
 export const MenubarCheckboxItem = MenuCheckboxItem;

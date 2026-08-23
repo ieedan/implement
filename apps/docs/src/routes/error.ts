@@ -1,5 +1,5 @@
 import { Div, P, Span, type Child } from "@implementjs/core";
-import { router } from "@/lib/router";
+import { router } from "$implement/router";
 import type { ErrorProps } from "./$types";
 
 export default function ErrorPage({ error }: ErrorProps): Child {

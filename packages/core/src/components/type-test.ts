@@ -1,4 +1,5 @@
 import { A, Br, Button, Div, Form, H1, Img, Input, Link, P, Span } from "./elements";
+import { Dynamic } from "./helpers/dynamic";
 import { ForEach } from "./helpers/foreach";
 import { Fragment } from "./helpers/fragment";
 import { If } from "./helpers/if";
@@ -6,7 +7,7 @@ import { ImplementHead } from "./helpers/head";
 import { ImplementMap, ImplementSet } from "./helpers/implement";
 import { Svg } from "./helpers/svg";
 import { derived, Ref, signal, type Readable, type Signal, type Writable } from "../signal";
-import type { Child } from "./types";
+import type { Child, Mountable } from "./types";
 import type { ComponentProps, ElementProps } from "./props";
 
 const div = new Ref<HTMLDivElement>();
@@ -268,3 +269,15 @@ type FancyProps = ComponentProps<typeof Fancy>;
 const _fancy: FancyProps = { color: "red" };
 // @ts-expect-error color is required
 const _fancyMissing: FancyProps = {};
+
+// Dynamic takes the node from a readable. `ReadableSource`, not `Readable`, so
+// a derived of a *subtype* of Child — a mountable, a mountable-or-null — fits.
+const view = derived([active], (on) => (on ? Span("on") : Span("off")));
+Div(Dynamic(view));
+Dynamic(signal<Mountable | null>(null));
+Dynamic([active, classSignal], (on, cls) => (on ? Span({ class: cls }) : null));
+Dynamic(active);
+// @ts-expect-error a readable of a node is still not a child on its own
+Div(view);
+// @ts-expect-error the tuple form needs a getter
+Dynamic([active]);

@@ -185,9 +185,14 @@ describe("helpers", () => {
 		);
 	});
 
-	it("lands Portal output in the server body", () => {
+	it("lands Portal output after the app tree, not inside it", () => {
 		const { html } = renderToString(Div({ id: "root" }, Portal(P("modal"))));
-		expect(html).toBe('<p>modal</p><div id="root"><!----></div>');
+		expect(html).toBe('<div id="root"><!----></div><p>modal</p>');
+	});
+
+	it("keeps Portal output after the app tree when the portal mounts first", () => {
+		const { html } = renderToString([Portal(P("modal")), Div({ id: "root" }, "content")]);
+		expect(html).toBe('<!----><div id="root">content</div><p>modal</p>');
 	});
 
 	it("no-ops ImplementWindow and ImplementDocument", () => {

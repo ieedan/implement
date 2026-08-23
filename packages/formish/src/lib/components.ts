@@ -9,8 +9,7 @@ import { useField, type FieldStore, type UseFieldConfig } from "./field";
 import { useFieldArray, type FieldArrayStore, type UseFieldArrayConfig } from "./field-array";
 import { INTERNAL, type FormStore } from "./form";
 import { handleSubmit, type SubmitHandler } from "./methods";
-import type { InferInput } from "./standard-schema";
-import type { ArrayPath, FieldPath, FormSchema } from "./types";
+import type { ArrayPath, FieldPath, FormSchema, InferInput } from "./types";
 
 export type FormProps<TSchema extends FormSchema> = Omit<
 	ElementProps<"form">,

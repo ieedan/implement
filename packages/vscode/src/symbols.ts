@@ -54,6 +54,7 @@ const CORE_HELPERS: Record<string, Shape> = {
 
 	// First argument is not props, so these get a written-out snippet.
 	Await: snippet("${1:source}", "Await(source)"),
+	Dynamic: snippet("${1:source}", "Dynamic(source)"),
 	ForEach: snippet("${1:items}, ${2:getKey}, ${3:render}", "ForEach(items, getKey, render)"),
 	Html: snippet("${1:html}", "Html(html)"),
 	If: snippet("${1:condition}, $2", "If(condition, )"),

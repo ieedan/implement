@@ -1,6 +1,12 @@
 import { routeId } from "./match.ts";
 import type { OpenApiRouteOptions } from "./openapi.ts";
-import { segmentKey, type RouteNode, type RouteSegment, type RouteTree } from "./scan.ts";
+import {
+	segmentKey,
+	type RouteNode,
+	type RouteParam,
+	type RouteSegment,
+	type RouteTree,
+} from "./scan.ts";
 
 export type DataChain = {
 	/** Server files (root first) feeding this directory's layout `data`. */
@@ -192,6 +198,33 @@ const rawName = (node: RouteNode): string => node.dir.split("/").pop()!;
 const routeDataExpr = (files: string[]): string => `routeData(${JSON.stringify(files)})`;
 
 /**
+ * The source of the `$implement/params` virtual module: the app's param
+ * matchers, keyed by the name a `[param=<name>]` directory uses.
+ *
+ * One entry per `<params>/<name>.ts`. The imports are real — a matcher runs on
+ * both sides of a navigation, so unlike the load chain there is nothing here
+ * to keep out of the browser bundle. `matcherTable` is what turns a module
+ * that forgot to default-export a `matcher()` into a message naming the file.
+ */
+export function generateParamsModule(tree: RouteTree, paramsBase: string): string {
+	if (tree.matchers.length === 0) return "export const matchers = {};\n";
+	const imports = tree.matchers.map(
+		(name, index) => `import matcher_${index} from ${JSON.stringify(`${paramsBase}/${name}.ts`)};`,
+	);
+	const entries = tree.matchers.map(
+		(name, index) => `\t${JSON.stringify(name)}: matcher_${index},`,
+	);
+	return `${[
+		'import { matcherTable } from "@implementjs/kit/params";',
+		imports.join("\n"),
+		"",
+		`export const matchers = matcherTable({\n${entries.join("\n")}\n}, ${JSON.stringify(
+			paramsBase.replace(/^\//, ""),
+		)});`,
+	].join("\n")}\n`;
+}
+
+/**
  * The source of the `$implement/router` virtual module: declares a lazy handle
  * per page and layout, adapts them onto `@implementjs/router`'s `Router` tree,
  * and exports the router. Pages render as `Page.get()({ params, url, data })`,
@@ -224,7 +257,9 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 		pattern: route.pattern,
 		modules: route.files.map((file) => routeModuleId(routesBase, file)),
 	}));
+	const hasMatchers = tree.matchers.length > 0;
 	const imports: string[] = ['import { Router } from "@implementjs/router";'];
+	if (hasMatchers) imports.push('import { matchers } from "$implement/params";');
 	const declarations: string[] = [];
 	const names = new Map<string, string>();
 	let counter = 0;
@@ -332,15 +367,19 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 
 	const routes = nodeExpr(tree.root, "");
 	const errorName = tree.error === null ? null : importFor(tree.error, "ErrorPage");
-	const fallback =
-		errorName === null
-			? ""
-			: `, {\n\tfallback: (error) => ${errorName}({ error, url: router.location }),\n}`;
+	const routerOptions = [
+		...(hasMatchers ? ["\tmatchers,"] : []),
+		...(errorName === null
+			? []
+			: [`\tfallback: (error) => ${errorName}({ error, url: router.location }),`]),
+	];
+	const fallback = routerOptions.length === 0 ? "" : `, {\n${routerOptions.join("\n")}\n}`;
 
 	// only what the module actually uses, so a tree with no pages at all still
 	// emits an import list that type-checks and tree-shakes cleanly
 	const runtimeImports = [
 		...(declarations.length > 0 ? ["lazyModule"] : []),
+		...(hasMatchers ? ["registerMatchers"] : []),
 		...(modules.length > 0 ? ["registerRouteModules"] : []),
 		...(manifest.length > 0 ? ["registerRoutes"] : []),
 		"routeData",
@@ -357,6 +396,9 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 		...(errorName === null
 			? []
 			: [`export const errorPage = (error) => ${errorName}({ error, url: router.location });`]),
+		// before the route tables: the preloader and the data fetch resolve a path
+		// through them, and both consult the matchers to do it
+		...(hasMatchers ? ["registerMatchers(matchers);"] : []),
 		...(modules.length > 0
 			? [`registerRouteModules(${JSON.stringify(modules, null, "\t")});`]
 			: []),
@@ -368,8 +410,8 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 export type PageRoute = {
 	/** Full path pattern, `:param`/`:...rest` style (`/docs/:...slug`). */
 	pattern: string;
-	/** Param names the pattern binds, root first. */
-	params: string[];
+	/** The params the pattern binds, root first, each with the matcher gating it. */
+	params: RouteParam[];
 };
 
 /** Every page in the tree with its full path pattern. `(group)` segments contribute nothing. */
@@ -399,8 +441,8 @@ export type ServerRoute = {
 	pattern: string;
 	/** The extension a `.<ext>/server.ts` appends to the pattern; `null` for a plain `server.ts`. */
 	extension: string | null;
-	/** Param names the pattern binds, root first. */
-	params: string[];
+	/** The params the pattern binds, root first, each with the matcher gating it. */
+	params: RouteParam[];
 	/** Relative path of the `server.ts` file. */
 	file: string;
 };
@@ -495,7 +537,7 @@ export function generateEndpointsModule(
 		imports.unshift('import { openApiEndpoint } from "@implementjs/kit/openapi";');
 		const documented = keys.map(
 			(route, index) =>
-				`\t\t{ key: ${JSON.stringify(route.key)}, params: ${JSON.stringify(route.params)}, file: ${JSON.stringify(route.file)}, module: endpoint_${index} }`,
+				`\t\t{ key: ${JSON.stringify(route.key)}, params: ${JSON.stringify(route.params.map((param) => param.name))}, file: ${JSON.stringify(route.file)}, module: endpoint_${index} }`,
 		);
 		const list = documented.length === 0 ? "[]" : `[\n${documented.join(",\n")},\n\t]`;
 		entries.push(
@@ -524,8 +566,8 @@ export type ApiRoute = {
 	 * with, so it doubles as the URL template the client substitutes into.
 	 */
 	key: string;
-	/** Param names the key binds, root first. */
-	params: string[];
+	/** The params the key binds, root first, each with the matcher gating it. */
+	params: RouteParam[];
 	/** Relative path of the `server.ts` file. */
 	file: string;
 };
@@ -541,8 +583,8 @@ export function apiRoutes(tree: RouteTree): ApiRoute[] {
 
 /** How the generated `createClient` is called and what it hands back. */
 export type ClientStyle = {
-	/** `"method"` for `api.GET(path, …)`, `"path"` for `api[path].GET(…)`. @default "method" */
-	style?: "method" | "path";
+	/** `"method"` for `api.GET(path, …)`, `"nested"` for `api.api.posts["[id]"].GET(…)`. @default "method" */
+	style?: "method" | "nested";
 	/** How a call's outcome reaches the caller. @default "result" */
 	errors?: "result" | "throw" | "neverthrow";
 };
@@ -559,24 +601,24 @@ export type ClientType = {
 
 /** Which of the six client types an app's options select. */
 export function clientType(options: ClientStyle): ClientType {
-	const path = options.style === "path";
+	const nested = options.style === "nested";
 	if (options.errors === "neverthrow") {
 		return {
 			module: "@implementjs/kit/client/neverthrow",
-			name: path ? "ResultPathClient" : "ResultClient",
+			name: nested ? "ResultNestedClient" : "ResultClient",
 			wrapper: null,
 		};
 	}
 	if (options.errors === "throw") {
 		return {
 			module: "@implementjs/kit/client",
-			name: path ? "PathClient" : "MethodClient",
+			name: nested ? "NestedClient" : "MethodClient",
 			wrapper: "ThrowWrapper",
 		};
 	}
 	return {
 		module: "@implementjs/kit/client",
-		name: path ? "PathClient" : "TypedClient",
+		name: nested ? "NestedClient" : "TypedClient",
 		wrapper: null,
 	};
 }
@@ -589,10 +631,27 @@ export function clientTypeReference(options: ClientStyle, api: string): string {
 	return `${of(client.name)}<${api}${wrapper}>`;
 }
 
-/** `{}` or `{ "id": string; "slug": string }` — the params a route key binds. */
-function clientParamsType(params: string[]): string {
+/**
+ * `{}` or `{ "id": number; "slug": string }` — the params a route key binds, a
+ * matched one typed by what its matcher makes of the segment.
+ */
+function clientParamsType(params: RouteParam[], paramsSpecifier: string): string {
 	if (params.length === 0) return "{}";
-	return `{ ${params.map((name) => `${JSON.stringify(name)}: string`).join("; ")} }`;
+	const entries = params.map(
+		(param) => `${JSON.stringify(param.name)}: ${matcherTypeExpr(param, paramsSpecifier)}`,
+	);
+	return `{ ${entries.join("; ")} }`;
+}
+
+/**
+ * The type a param carries: `string` when nothing gates it, and otherwise what
+ * the matcher module makes of a segment — read off the matcher's own type, so
+ * the matcher declares it once and every route naming it inherits it.
+ */
+export function matcherTypeExpr(param: RouteParam, paramsSpecifier: string): string {
+	if (param.matcher === null) return "string";
+	const specifier = JSON.stringify(`${paramsSpecifier}/${param.matcher}.ts`);
+	return `import("@implementjs/kit/params").ParamType<typeof import(${specifier}).default>`;
 }
 
 /**
@@ -610,17 +669,21 @@ function clientParamsType(params: string[]): string {
 export function generateClientModule(
 	tree: RouteTree,
 	routesBase: string,
+	paramsBase: string,
 	options: ClientStyle = {},
 ): string {
 	const client = clientType(options);
 	const type =
 		client.wrapper === null ? `${client.name}<Api>` : `${client.name}<Api, ${client.wrapper}>`;
 	const routes = apiRoutes(tree);
+	// the generated client sits at `.implement/client.ts`, one level under the
+	// app root the two bases are relative to
+	const paramsSpecifier = `..${paramsBase}`;
 	const entries = routes.map((route) => {
 		const specifier = JSON.stringify(`..${routesBase}/${route.file}`);
 		return [
 			`\t${JSON.stringify(route.key)}: {`,
-			`\t\tparams: ${clientParamsType(route.params)};`,
+			`\t\tparams: ${clientParamsType(route.params, paramsSpecifier)};`,
 			`\t\toperations: Operations<typeof import(${specifier})>;`,
 			"\t};",
 		].join("\n");
@@ -629,8 +692,14 @@ export function generateClientModule(
 	const imported = ["createClient as create", "type ClientOptions", "type Operations"]
 		.concat(names.map((name) => `type ${name}`))
 		.join(",\n\t");
+	// whatever the app fixed in its config, the generated `createClient` fixes
+	// too — the type says `throw`/nested, so the call has to actually be that
+	const fixed = [
+		options.errors === "throw" ? `errors: "throw"` : null,
+		options.style === "nested" ? `style: "nested"` : null,
+	].filter((entry) => entry !== null);
 	const call =
-		options.errors === "throw" ? `create({ ...options, errors: "throw" })` : "create(options)";
+		fixed.length === 0 ? "create(options)" : `create({ ...options, ${fixed.join(", ")} })`;
 	const table = entries.length === 0 ? "{}" : `{\n${entries.join("\n")}\n}`;
 	return `${[
 		`import {\n\t${imported},\n} from ${JSON.stringify(client.module)};`,

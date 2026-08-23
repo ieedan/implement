@@ -161,6 +161,44 @@ describe("the illegal-import guard", () => {
 		);
 	});
 
+	it("names the import that dragged a server file in, not just the file", async () => {
+		// the page's own import is legal on its face, so the file name alone leaves the
+		// reader bisecting `@/lib/issue-schema` for whichever binding is the culprit
+		await transformIn(server, "client", "/src/routes/deep/page.ts");
+		await expect(transformIn(server, "client", "/src/lib/issue-schema.ts")).rejects.toThrow(
+			/routes\/deep\/page\.ts:3 imports \{ schema \}/,
+		);
+	});
+
+	it("rejects a client file importing a route's server.ts", async () => {
+		await expect(
+			transformIn(server, "client", "/src/routes/endpoint-import/page.ts"),
+		).rejects.toThrow(/routes\/api\/thing\/server\.ts is a route endpoint/);
+	});
+
+	it("names the endpoint import that did it", async () => {
+		await expect(
+			transformIn(server, "client", "/src/routes/endpoint-import/page.ts"),
+		).rejects.toThrow(/imported by src\/routes\/endpoint-import\/page\.ts/);
+	});
+
+	it("leaves an ordinary server.ts outside the routes directory alone", async () => {
+		const code = await transformIn(server, "client", "/src/routes/plain-server/page.ts");
+		expect(code).toContain("lib/server");
+	});
+
+	it("stubs the client copy of an endpoint, values and all", async () => {
+		const code = await transformIn(server, "client", "/src/routes/api/thing/server.ts");
+		expect(code).toContain("is a route endpoint and cannot run in the browser");
+		expect(code).not.toContain("guard-fixture-token");
+	});
+
+	it("lets the server graph import an endpoint", async () => {
+		await expect(
+			transformIn(server, "ssr", "/src/routes/endpoint-import/page.ts"),
+		).resolves.toContain("api/thing/server");
+	});
+
 	it("leaves type-only imports alone", async () => {
 		const code = await transformIn(server, "client", "/src/routes/type-only/page.ts");
 		expect(code).not.toContain("secrets.server");
@@ -209,7 +247,15 @@ describe("the illegal-import guard", () => {
 		} catch (error) {
 			message = (error as Error).message;
 		}
-		expect(message).toContain("is a server file and cannot be imported by client code");
+		// The fixture has three illegal client imports — `leaky` and `inline-type`
+		// reach a `*.server.ts`, `endpoint-import` reaches a route `server.ts` —
+		// and the build fails on whichever Rollup resolves first, so the kind in
+		// the message is a race. Which kind it is has its own cases above; what
+		// this one is for is that the guard fails the build at all and traces the
+		// chain back through the router.
+		expect(message).toMatch(
+			/is (a server file|a route endpoint) and cannot be imported by client code/,
+		);
 		expect(message).toContain("$implement/router");
 	}, 60_000);
 });

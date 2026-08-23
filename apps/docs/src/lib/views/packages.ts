@@ -16,7 +16,7 @@ import {
 import type { PackageInfo } from "../../routes/packages/page.server";
 import { SiteHeader } from "../components/site-header";
 import { ogTags } from "../og-tags";
-import { router } from "../router";
+import { router } from "$implement/router";
 
 /** The packages route's server-load data: workspace manifests read off disk. */
 export type PackagesData = { packages: Record<string, PackageInfo> };

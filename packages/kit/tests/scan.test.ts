@@ -25,8 +25,8 @@ afterEach(() => {
 describe("parseSegment", () => {
 	it("classifies static, param, rest, and group directories", () => {
 		expect(parseSegment("docs")).toEqual({ kind: "static", value: "docs" });
-		expect(parseSegment("[id]")).toEqual({ kind: "param", name: "id" });
-		expect(parseSegment("[...slug]")).toEqual({ kind: "rest", name: "slug" });
+		expect(parseSegment("[id]")).toEqual({ kind: "param", name: "id", matcher: null });
+		expect(parseSegment("[...slug]")).toEqual({ kind: "rest", name: "slug", matcher: null });
 		expect(parseSegment("(authed)")).toEqual({ kind: "group", name: "authed" });
 	});
 
@@ -59,8 +59,8 @@ describe("scanRoutes", () => {
 		expect(pageRoutes(tree)).toEqual([
 			{ pattern: "/", params: [] },
 			{ pattern: "/docs", params: [] },
-			{ pattern: "/docs/:...slug", params: ["slug"] },
-			{ pattern: "/users/:id", params: ["id"] },
+			{ pattern: "/docs/:...slug", params: [{ name: "slug", matcher: null }] },
+			{ pattern: "/users/:id", params: [{ name: "id", matcher: null }] },
 		]);
 		expect(staticRoutePaths(tree)).toEqual(["/", "/docs"]);
 	});
@@ -80,7 +80,9 @@ describe("scanRoutes", () => {
 
 	it("allows a layout inside a catch-all directory", () => {
 		const tree = scanRoutes(makeRoutes(["docs/[...slug]/page.ts", "docs/[...slug]/layout.ts"]));
-		expect(pageRoutes(tree)).toEqual([{ pattern: "/docs/:...slug", params: ["slug"] }]);
+		expect(pageRoutes(tree)).toEqual([
+			{ pattern: "/docs/:...slug", params: [{ name: "slug", matcher: null }] },
+		]);
 	});
 
 	it("rejects duplicate param names along a path", () => {
@@ -157,7 +159,7 @@ describe("scanRoutes", () => {
 		);
 		expect(pageRoutes(tree)).toEqual([
 			{ pattern: "/dashboard", params: [] },
-			{ pattern: "/dashboard/:id", params: ["id"] },
+			{ pattern: "/dashboard/:id", params: [{ name: "id", matcher: null }] },
 			{ pattern: "/", params: [] },
 			{ pattern: "/about", params: [] },
 		]);

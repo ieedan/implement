@@ -1,5 +1,19 @@
 # @implementjs/lucide
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [[`14ce276`](https://github.com/ieedan/implement/commit/14ce276cf1a03340930ae030410551d23efa724e)]:
+  - @implementjs/core@0.0.4
+
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [[`c4cdbfd`](https://github.com/ieedan/implement/commit/c4cdbfd9590eda1e8df1ae1c3c241c98cd6b8b15)]:
+  - @implementjs/core@0.0.3
+
 ## 0.0.2
 
 ### Patch Changes

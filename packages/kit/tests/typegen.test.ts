@@ -30,10 +30,12 @@ afterEach(() => {
 	root = null;
 });
 
+const PATHS = { routes: "src/routes", params: "src/params" };
+
 const slugNode = {
 	dir: "docs/[...slug]",
-	segment: { kind: "rest", name: "slug" } as const,
-	params: ["slug"],
+	segment: { kind: "rest", name: "slug", matcher: null } as const,
+	params: [{ name: "slug", matcher: null }],
 	page: "docs/[...slug]/page.ts",
 	pageResetTo: null,
 	layout: null,
@@ -47,7 +49,7 @@ const slugNode = {
 
 describe("generateRouteTypes", () => {
 	it("types params as Readables and server params as strings", () => {
-		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] });
+		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] }, PATHS);
 		expect(types).toContain('export type RouteParams = { "slug": Readable<string> };');
 		expect(types).toContain('export type ServerParams = { "slug": string };');
 		expect(types).toContain("export type LoadEvent = KitRequestEvent<ServerParams>;");
@@ -58,10 +60,14 @@ describe("generateRouteTypes", () => {
 	});
 
 	it("types data as the merged load chain", () => {
-		const types = generateRouteTypes(slugNode, {
-			layoutFiles: ["layout.server.ts"],
-			pageFiles: ["layout.server.ts", "docs/[...slug]/page.server.ts"],
-		});
+		const types = generateRouteTypes(
+			slugNode,
+			{
+				layoutFiles: ["layout.server.ts"],
+				pageFiles: ["layout.server.ts", "docs/[...slug]/page.server.ts"],
+			},
+			PATHS,
+		);
 		expect(types).toContain(
 			'export type LayoutData = Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>;',
 		);
@@ -75,19 +81,19 @@ describe("the handler export", () => {
 	const endpointNode = { ...slugNode, page: null, endpoint: "docs/[...slug]/server.ts" };
 
 	it("is on an endpoint directory's $types, bound to that route's params", () => {
-		const types = generateRouteTypes(endpointNode, { layoutFiles: [], pageFiles: [] });
+		const types = generateRouteTypes(endpointNode, { layoutFiles: [], pageFiles: [] }, PATHS);
 		expect(types).toContain('import type { HandlerBuilder } from "@implementjs/kit/endpoint";');
 		expect(types).toContain("export const handler: HandlerBuilder<ServerParams>;");
 	});
 
 	it("is absent from a page's $types, so nothing can import it from there", () => {
-		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] });
+		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] }, PATHS);
 		expect(types).not.toContain("handler");
 		expect(types).not.toContain("@implementjs/kit/endpoint");
 	});
 
 	it("is on every extension endpoint's $types", () => {
-		const types = generateExtensionTypes(slugNode);
+		const types = generateExtensionTypes(slugNode, PATHS);
 		expect(types).toContain("export const handler: HandlerBuilder<ServerParams>;");
 		expect(types).toContain('export type ServerParams = { "slug": string };');
 	});
@@ -98,9 +104,11 @@ describe("generateRouterDeclaration", () => {
 		const declaration = generateRouterDeclaration(
 			[
 				{ pattern: "/", params: [] },
-				{ pattern: "/docs/:...slug", params: ["slug"] },
+				{ pattern: "/docs/:...slug", params: [{ name: "slug", matcher: null }] },
 			],
 			false,
+			PATHS,
+			[],
 		);
 		expect(declaration).toContain('declare module "$implement/router"');
 		expect(declaration).toContain('"/": (params: {}) => Child;');
@@ -113,8 +121,8 @@ describe("generateRouterDeclaration", () => {
 
 	it("declares the error page export only for an app that has one", () => {
 		const routes = [{ pattern: "/", params: [] }];
-		expect(generateRouterDeclaration(routes, false)).not.toContain("errorPage");
-		expect(generateRouterDeclaration(routes, true)).toContain(
+		expect(generateRouterDeclaration(routes, false, PATHS, [])).not.toContain("errorPage");
+		expect(generateRouterDeclaration(routes, true, PATHS, [])).toContain(
 			"export function errorPage(error: RouterError): Child;",
 		);
 	});
@@ -124,19 +132,29 @@ describe("App.Api", () => {
 	const routes = [{ pattern: "/", params: [] }];
 
 	it("merges the generated client in, keyed off the app's own route table", () => {
-		const declaration = generateRouterDeclaration(routes, false);
+		const declaration = generateRouterDeclaration(routes, false, PATHS, []);
 		expect(declaration).toContain("declare namespace App {");
 		expect(declaration).toContain(
-			'interface Api extends import("@implementjs/kit/client").TypedClient<import("../client.ts").Api> {}',
+			'type GeneratedApi = import("@implementjs/kit/client").TypedClient<import("../client.ts").Api>;',
 		);
 	});
 
+	it("names the client before extending it, since an interface may only extend a name", () => {
+		const declaration = generateRouterDeclaration(routes, false, PATHS, []);
+		// `interface Api extends import("…").Client<…> {}` is TS2499, which
+		// `skipLibCheck` hides — leaving `App.Api` empty and `event.api` useless
+		expect(declaration).toContain("interface Api extends GeneratedApi {}");
+		expect(declaration).not.toContain("interface Api extends import(");
+	});
+
 	it("follows the app's chosen error style", () => {
-		expect(generateRouterDeclaration(routes, false, { errors: "neverthrow" })).toContain(
+		expect(generateRouterDeclaration(routes, false, PATHS, [], { errors: "neverthrow" })).toContain(
 			'import("@implementjs/kit/client/neverthrow").ResultClient<import("../client.ts").Api>',
 		);
-		expect(generateRouterDeclaration(routes, false, { errors: "throw", style: "path" })).toContain(
-			'import("@implementjs/kit/client").PathClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
+		expect(
+			generateRouterDeclaration(routes, false, PATHS, [], { errors: "throw", style: "nested" }),
+		).toContain(
+			'import("@implementjs/kit/client").NestedClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
 		);
 	});
 
@@ -222,6 +240,34 @@ describe("writeGenerated", () => {
 		const declaration = readFileSync(join(app, ".implement/types/$implement.d.ts"), "utf8");
 		expect(declaration).toContain('declare module "$implement/pages"');
 		expect(declaration).toContain('declare module "$implement/endpoints"');
+	});
+
+	it("says so when the neverthrow style is picked without the package", () => {
+		const app = makeApp(["page.ts"]);
+		const tree = scanRoutes(join(app, "src/routes"));
+		expect(() => writeGenerated(app, tree, { client: { errors: "neverthrow" } })).toThrow(
+			/`neverthrow` package is not installed/,
+		);
+		// nothing half-generated: the check runs before anything is written
+		expect(existsSync(join(app, ".implement/client.ts"))).toBe(false);
+
+		// the other two styles never need it
+		expect(() => writeGenerated(app, tree, { client: { errors: "throw" } })).not.toThrow();
+	});
+
+	it("generates the neverthrow client once the package resolves", () => {
+		const app = makeApp(["page.ts"]);
+		const installed = join(app, "node_modules/neverthrow");
+		mkdirSync(installed, { recursive: true });
+		writeFileSync(join(installed, "package.json"), '{ "name": "neverthrow", "main": "index.js" }');
+		writeFileSync(join(installed, "index.js"), "export {};\n");
+
+		writeGenerated(app, scanRoutes(join(app, "src/routes")), {
+			client: { errors: "neverthrow" },
+		});
+		expect(readFileSync(join(app, ".implement/client.ts"), "utf8")).toContain(
+			"export const api: ResultClient<Api> = createClient();",
+		);
 	});
 
 	it("prunes $types for removed routes", () => {

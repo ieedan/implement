@@ -1,5 +1,27 @@
 # create-implement-app
 
+## 0.0.3
+
+### Patch Changes
+
+- [#43](https://github.com/ieedan/implement/pull/43) [`58f51a7`](https://github.com/ieedan/implement/commit/58f51a762b2bd883689325554dd865e4cf3e1646) Thanks [@ieedan](https://github.com/ieedan)! - Scaffold apps with a version range on each implement package instead of `latest`. `latest` resolves at install time, so two runs of the same CLI produced apps built against different releases. The range is a tilde — a floor later patches clear on their own — so a new app still starts on the current release without the CLI having to be told about it.
+
+## 0.0.2
+
+### Patch Changes
+
+- [#37](https://github.com/ieedan/implement/pull/37) [`b2dcb33`](https://github.com/ieedan/implement/commit/b2dcb33e00fd8e148c5c607e0fc0819ea3eb0419) Thanks [@ieedan](https://github.com/ieedan)! - Add oxlint and oxfmt as an adder, and an `add` command that applies adders to an app that already exists.
+
+  `--oxlint` sets up linting and formatting while scaffolding — an `oxlint.config.ts` running the `@implementjs/eslint` rules through oxlint's plugin API, an `oxfmt.config.ts` matching what the templates write, and `lint`, `lint:fix`, `format`, and `format:check` scripts. With `--install` the run formats the app on the way out, so `format:check` passes before anything has been edited.
+
+  The same setup is one command away later:
+
+  ```sh
+  npx create-implement-app add oxlint
+  ```
+
+  `add` writes only what the app doesn't already have — a config file edited since, a script under a name it wanted, a dependency it already depends on are each kept and reported, and `--overwrite` replaces them instead.
+
 ## 0.0.1
 
 ### Patch Changes

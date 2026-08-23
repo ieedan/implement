@@ -18,6 +18,7 @@ import {
 	type RequestHandler,
 	type RouteData,
 } from "./match.ts";
+import type { ParamMatchers } from "./params.ts";
 
 /**
  * Kit's server request pipeline: the `src/hooks.server.ts` contract
@@ -76,7 +77,7 @@ export { formatServerError } from "./errors.ts";
 
 // the wrapper routes reach through their `./$types`, re-exported so a
 // `server.ts` that would rather name the package can
-export { handler } from "./endpoint.ts";
+export { handler, json, type JsonResponse } from "./endpoint.ts";
 export type {
 	EndpointSpec,
 	Handler,
@@ -88,12 +89,25 @@ export type {
 export type {
 	EndpointRoute,
 	LoadEvent,
+	MatcherMode,
 	PageRoute,
 	RequestEvent,
 	RequestHandler,
 	RouteData,
 	ServerLoad,
 } from "./match.ts";
+
+// the app's `src/params/*.ts` reach these through `@implementjs/kit/params`;
+// re-exported so a `hooks.server.ts` naming the types does not need a second entry
+export {
+	isParamMatcher,
+	matcher,
+	mismatch,
+	type AnyParamMatcher,
+	type ParamMatcher,
+	type ParamMatchers,
+	type ParamType,
+} from "./params.ts";
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -103,6 +117,25 @@ export const INTERNAL_ORIGIN = "http://implement.internal";
 const DATA_SUFFIX = "/__data.json";
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"];
+
+/**
+ * `event.api` for a server built without a client — a hand-built one, or a
+ * test. The generated `.implement/entry-server.ts` always passes
+ * `createApiClient`, so this is only ever reached by a caller that assembled
+ * the pipeline itself; every method says so rather than failing as `undefined
+ * is not a function`.
+ */
+function unavailableApi(): App.Api {
+	const stand = Object.fromEntries(METHODS.map((method) => [method, unavailableApiCall]));
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion, typescript/no-unnecessary-type-assertion -- Redundant only here, where `App.Api` is the empty interface kit declares; in an app it is the generated client, which a stand-in is not.
+	return stand as unknown as App.Api;
+}
+
+function unavailableApiCall(): never {
+	throw new Error(
+		"event.api is not available: this server was built without `createApiClient`, which the generated `.implement/entry-server.ts` passes.",
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Hooks
@@ -292,11 +325,18 @@ export type KitServerOptions = {
 	pages: PageRoute[];
 	/** Every `server.ts` endpoint in the app. */
 	endpoints: EndpointRoute[];
+	/**
+	 * The app's param matchers, keyed by the name a `[param=<name>]` directory
+	 * uses — the generated `$implement/params` module. A route whose pattern
+	 * names one only serves a path its matcher accepts, and the value it
+	 * answers with is what `event.params` carries.
+	 */
+	matchers?: ParamMatchers;
 	renderPage: RenderPage;
 	/**
 	 * Builds `event.api`. The generated `.implement/entry-server.ts` passes
 	 * `createClient` from `$implement/client`, so the client an app configured
-	 * — its style, its error handling — is the one bound to `event.fetch`.
+	 * — its shape, its error handling — is the one bound to `event.fetch`.
 	 * Without it `event.api` is an empty object, which is exactly what `App.Api`
 	 * says it is until an app generates its own.
 	 */
@@ -318,6 +358,7 @@ export type KitServer = {
  */
 export function createKitServer(options: KitServerOptions): KitServer {
 	const { hooks, pages, endpoints, renderPage, createApiClient } = options;
+	const matchers = options.matchers ?? {};
 	let started: Promise<void> | undefined;
 
 	async function respond(request: Request, respondOptions: RespondOptions = {}): Promise<Response> {
@@ -342,8 +383,8 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			? new URL(`${routePath}${requestUrl.search}${requestUrl.hash}`, requestUrl.origin)
 			: requestUrl;
 
-		const endpoint = isDataRequest ? null : matchEndpoint(endpoints, routePath);
-		const page = endpoint === null ? matchPage(pages, routePath) : null;
+		const endpoint = isDataRequest ? null : matchEndpoint(endpoints, routePath, matchers);
+		const page = endpoint === null ? matchPage(pages, routePath, matchers) : null;
 
 		const depth = respondOptions.depth ?? 0;
 		/**
@@ -382,8 +423,15 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			request,
 			url,
 			fetch: internalFetch,
-			api: createApiClient?.({ fetch: internalFetch, baseUrl: url.origin }) ?? {},
-			params: endpoint?.params ?? page?.params ?? {},
+			api:
+				createApiClient === undefined
+					? unavailableApi()
+					: createApiClient({ fetch: internalFetch, baseUrl: url.origin }),
+			// a matcher may hand back something other than a string, and the
+			// pipeline has no route to say which — the generated `./$types` are
+			// where a route learns what its own params are, and they are exact
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Matched params are typed per route through `./$types`.
+			params: (endpoint?.params ?? page?.params ?? {}) as Record<string, string>,
 			route: { id: endpoint?.route.id ?? page?.route.id ?? null },
 			locals: {},
 			isDataRequest,

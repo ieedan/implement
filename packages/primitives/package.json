@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/primitives",
-	"version": "0.0.2",
+	"version": "0.0.5",
 	"description": "Unstyled, accessible building blocks for implement. They own the behavior and the accessibility, you own the look.",
 	"keywords": [
 		"implement",
@@ -53,7 +53,6 @@
 	"devDependencies": {
 		"@floating-ui/dom": "^1.8.0",
 		"@types/node": "^26.2.0",
-		"nanoid": "^6.0.1",
 		"tsdown": "^0.22.14",
 		"typescript": "^7.0.2",
 		"vite": "^7.3.0",

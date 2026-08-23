@@ -45,7 +45,7 @@ import { Toggle } from "../components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { primitivePages, type PrimitivePage } from "@/lib/content";
-import { router } from "../router";
+import { router } from "$implement/router";
 
 function AccordionPreview(): Mountable {
 	return Accordion(
