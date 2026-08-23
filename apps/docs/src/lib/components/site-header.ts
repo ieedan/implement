@@ -1,5 +1,5 @@
 import { derived, Div, Header, Nav, type Mountable } from "@implementjs/core";
-import { router } from "../router";
+import { router } from "$implement/router";
 import { DocsSearch } from "./docs/search";
 import { Logo } from "./logo";
 import { ModeToggle } from "./mode-toggle";
