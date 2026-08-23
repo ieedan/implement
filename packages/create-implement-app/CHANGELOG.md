@@ -1,5 +1,11 @@
 # create-implement-app
 
+## 0.0.3
+
+### Patch Changes
+
+- [#43](https://github.com/ieedan/implement/pull/43) [`58f51a7`](https://github.com/ieedan/implement/commit/58f51a762b2bd883689325554dd865e4cf3e1646) Thanks [@ieedan](https://github.com/ieedan)! - Scaffold apps with a version range on each implement package instead of `latest`. `latest` resolves at install time, so two runs of the same CLI produced apps built against different releases. The range is a tilde — a floor later patches clear on their own — so a new app still starts on the current release without the CLI having to be told about it.
+
 ## 0.0.2
 
 ### Patch Changes
