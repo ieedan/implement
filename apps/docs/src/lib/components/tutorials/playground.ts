@@ -65,8 +65,9 @@ export function watchLessonFiles(
 
 function UrlBar(urlPath: Signal<string>): Mountable {
 	return Input({
+		// 16px on a phone, where anything smaller makes Safari zoom the page in
 		class:
-			"w-full min-w-0 flex-1 rounded-md bg-foreground/5 px-2 py-0.5 font-mono text-[11px] text-foreground/80 outline-none focus:bg-foreground/10 focus:text-foreground",
+			"w-full min-w-0 flex-1 rounded-md bg-foreground/5 px-2 py-0.5 font-mono text-base text-foreground/80 outline-none focus:bg-foreground/10 focus:text-foreground md:text-[11px]",
 		// One-way: typing stays local to the input; Enter commits, and outside
 		// navigation (link clicks in the preview) writes the bar.
 		value: derived([urlPath], (value) => value),

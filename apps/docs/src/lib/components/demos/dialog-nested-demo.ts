@@ -1,4 +1,5 @@
-import { Div, Input, Label, P, Span } from "@implementjs/core";
+import { Div, Label, P, Span } from "@implementjs/core";
+import { Input } from "@/lib/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/lib/components/ui/avatar";
 import {
 	Dialog,
@@ -51,8 +52,7 @@ export default function DialogNestedDemo() {
 							id: "invite-email",
 							type: "email",
 							placeholder: "ada@example.com",
-							class:
-								"h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+							class: "h-8",
 						}),
 					),
 					DialogClose({ variant: "outline", class: "justify-self-end" }, "Send invite"),

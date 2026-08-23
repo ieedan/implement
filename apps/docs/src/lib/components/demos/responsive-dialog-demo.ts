@@ -1,4 +1,5 @@
-import { Div, If, Input, Label, P, mediaQuery } from "@implementjs/core";
+import { Div, If, Label, P, mediaQuery } from "@implementjs/core";
+import { Input } from "@/lib/components/ui/input";
 import {
 	ResponsiveDialog,
 	ResponsiveDialogClose,
@@ -16,8 +17,7 @@ function Field(id: string, label: string, value: string) {
 		Input({
 			id,
 			value,
-			class:
-				"h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+			class: "h-8",
 		}),
 	);
 }
