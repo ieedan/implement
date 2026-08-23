@@ -64,6 +64,16 @@ DropdownMenuCheckboxGroup(
 
 The group is a `role="group"` like `DropdownMenuGroup`, so a `DropdownMenuGroupHeading` placed inside names it. Inside a group the group's array owns each item's checked state and the item's own `checked` prop is ignored; an item with no `value` keeps its own boolean.
 
+### A checkbox indicator, and two click targets
+
+A checkbox item is a `Div` you fill yourself, so the checked indicator is whatever you draw against `data-state` — a check, a dot, or a checkbox like a label picker's. And because `closeOnSelect` is a property of the _item_, an element nested inside it can opt out of that behavior on its own: stop the click before it reaches the item and the item never selects, so the menu stays open.
+
+That is the whole trick behind the pattern below. Clicking the checkbox toggles the label and leaves the menu open for the next one; clicking anywhere else on the row toggles it and closes.
+
+<div data-demo="dropdown-menu-labels" data-demo-description="A “Labels” menu of six colored labels; each row's checkbox toggles without closing, while clicking the rest of the row toggles and closes."></div>
+
+The item stays a single `role="menuitemcheckbox"` — the checkbox is `aria-hidden` decoration with a click handler, not a nested control — so the row keeps one accessible name and one checked state. The cost is that the split is pointer-only: Enter and Space activate the row, which toggles _and_ closes. If keyboard users need to check several labels in one pass, put `closeOnSelect: false` on the items and let the row behave like the checkbox does.
+
 ## Structure
 
 `DropdownMenuGroup` wraps related items in `role="group"`; give the group a name with `DropdownMenuGroupHeading`, and the group labels itself with it. `DropdownMenuSeparator` draws a `role="separator"` line between sections. `DropdownMenuPortal` is the core Portal helper for escaping overflow and stacking contexts.

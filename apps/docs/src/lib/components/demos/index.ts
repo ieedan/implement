@@ -57,6 +57,8 @@ import ContextMenuDemo from "./context-menu-demo.ts";
 import contextMenuSource from "./context-menu-demo.ts?raw";
 import DropdownMenuDemo from "./dropdown-menu-demo.ts";
 import dropdownMenuSource from "./dropdown-menu-demo.ts?raw";
+import DropdownMenuLabelsDemo from "./dropdown-menu-labels-demo.ts";
+import dropdownMenuLabelsSource from "./dropdown-menu-labels-demo.ts?raw";
 import MenubarDemo from "./menubar-demo.ts";
 import menubarSource from "./menubar-demo.ts?raw";
 import ToastDemo from "./toast-demo.ts";
@@ -129,6 +131,10 @@ export const demos: Record<string, Demo> = {
 	"aspect-ratio": { source: aspectRatioSource, component: AspectRatioDemo },
 	"context-menu": { source: contextMenuSource, component: ContextMenuDemo },
 	"dropdown-menu": { source: dropdownMenuSource, component: DropdownMenuDemo },
+	"dropdown-menu-labels": {
+		source: dropdownMenuLabelsSource,
+		component: DropdownMenuLabelsDemo,
+	},
 	menubar: { source: menubarSource, component: MenubarDemo },
 	avatar: { source: avatarSource, component: AvatarDemo },
 	calendar: { source: calendarSource, component: CalendarDemo },
