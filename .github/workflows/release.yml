@@ -76,17 +76,25 @@ jobs:
           cache: pnpm
       # jsrepo.com holds a published version forever, so the question this
       # workflow has to answer on every push is not "did the registry change"
-      # but "has this version already gone out". The tag is the answer: it is
-      # written after a publish succeeds and nowhere else, which leaves a
-      # re-run, a version pull request and an unrelated commit all doing
-      # nothing rather than failing on a republish.
+      # but "is this the version to publish, and has it already gone out".
+      #
+      # A pending changeset answers the first: `main` is mid-release and the
+      # version on disk is one the repo has already decided to bump past, so
+      # publishing it would burn a number nothing will ever refer to. The tag
+      # answers the second, and is written after a publish succeeds and nowhere
+      # else — which leaves a re-run, a version pull request and an unrelated
+      # commit all doing nothing rather than failing on a republish.
       - name: Find the version to publish
         id: version
         run: |
           version="$(node -p "require('./packages/ui/package.json').version")"
           tag="@implementjs/ui@$version"
+          pending="$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' -print -quit)"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          if git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+          if [ -n "$pending" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "A release is pending, so \`$version\` is not the version to publish." >> "$GITHUB_STEP_SUMMARY"
+          elif git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
             echo "\`$tag\` is already published." >> "$GITHUB_STEP_SUMMARY"
           else
