@@ -65,6 +65,16 @@ export function jsrepoConfig(ctx: TemplateContext): string {
 	].join("\n")}\n`;
 }
 
+/**
+ * The generated `package.json`.
+ *
+ * Where a dependency goes: vite bundles the app, so nothing a template writes is resolved out of
+ * `node_modules` at runtime — but a kit app that later takes a server adapter is built with
+ * `noExternal: [/^@implementjs\//]` and nothing else, so every other package it imports has to be
+ * installed next to the built server. That is the line: a package the app's own code imports is a
+ * dependency, and a package only the build or the editor ever loads — vite, tailwind, typescript,
+ * the linters, kit's plugin, the schemas kit evaluates and inlines — is a devDependency.
+ */
 export function packageJson({
 	name,
 	scripts,

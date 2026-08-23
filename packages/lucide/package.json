@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/lucide",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"description": "The Lucide icon set as implement components. One module per icon, so bundlers keep only what you import.",
 	"keywords": [
 		"implement",
