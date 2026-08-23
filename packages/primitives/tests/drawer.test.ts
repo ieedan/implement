@@ -51,6 +51,38 @@ function element(target: ParentNode, selector: string, index = 0): HTMLElement {
 	return el;
 }
 
+/**
+ * A real scroll container: `overflow-y: auto` and content taller than the box.
+ * happy-dom has no layout, so the sizes are declared rather than measured.
+ */
+function scrollable(scrollHeight: number, clientHeight: number, scrollTop: number): HTMLElement {
+	const el = document.createElement("div");
+	el.setAttribute("data-scroller", "");
+	el.style.overflowY = "auto";
+	Object.defineProperties(el, {
+		scrollHeight: { value: scrollHeight, configurable: true },
+		clientHeight: { value: clientHeight, configurable: true },
+	});
+	el.scrollTop = scrollTop;
+	return el;
+}
+
+/**
+ * Something that overflows without scrolling — the shape of the drawer's own
+ * grab bar, whose 44px hit area sticks out of a 6px bar.
+ */
+function overflowing(scrollHeight: number, clientHeight: number): HTMLElement {
+	const el = document.createElement("div");
+	el.setAttribute("data-overflowing", "");
+	Object.defineProperties(el, {
+		scrollHeight: { value: scrollHeight, configurable: true },
+		clientHeight: { value: clientHeight, configurable: true },
+		scrollWidth: { value: scrollHeight, configurable: true },
+		clientWidth: { value: clientHeight, configurable: true },
+	});
+	return el;
+}
+
 /** happy-dom has no layout, so the panel reports the size the test wants it to. */
 function sizePanel(el: HTMLElement, height: number) {
 	Object.defineProperty(el, "offsetHeight", { value: height, configurable: true });
@@ -242,15 +274,9 @@ describe("drawer", () => {
 		const content = element(target, "[data-drawer-content]");
 		sizePanel(content, 400);
 
-		const scroller = document.createElement("div");
-		Object.defineProperties(scroller, {
-			scrollHeight: { value: 800, configurable: true },
-			clientHeight: { value: 200, configurable: true },
-		});
-		scroller.scrollTop = 120;
-		content.appendChild(scroller);
+		content.appendChild(scrollable(800, 200, 120));
 
-		dragTo(scroller, { y: 0 }, { y: 100 });
+		dragTo(element(content, "[data-scroller]"), { y: 0 }, { y: 100 });
 		expect(content.hasAttribute("data-dragging")).toBe(false);
 		expect(offsetY(content)).toBe("0px");
 	});
@@ -274,6 +300,38 @@ describe("drawer", () => {
 		// and the next real click still lands
 		button.click();
 		expect(clicks).toBe(2);
+	});
+
+	it("dismisses in every direction, not only the ones the axis runs forward in", async () => {
+		for (const [direction, from, to] of [
+			["bottom", { y: 0 }, { y: 300 }],
+			["top", { y: 300 }, { y: 0 }],
+			["right", { x: 0 }, { x: 300 }],
+			["left", { x: 300 }, { x: 0 }],
+		] as const) {
+			const open = signal(true);
+			const { target } = await mount(DrawerFixture({ open, direction }));
+			const content = element(target, "[data-drawer-content]");
+			sizePanel(content, 400);
+
+			drag(content, from, to);
+			expect(open.get(), direction).toBe(false);
+			unmountAll();
+		}
+	});
+
+	it("does not take the handle's oversized hit area for a scroll container", async () => {
+		// the bar is 6px and its hit area is 44px, so it overflows without ever
+		// scrolling — and a top drawer, which drags away from the far edge, used
+		// to read that as a list scrolled away from the edge and refuse to drag
+		const open = signal(true);
+		const { target } = await mount(DrawerFixture({ open, direction: "top" }));
+		const content = element(target, "[data-drawer-content]");
+		sizePanel(content, 400);
+		content.appendChild(overflowing(44, 6));
+
+		drag(element(content, "[data-overflowing]"), { y: 300 }, { y: 0 });
+		expect(open.get()).toBe(false);
 	});
 
 	it("ignores a drag that started on a no-drag region", async () => {

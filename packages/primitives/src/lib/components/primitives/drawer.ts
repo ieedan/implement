@@ -626,14 +626,33 @@ export class DrawerState extends ModalState {
 		return true;
 	}
 
+	/**
+	 * True when the drawer's axis can actually be scrolled at `el` — not merely
+	 * that content overflows it. Every element with something sticking out of it
+	 * reports `scrollHeight > clientHeight`, the handle's own 44px hit area
+	 * included, and a 6px bar that cannot scroll must not be taken for a list
+	 * that can.
+	 */
+	private scrolls(el: Element): boolean {
+		const scrollSize = this.vertical ? el.scrollHeight : el.scrollWidth;
+		const clientSize = this.vertical ? el.clientHeight : el.clientWidth;
+		if (scrollSize <= clientSize + 1) return false;
+		if (typeof window === "undefined") return false;
+		const style = window.getComputedStyle(el);
+		const overflow = this.vertical ? style.overflowY : style.overflowX;
+		return overflow === "auto" || overflow === "scroll" || overflow === "overlay";
+	}
+
 	/** True when something between the target and the panel is scrolled off its edge. */
 	private scrolledAway(target: Element): boolean {
 		const content = this.contentElement.get();
 		for (let el: Element | null = target; el !== null; el = el.parentElement) {
-			const scrollSize = this.vertical ? el.scrollHeight : el.scrollWidth;
-			const clientSize = this.vertical ? el.clientHeight : el.clientWidth;
-			if (scrollSize > clientSize + 1) {
+			if (this.scrolls(el)) {
+				const scrollSize = this.vertical ? el.scrollHeight : el.scrollWidth;
+				const clientSize = this.vertical ? el.clientHeight : el.clientWidth;
 				const position = this.vertical ? el.scrollTop : el.scrollLeft;
+				// the edge a drag pulls the panel away from: the start of the list for a
+				// drawer that closes along the axis, the end for one that closes back up it
 				const atEdge = this.sign > 0 ? position <= 0 : position + clientSize >= scrollSize - 1;
 				if (!atEdge) return true;
 			}
