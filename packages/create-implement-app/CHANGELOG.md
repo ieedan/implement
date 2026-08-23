@@ -1,5 +1,11 @@
 # create-implement-app
 
+## 0.0.4
+
+### Patch Changes
+
+- [#36](https://github.com/ieedan/implement/pull/36) [`e883ade`](https://github.com/ieedan/implement/commit/e883ade584f4c33e8ef25acde7c80e5be106e7bb) Thanks [@ieedan](https://github.com/ieedan)! - `--link` skips private packages in the linked clone. A `link:` specifier naming one would resolve only for as long as the clone stayed where it is, and npm has nothing to fall back to — `@implementjs/ui`, whose package in the workspace carries the registry's version and no code, is the one this exists for.
+
 ## 0.0.3
 
 ### Patch Changes

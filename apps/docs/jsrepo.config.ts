@@ -24,6 +24,39 @@ const DEFAULT_PATHS = { ui: UI_DIR, lib: "src/lib" };
 const IMPLEMENT_VERSION = "latest";
 
 /**
+ * `packages/ui`, which holds no code — only the version line and changelog changesets keeps for
+ * this registry, so that `pnpm changeset` lists `@implementjs/ui` under its own name rather than
+ * the app that happens to build it.
+ */
+const VERSION_PACKAGE = "../../packages/ui/package.json";
+
+/**
+ * The registry's version, read from {@link VERSION_PACKAGE}.
+ *
+ * jsrepo.com holds a published version forever, so this is also what decides whether a release has
+ * anything to publish: the `Registry` job in `release.yml` publishes when there is no tag for the
+ * version found here.
+ *
+ * jsrepo has a `version: "package"` shorthand for reading a package.json, but it resolves at publish
+ * time and lands in the built `registry.json` verbatim — the manifest a checkout is read through
+ * would carry the literal string `package` as its version. Reading it here keeps both honest, and
+ * it is the wrong package.json anyway: the nearest one is the docs app's.
+ */
+function registryVersion(cwd: string): string {
+	const manifest = path.resolve(cwd, VERSION_PACKAGE);
+	const parsed: unknown = JSON.parse(fs.readFileSync(manifest, "utf8"));
+	const { version } = (typeof parsed === "object" && parsed !== null ? parsed : {}) as {
+		version?: unknown;
+	};
+	// a registry without one cannot be published at all, and a build that quietly produced a
+	// versionless manifest would only say so on the next release
+	if (typeof version !== "string") {
+		throw new Error(`No version in ${manifest} to publish the registry as.`);
+	}
+	return version;
+}
+
+/**
  * One item per file in {@link UI_DIR}, plus the `utils` they all import. jsrepo reads the imports
  * itself, so `select` pulling in `dropdown-menu`, `button` pulling in `utils`, and `accordion`
  * installing `@implementjs/lucide`, all fall out of the source rather than being listed here.
@@ -51,10 +84,14 @@ function items(cwd: string): RegistryItem[] {
 export default defineConfig({
 	registry: ({ cwd }) => ({
 		name: "@implementjs/ui",
-		version: "0.0.0",
+		version: registryVersion(cwd),
 		description: "Styled components built on @implementjs/primitives.",
 		homepage: "https://github.com/ieedan/implement",
 		repository: "https://github.com/ieedan/implement",
+		bugs: "https://github.com/ieedan/implement/issues",
+		// who can read the registry once it is on jsrepo.com. Public is the default, but it is the one
+		// field here that a wrong default would quietly get wrong, so it says so
+		access: "public",
 		// the framework itself — the registry docs list these under "what you need first", so asking
 		// for a button should not drag them in behind the user's back
 		excludeDeps: ["@implementjs/core", "@implementjs/primitives"],

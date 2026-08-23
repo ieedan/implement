@@ -83,6 +83,22 @@ describe("--link", () => {
 		);
 	});
 
+	it("skips a private package, which npm never has", async () => {
+		const repo = fakeRepo(["core", "kit", "router"]);
+		// `@implementjs/ui` is a jsrepo registry — a package in the workspace so changesets can
+		// version it, and nothing a scaffolded app could ever install
+		const dir = join(cwd, repo, "packages", "ui");
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(
+			join(dir, "package.json"),
+			JSON.stringify({ name: "@implementjs/ui", private: true }),
+		);
+
+		const result = await runCreate("my-app", options({ link: repo }));
+
+		expect(Object.keys(unwrap(result).linked ?? {})).not.toContain("@implementjs/ui");
+	});
+
 	it("spells the link the way npm and bun understand it", async () => {
 		const repo = fakeRepo(["core", "kit", "router"]);
 
