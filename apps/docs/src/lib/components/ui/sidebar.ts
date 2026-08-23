@@ -6,8 +6,9 @@ import {
 	Div,
 	If,
 	ImplementDocument,
-	ImplementLifecycle,
+	ImplementEffect,
 	Li,
+	mediaQuery,
 	signal,
 	Span,
 	Ul,
@@ -27,7 +28,7 @@ import { tv, type VariantProps } from "tailwind-variants";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
 import { Input } from "./input";
 import { Separator } from "./separator";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "./sheet";
+import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "./drawer";
 import { Skeleton } from "./skeleton";
 import { TooltipContent } from "./tooltip";
 import { cn } from "@/lib/utils";
@@ -49,13 +50,13 @@ export const SIDEBAR_WIDTH_ICON = "var(--sidebar-width-icon, 3rem)";
 export const SIDEBAR_WIDTH_MOBILE = "var(--sidebar-width-mobile, 18rem)";
 export const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
-/** Below this the sidebar becomes an off-canvas sheet. */
+/** Below this the sidebar becomes an off-canvas drawer. */
 const MOBILE_QUERY = "(max-width: 767px)";
 
 export type SidebarStore = {
 	/** Open on desktop. Pass your own signal to `SidebarProvider` to control or persist it. */
 	open: Signal<boolean>;
-	/** Open on mobile, where the sidebar is a sheet. Reset whenever the viewport crosses over. */
+	/** Open on mobile, where the sidebar is a drawer. Reset whenever the viewport crosses over. */
 	openMobile: Signal<boolean>;
 	isMobile: Readable<boolean>;
 	/** `"expanded"` or `"collapsed"`, which is what the parts style against. */
@@ -92,9 +93,10 @@ export const SidebarProvider = createComponent(function SidebarProvider(
 ) {
 	const openSignal = open ?? signal(defaultOpen);
 	const openMobile = signal(false);
-	// SSR has no viewport to measure; the client corrects this on mount, and
-	// the desktop tree is the one worth prerendering.
-	const isMobile = signal(false);
+	// SSR has no viewport to measure, and the desktop tree is the one worth
+	// prerendering; `mediaQuery` holds that answer through hydration and
+	// corrects it straight after.
+	const isMobile = mediaQuery(MOBILE_QUERY);
 	const state = derived([openSignal], (value) => (value ? "expanded" : "collapsed"));
 
 	const toggle = () => {
@@ -105,19 +107,10 @@ export const SidebarProvider = createComponent(function SidebarProvider(
 	const store: SidebarStore = { open: openSignal, openMobile, isMobile, state, toggle };
 
 	return SidebarContext.Provide(store).To(
-		ImplementLifecycle({
-			onMount() {
-				const query = window.matchMedia(MOBILE_QUERY);
-				const sync = () => {
-					isMobile.set(query.matches);
-					// a sheet left open on a phone must not linger once the
-					// layout goes back to a docked sidebar
-					if (!query.matches) openMobile.set(false);
-				};
-				sync();
-				query.addEventListener("change", sync);
-				return () => query.removeEventListener("change", sync);
-			},
+		// a drawer left open on a phone must not linger once the layout goes
+		// back to a docked sidebar
+		ImplementEffect([isMobile], (mobile) => {
+			if (!mobile) openMobile.set(false);
 		}),
 		...(keyboardShortcut
 			? [
@@ -184,18 +177,21 @@ export const Sidebar = createComponent(function Sidebar(
 	return SidebarContext.Use((sidebar) =>
 		If(sidebar.isMobile)
 			.Then(
-				Sheet(
-					{ open: sidebar.openMobile },
-					SheetContent(
+				Drawer(
+					{ open: sidebar.openMobile, direction: side },
+					DrawerContent(
 						{
-							side,
-							class: "w-[var(--sidebar-width-mobile,18rem)] bg-sidebar p-0 text-sidebar-foreground",
+							// no grab bar: a bar floating over the nav items reads as
+							// part of the menu. The whole panel is the drag surface.
+							showHandle: false,
+							class:
+								"w-[var(--sidebar-width-mobile,18rem)] max-w-[85vw] bg-sidebar p-0 text-sidebar-foreground",
 							"data-slot": "sidebar",
 							"data-mobile": "true",
 						},
-						// the sheet is a dialog, and a dialog needs a name
-						SheetTitle({ class: "sr-only" }, "Sidebar"),
-						SheetDescription({ class: "sr-only" }, "Displays the mobile sidebar."),
+						// the drawer is a dialog, and a dialog needs a name
+						DrawerTitle({ class: "sr-only" }, "Sidebar"),
+						DrawerDescription({ class: "sr-only" }, "Displays the mobile sidebar."),
 						Div({ class: "flex h-full w-full flex-col" }, ...children),
 					),
 				),

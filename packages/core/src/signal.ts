@@ -746,8 +746,11 @@ export class ReactiveMap<K, V> extends Map<K, V> implements Readable<ReadonlyMap
  * Cached readable that watches sources only while it has subscribers (or until
  * {@link dispose}). Creating one inside a per-row factory no longer leaks a
  * source subscription when the row is discarded or unmounted.
+ *
+ * Exported for the readables core builds on top of it (`derived`,
+ * `mediaQuery`), not for apps — `index.ts` does not re-export it.
  */
-abstract class LazyReadable<T> extends Notifier<T> implements Readable<T> {
+export abstract class LazyReadable<T> extends Notifier<T> implements Readable<T> {
 	protected value!: T;
 	private sourceUnsubscribe: Unsubscribe | null = null;
 	private disposed = false;

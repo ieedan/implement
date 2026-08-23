@@ -79,7 +79,7 @@ A drag starts anywhere on the panel, unless `handleOnly` moves it to the handle.
 - A flick faster than 0.4px/ms dismisses it however short it was.
 - Anything else springs back.
 
-Pulling the panel further open than it goes rubber bands instead of stopping dead. `dismissible: false` takes dismissal away from all of it — drag, Escape, and the scrim — so drive `open` yourself.
+Pulling the panel further open than it goes rubber bands instead of stopping dead. `dismissible: false` takes dismissal away from everything the drawer owns — the drag, Escape, the scrim, and `DrawerClose` — so drive `open` yourself. A drawer nested inside one that closes still goes with it, rather than being left on the page with nothing above it.
 
 Two things a drag deliberately does not do. It does not start from a scroll container that is scrolled away from the edge the panel would leave from, and it does not start for `scrollLockTimeout` after one has scrolled — so a panel with a list in it scrolls to the top first and drags second. It also does not start from anything inside `[data-drawer-no-drag]`, which is the escape hatch for a slider, a map, or a canvas that wants the gesture for itself.
 

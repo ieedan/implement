@@ -144,6 +144,19 @@ const directionClasses: Record<DrawerDirection, string> = {
 };
 
 /**
+ * Where the grab bar goes, which is always the edge the panel drags out of —
+ * not the edge it is anchored to. A bar across the panel for a top or bottom
+ * drawer, and one down the side for a left or right one, taken out of flow
+ * because a column layout should not be built around 6px of grab bar.
+ */
+const handleClasses: Record<DrawerDirection, string> = {
+	bottom: "mx-auto my-4 h-1.5 w-12",
+	top: "mx-auto my-4 h-1.5 w-12",
+	left: "absolute top-1/2 right-2.5 h-12 w-1.5 -translate-y-1/2",
+	right: "absolute top-1/2 left-2.5 h-12 w-1.5 -translate-y-1/2",
+};
+
+/**
  * The panel, with the scrim and the portal already inside it. `DrawerOverlay`
  * and `DrawerPortal` stay exported for a layout that composes the panel out of
  * the primitives — pairing them with this only gets you two scrims.
@@ -178,8 +191,13 @@ export const DrawerContent = createComponent(function DrawerContent(
 						className,
 					),
 				},
-				showHandle ? DrawerHandle({}) : null,
+				// a top drawer drags out of its bottom edge, so the bar belongs after
+				// the content rather than before it
+				showHandle && state.direction !== "top"
+					? DrawerHandle({ class: handleClasses[state.direction] })
+					: null,
 				...children,
+				showHandle && state.direction === "top" ? DrawerHandle({ class: handleClasses.top }) : null,
 				showCloseButton
 					? DrawerClose(
 							{
@@ -211,8 +229,8 @@ export const DrawerHandle = createComponent(function DrawerHandle(
 			"data-slot": "drawer-handle",
 			class: cn(
 				"relative shrink-0 cursor-grab touch-none rounded-full bg-muted opacity-70 transition-opacity hover:opacity-100 active:cursor-grabbing active:opacity-100",
+				// the bar a bottom drawer wants; DrawerContent overrides it per direction
 				"mx-auto my-4 h-1.5 w-12",
-				"[:is([data-drawer-direction=left],[data-drawer-direction=right])_&]:mx-4 [:is([data-drawer-direction=left],[data-drawer-direction=right])_&]:my-auto [:is([data-drawer-direction=left],[data-drawer-direction=right])_&]:h-12 [:is([data-drawer-direction=left],[data-drawer-direction=right])_&]:w-1.5",
 				"[&>[data-drawer-handle-hitarea]]:absolute [&>[data-drawer-handle-hitarea]]:top-1/2 [&>[data-drawer-handle-hitarea]]:left-1/2 [&>[data-drawer-handle-hitarea]]:h-[max(100%,2.75rem)] [&>[data-drawer-handle-hitarea]]:w-[max(100%,2.75rem)] [&>[data-drawer-handle-hitarea]]:-translate-x-1/2 [&>[data-drawer-handle-hitarea]]:-translate-y-1/2",
 				className,
 			),

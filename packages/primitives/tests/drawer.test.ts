@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { App, Button, signal } from "@implementjs/core";
 import {
 	Drawer,
+	DrawerClose,
 	DrawerContent,
 	DrawerHandle,
 	DrawerOverlay,
@@ -162,6 +163,35 @@ describe("drawer", () => {
 		drag(content, { y: 0 }, { y: 300 }, 20);
 		expect(open.get()).toBe(true);
 		expect(offsetY(content)).toBe("0px");
+	});
+
+	it("refuses every close it owns when it is not dismissible", async () => {
+		const open = signal(true);
+		const { target } = await mount(
+			Drawer(
+				{ open, dismissible: false },
+				DrawerTrigger({}, "Open"),
+				DrawerOverlay({}),
+				DrawerContent({}, DrawerClose({}, "Done")),
+			),
+		);
+		const content = element(target, "[data-drawer-content]");
+
+		element(content, "[data-drawer-close], button").click();
+		expect(open.get()).toBe(true);
+
+		content.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+		document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+		expect(open.get()).toBe(true);
+
+		element(target, "[data-drawer-overlay]").dispatchEvent(
+			new MouseEvent("pointerdown", { bubbles: true }),
+		);
+		expect(open.get()).toBe(true);
+
+		// the signal is the way out, which is what `dismissible: false` is for
+		open.set(false);
+		expect(open.get()).toBe(false);
 	});
 
 	it("tracks the drag on the panel and fades the overlay with it", async () => {

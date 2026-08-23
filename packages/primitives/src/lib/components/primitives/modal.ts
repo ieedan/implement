@@ -47,6 +47,13 @@ export type ModalConfig = {
 	role: "dialog" | "alertdialog";
 	/** Default for the content's `onInteractOutsideBehavior`. */
 	interactOutsideBehavior: DismissBehavior;
+	/**
+	 * When false, nothing inside the modal closes it — Escape, the overlay, the
+	 * close button, and a second click on the trigger all stop at `close()`.
+	 * Writing the `open` signal from outside still does. Defaults to true, and
+	 * a modal nested in one that is closing goes with it either way.
+	 */
+	dismissible?: boolean;
 };
 
 export type ModalRootOptions = {
@@ -155,7 +162,9 @@ export class ModalState {
 
 	private closeNested() {
 		for (const child of this.children) {
-			if (child.open.get()) child.close(false);
+			// forced: a child that refuses to be dismissed still cannot outlive the
+			// modal it was declared in, or its portaled panel is left on the page
+			if (child.open.get()) child.forceClose(false);
 		}
 	}
 
@@ -214,6 +223,12 @@ export class ModalState {
 	}
 
 	close(restoreFocus = true) {
+		if (this.config.dismissible === false) return;
+		this.forceClose(restoreFocus);
+	}
+
+	/** Closes regardless of `dismissible`. For the paths a modal does not get a say in. */
+	forceClose(restoreFocus = true) {
 		this.closeNested();
 		if (restoreFocus) {
 			const currentTrigger = this.triggerRefs.get(this.currentTriggerId.get() ?? "");

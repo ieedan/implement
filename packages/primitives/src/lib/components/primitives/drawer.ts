@@ -143,7 +143,10 @@ function closestIndex(offsets: readonly number[], displacement: number): number 
 export type DrawerRootProps = ModalRootOptions & {
 	/** Edge the panel is anchored to. Defaults to `"bottom"`. */
 	direction?: DrawerDirection;
-	/** When false, dragging, Escape, and clicking outside no longer close it. Defaults to true. */
+	/**
+	 * When false, nothing in the drawer closes it — the drag, Escape, the scrim,
+	 * and `DrawerClose` all stop. Drive `open` yourself. Defaults to true.
+	 */
 	dismissible?: boolean;
 	/** Fraction of the panel a drag must cover to dismiss on release. Defaults to `0.25`. */
 	closeThreshold?: number;
@@ -216,7 +219,15 @@ export class DrawerState extends ModalState {
 	private contentRefUnsub: (() => void) | null = null;
 
 	constructor(props: DrawerRootProps) {
-		super({ name: "drawer", role: "dialog", interactOutsideBehavior: "close" }, props);
+		super(
+			{
+				name: "drawer",
+				role: "dialog",
+				interactOutsideBehavior: "close",
+				dismissible: props.dismissible ?? true,
+			},
+			props,
+		);
 		this.direction = props.direction ?? "bottom";
 		this.snapPoints = props.snapPoints ?? [];
 		this.fadeFromIndex = props.fadeFromIndex ?? this.snapPoints.length - 1;

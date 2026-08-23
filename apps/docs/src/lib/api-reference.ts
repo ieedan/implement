@@ -2740,7 +2740,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					type: "boolean",
 					default: "true",
 					description:
-						"When false, dragging past the last snap point, Escape, and clicking outside no longer close it. Drive open yourself.",
+						"When false, nothing the drawer owns closes it — the drag, Escape, the scrim, and DrawerClose all stop. Drive open yourself. A drawer nested in one that closes still goes with it.",
 				},
 				{
 					name: "snapPoints",
@@ -3693,6 +3693,79 @@ const styledReference: Record<string, ApiPart[]> = {
 			},
 		},
 	}),
+	"ui-responsive-dialog": [
+		{
+			name: "ResponsiveDialog",
+			description:
+				"The root. Reads the viewport once and renders a Drawer below the breakpoint or a Dialog above it, around the same children. Both shapes share one open signal, so the switch does not lose the open state. Every other prop reaches the shape it belongs to — snapPoints, direction, dismissible and the rest of the drawer's root props reach the drawer; preventScroll reaches both.",
+			props: [
+				{
+					name: "open",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "query",
+					type: "string",
+					default: '"(max-width: 767px)"',
+					description:
+						"The media query that picks the drawer. Exported as RESPONSIVE_DIALOG_QUERY for anything that has to agree with it.",
+				},
+			],
+		},
+		{
+			name: "ResponsiveDialogTrigger",
+			element: "Button",
+			description: "Toggles it open and closed. The same trigger under either shape.",
+			props: buttonStyleProps("outline", "default"),
+		},
+		{
+			name: "ResponsiveDialogContent",
+			element: "Div",
+			description:
+				"The panel: a centered dialog, or a drawer from the bottom edge. Both bring their own scrim and portal. It takes the content props of both shapes, and each one reaches the shape that has it — showHandle the drawer, showCloseButton either.",
+			props: [
+				{
+					name: "showHandle",
+					type: "boolean",
+					default: "true",
+					description: "Renders the drawer's grab bar. No effect on the dialog.",
+				},
+				{
+					name: "showCloseButton",
+					type: "boolean",
+					default: "false on the drawer, true on the dialog",
+					description: "Renders a close button in the top right corner.",
+				},
+				{
+					name: "overlay",
+					type: "ResponsiveDialogOverlayProps",
+					default: "{}",
+					description: "Props for the scrim the content renders behind itself.",
+				},
+			],
+		},
+		{
+			name: "ResponsiveDialogTitle",
+			element: "H2",
+			description:
+				"The heading, and the panel's accessible name. One component under either shape: Drawer and Dialog are the same modal primitive, so it picks up whichever root is above it.",
+		},
+		{
+			name: "ResponsiveDialogDescription",
+			element: "P",
+			description:
+				"Supporting text, wired to the panel's aria-describedby. One under either shape.",
+		},
+		{
+			name: "ResponsiveDialogClose",
+			element: "Button",
+			description: "Closes it. One under either shape.",
+			props: buttonStyleProps("ghost", "sm"),
+		},
+	],
 	"ui-dropdown-menu": styledParts("dropdown-menu", {
 		parts: {
 			DropdownMenuTrigger: { props: buttonStyleProps("outline", "default") },

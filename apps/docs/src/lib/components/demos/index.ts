@@ -55,6 +55,8 @@ import DrawerDirectionsDemo from "./drawer-directions-demo.ts";
 import drawerDirectionsSource from "./drawer-directions-demo.ts?raw";
 import DrawerSnapPointsDemo from "./drawer-snap-points-demo.ts";
 import drawerSnapPointsSource from "./drawer-snap-points-demo.ts?raw";
+import ResponsiveDialogDemo from "./responsive-dialog-demo.ts";
+import responsiveDialogSource from "./responsive-dialog-demo.ts?raw";
 import TooltipDemo from "./tooltip-demo.ts";
 import tooltipSource from "./tooltip-demo.ts?raw";
 import AlertDialogDemo from "./alert-dialog-demo.ts";
@@ -188,6 +190,10 @@ export const demos: Record<string, Demo> = {
 	"drawer-snap-points": {
 		source: drawerSnapPointsSource,
 		component: DrawerSnapPointsDemo,
+	},
+	"responsive-dialog": {
+		source: responsiveDialogSource,
+		component: ResponsiveDialogDemo,
 	},
 	"alert-dialog": { source: alertDialogSource, component: AlertDialogDemo },
 	tooltip: { source: tooltipSource, component: TooltipDemo },

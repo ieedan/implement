@@ -130,7 +130,9 @@ html[data-drawer-open] [data-drawer-wrapper] {
 
 ## Drawer or sheet?
 
-Both are the [dialog](/ui/dialog) wearing a panel. `sheet` — the one the [sidebar](/ui/sidebar) falls back to on mobile — slides in and out, and that is all it does. Reach for the drawer when the gesture is the point — a phone-shaped surface you flick away, or one that rests at more than one height. On a desktop with a pointer they look the same; the difference is what a thumb can do with them.
+Both are the [dialog](/ui/dialog) wearing a panel. `sheet` slides in and out, and that is all it does. Reach for the drawer when the gesture is the point — a phone-shaped surface you flick away, or one that rests at more than one height. On a desktop with a pointer they look the same; the difference is what a thumb can do with them.
+
+That is why the [sidebar](/ui/sidebar) falls back to a drawer rather than a sheet below 768px, and why a modal that has to work on both often wants to be a [responsive dialog](/ui/responsive-dialog): a dialog where there is room for one, and a drawer where a thumb is what is reaching for it.
 
 ## Controlling it
 

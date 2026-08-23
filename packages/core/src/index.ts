@@ -95,6 +95,7 @@ export {
 	type RouterLocation,
 	type SearchParam,
 } from "./location";
+export { mediaQuery, type MediaQueryOptions } from "./media-query";
 export {
 	derived,
 	isReadable,
