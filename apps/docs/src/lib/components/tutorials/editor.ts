@@ -61,6 +61,11 @@ function EditorFallback(code: string): Mountable {
 			{
 				style: {
 					flex: "1",
+					// `min-width: 0` is what keeps the overflow below on the <pre>
+					// itself: at the flex default (`auto`) a long line widens this
+					// item instead, and the whole stand-in scrolls, taking the
+					// gutter with it — where CodeMirror leaves its own in place.
+					minWidth: "0",
 					margin: "0",
 					overflowX: "auto",
 					padding: "0 2px 0 6px",
