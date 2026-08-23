@@ -632,6 +632,54 @@
 			]
 		},
 		{
+			"name": "drawer",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "latest"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "drawer.ts",
+					"relativePath": "src/lib/components/ui/drawer.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
 			"name": "dropdown-menu",
 			"type": "ui",
 			"add": "when-added",

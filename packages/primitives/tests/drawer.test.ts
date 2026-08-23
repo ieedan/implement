@@ -1,0 +1,345 @@
+// @vitest-environment happy-dom
+import { afterEach, describe, expect, it } from "vitest";
+import { App, Button, signal } from "@implementjs/core";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerOverlay,
+	DrawerTrigger,
+	type DrawerRootProps,
+} from "../src/index";
+
+/** Flush the microtask queue so deferred `Lifecycle.onMount` hooks run. */
+function tick() {
+	return new Promise<void>((resolve) => {
+		queueMicrotask(() => queueMicrotask(resolve));
+	});
+}
+
+const mounted: (() => void)[] = [];
+
+async function mount(tree: Parameters<ReturnType<typeof App>["render"]>[0]) {
+	const target = document.createElement("div");
+	document.body.appendChild(target);
+	const app = App({ target });
+	const unmount = app.render(tree);
+	mounted.push(() => {
+		unmount();
+		target.remove();
+	});
+	await tick();
+	return { target };
+}
+
+/**
+ * A failed assertion must not leave a drawer mounted: the next test's focus
+ * lands in it, and two focus traps arguing is a stack overflow, not a failure
+ * anyone can read.
+ */
+function unmountAll() {
+	for (const unmount of mounted.splice(0)) unmount();
+	document.body.removeAttribute("style");
+	document.documentElement.removeAttribute("data-drawer-open");
+	document.documentElement.removeAttribute("style");
+}
+
+function element(target: ParentNode, selector: string, index = 0): HTMLElement {
+	const el = target.querySelectorAll(selector)[index];
+	if (!(el instanceof HTMLElement)) throw new Error(`No ${selector} at ${index}`);
+	return el;
+}
+
+/** happy-dom has no layout, so the panel reports the size the test wants it to. */
+function sizePanel(el: HTMLElement, height: number) {
+	Object.defineProperty(el, "offsetHeight", { value: height, configurable: true });
+	Object.defineProperty(el, "offsetWidth", { value: window.innerWidth, configurable: true });
+}
+
+/** Runs `fn` with the clock stopped at `at`, which is how velocity is faked. */
+function at<T>(time: number, fn: () => T): T {
+	const now = Date.now;
+	Date.now = () => time;
+	try {
+		return fn();
+	} finally {
+		Date.now = now;
+	}
+}
+
+type Point = { x?: number; y?: number; type?: string };
+
+function pointer(type: string, { x = 0, y = 0, type: pointerType = "mouse" }: Point = {}) {
+	const event = new Event(type, { bubbles: true, cancelable: true });
+	Object.assign(event, {
+		pointerId: 1,
+		pointerType,
+		button: 0,
+		clientX: x,
+		clientY: y,
+	});
+	return event;
+}
+
+/**
+ * A press, a move, and a release, `ms` apart. The whole gesture happens well
+ * after the mount so it is not inside the drawer's open-animation grace.
+ */
+function drag(el: HTMLElement, from: Point, to: Point, ms = 1000) {
+	const start = Date.now() + 10_000;
+	at(start, () => {
+		el.dispatchEvent(pointer("pointerdown", from));
+		el.dispatchEvent(pointer("pointermove", to));
+	});
+	at(start + ms, () => el.dispatchEvent(pointer("pointerup", to)));
+}
+
+/** Press and move without releasing, so the panel is left mid-drag. */
+function dragTo(el: HTMLElement, from: Point, to: Point) {
+	at(Date.now() + 10_000, () => {
+		el.dispatchEvent(pointer("pointerdown", from));
+		el.dispatchEvent(pointer("pointermove", to));
+	});
+}
+
+function offsetY(el: HTMLElement): string {
+	return el.style.getPropertyValue("--ip-drawer-offset-y");
+}
+
+function DrawerFixture(props: DrawerRootProps = {}) {
+	return Drawer(
+		{ open: true, ...props },
+		DrawerTrigger({}, "Open"),
+		DrawerOverlay({}),
+		DrawerContent({}, "Panel"),
+	);
+}
+
+describe("drawer", () => {
+	afterEach(unmountAll);
+
+	it("renders the modal wiring the dialog gets, plus the direction", async () => {
+		const { target } = await mount(DrawerFixture({ direction: "right" }));
+
+		const content = element(target, "[data-drawer-content]");
+		expect(content.getAttribute("role")).toBe("dialog");
+		expect(content.getAttribute("aria-modal")).toBe("true");
+		expect(content.getAttribute("data-state")).toBe("open");
+		expect(content.getAttribute("data-drawer-direction")).toBe("right");
+		expect(content.hasAttribute("data-snap-points")).toBe(false);
+		expect(element(target, "[data-drawer-overlay]").getAttribute("data-state")).toBe("open");
+	});
+
+	it("dismisses when a slow drag passes the close threshold", async () => {
+		const open = signal(true);
+		const { target } = await mount(DrawerFixture({ open }));
+		const content = element(target, "[data-drawer-content]");
+		sizePanel(content, 400);
+
+		drag(content, { y: 0 }, { y: 80 });
+		expect(open.get()).toBe(true);
+
+		drag(content, { y: 0 }, { y: 300 });
+		expect(open.get()).toBe(false);
+	});
+
+	it("dismisses on a fast flick that never reaches the threshold", async () => {
+		const open = signal(true);
+		const { target } = await mount(DrawerFixture({ open }));
+		const content = element(target, "[data-drawer-content]");
+		sizePanel(content, 400);
+
+		drag(content, { y: 0 }, { y: 60 }, 20);
+		expect(open.get()).toBe(false);
+	});
+
+	it("springs back instead of closing when it is not dismissible", async () => {
+		const open = signal(true);
+		const { target } = await mount(DrawerFixture({ open, dismissible: false }));
+		const content = element(target, "[data-drawer-content]");
+		sizePanel(content, 400);
+
+		drag(content, { y: 0 }, { y: 300 }, 20);
+		expect(open.get()).toBe(true);
+		expect(offsetY(content)).toBe("0px");
+	});
+
+	it("tracks the drag on the panel and fades the overlay with it", async () => {
+		const { target } = await mount(DrawerFixture());
+		const content = element(target, "[data-drawer-content]");
+		const overlay = element(target, "[data-drawer-overlay]");
+		sizePanel(content, 400);
+		dragTo(content, { y: 0 }, { y: 100 });
+
+		expect(content.getAttribute("data-dragging")).toBe("");
+		expect(offsetY(content)).toBe("100px");
+		expect(content.style.getPropertyValue("--ip-drawer-progress")).toBe("0.25");
+		expect(overlay.style.getPropertyValue("--ip-drawer-fade")).toBe("0.75");
+
+		content.dispatchEvent(pointer("pointerup", { y: 100 }));
+		expect(content.hasAttribute("data-dragging")).toBe(false);
+	});
+
+	it("rubber bands a drag that carries on past the open position", async () => {
+		const { target } = await mount(DrawerFixture());
+		const content = element(target, "[data-drawer-content]");
+		sizePanel(content, 400);
+
+		at(Date.now() + 10_000, () => {
+			content.dispatchEvent(pointer("pointerdown", { y: 0 }));
+			content.dispatchEvent(pointer("pointermove", { y: 40 }));
+			content.dispatchEvent(pointer("pointermove", { y: -60 }));
+		});
+
+		const offset = Number.parseFloat(offsetY(content));
+		expect(offset).toBeLessThan(0);
+		expect(offset).toBeGreaterThan(-60);
+	});
+
+	it("will not start a drag back past the open position, so the content can scroll", async () => {
+		const { target } = await mount(DrawerFixture());
+		const content = element(target, "[data-drawer-content]");
+		sizePanel(content, 400);
+
+		dragTo(content, { y: 200 }, { y: 100 });
+
+		expect(content.hasAttribute("data-dragging")).toBe(false);
+		expect(offsetY(content)).toBe("0px");
+	});
+
+	it("does not drag from a scroll container that is scrolled away from the edge", async () => {
+		const { target } = await mount(DrawerFixture());
+		const content = element(target, "[data-drawer-content]");
+		sizePanel(content, 400);
+
+		const scroller = document.createElement("div");
+		Object.defineProperties(scroller, {
+			scrollHeight: { value: 800, configurable: true },
+			clientHeight: { value: 200, configurable: true },
+		});
+		scroller.scrollTop = 120;
+		content.appendChild(scroller);
+
+		dragTo(scroller, { y: 0 }, { y: 100 });
+		expect(content.hasAttribute("data-dragging")).toBe(false);
+		expect(offsetY(content)).toBe("0px");
+	});
+
+	it("does not click what a drag started on", async () => {
+		let clicks = 0;
+		const { target } = await mount(
+			Drawer({ open: true }, DrawerContent({}, Button({ onClick: () => clicks++ }, "Submit"))),
+		);
+		const content = element(target, "[data-drawer-content]");
+		const button = element(content, "button");
+		sizePanel(content, 400);
+
+		button.click();
+		expect(clicks).toBe(1);
+
+		drag(button, { y: 0 }, { y: 60 });
+		button.click();
+		expect(clicks).toBe(1);
+
+		// and the next real click still lands
+		button.click();
+		expect(clicks).toBe(2);
+	});
+
+	it("ignores a drag that started on a no-drag region", async () => {
+		const { target } = await mount(DrawerFixture());
+		const content = element(target, "[data-drawer-content]");
+		sizePanel(content, 400);
+
+		const map = document.createElement("div");
+		map.setAttribute("data-drawer-no-drag", "");
+		content.appendChild(map);
+
+		dragTo(map, { y: 0 }, { y: 100 });
+		expect(content.hasAttribute("data-dragging")).toBe(false);
+	});
+});
+
+describe("drawer snap points", () => {
+	const snapPoints = [0.25, 0.5, 1];
+
+	afterEach(unmountAll);
+
+	it("rests at the first snap point and reports where it sits", async () => {
+		const { target } = await mount(DrawerFixture({ snapPoints }));
+		const content = element(target, "[data-drawer-content]");
+
+		expect(content.hasAttribute("data-snap-points")).toBe(true);
+		expect(content.getAttribute("data-snap-point")).toBe("0");
+		expect(offsetY(content)).toBe(`${window.innerHeight * 0.75}px`);
+	});
+
+	it("snaps to the closest point when a slow drag ends between two", async () => {
+		const active = signal<number | string | null>(0.5);
+		const { target } = await mount(DrawerFixture({ snapPoints, activeSnapPoint: active }));
+		const content = element(target, "[data-drawer-content]");
+		const half = window.innerHeight * 0.5;
+
+		// a nudge toward the quarter point, ending nearer to it than to the half
+		drag(content, { y: 0 }, { y: half * 0.6 });
+		expect(active.get()).toBe(0.25);
+	});
+
+	it("steps one snap point on a flick and closes from the first one", async () => {
+		const open = signal(true);
+		const active = signal<number | string | null>(0.5);
+		const { target } = await mount(DrawerFixture({ open, snapPoints, activeSnapPoint: active }));
+		const content = element(target, "[data-drawer-content]");
+
+		drag(content, { y: 100 }, { y: 40 }, 100);
+		expect(active.get()).toBe(1);
+
+		drag(content, { y: 0 }, { y: 60 }, 100);
+		expect(active.get()).toBe(0.5);
+
+		drag(content, { y: 0 }, { y: 60 }, 100);
+		expect(active.get()).toBe(0.25);
+
+		drag(content, { y: 0 }, { y: 60 }, 100);
+		expect(open.get()).toBe(false);
+	});
+
+	it("reads a px snap point as a length the viewport does not enter into", async () => {
+		const { target } = await mount(DrawerFixture({ snapPoints: ["148px", 1] }));
+		const content = element(target, "[data-drawer-content]");
+
+		expect(offsetY(content)).toBe(`${window.innerHeight - 148}px`);
+	});
+
+	it("keeps the overlay clear below the snap point it fades in from", async () => {
+		const active = signal<number | string | null>(0.25);
+		const { target } = await mount(
+			DrawerFixture({ snapPoints, activeSnapPoint: active, fadeFromIndex: 2 }),
+		);
+		const overlay = element(target, "[data-drawer-overlay]");
+
+		expect(overlay.style.getPropertyValue("--ip-drawer-fade")).toBe("0");
+		expect(overlay.hasAttribute("data-faded-in")).toBe(false);
+
+		active.set(1);
+		expect(overlay.style.getPropertyValue("--ip-drawer-fade")).toBe("1");
+		expect(overlay.hasAttribute("data-faded-in")).toBe(true);
+	});
+
+	it("steps the snap points when the handle is tapped, and closes from the last", async () => {
+		const open = signal(true);
+		const active = signal<number | string | null>(0.5);
+		const { target } = await mount(
+			Drawer({ open, snapPoints, activeSnapPoint: active }, DrawerContent({}, DrawerHandle({}))),
+		);
+		const handle = element(target, "[data-drawer-handle]");
+
+		handle.click();
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		expect(active.get()).toBe(1);
+
+		handle.click();
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		expect(open.get()).toBe(false);
+	});
+});
