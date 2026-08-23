@@ -1,5 +1,12 @@
 # @implementjs/adapter-static
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @implementjs/kit@0.0.5
+
 ## 0.0.4
 
 ### Patch Changes

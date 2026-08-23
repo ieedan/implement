@@ -1,5 +1,13 @@
 # @implementjs/kit
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [[`14ce276`](https://github.com/ieedan/implement/commit/14ce276cf1a03340930ae030410551d23efa724e)]:
+  - @implementjs/core@0.0.4
+  - @implementjs/router@0.0.5
+
 ## 0.0.4
 
 ### Patch Changes
