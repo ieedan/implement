@@ -6,6 +6,7 @@ import {
 	Await,
 	Button,
 	Div,
+	Dynamic,
 	ForEach,
 	Html,
 	If,
@@ -22,6 +23,7 @@ import {
 	Switch,
 	Ul,
 	type Child,
+	type Mountable,
 } from "../src/index";
 import { installHydration } from "../src/hydrate";
 import { renderToString } from "../src/server/index";
@@ -196,6 +198,13 @@ describe("hydration", () => {
 				),
 			() => Div(Switch(signal("b")).Case("a", P("a")).Case("b", P("b")).Default(P("d"))),
 			() => Div(Key(signal(1), Span("keyed"))),
+			() => Div(Dynamic(signal<Mountable>(Span("dynamic"))), Span("after")),
+			() =>
+				Div(
+					Dynamic([signal("b")], (v) => P(v)),
+					"tail",
+				),
+			() => Div(Dynamic(signal<Mountable | null>(null)), Span("empty")),
 			() => Div(ImplementBoundary(Span("safe")).Catch(() => P("caught"))),
 			() => [Div(Span("multi")), P("roots")],
 			() => Div(Html("<b>bold</b> raw"), Span("after")),

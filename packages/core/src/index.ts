@@ -42,6 +42,7 @@ export {
 export * from "./components/elements";
 export {
 	Await,
+	Dynamic,
 	ForEach,
 	Fragment,
 	Html,

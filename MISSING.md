@@ -45,13 +45,15 @@ restoration). What real apps still ask for:
 - **Relative navigation** — every `Link`/`navigate` is absolute.
 - **Hash mode / base path** — history-mode-at-root only.
 
-## 3. A `Readable<Mountable>` child
+## 3. A `Readable<Mountable>` child, without the wrapper
 
-`Child` is `Mountable | PrimitiveChild | ReadableChild`, and `ReadableChild`
-resolves to text (`components/types.ts:14`) — so a readable of a _node_ is not
-a child. Swapping what renders means reaching for `If`/`Switch`/`ForEach`
-(declarative, condition-shaped) or `Outlet.set` (imperative, caller-driven).
-Neither is `Div(currentView)` where `currentView` is a `Readable<Mountable>`,
-which is what a component-in-a-signal wants to be. Its own design: identity
-(does the same mountable value remounting count as a change?), teardown
-ordering, and how it reads against the existing helpers.
+`Dynamic(currentView)` covers the case: a readable of a node mounts as that
+node and swaps on identity. What is still missing is the bare form —
+`Div(currentView)`, no helper. `Child` is `Mountable | PrimitiveChild |
+ReadableChild` and `ReadableChild` resolves to text
+(`components/types.ts:14`), so widening it means telling a readable of a node
+from a readable of text at runtime, on a value that may be `null` at the
+moment you have to decide. The check lands in `toMountable` and in the
+lone-readable fast path `Component` uses for `Span(issue.bind("title"))` —
+the densest reactive shape there is. Worth it only if the wrapper turns out
+to be the thing people forget to reach for.

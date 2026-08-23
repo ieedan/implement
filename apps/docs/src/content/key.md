@@ -33,4 +33,4 @@ Key(issueId, IssueEditor(issueId));
 - Because children are torn down completely, everything inside loses state on each change. Uncommitted input, scroll position, subscriptions. Use it deliberately.
 - For keyed identity _per list item_ use `ForEach`'s key function instead. `Key` is for a single subtree keyed on a value.
 
-At this point you can build and update any UI. The next part is about structuring bigger apps, starting with sharing state through [Context](/docs/context).
+`Key` remounts children you wrote out ahead of time. When the node itself comes out of a signal, that's [Dynamic](/docs/dynamic).

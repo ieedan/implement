@@ -38,7 +38,7 @@ Children mounted by `set` are ordinary children of the tree:
 The one thing to know: `set` mounts synchronously and rethrows what the children throw. During the outlet's own mount that lands in the enclosing boundary like any other mount error, but a `set` you make later — from a subscription, a promise, an event — hands the error back to you. Catch it and set something else, the way a router shows its fallback.
 
 > [!TIP]
-> `set` is imperative on purpose: the outlet decides _when_ to swap. For content that follows a signal, [`If`](/docs/if), [`Switch`](/docs/switch), and [`ForEach`](/docs/foreach) already do this and read better.
+> `set` is imperative on purpose: the outlet decides _when_ to swap. For content that follows a signal, [`If`](/docs/if), [`Switch`](/docs/switch), [`ForEach`](/docs/foreach), and [`Dynamic`](/docs/dynamic) already do this and read better.
 
 ## The current location
 

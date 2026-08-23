@@ -20,7 +20,7 @@ ImplementBoundary(IssuePage(id)).Catch((error, reset) =>
 ## What a boundary catches
 
 - Errors thrown **synchronously while the subtree mounts**, including a component function throwing while building its tree.
-- Errors raised **during reactive updates** inside the structural helpers. [`If`](/docs/if), [`ForEach`](/docs/foreach), [`Switch`](/docs/switch), [`Key`](/docs/key), [`Await`](/docs/await), and [`Portal`](/docs/portal) all route their signal-driven re-syncs to the nearest boundary. A `ForEach` key error or a render function throwing on update lands here.
+- Errors raised **during reactive updates** inside the structural helpers. [`If`](/docs/if), [`ForEach`](/docs/foreach), [`Switch`](/docs/switch), [`Key`](/docs/key), [`Dynamic`](/docs/dynamic), [`Await`](/docs/await), and [`Portal`](/docs/portal) all route their signal-driven re-syncs to the nearest boundary. A `ForEach` key error or a render function throwing on update lands here.
 - Errors thrown in [`Lifecycle.onMount`](/docs/lifecycle) and in [`ImplementEffect`](/docs/derived) effects.
 
 Thrown values that aren't `Error`s are normalized into one.
