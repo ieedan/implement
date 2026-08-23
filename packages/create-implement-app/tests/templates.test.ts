@@ -73,7 +73,9 @@ describe("templates", () => {
 	it.each(TEMPLATES)("%s asks for a version by default and workspace:* with --workspace", (id) => {
 		// a range and not a tag: `latest` would resolve at install time, so the same CLI would
 		// scaffold apps built against different releases
-		expect(pkg(fileMap(id, ctx())).dependencies["@implementjs/core"]).toMatch(/^\^\d+\.\d+\.\d+$/);
+		expect(pkg(fileMap(id, ctx())).dependencies["@implementjs/core"]).toMatch(
+			/^[~^]\d+\.\d+\.\d+$/,
+		);
 		expect(pkg(fileMap(id, ctx({ workspace: true }))).dependencies["@implementjs/core"]).toBe(
 			"workspace:*",
 		);

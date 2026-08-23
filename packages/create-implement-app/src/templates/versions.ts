@@ -2,32 +2,33 @@ import { MissingLinkedPackageError } from "@/utils/errors";
 import type { TemplateContext } from "@/templates/types";
 
 /**
- * The implement packages, at the release a new app should start on. A caret range rather than
- * `latest`, so the specifier written into a generated `package.json` still means the same thing
- * a month later — `latest` resolves at install time, which makes two runs of the same CLI
- * version produce apps built against different releases.
+ * The implement packages, at the lowest release a scaffolded app may start on. These are floors,
+ * not pins: `~0.0.3` is `>=0.0.3 <0.1.0`, so an app installs whatever patch is newest at install
+ * time and never a minor.
  *
- * Everything here is on the `0.0.x` line, where a caret range allows nothing but the version it
- * names. That is the point for now: a release is a patch, and an app that pins one gets what the
- * CLI that scaffolded it was tested against. The ranges widen on their own once the packages
- * reach `0.1.0`.
+ * A tilde and not a caret, which on this version line is the whole point — `^0.0.3` is
+ * `>=0.0.3 <0.0.4`, an exact pin, so every release would need a new number written in here.
+ * A tilde is a floor a release moves past on its own.
  *
- * Kept in step with the versions the repo publishes by `pnpm sync:versions` — which
- * `changeset:version` runs, and CI checks. Inside the monorepo `--workspace` swaps these for
- * `workspace:*` and `--link` for a path, so neither reads a version at all.
+ * So nothing here changes when a package is published. Raise a floor when a template starts
+ * using something the older release does not have, and swap the whole line for `^0.1.0` once
+ * these leave `0.0.x` — a caret is the right sigil the moment there is a non-zero minor.
+ *
+ * Inside the monorepo `--workspace` swaps these for `workspace:*` and `--link` for a path, so
+ * neither reads a version at all.
  */
 export const IMPLEMENT_VERSIONS = {
-	"@implementjs/core": "^0.0.3",
-	"@implementjs/eslint": "^0.0.1",
-	"@implementjs/formish": "^0.0.3",
-	"@implementjs/kit": "^0.0.4",
-	"@implementjs/lucide": "^0.0.3",
-	"@implementjs/mode-watcher": "^0.0.3",
-	"@implementjs/primitives": "^0.0.3",
-	"@implementjs/router": "^0.0.4",
+	"@implementjs/core": "~0.0.3",
+	"@implementjs/eslint": "~0.0.1",
+	"@implementjs/formish": "~0.0.3",
+	"@implementjs/kit": "~0.0.4",
+	"@implementjs/lucide": "~0.0.3",
+	"@implementjs/mode-watcher": "~0.0.3",
+	"@implementjs/primitives": "~0.0.3",
+	"@implementjs/router": "~0.0.4",
 } as const satisfies Record<string, string>;
 
-/** Everything a template can put in a generated `package.json`, pinned in one place. */
+/** Everything a template can put in a generated `package.json`, spelled in one place. */
 export const VERSIONS = {
 	...IMPLEMENT_VERSIONS,
 	"@tailwindcss/vite": "^4.3.3",

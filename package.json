@@ -19,10 +19,8 @@
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",
 		"check:changesets": "node --experimental-strip-types scripts/check-changesets.ts",
-		"sync:versions": "node --experimental-strip-types scripts/sync-versions.ts",
-		"check:versions": "node --experimental-strip-types scripts/sync-versions.ts --check",
 		"changeset": "changeset",
-		"changeset:version": "changeset version && pnpm sync:versions",
+		"changeset:version": "changeset version",
 		"changeset:publish": "pnpm build && changeset publish",
 		"prepare": "git config core.hooksPath .githooks || exit 0"
 	},

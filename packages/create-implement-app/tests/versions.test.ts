@@ -9,10 +9,22 @@ import {
 } from "@/templates/versions";
 
 /**
- * `^0.0.3` — what every entry has to be. A tag like `latest` resolves at install time, so an app
- * scaffolded today would not be the app the same CLI scaffolds tomorrow.
+ * A range and not a dist-tag. `latest` resolves at install time, so the app a CLI scaffolds today
+ * would not be the app the same CLI scaffolds a month later.
  */
-const RANGE = /^\^\d+\.\d+\.\d+$/;
+const RANGE = /^[~^]\d+\.\d+\.\d+$/;
+
+/**
+ * What an implement package has to be asked for as, while they are all on `0.0.x`.
+ *
+ * A caret does not work on this version line: `^0.0.3` is `>=0.0.3 <0.0.4`, an exact pin, so
+ * every release would have to be transcribed into `versions.ts` before a new app could reach it.
+ * `~0.0.3` is `>=0.0.3 <0.1.0` — a floor that later patches clear on their own.
+ *
+ * This fails the day these leave `0.0.x`, which is the point: a caret is right from `0.1.0` on,
+ * and swapping the sigil should be somebody's decision rather than a silent inheritance.
+ */
+const FLOOR = /^~0\.0\.\d+$/;
 
 function ctx(overrides: Partial<VersionContext> = {}): VersionContext {
 	return { workspace: false, ...overrides };
@@ -26,6 +38,15 @@ describe("VERSIONS", () => {
 	it("answers for the implement packages with what IMPLEMENT_VERSIONS holds", () => {
 		expect(VERSIONS).toMatchObject(IMPLEMENT_VERSIONS);
 	});
+});
+
+describe("IMPLEMENT_VERSIONS", () => {
+	it.each(Object.entries(IMPLEMENT_VERSIONS))(
+		"%s is a floor later releases clear, not a pin a release has to be written into",
+		(_, specifier) => {
+			expect(specifier).toMatch(FLOOR);
+		},
+	);
 });
 
 describe("version", () => {
