@@ -1,4 +1,5 @@
 import { isReadable, type Readable } from "@implementjs/core";
+import type * as v from "valibot";
 import { INTERNAL, type FormStore } from "./form";
 import { getAtPath, pathName, ROOT_NAME, setAtPath, type Path } from "./path";
 import {
@@ -12,10 +13,10 @@ import {
 	namePath,
 	readInput,
 	remapItemState,
+	seedValue,
 	writeInput,
 	type InternalFormStore,
 } from "./store";
-import type { InferInput, InferOutput, StandardResult } from "./standard-schema";
 import { validateIfRequired, validateInput, type ValidateConfig } from "./validate";
 import type {
 	ArrayPath,
@@ -23,6 +24,8 @@ import type {
 	FieldErrors,
 	FieldPath,
 	FormSchema,
+	InferInput,
+	InferOutput,
 	ItemValue,
 	PartialInput,
 	PathValue,
@@ -172,7 +175,7 @@ export function clearErrors<
 export function validate<TSchema extends FormSchema>(
 	form: FormStore<TSchema>,
 	config?: ValidateConfig,
-): Promise<StandardResult<InferOutput<TSchema>>> {
+): Promise<v.SafeParseResult<TSchema>> {
 	return validateInput(internal(form), config);
 }
 
@@ -215,8 +218,8 @@ export function handleSubmit<TSchema extends FormSchema>(
 
 		try {
 			const result = await validateInput(store, { shouldFocus: true });
-			if (!result.issues) {
-				await handler(result.value, event);
+			if (result.success) {
+				await handler(result.output, event);
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "An unknown error has occurred.";
@@ -275,8 +278,11 @@ export function reset(form: FormStore, config?: ResetConfig<Path, unknown>): voi
 	const path = config?.path ? resolve(config.path) : [];
 
 	if (config?.initialInput !== undefined) {
+		// a new starting point is filled in the same way the first one was, so
+		// resetting to a partial value does not leave fields missing
+		const seeded = seedValue(store, path, config.initialInput);
 		store.initialInput.set(
-			setAtPath(store.initialInput.get(), path, config.initialInput) as Record<string, unknown>,
+			setAtPath(store.initialInput.get(), path, seeded) as Record<string, unknown>,
 		);
 	}
 
@@ -371,9 +377,12 @@ export function insert<
 	const path = resolve(config.path);
 	const length = itemCount(store, path);
 	const at = clamp(config.at ?? length, 0, length);
+	// the item starts with every field the schema gives it, so a row is no more
+	// missing than the ones the form was created with
+	const item = seedValue(store, [...path, at], config.initialInput);
 
 	mutateArray(store, path, {
-		input: (array) => [...array.slice(0, at), config.initialInput, ...array.slice(at)],
+		input: (array) => [...array.slice(0, at), item, ...array.slice(at)],
 		items: (ids) => [...ids.slice(0, at), createId(), ...ids.slice(at)],
 		mapIndex: (index) => (index >= at ? index + 1 : index),
 	});
@@ -486,9 +495,10 @@ export function replace<
 	const { at } = config;
 	if (!isItemIndex(at, itemCount(store, path))) return;
 	clearStateUnder(store, [...path, at]);
+	const next = seedValue(store, [...path, at], config.initialInput);
 
 	mutateArray(store, path, {
-		input: (array) => array.map((item, index) => (index === at ? config.initialInput : item)),
+		input: (array) => array.map((item, index) => (index === at ? next : item)),
 		items: (ids) => ids.map((id, index) => (index === at ? createId() : id)),
 		mapIndex: (index) => index,
 	});

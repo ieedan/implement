@@ -40,9 +40,11 @@ function LoginForm(form: ReturnType<typeof createForm<typeof LoginSchema>>, onSu
 }
 
 describe("createForm", () => {
-	it("starts empty, untouched and undirty", () => {
+	it("starts at the schema's empty values, untouched and undirty", () => {
 		const form = createForm({ schema: LoginSchema });
-		expect(getInput(form)).toEqual({});
+		// the schema names both fields, so both start at a value rather than
+		// missing — nothing had to be rendered for that to happen
+		expect(getInput(form)).toEqual({ email: "", password: "" });
 		expect(form.isTouched.get()).toBe(false);
 		expect(form.isDirty.get()).toBe(false);
 		expect(form.isSubmitted.get()).toBe(false);

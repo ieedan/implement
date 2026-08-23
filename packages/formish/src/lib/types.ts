@@ -1,12 +1,21 @@
 import type { Readable } from "@implementjs/core";
+import type * as v from "valibot";
 import type { Path, PathKey, RequiredPath } from "./path";
-import type { InferInput, StandardSchemaV1 } from "./standard-schema";
+import type { EmptyInput } from "./schema";
 
 /**
- * A schema a form can be built from: anything implementing Standard Schema
- * whose input is an object, since a form's fields are its properties.
+ * A schema a form can be built from: a valibot schema, sync or async, whose
+ * input is an object — a form's fields are its properties.
  */
-export type FormSchema = StandardSchemaV1<Record<string, unknown>, unknown>;
+export type FormSchema =
+	| v.GenericSchema<Record<string, unknown>>
+	| v.GenericSchemaAsync<Record<string, unknown>>;
+
+/** The type a schema accepts, e.g. what the form's fields hold. */
+export type InferInput<TSchema extends FormSchema> = v.InferInput<TSchema>;
+
+/** The type a schema produces, e.g. what a submit handler receives. */
+export type InferOutput<TSchema extends FormSchema> = v.InferOutput<TSchema>;
 
 /** The elements a field can be bound to. */
 export type FieldElement = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -131,6 +140,12 @@ export interface FormConfig<TSchema extends FormSchema> {
 	readonly schema: TSchema;
 	/** What the fields start at. Anything left out starts empty. */
 	readonly initialInput?: DeepPartial<InferInput<TSchema>> | undefined;
+	/**
+	 * Where a required field of a given type starts when `initialInput` does
+	 * not say. Merged over the defaults, so `{ string: "" }` stays in effect
+	 * unless it is named again.
+	 */
+	readonly emptyInput?: EmptyInput | undefined;
 	/** When the form first validates. Defaults to `"submit"`. */
 	readonly validate?: ValidationMode | undefined;
 	/** When it validates again after a field reported an error. Defaults to `"input"`. */

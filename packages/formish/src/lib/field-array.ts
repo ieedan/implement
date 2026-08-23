@@ -21,8 +21,7 @@ import {
 	markArrayField,
 	type InternalFormStore,
 } from "./store";
-import type { InferInput } from "./standard-schema";
-import type { ArrayPath, FieldErrors, FormSchema } from "./types";
+import type { ArrayPath, FieldErrors, FormSchema, InferInput } from "./types";
 
 export interface UseFieldArrayConfig<
 	TSchema extends FormSchema,

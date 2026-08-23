@@ -9,6 +9,7 @@ import {
 	Form,
 	getAllErrors,
 	getErrors,
+	getInput,
 	handleSubmit,
 	setInput,
 	submit,
@@ -207,11 +208,105 @@ describe("form state", () => {
 	});
 });
 
-describe("empty and missing values", () => {
-	it("treats a Div-rendered form without elements as plain data", async () => {
+describe("fields the form never renders", () => {
+	it("validates a form with no elements exactly like a rendered one", async () => {
 		const form = createForm({ schema: ProfileSchema });
 		await mount(Div());
 		await validate(form);
-		expect(getErrors(form, { path: ["name"] })).toEqual([expect.stringContaining("Expected")]);
+
+		// nothing is on screen, yet the fields report the messages the schema
+		// gives them rather than a type error about a value nobody supplied
+		expect(getErrors(form, { path: ["name"] })).toEqual(["Enter a name"]);
+		expect(getErrors(form, { path: ["address", "city"] })).toEqual(["Enter a city"]);
+	});
+
+	it("submits when the field left out has nothing more to satisfy", async () => {
+		const Schema = v.object({
+			email: v.pipe(v.string(), v.email("Enter a valid email")),
+			// no `Field` is ever rendered for this one
+			nickname: v.string(),
+		});
+		const form = createForm({ schema: Schema });
+		const onSubmit = vi.fn();
+		const { target, unmount } = await mount(
+			Form(
+				{ of: form, onSubmit },
+				Field({ of: form, path: ["email"] }, (field) =>
+					Input({ ...field.props, type: "email", value: field.input }),
+				),
+			),
+		);
+
+		element<HTMLInputElement>(target, "input").value = "hi@example.com";
+		element<HTMLInputElement>(target, "input").dispatchEvent(new Event("input", { bubbles: true }));
+		await tick();
+		await handleSubmit(form, onSubmit)();
+
+		expect(onSubmit).toHaveBeenCalledWith({ email: "hi@example.com", nickname: "" }, undefined);
+		unmount();
+	});
+
+	it("blocks submit with the schema's own message when the field left out is required", async () => {
+		const Schema = v.object({
+			email: v.pipe(v.string(), v.email("Enter a valid email")),
+			nickname: v.pipe(v.string(), v.minLength(1, "Pick a nickname")),
+		});
+		const form = createForm({ schema: Schema });
+		const onSubmit = vi.fn();
+		await handleSubmit(form, onSubmit)();
+
+		expect(onSubmit).not.toHaveBeenCalled();
+		// the error is still on a field nothing renders, but it now says what is
+		// wrong instead of reading as a type mismatch
+		expect(getErrors(form, { path: ["nickname"] })).toEqual(["Pick a nickname"]);
+		expect(getAllErrors(form)).toContainEqual({
+			path: ["nickname"],
+			errors: ["Pick a nickname"],
+		});
+	});
+
+	it("starts optional fields missing and nullable ones null, as each accepts", async () => {
+		const Schema = v.object({
+			name: v.string(),
+			nickname: v.optional(v.string()),
+			nudge: v.optional(v.string(), "hey"),
+			exact: v.exactOptional(v.string()),
+			middle: v.nullable(v.string()),
+		});
+		const form = createForm({ schema: Schema });
+		const input = getInput(form);
+
+		expect(input).toEqual({ name: "", nudge: "hey", middle: null });
+		// an exact optional wants its key absent, not present and undefined
+		expect(Object.keys(input ?? {})).not.toContain("exact");
+		expect(await validate(form)).toMatchObject({ success: true });
+	});
+
+	it("takes an empty input of its own", async () => {
+		const Schema = v.object({ count: v.number(), agreed: v.boolean() });
+		const seeded = createForm({ schema: Schema, emptyInput: { number: 0 } });
+		const bare = createForm({ schema: Schema });
+
+		expect(getInput(seeded)).toEqual({ count: 0, agreed: false });
+		expect(await validate(seeded)).toMatchObject({ success: true });
+
+		// a number has no empty value to stand in for unless the form names one
+		expect(getInput(bare)).toEqual({ agreed: false });
+		expect(getErrors(bare, { path: ["count"] })).toBe(null);
+		await validate(bare);
+		expect(getErrors(bare, { path: ["count"] })).not.toBe(null);
+	});
+
+	it("seeds the fields of a nested object and of every array item", () => {
+		const Schema = v.object({
+			address: v.object({ city: v.string(), zip: v.string() }),
+			todos: v.array(v.object({ label: v.string(), tags: v.array(v.string()) })),
+		});
+		const form = createForm({ schema: Schema, initialInput: { todos: [{ label: "write" }] } });
+
+		expect(getInput(form)).toEqual({
+			address: { city: "", zip: "" },
+			todos: [{ label: "write", tags: [] }],
+		});
 	});
 });

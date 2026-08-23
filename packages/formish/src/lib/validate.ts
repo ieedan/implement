@@ -1,80 +1,32 @@
-import {
-	getAtPath,
-	isFieldName,
-	namePath,
-	pathName,
-	ROOT_NAME,
-	setAtPath,
-	type Path,
-	type PathKey,
-} from "./path";
-import { getElementInput, isArrayField, isTextLike } from "./element";
+import * as v from "valibot";
+import { pathName, ROOT_NAME, type Path, type PathKey } from "./path";
 import { focusField, formElements, hasErrorsUnder, type InternalFormStore } from "./store";
-import type { StandardIssue, StandardResult } from "./standard-schema";
-import type { FieldErrors, ValidationMode } from "./types";
+import type { FieldErrors, FormSchema, ValidationMode } from "./types";
 
 export interface ValidateConfig {
 	/** Focus the first field with an error. Off unless the form is submitting. */
 	readonly shouldFocus?: boolean | undefined;
 }
 
+/** The parts of a valibot issue path the walk reads. */
+interface IssuePathItem {
+	readonly type: string;
+	readonly key?: unknown;
+}
+
 /** The path an issue points at, or `null` when it is about the form as a whole. */
-function issuePath(issue: StandardIssue): Path | null {
+function issuePath(issue: v.BaseIssue<unknown>): Path | null {
 	if (!issue.path || issue.path.length === 0) return null;
 	const path: PathKey[] = [];
-	for (const segment of issue.path) {
-		const key = typeof segment === "object" ? segment.key : segment;
+	for (const item of issue.path as readonly IssuePathItem[]) {
 		// a Map or Set key cannot be addressed as a field, so the issue belongs to
 		// the closest field above it
+		if (item.type === "map" || item.type === "set") break;
+		const { key } = item;
 		if (typeof key !== "string" && typeof key !== "number") break;
 		path.push(key);
 	}
 	return path.length === 0 ? null : path;
-}
-
-/**
- * The input the schema is validated against: what the fields hold, plus a
- * starting value for the ones that hold nothing yet but are on screen. A text
- * input the user never typed in shows as empty, so it validates as `""` and
- * the schema answers with its own message ("Please enter your email") instead
- * of a type error about `undefined`.
- */
-export function getValidationInput(store: InternalFormStore): Record<string, unknown> {
-	let input = store.input.get();
-	const seeded = new Set<string>();
-
-	// an array field with nothing in it yet is an empty list, not a missing one
-	for (const name of store.arrayFields) {
-		const path = namePath(name);
-		if (getAtPath(input, path) !== undefined) continue;
-		seeded.add(name);
-		input = setAtPath(input, path, []) as Record<string, unknown>;
-	}
-
-	for (const element of formElements(store)) {
-		// someone else's named input inside the form is not ours to fill in
-		if (seeded.has(element.name) || !isFieldName(element.name)) continue;
-		const path = namePath(element.name);
-		if (getAtPath(input, path) !== undefined) continue;
-		seeded.add(element.name);
-
-		if (isArrayField(store, path, undefined, element)) {
-			input = setAtPath(input, path, getElementInput(store, element, path, true)) as Record<
-				string,
-				unknown
-			>;
-			continue;
-		}
-		if (element instanceof HTMLInputElement && element.type === "checkbox") {
-			input = setAtPath(input, path, element.checked) as Record<string, unknown>;
-			continue;
-		}
-		if (isTextLike(element)) {
-			input = setAtPath(input, path, "") as Record<string, unknown>;
-		}
-	}
-
-	return input;
 }
 
 /**
@@ -85,13 +37,16 @@ export function getValidationInput(store: InternalFormStore): Record<string, unk
 export async function validateInput(
 	store: InternalFormStore,
 	config?: ValidateConfig,
-): Promise<StandardResult<unknown>> {
+): Promise<v.SafeParseResult<FormSchema>> {
 	const validationId = ++store.validationId;
 	store.isValidating.set(true);
 
-	let result: StandardResult<unknown>;
+	let result: v.SafeParseResult<FormSchema>;
 	try {
-		result = await store.schema["~standard"].validate(getValidationInput(store));
+		// the input already holds every field the schema names, seeded when the
+		// form was created — there is no DOM to read the empty ones back from,
+		// and a field nobody rendered validates the same as one nobody typed in
+		result = await v.safeParseAsync(store.schema, store.input.get());
 	} catch (error) {
 		if (store.validationId === validationId) store.isValidating.set(false);
 		throw error;
