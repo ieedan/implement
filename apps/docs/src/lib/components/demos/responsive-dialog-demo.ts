@@ -31,7 +31,7 @@ export default function ResponsiveDialogDemo() {
 			ResponsiveDialogTrigger("Edit profile"),
 			ResponsiveDialogContent(
 				Div(
-					{ class: "mx-auto flex w-full max-w-sm flex-col gap-6 p-4 pb-8 sm:p-0" },
+					{ class: "mx-auto flex w-full max-w-sm flex-col gap-6 p-4 pb-8 md:p-0" },
 					Div(
 						{ class: "grid gap-1.5" },
 						ResponsiveDialogTitle("Edit profile"),

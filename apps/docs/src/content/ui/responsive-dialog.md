@@ -52,11 +52,11 @@ ResponsiveDialog(
 );
 ```
 
-The panel has no padding of its own, because the two shapes want different padding: a drawer wants room for a thumb at the bottom, a dialog does not. A `sm:` prefix is enough, since the breakpoint is the same one Tailwind's `sm` uses.
+The panel has no padding of its own, because the two shapes want different padding: a drawer wants room for a thumb at the bottom, a dialog does not. A `md:` prefix is enough: the default breakpoint is `(max-width: 767px)`, which is exactly the edge Tailwind's `md` starts at.
 
 ```ts
 ResponsiveDialogContent(
-	Div({ class: "mx-auto flex w-full max-w-sm flex-col gap-6 p-4 pb-8 sm:p-0" }, …),
+	Div({ class: "mx-auto flex w-full max-w-sm flex-col gap-6 p-4 pb-8 md:p-0" }, …),
 );
 ```
 
