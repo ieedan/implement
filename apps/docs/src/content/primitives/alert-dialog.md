@@ -75,6 +75,8 @@ Button({ onClick: () => open.set(false) }, "Close");
 
 Closing returns focus to the trigger that opened it, or the one marked `default`.
 
+`onOpenChange` reports every open and close, whether it came from a trigger, the cancel or action button, or a write to a signal you passed in.
+
 ## Styling
 
 Trigger, overlay, and content expose `data-state` as `"open"` or `"closed"`; cancel and action expose `data-alert-dialog-cancel` and `data-alert-dialog-action`. Overlay and content stay in the tree while closed; hide them with CSS and center the panel with `fixed` and a transform, exactly like Dialog.

@@ -42,6 +42,8 @@ Tabs(
 
 A plain string seeds uncontrolled state instead. Omitting it starts with nothing selected: every panel is hidden and every trigger is reachable with Tab until one is picked.
 
+`onValueChange` reports the selected tab after each change, so a page can react to the switch without owning the signal.
+
 ## Activation
 
 `activationMode` (default `"automatic"`) selects a tab as soon as its trigger is focused, so arrowing through the list swaps panels as you go. Use `"manual"` when a panel is expensive to show — arrow keys then only move focus, and Space, Enter, or a click selects.

@@ -30,4 +30,22 @@ Each primitive is a set of functions that compose the way [components](/docs/com
 
 They are deliberately unstyled. No classes, no CSS, no design tokens. You pass `class` (and any other element props) through like you would on `Div` or `Button`.
 
+## Bound values and change callbacks
+
+Every value a primitive owns — a select's `value`, a dialog's `open`, a checkbox's `checked` — is a prop you can hand a [signal](/docs/signals) to and read back at any time. That covers the controlled case: you hold the signal, so you already know what it says.
+
+When you would rather just be told, every one of those props has an `on…Change` twin:
+
+```ts
+Select(
+	{ onValueChange: (value) => console.log(value), onOpenChange: (open) => console.log(open) },
+	SelectTrigger(SelectValue({ placeholder: "Select a fruit" })),
+	SelectContent(SelectItem({ value: "apple" }, "Apple")),
+);
+```
+
+The callback follows the value, not the click. A primitive moves its own state from a dozen places — a key, a dismiss, a close from the layer above — and an outside write to a signal you passed in is one more; all of them report. It fires only on changes, never with the value it started at, and it stops when the primitive unmounts.
+
+Each primitive's API reference names its own: `onValueChange`, `onOpenChange`, `onCheckedChange`, `onPressedChange`, and so on.
+
 Start with [Accordion](/primitives/docs/accordion).

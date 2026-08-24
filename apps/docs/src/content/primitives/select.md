@@ -49,6 +49,8 @@ Button({ onClick: () => open.set(false) }, "Close");
 
 The primitive does not hide the content for you. Style it against `data-state`, the same way [Popover](/primitives/docs/popover) does. The page behind stays scrollable while the list is open; pass `preventScroll: true` to lock it.
 
+`onOpenChange` reports every open and close, whatever caused it — the trigger, Escape, a click outside, or a write to a signal you passed in.
+
 ## Single or multiple
 
 `type` defaults to `"single"`: choosing an item sets `value` to that item's string. Pass `"multiple"` to toggle items in and out of an array instead.
@@ -76,6 +78,16 @@ Select(
 Every item needs a stable `value`. That string is what the root tracks, so it also has to be unique within the select.
 
 <div data-demo="select-multiple" data-demo-description="A multiple-select of five pizza toppings; the trigger summarizes the picks and the selected values are echoed below."></div>
+
+`onValueChange` reports the value after each pick. It is handed a `string | null` under `"single"` and a `string[]` under `"multiple"`, matching whichever `value` the same `type` gives you.
+
+```ts
+Select(
+	{ onValueChange: (fruit) => console.log(fruit) },
+	SelectTrigger(SelectValue({ placeholder: "Select a fruit" })),
+	SelectContent(SelectItem({ value: "apple" }, "Apple")),
+);
+```
 
 ## The selected label
 

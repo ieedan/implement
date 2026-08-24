@@ -12,12 +12,15 @@ import {
 } from "@implementjs/core";
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
 
 export type RadioGroupRootProps = RenderableProps<typeof Div> & {
 	value?: Signal<string | null> | string | null;
+	/** Runs whenever the selected item changes. `null` while nothing is selected. */
+	onValueChange?: ChangeHandler<string | null>;
 	disabled?: Signal<boolean> | boolean;
 	required?: Bindable<boolean>;
 	/** Whether arrow keys wrap from the last item back to the first. */
@@ -69,6 +72,7 @@ export const RadioGroup = createComponent(function RadioGroup(
 	{
 		id = getId(),
 		value,
+		onValueChange,
 		disabled = false,
 		required,
 		loop = true,
@@ -82,6 +86,7 @@ export const RadioGroup = createComponent(function RadioGroup(
 	const state = new RadioGroupState({ loop, orientation }, root, value, disabled);
 
 	return RadioGroupCtx.Provide(state).To(
+		...changeEffect(state.value, onValueChange),
 		render(
 			mergeProps(
 				{

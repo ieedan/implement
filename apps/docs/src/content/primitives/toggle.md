@@ -32,6 +32,12 @@ bold.set(true); // presses it from outside
 
 Clicking toggles the signal, so whatever you wired it to follows.
 
+`onPressedChange` runs on every change to `pressed`, so you can react without holding a signal of your own:
+
+```ts
+Toggle({ onPressedChange: (pressed) => console.log(pressed) }, BoldIcon());
+```
+
 ## Disabled
 
 Pass `disabled` to prevent toggling. It sets the native `disabled` attribute plus a `data-disabled` attribute for styling, and also accepts a signal:

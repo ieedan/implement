@@ -37,6 +37,8 @@ ToggleGroup(
 
 In a single group, pressing the active item releases it back to `null`.
 
+`onValueChange` reports the pressed value(s) after each change, in whichever shape `type` names.
+
 ## Keyboard and focus
 
 The group is one Tab stop: arrow keys move between the items, `loop` (default `true`) wraps at the ends, and Home and End jump to them. `orientation` (default `"horizontal"`) picks which arrows move — Left/Right when horizontal, Up/Down when vertical. Unlike a radio group, moving focus does not press anything; Space or Enter does.

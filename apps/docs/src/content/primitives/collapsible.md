@@ -35,6 +35,16 @@ Collapsible(
 Button({ onClick: () => open.set(true) }, "Expand");
 ```
 
+`onOpenChange` reports every open and close, whether it came from the trigger, from `hiddenUntilFound`, or from a write to a signal you passed in:
+
+```ts
+Collapsible(
+	{ onOpenChange: (open) => console.log(open) },
+	CollapsibleTrigger("Show more"),
+	CollapsibleContent("The rest of the details live here."),
+);
+```
+
 ## The trigger and the content
 
 `CollapsibleTrigger` renders a `Button`. Clicking it toggles the region. `CollapsibleContent` is a `Div` that sets the `hidden` attribute while closed, so the body is out of the accessibility tree and not shown.

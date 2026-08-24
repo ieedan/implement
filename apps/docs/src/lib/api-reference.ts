@@ -118,6 +118,11 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 					description:
 						"The values of the checked items. Pass a signal to control them from outside.",
 				},
+				{
+					name: "onValueChange",
+					type: "(value: string[]) => void",
+					description: "Runs whenever the set of checked items changes.",
+				},
 			],
 			dataAttributes: [{ name: `data-${variant}-checkbox-group`, value: "Present" }],
 		},
@@ -139,6 +144,12 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 					default: "false",
 					description:
 						"The checked state; selecting toggles it. Pass a signal to control it from outside. Inside a checkbox group the group's value owns it instead.",
+				},
+				{
+					name: "onCheckedChange",
+					type: "(checked: boolean) => void",
+					description:
+						"Runs whenever the item's checked state changes, inside a group or on its own.",
 				},
 				{
 					name: "closeOnSelect",
@@ -171,6 +182,11 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 					type: "Signal<string | null> | string | null",
 					default: "null",
 					description: "The checked item. Pass a signal to control it from outside.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string | null) => void",
+					description: "Runs whenever the checked item changes. null once nothing is checked.",
 				},
 			],
 			dataAttributes: [{ name: `data-${variant}-radio-group`, value: "Present" }],
@@ -217,6 +233,11 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the submenu opens or closes.",
 				},
 			],
 		},
@@ -612,10 +633,20 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The value of the highlighted item. Pass a signal to control or observe it from outside.",
 				},
 				{
+					name: "onValueChange",
+					type: "(value: string) => void",
+					description: "Runs whenever the highlighted item changes.",
+				},
+				{
 					name: "search",
 					type: "Signal<string> | string",
 					description:
 						"The search query. Pass a signal to control or observe it from outside; CommandInput binds to it.",
+				},
+				{
+					name: "onSearchChange",
+					type: "(search: string) => void",
+					description: "Runs whenever the search query changes.",
 				},
 				{
 					name: "shouldFilter",
@@ -875,6 +906,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						'The selection. CalendarDate | null when type is "single", CalendarDate[] when "multiple". Pass a signal to control it from outside.',
 				},
 				{
+					name: "onValueChange",
+					type: "(value: CalendarDate | null) => void (single) | (value: CalendarDate[]) => void (multiple)",
+					description: "Runs whenever the selection changes, including a deselection.",
+				},
+				{
 					name: "maxDays",
 					type: "number",
 					description:
@@ -938,6 +974,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "{ start: null, end: null }",
 					description:
 						"The selected range. Inverted writes are reordered. Pass a signal to control it from outside.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: DateRange) => void",
+					description: "Runs whenever the range changes, including while only one end is picked.",
 				},
 				{
 					name: "minDays",
@@ -1026,6 +1067,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					type: "Signal<string | null> (single) | Signal<string[]> (multiple)",
 					description:
 						"The open item(s). Pass a signal to control the accordion from outside; omit it for uncontrolled state.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string | null) => void (single) | (value: string[]) => void (multiple)",
+					description: "Runs whenever the open item(s) change.",
 				},
 				{
 					name: "disabled",
@@ -1163,6 +1209,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the collapsible opens or closes.",
+				},
 			],
 			dataAttributes: [
 				{ name: "data-collapsible-root", value: "Present" },
@@ -1266,11 +1317,21 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The checked state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onCheckedChange",
+					type: "(checked: boolean) => void",
+					description: "Runs whenever the checked state changes.",
+				},
+				{
 					name: "indeterminate",
 					type: "Signal<boolean> | boolean",
 					default: "false",
 					description:
 						'Partial selection. While true, data-state is "indeterminate" and aria-checked is "mixed". A click clears it and checks the box.',
+				},
+				{
+					name: "onIndeterminateChange",
+					type: "(indeterminate: boolean) => void",
+					description: "Runs whenever the indeterminate state changes.",
 				},
 				{
 					name: "name",
@@ -1312,6 +1373,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The checked state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onCheckedChange",
+					type: "(checked: boolean) => void",
+					description: "Runs whenever the checked state changes.",
 				},
 				{
 					name: "name",
@@ -1439,6 +1505,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The pressed state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onPressedChange",
+					type: "(pressed: boolean) => void",
+					description: "Runs whenever the pressed state changes.",
+				},
+				{
 					name: "disabled",
 					type: "Signal<boolean> | boolean",
 					default: "false",
@@ -1464,6 +1535,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the menu opens or closes.",
 				},
 				{
 					name: "preventScroll",
@@ -1509,6 +1585,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the menu opens or closes.",
+				},
+				{
 					name: "preventScroll",
 					type: "boolean",
 					default: "true",
@@ -1551,6 +1632,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "null",
 					description:
 						"The open menu's value, or null while all are closed. Pass a signal to control it from outside.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string | null) => void",
+					description: "Runs whenever the open menu changes. null once every menu is closed.",
 				},
 				{
 					name: "loop",
@@ -1618,6 +1704,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: '""',
 					description:
 						"The selected tab. Pass a signal to control it from outside; a string seeds uncontrolled state. Empty means nothing is selected.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string) => void",
+					description: "Runs whenever the selected tab changes.",
 				},
 				{
 					name: "orientation",
@@ -1742,6 +1833,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						'The pressed value(s). string | null when type is "single", string[] when "multiple". Pass a signal to control it from outside.',
 				},
 				{
+					name: "onValueChange",
+					type: "(value: string | null) => void (single) | (value: string[]) => void (multiple)",
+					description: "Runs whenever the pressed value(s) change.",
+				},
+				{
 					name: "disabled",
 					type: "Signal<boolean> | boolean",
 					default: "false",
@@ -1807,6 +1903,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "null",
 					description:
 						"The checked item. Pass a signal to control it from outside; a string seeds uncontrolled state.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string | null) => void",
+					description: "Runs whenever the selected item changes. null while nothing is selected.",
 				},
 				{
 					name: "disabled",
@@ -1880,6 +1981,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "0",
 					description:
 						"The current rating. Pass a signal to control it from outside; a number seeds uncontrolled state.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: number) => void",
+					description: "Runs whenever the rating changes.",
 				},
 				{
 					name: "min",
@@ -2021,6 +2127,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the preview opens or closes.",
 				},
 				{
 					name: "preventScroll",
@@ -2197,6 +2308,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the tooltip opens or closes.",
+				},
+				{
 					name: "delayDuration",
 					type: "number",
 					description: "Overrides the provider's delayDuration for this tooltip.",
@@ -2341,6 +2457,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the popover opens or closes.",
+				},
+				{
 					name: "preventScroll",
 					type: "boolean",
 					default: "false",
@@ -2456,6 +2577,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the dialog opens or closes.",
 				},
 				{
 					name: "preventScroll",
@@ -2588,6 +2714,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the alert dialog opens or closes.",
 				},
 				{
 					name: "preventScroll",
@@ -2735,11 +2866,21 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						'The selected value. string | null when type is "single", string[] when "multiple". Pass a signal to control it from outside.',
 				},
 				{
+					name: "onValueChange",
+					type: "(value: string | null) => void (single) | (value: string[]) => void (multiple)",
+					description: "Runs whenever the selected value changes.",
+				},
+				{
 					name: "open",
 					type: "Signal<boolean>",
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; omit it for uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the list opens or closes.",
 				},
 				{
 					name: "preventScroll",

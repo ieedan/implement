@@ -9,6 +9,7 @@ import {
 } from "@implementjs/core";
 import { HiddenInput } from "../../hidden-input";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
@@ -17,6 +18,10 @@ export type CheckboxProps = RenderableProps<typeof Button> & {
 	checked?: Signal<boolean> | boolean;
 	indeterminate?: Signal<boolean> | boolean;
 	required?: Bindable<boolean>;
+	/** Runs whenever the checked state changes. */
+	onCheckedChange?: ChangeHandler<boolean>;
+	/** Runs whenever the indeterminate state changes. */
+	onIndeterminateChange?: ChangeHandler<boolean>;
 };
 
 class CheckboxState {
@@ -62,6 +67,8 @@ export const Checkbox = createComponent(function Checkbox(
 		value = "on",
 		required,
 		disabled,
+		onCheckedChange,
+		onIndeterminateChange,
 		render = Button,
 		...restProps
 	}: CheckboxProps,
@@ -69,6 +76,8 @@ export const Checkbox = createComponent(function Checkbox(
 ) {
 	const state = new CheckboxState({ checked, indeterminate });
 	return Fragment(
+		...changeEffect(state.checked, onCheckedChange),
+		...changeEffect(state.indeterminate, onIndeterminateChange),
 		render(
 			mergeProps(
 				{
