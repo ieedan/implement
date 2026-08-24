@@ -1,5 +1,13 @@
 # @implementjs/kit
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`5077090`](https://github.com/ieedan/implement/commit/50770900102e0dafbccbf187054ed2cdfcdcefa5)]:
+  - @implementjs/core@0.0.7
+  - @implementjs/router@0.0.8
+
 ## 0.0.8
 
 ### Patch Changes

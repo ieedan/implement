@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/primitives",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"description": "Unstyled, accessible building blocks for implement. They own the behavior and the accessibility, you own the look.",
 	"keywords": [
 		"implement",
