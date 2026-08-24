@@ -1,5 +1,13 @@
 # @implementjs/kit
 
+## 0.0.8
+
+### Patch Changes
+
+- [#62](https://github.com/ieedan/implement/pull/62) [`2702c55`](https://github.com/ieedan/implement/commit/2702c55c546c2a82a3517ff997aad4628e203b70) Thanks [@ieedan](https://github.com/ieedan)! - Fix an app with a param matcher losing every type it gets from `@implementjs/router` — `router.Link` included. The `ParamTypes` block filling in the matchers' types was written into `$implement.d.ts`, which is a script (no top-level `import` or `export`), and there a `declare module "@implementjs/router"` is an _ambient module declaration_ that takes the package's name over rather than augmenting it. Nothing errored: the package's own exports simply stopped existing, so `RouterHelper` resolved to nothing, `router` collapsed to `any`, and `to`, `params`, `Router`, and `RouterError` went unchecked along with it. The augmentation now goes to `.implement/types/$implement-params.d.ts`, a module, and is removed again when the last matcher does — `$implement.d.ts` stays a script, which its own `declare module "$implement/*"` blocks and `declare namespace App` require.
+
+- [#62](https://github.com/ieedan/implement/pull/62) [`05d9b20`](https://github.com/ieedan/implement/commit/05d9b20ead7c52f3eba9fdbaff03363a7b81f8b3) Thanks [@ieedan](https://github.com/ieedan)! - Pre-bundle the deps that only kit's generated modules import, so dev stops answering with `504 (Outdated Optimize Dep)`. Vite's dep scanner externalizes virtual modules, so its startup crawl stopped at `$implement/router` and never saw what hangs off it — the route modules, the param matchers, or `@implementjs/router` and `@implementjs/kit/params` themselves. The browser discovered them instead on first load, which re-bundles, moves every optimized URL's `?v=` hash, and kills the requests already in flight. The plugin now points the scan at the real files behind those virtual modules (`page.ts`, `layout.ts`, their `@` reset variants, `error.ts`, and `src/params/*.ts`) and names kit's own imports in `optimizeDeps.include`, so an app no longer has to declare them in its own `vite.config.ts`. Server files stay out of it: a dep only a `*.server.ts` imports is still no business of the browser's pre-bundle.
+
 ## 0.0.7
 
 ### Patch Changes
