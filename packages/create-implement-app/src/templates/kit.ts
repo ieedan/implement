@@ -17,6 +17,7 @@ import {
 	UI_SCRIPT,
 	vitePlugins,
 	vscodeExtensions,
+	vscodeSettings,
 } from "@/templates/shared";
 import { hasAddon, type Template, type TemplateContext } from "@/templates/types";
 import { dependencies, type Dependency } from "@/templates/versions";
@@ -64,6 +65,10 @@ export const kit: Template = {
 		{ path: "static/favicon.svg", contents: favicon() },
 		{ path: ".gitignore", contents: gitignore() },
 		{ path: ".vscode/extensions.json", contents: vscodeExtensions(ctx) },
+		// the recommended tailwind extension needs telling where an implement app keeps its classes
+		...(hasAddon(ctx, "tailwind")
+			? [{ path: ".vscode/settings.json", contents: vscodeSettings(ctx) }]
+			: []),
 		{ path: "README.md", contents: readme(ctx) },
 	],
 };
