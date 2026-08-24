@@ -1,6 +1,6 @@
 ---
 name: implement-packages
-description: Maps every official implement package to its published markdown docs on implementjs.dev, including @implementjs/core, kit, primitives, ui (the jsrepo registry), formish, lucide, mode-watcher, eslint, router, vite, the kit adapters, and create-implement-app. Use when working with any @implementjs package, installing or copying UI components, or when the user asks which package or docs to use.
+description: Documentation links for every official implement package. Use when you need to learn about a package, install a component, or find a solution to a problem you are having in implement.
 ---
 
 Every implement package publishes its docs as plain markdown. **Fetch the URL exactly as written, with the `.md`.** Dropping it returns the rendered page instead — roughly 90kb of HTML for the same content, because the site is prerendered and served off a CDN, so `Accept: text/markdown` never reaches the server.
