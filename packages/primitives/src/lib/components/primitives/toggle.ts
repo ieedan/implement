@@ -1,9 +1,10 @@
-import { Button, signal, type Child, type ComponentProps, type Signal } from "@implementjs/core";
+import { Button, signal, type Child, type Signal } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
-export type ToggleProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
+export type ToggleProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
 	pressed?: Signal<boolean> | boolean;
 	disabled?: Signal<boolean> | boolean;
 };
@@ -15,13 +16,13 @@ export type ToggleProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
  * two announce differently to assistive technology.
  */
 export const Toggle = createComponent(function Toggle(
-	{ id = getId(), pressed = false, disabled = false, ...restProps }: ToggleProps,
+	{ id = getId(), pressed = false, disabled = false, render = Button, ...restProps }: ToggleProps,
 	...children: Child[]
 ) {
 	const pressedSignal = signal(pressed);
 	const disabledSignal = signal(disabled);
 
-	return Button(
+	return render(
 		mergeProps(
 			{
 				id,

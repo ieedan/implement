@@ -1,9 +1,10 @@
-import { Div, signal, type Child, type ComponentProps, type Signal } from "@implementjs/core";
+import { Div, signal, type Child, type Signal } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
-export type MeterProps = ComponentProps<typeof Div> & {
+export type MeterProps = RenderableProps<typeof Div> & {
 	value?: Signal<number> | number;
 	min?: Signal<number> | number;
 	max?: Signal<number> | number;
@@ -16,14 +17,14 @@ export type MeterProps = ComponentProps<typeof Div> & {
  * completion, use a progress bar instead.
  */
 export const Meter = createComponent(function Meter(
-	{ id = getId(), value = 0, min = 0, max = 100, ...restProps }: MeterProps,
+	{ id = getId(), value = 0, min = 0, max = 100, render = Div, ...restProps }: MeterProps,
 	...children: Child[]
 ) {
 	const valueSignal = signal(value);
 	const minSignal = signal(min);
 	const maxSignal = signal(max);
 
-	return Div(
+	return render(
 		mergeProps(
 			{
 				id,

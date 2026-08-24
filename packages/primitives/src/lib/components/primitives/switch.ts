@@ -5,15 +5,15 @@ import {
 	Span,
 	type Bindable,
 	type Child,
-	type ComponentProps,
 	type Signal,
 } from "@implementjs/core";
 import { HiddenInput } from "../../hidden-input";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
-export type SwitchProps = ComponentProps<typeof Button> & {
+export type SwitchProps = RenderableProps<typeof Button> & {
 	checked?: Signal<boolean> | boolean;
 	required?: Bindable<boolean>;
 };
@@ -32,12 +32,21 @@ class SwitchState {
 }
 
 export const Switch = createComponent(function Switch(
-	{ id = getId(), checked, name, value = "on", required, disabled, ...restProps }: SwitchProps,
+	{
+		id = getId(),
+		checked,
+		name,
+		value = "on",
+		required,
+		disabled,
+		render = Button,
+		...restProps
+	}: SwitchProps,
 	...children: Child[]
 ) {
 	const state = new SwitchState({ checked });
 	return SwitchCtx.Provide(state).To(
-		Button(
+		render(
 			mergeProps(
 				{
 					id,
@@ -68,14 +77,14 @@ export const Switch = createComponent(function Switch(
 	);
 });
 
-export type SwitchThumbProps = ComponentProps<typeof Span>;
+export type SwitchThumbProps = RenderableProps<typeof Span>;
 
 export const SwitchThumb = createComponent(function SwitchThumb(
-	{ id = getId(), ...restProps }: SwitchThumbProps,
+	{ id = getId(), render = Span, ...restProps }: SwitchThumbProps,
 	...children: Child[]
 ) {
 	return SwitchCtx.Use((state) => {
-		return Span(
+		return render(
 			mergeProps({ "data-switch-thumb": "", "data-state": state.state, id }, restProps),
 			...children,
 		);

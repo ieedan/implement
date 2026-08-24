@@ -7,7 +7,6 @@ import {
 	ref,
 	signal,
 	type Child,
-	type ComponentProps,
 	type ReactiveMap,
 	type Ref,
 	type Signal,
@@ -16,6 +15,7 @@ import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
 /**
  * `"automatic"` selects a tab as soon as its trigger is focused, `"manual"`
@@ -23,7 +23,7 @@ import { createComponent } from "../../create-component";
  */
 export type TabsActivationMode = "automatic" | "manual";
 
-export type TabsRootProps = ComponentProps<typeof Div> & {
+export type TabsRootProps = RenderableProps<typeof Div> & {
 	/** The selected tab. Pass a signal to control it from outside; a string seeds uncontrolled state. */
 	value?: Signal<string> | string;
 	orientation?: "horizontal" | "vertical";
@@ -81,6 +81,7 @@ export const Tabs = createComponent(function Tabs(
 		loop = true,
 		activationMode = "automatic",
 		disabled = false,
+		render = Div,
 		...restProps
 	}: TabsRootProps,
 	...children: Child[]
@@ -89,7 +90,7 @@ export const Tabs = createComponent(function Tabs(
 	const state = new TabsState({ loop, orientation, activationMode }, root, value, disabled);
 
 	return TabsCtx.Provide(state).To(
-		Div(
+		render(
 			mergeProps(
 				{
 					id,
@@ -105,14 +106,14 @@ export const Tabs = createComponent(function Tabs(
 	);
 });
 
-export type TabsListProps = ComponentProps<typeof Div>;
+export type TabsListProps = RenderableProps<typeof Div>;
 
 export const TabsList = createComponent(function TabsList(
-	{ id = getId(), ...restProps }: TabsListProps,
+	{ id = getId(), render = Div, ...restProps }: TabsListProps,
 	...children: Child[]
 ) {
 	return TabsCtx.Use((root) => {
-		return Div(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -129,7 +130,10 @@ export const TabsList = createComponent(function TabsList(
 	});
 });
 
-export type TabsTriggerProps = Omit<ComponentProps<typeof Button>, "disabled" | "value" | "id"> & {
+export type TabsTriggerProps = Omit<
+	RenderableProps<typeof Button>,
+	"disabled" | "value" | "id"
+> & {
 	/** Identifies the tab. Must match the `TabsContent` it opens. */
 	value: string;
 	/** Plain string: the panel points back at it with `aria-labelledby`. */
@@ -138,7 +142,7 @@ export type TabsTriggerProps = Omit<ComponentProps<typeof Button>, "disabled" | 
 };
 
 export const TabsTrigger = createComponent(function TabsTrigger(
-	{ id = getId(), value, disabled = false, ...restProps }: TabsTriggerProps,
+	{ id = getId(), value, disabled = false, render = Button, ...restProps }: TabsTriggerProps,
 	...children: Child[]
 ) {
 	return TabsCtx.Use((root) => {
@@ -152,7 +156,7 @@ export const TabsTrigger = createComponent(function TabsTrigger(
 			root.select(value);
 		};
 
-		return Button(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -191,7 +195,7 @@ export const TabsTrigger = createComponent(function TabsTrigger(
 	});
 });
 
-export type TabsContentProps = Omit<ComponentProps<typeof Div>, "id"> & {
+export type TabsContentProps = Omit<RenderableProps<typeof Div>, "id"> & {
 	/** Identifies the panel. Must match the `TabsTrigger` that opens it. */
 	value: string;
 	/** Plain string: the trigger points at it with `aria-controls`. */
@@ -199,14 +203,14 @@ export type TabsContentProps = Omit<ComponentProps<typeof Div>, "id"> & {
 };
 
 export const TabsContent = createComponent(function TabsContent(
-	{ id = getId(), value, ...restProps }: TabsContentProps,
+	{ id = getId(), value, render = Div, ...restProps }: TabsContentProps,
 	...children: Child[]
 ) {
 	return TabsCtx.Use((root) => {
 		root.contentIds.set(value, id);
 		const selected = root.value.bind((current) => current === value);
 
-		return Div(
+		return render(
 			mergeProps(
 				{
 					id,

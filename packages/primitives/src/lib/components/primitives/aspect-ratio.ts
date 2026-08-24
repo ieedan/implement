@@ -1,9 +1,10 @@
-import { Div, signal, type Child, type ComponentProps, type Signal } from "@implementjs/core";
+import { Div, signal, type Child, type Signal } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
-export type AspectRatioProps = ComponentProps<typeof Div> & {
+export type AspectRatioProps = RenderableProps<typeof Div> & {
 	/** Width divided by height, e.g. `16 / 9`. */
 	ratio?: Signal<number> | number;
 };
@@ -15,7 +16,7 @@ export type AspectRatioProps = ComponentProps<typeof Div> & {
  * width and the height follows.
  */
 export const AspectRatio = createComponent(function AspectRatio(
-	{ id = getId(), ratio = 1, ...restProps }: AspectRatioProps,
+	{ id = getId(), ratio = 1, render = Div, ...restProps }: AspectRatioProps,
 	...children: Child[]
 ) {
 	const ratioSignal = signal(ratio);
@@ -28,7 +29,7 @@ export const AspectRatio = createComponent(function AspectRatio(
 				paddingBottom: ratioSignal.bind((ratio) => `${ratio ? 100 / ratio : 0}%`),
 			},
 		},
-		Div(
+		render(
 			mergeProps(
 				{
 					id,
