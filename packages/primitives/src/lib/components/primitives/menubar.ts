@@ -6,7 +6,6 @@ import {
 	ref,
 	signal,
 	type Child,
-	type ComponentProps,
 	type PortalProps,
 	type Ref,
 	type Signal,
@@ -44,8 +43,9 @@ import {
 	type MenuSubTriggerProps,
 } from "./menu";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
-export type MenubarRootProps = ComponentProps<typeof Div> & {
+export type MenubarRootProps = RenderableProps<typeof Div> & {
 	/** The value of the open menu, or null while all are closed. */
 	value?: Signal<string | null> | string | null;
 	/** Whether arrow keys wrap from the last trigger back to the first. */
@@ -105,14 +105,14 @@ class MenubarState {
  * and arrows move both between triggers and between open menus.
  */
 export const Menubar = createComponent(function Menubar(
-	{ id = getId(), value, loop = true, ...restProps }: MenubarRootProps,
+	{ id = getId(), value, loop = true, render = Div, ...restProps }: MenubarRootProps,
 	...children: Child[]
 ) {
 	const root = ref<HTMLDivElement>();
 	const state = new MenubarState({ loop }, root, value);
 
 	return MenubarCtx.Provide(state).To(
-		Div(
+		render(
 			mergeProps(
 				{
 					id,
@@ -173,19 +173,19 @@ export const MenubarMenu = createComponent(function MenubarMenu(
 	});
 });
 
-export type MenubarTriggerProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
+export type MenubarTriggerProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
 export const MenubarTrigger = createComponent(function MenubarTrigger(
-	{ id = getId(), disabled = false, ...restProps }: MenubarTriggerProps,
+	{ id = getId(), disabled = false, render = Button, ...restProps }: MenubarTriggerProps,
 	...children: Child[]
 ) {
 	return MenubarMenuCtx.Use(({ value, menu, menubar }) => {
 		const disabledSignal = signal(disabled);
 		const highlighted = signal(false);
 
-		return Button(
+		return render(
 			mergeProps(
 				{
 					id,

@@ -5,15 +5,15 @@ import {
 	signal,
 	type Bindable,
 	type Child,
-	type ComponentProps,
 	type Signal,
 } from "@implementjs/core";
 import { HiddenInput } from "../../hidden-input";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
-export type CheckboxProps = ComponentProps<typeof Button> & {
+export type CheckboxProps = RenderableProps<typeof Button> & {
 	checked?: Signal<boolean> | boolean;
 	indeterminate?: Signal<boolean> | boolean;
 	required?: Bindable<boolean>;
@@ -62,13 +62,14 @@ export const Checkbox = createComponent(function Checkbox(
 		value = "on",
 		required,
 		disabled,
+		render = Button,
 		...restProps
 	}: CheckboxProps,
 	...children: Child[]
 ) {
 	const state = new CheckboxState({ checked, indeterminate });
 	return Fragment(
-		Button(
+		render(
 			mergeProps(
 				{
 					id,

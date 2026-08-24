@@ -1,6 +1,6 @@
 import { dom, withInsertionAnchor } from "../../dom";
 import { asParent, isDetaching, mountChild } from "../../tree";
-import { syncDomOrder } from "../../utils";
+import { placeRegionEnd } from "./region";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
 
@@ -40,9 +40,6 @@ export function Outlet(...initial: Child[]): OutletHelper {
 	let children: Child[] = initial;
 	let parent: HTMLElement | null = null;
 	let mounted: IMountable[] = [];
-	// True once a branch has been mounted, which is what makes the next one a
-	// re-mount into DOM that already has content after the marker.
-	let remounting = false;
 	// Created with the node rather than with the helper: `Outlet()` at module
 	// scope must not reach for a document that a server render has not
 	// installed yet.
@@ -56,29 +53,19 @@ export function Outlet(...initial: Child[]): OutletHelper {
 
 	const render = () => {
 		clear();
-		// A branch is appended past the end marker and put back by
-		// `syncDomOrder`, which moves the first DOM node of each child — so a child
-		// contributing several top-level nodes (an anchor comment and an element, say)
-		// would leave the rest behind. On a re-mount there is DOM after the marker to
-		// be left behind, so mount against it instead. The first mount cannot need
-		// this: the whole tree is appended in order, and hydration claims in place.
-		const mountBranch = () => {
-			asParent(node!, () => {
+		asParent(node!, () => {
+			// Anchored to the end marker, so every node the region mounts lands
+			// inside the span it bounds and the next `set` collects all of it —
+			// see the insertion anchor in `dom`.
+			withInsertionAnchor(endMarker, () => {
 				for (const factory of reconcileChildren({}, ...children)) {
 					const instance = factory();
 					mounted.push(instance);
 					mountChild(instance, parent!);
 				}
 			});
-		};
-		if (remounting) withInsertionAnchor(endMarker, mountBranch);
-		else mountBranch();
-		remounting = true;
-		syncDomOrder(
-			parent!,
-			mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
-			endMarker,
-		);
+		});
+		placeRegionEnd(parent!, endMarker);
 	};
 
 	return Object.assign(

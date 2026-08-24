@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/core",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"description": "Signals, element helpers and the pieces nodes are built out of, for implement. Plain TypeScript that builds real DOM nodes, no compiler.",
 	"keywords": [
 		"implement",

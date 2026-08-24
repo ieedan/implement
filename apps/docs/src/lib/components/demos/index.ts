@@ -89,6 +89,8 @@ import BreadcrumbDemo from "./breadcrumb-demo.ts";
 import breadcrumbSource from "./breadcrumb-demo.ts?raw";
 import ButtonDemo from "./button-demo.ts";
 import buttonSource from "./button-demo.ts?raw";
+import ButtonLoadingDemo from "./button-loading-demo.ts";
+import buttonLoadingSource from "./button-loading-demo.ts?raw";
 import ButtonGroupDemo from "./button-group-demo.ts";
 import buttonGroupSource from "./button-group-demo.ts?raw";
 import CardDemo from "./card-demo.ts";
@@ -207,6 +209,7 @@ export const demos: Record<string, Demo> = {
 	badge: { source: badgeSource, component: BadgeDemo },
 	breadcrumb: { source: breadcrumbSource, component: BreadcrumbDemo },
 	button: { source: buttonSource, component: ButtonDemo },
+	"button-loading": { source: buttonLoadingSource, component: ButtonLoadingDemo },
 	"button-group": { source: buttonGroupSource, component: ButtonGroupDemo },
 	card: { source: cardSource, component: CardDemo },
 	empty: { source: emptySource, component: EmptyDemo },

@@ -2,7 +2,7 @@ import { dom, withInsertionAnchor } from "../../dom";
 import { isReadable, subscribe, type Getter, type Readable } from "../../signal";
 import { asParent, guarded, mountChild, isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";
-import { syncDomOrder } from "../../utils";
+import { placeRegionEnd } from "./region";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
 
@@ -103,9 +103,6 @@ export function If(condition: IfCondition, getterOrChild?: unknown, ...rest: Chi
 			let unsubscribe: Unsubscribe | null = null;
 			let showing: number | "else" | null = null;
 			let mounted: IMountable[] = [];
-			// True once a branch has been mounted, which is what makes the next one a
-			// re-mount into DOM that already has content after the marker.
-			let remounting = false;
 			const endMarker = dom.createComment("");
 
 			const childrenFor = (target: number | "else"): Child[] =>
@@ -124,29 +121,19 @@ export function If(condition: IfCondition, getterOrChild?: unknown, ...rest: Chi
 				showing = target;
 				if (!parent) return;
 
-				// A branch is appended past the end marker and put back by
-				// `syncDomOrder`, which moves the first DOM node of each child — so a child
-				// contributing several top-level nodes (an anchor comment and an element, say)
-				// would leave the rest behind. On a re-mount there is DOM after the marker to
-				// be left behind, so mount against it instead. The first mount cannot need
-				// this: the whole tree is appended in order, and hydration claims in place.
-				const mountBranch = () => {
-					asParent(node, () => {
+				asParent(node, () => {
+					// Anchored to the end marker, so every node the branch mounts lands
+					// inside the region it bounds and leaves with it — see the insertion
+					// anchor in `dom` for what being appended past it costs.
+					withInsertionAnchor(endMarker, () => {
 						for (const child of reconcileChildren({}, ...childrenFor(target))) {
 							const instance = child();
 							mounted.push(instance);
 							mountChild(instance, parent!);
 						}
 					});
-				};
-				if (remounting) withInsertionAnchor(endMarker, mountBranch);
-				else mountBranch();
-				remounting = true;
-				syncDomOrder(
-					parent,
-					mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
-					endMarker,
-				);
+				});
+				placeRegionEnd(parent, endMarker);
 			};
 
 			const reconcile = () => {

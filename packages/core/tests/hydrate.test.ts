@@ -212,6 +212,34 @@ describe("hydration", () => {
 			// an Svg a helper's sync pass repositions: the icon-in-a-button shape
 			() => Button(If(true, Svg('<svg viewBox="0 0 4 4"><path d="M0 0"/></svg>')), "label"),
 			() => Div(If(true, "a", Span("b"), "c")),
+			// children that own more than the one node a region can move: the rows
+			// have to come out inside the branch, ahead of its end marker
+			() =>
+				Div(
+					If(false, Span("hidden")).Else(
+						Button("trigger"),
+						ForEach(
+							["a", "b", "c"],
+							(item) => item,
+							(item) => Span(item),
+						),
+					),
+					Span("after"),
+				),
+			() =>
+				Ul(
+					Switch(signal("list"))
+						.Case(
+							"list",
+							ForEach(
+								["a", "b"],
+								(item) => item,
+								(item) => Li(item),
+							),
+						)
+						.Default(Li("empty")),
+				),
+			() => Div(If(true, Html("<b>bold</b> raw"), Span("sibling")), Span("after")),
 		];
 		for (const build of cases) expectConverged(build);
 	});

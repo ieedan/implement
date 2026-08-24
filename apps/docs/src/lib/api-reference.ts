@@ -3984,11 +3984,25 @@ const styledReference: Record<string, ApiPart[]> = {
 					description:
 						"Height and padding. The icon sizes are square and drop the horizontal padding. Also set as data-size.",
 				},
+				{
+					name: "loading",
+					type: "boolean | Readable<boolean>",
+					default: "false",
+					description:
+						"Render a spinner and disable the button. An icon size shows the spinner in place of its icon; every other size puts it before the label.",
+				},
+				{
+					name: "onClickPromise",
+					type: "(event: MouseEvent) => unknown",
+					description:
+						"A click handler that is awaited: the button loads until the promise it returns settles. A non-promise return leaves it alone, and onClick still runs first when both are passed.",
+				},
 			],
 			dataAttributes: [
 				{ name: "data-slot", value: '"button"' },
 				{ name: "data-variant", value: BUTTON_VARIANTS },
 				{ name: "data-size", value: BUTTON_SIZES },
+				{ name: "data-loading", value: "Present while the button is loading." },
 			],
 		},
 	],

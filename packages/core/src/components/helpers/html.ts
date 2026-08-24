@@ -52,7 +52,12 @@ export function Html(html: Bindable<string>): Mountable {
 					parent.insertBefore(end, block.after);
 					applied = typeof html === "string" ? html : toValue(html.get());
 				} else {
-					parent.append(start, end);
+					// Through `dom` rather than straight onto the parent, so a block
+					// inside a region lands inside it: the parsed markup hangs between
+					// these two comments, and only the first of those nodes is what a
+					// region can move afterwards.
+					dom.attach(parent, start);
+					dom.attach(parent, end);
 				}
 				if (typeof html === "string") {
 					apply(html);

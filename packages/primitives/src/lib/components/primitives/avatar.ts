@@ -7,16 +7,16 @@ import {
 	signal,
 	Span,
 	type Child,
-	type ComponentProps,
 	type ReadableSource,
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
 export type AvatarLoadingStatus = "loading" | "loaded" | "error";
 
-export type AvatarRootProps = ComponentProps<typeof Div> & {
+export type AvatarRootProps = RenderableProps<typeof Div> & {
 	/** How long to wait after the image loads before showing it. Prevents a flash on fast connections. */
 	delayMs?: number;
 	onLoadingStatusChange?: (status: AvatarLoadingStatus) => void;
@@ -88,26 +88,27 @@ class AvatarState {
 }
 
 export const Avatar = createComponent(function Avatar(
-	{ id = getId(), delayMs = 0, onLoadingStatusChange, ...restProps }: AvatarRootProps,
+	{ id = getId(), delayMs = 0, onLoadingStatusChange, render = Div, ...restProps }: AvatarRootProps,
 	...children: Child[]
 ) {
 	const state = new AvatarState({ delayMs, onLoadingStatusChange });
 
 	return AvatarCtx.Provide(state).To(
-		Div(
+		render(
 			mergeProps({ id, "data-avatar-root": "", "data-status": state.loadingStatus }, restProps),
 			...children,
 		),
 	);
 });
 
-export type AvatarImageProps = ComponentProps<typeof Img>;
+export type AvatarImageProps = RenderableProps<typeof Img>;
 
 export const AvatarImage = createComponent(function AvatarImage({
 	id = getId(),
 	src,
 	crossOrigin,
 	referrerPolicy,
+	render = Img,
 	...restProps
 }: AvatarImageProps) {
 	return AvatarCtx.Use((state) => {
@@ -129,7 +130,7 @@ export const AvatarImage = createComponent(function AvatarImage({
 					};
 				},
 			},
-			Img(
+			render(
 				mergeProps(
 					{
 						id,
@@ -147,14 +148,14 @@ export const AvatarImage = createComponent(function AvatarImage({
 	});
 });
 
-export type AvatarFallbackProps = ComponentProps<typeof Span>;
+export type AvatarFallbackProps = RenderableProps<typeof Span>;
 
 export const AvatarFallback = createComponent(function AvatarFallback(
-	{ id = getId(), ...restProps }: AvatarFallbackProps,
+	{ id = getId(), render = Span, ...restProps }: AvatarFallbackProps,
 	...children: Child[]
 ) {
 	return AvatarCtx.Use((state) => {
-		return Span(
+		return render(
 			mergeProps(
 				{
 					id,

@@ -1,11 +1,18 @@
 import {
+	derived,
+	If,
+	isReadable,
+	signal,
 	Button as ButtonPrimitive,
+	type Bindable,
 	type Child,
 	type ElementProps,
 	type Mountable,
+	type Readable,
 } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
+import { Spinner } from "./spinner";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = tv({
@@ -41,7 +48,66 @@ export const buttonVariants = tv({
 export type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
-export type ButtonProps = ElementProps<"button"> & VariantProps<typeof buttonVariants>;
+/** The click handler an element takes, with `this` and the event typed for a button. */
+type ButtonClickHandler = Extract<
+	NonNullable<ElementProps<"button">["onClick"]>,
+	(...args: never[]) => unknown
+>;
+
+/**
+ * A click handler whose returned promise drives the button's loading state.
+ * Return anything else and the button never enters it.
+ */
+export type ButtonClickPromiseHandler = (
+	this: ThisParameterType<ButtonClickHandler>,
+	event: Parameters<ButtonClickHandler>[0],
+) => unknown;
+
+export type ButtonProps = ElementProps<"button"> &
+	VariantProps<typeof buttonVariants> & {
+		/**
+		 * Show a spinner and stop accepting clicks. Pass a signal to drive it
+		 * from outside, or leave it to `onClickPromise`.
+		 */
+		loading?: Bindable<boolean>;
+		/**
+		 * Click handler that is awaited: the button loads until the promise it
+		 * returns settles. `onClick` still runs first when both are passed.
+		 */
+		onClickPromise?: ButtonClickPromiseHandler;
+	};
+
+/** True while any of its inputs is — a plain boolean when none of them is reactive. */
+function anyTrue(...values: Array<Bindable<boolean | undefined>>): boolean | Readable<boolean> {
+	const readables: Array<Readable<unknown>> = [];
+	for (const value of values) {
+		// A fixed `true` settles it, whatever the others do later.
+		if (!isReadable(value)) {
+			if (value) return true;
+			continue;
+		}
+		readables.push(value);
+	}
+	// Nothing reactive left, so the answer is a plain boolean the element
+	// writes once instead of subscribing to.
+	if (readables.length === 0) return false;
+	return derived(readables, (...resolved) => resolved.some(Boolean));
+}
+
+/** `true` while the value holds and `undefined` otherwise, so the attribute is absent when it does not. */
+function flag(value: boolean | Readable<boolean>): Bindable<true | undefined> {
+	if (!isReadable(value)) return value || undefined;
+	return derived([value], (current) => current || undefined);
+}
+
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"then" in value &&
+		typeof value.then === "function"
+	);
+}
 
 export const Button = createComponent(function Button(
 	{
@@ -49,19 +115,59 @@ export const Button = createComponent(function Button(
 		size = "default",
 		class: className,
 		type = "button",
+		loading = false,
+		disabled = false,
+		onClick,
+		onClickPromise,
 		...props
 	}: ButtonProps,
 	...children: Child[]
 ): Mountable {
+	// Only the promise handler can flip a state of its own; without one the
+	// `loading` prop is the whole story and there is nothing to allocate.
+	const pending = onClickPromise ? signal(false) : undefined;
+	const isLoading = pending ? anyTrue(loading, pending) : anyTrue(loading);
+
+	const handleClick: Bindable<ButtonClickHandler> | undefined = onClickPromise
+		? function (this: ThisParameterType<ButtonClickHandler>, event) {
+				// `onClick` is a plain function almost always; a bound one is read
+				// at click time so the latest value is the one that runs.
+				const click = isReadable<ButtonClickHandler | undefined>(onClick) ? onClick.get() : onClick;
+				if (typeof click === "function") click.call(this, event);
+
+				// A click that lands while one is already in flight — the button is
+				// disabled by then, but a programmatic `.click()` still gets here.
+				if (pending?.get()) return;
+
+				const result: unknown = onClickPromise.call(this, event);
+				if (!isThenable(result)) return;
+
+				pending?.set(true);
+				// `finally` leaves a rejection to reach the caller's own handling,
+				// or the console, exactly as an unawaited promise would.
+				void Promise.resolve(result).finally(() => pending?.set(false));
+			}
+		: onClick;
+
+	// An icon button is one square with no room beside its icon, so the spinner
+	// takes the icon's place rather than crowding in next to it.
+	const iconOnly = size?.startsWith("icon") ?? false;
+
 	return ButtonPrimitive(
 		{
 			type,
 			...props,
+			onClick: handleClick,
+			disabled: anyTrue(disabled, isLoading),
 			"data-slot": "button",
 			"data-variant": variant,
 			"data-size": size,
+			"data-loading": flag(isLoading),
+			"aria-busy": flag(isLoading),
 			class: cn(buttonVariants({ variant, size }), className),
 		},
-		...children,
+		...(iconOnly
+			? [If(isLoading, Spinner()).Else(...children)]
+			: [If(isLoading, Spinner()), ...children]),
 	);
 });

@@ -7,7 +7,6 @@ import {
 	signal,
 	type Bindable,
 	type Child,
-	type ComponentProps,
 	type Ref,
 	type Signal,
 } from "@implementjs/core";
@@ -27,6 +26,7 @@ import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
 import { ScrollLock } from "../helpers/scroll-lock";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
 /**
  * The shared machinery behind DropdownMenu, ContextMenu, and Menubar. The
@@ -350,7 +350,7 @@ type MenuContentOptions = {
 	escapeKeydownBehavior: MaybeReadable<DismissBehavior>;
 };
 
-export type MenuContentProps = ComponentProps<typeof Div> & Partial<MenuContentOptions>;
+export type MenuContentProps = RenderableProps<typeof Div> & Partial<MenuContentOptions>;
 
 export class MenuContentState {
 	constructor(
@@ -372,6 +372,7 @@ export const MenuContent = createComponent(function MenuContent(
 		onInteractOutsideBehavior = "close",
 		onEscape = noop,
 		escapeKeydownBehavior = "close",
+		render = Div,
 		...restProps
 	}: MenuContentProps,
 	...children: Child[]
@@ -390,7 +391,7 @@ export const MenuContent = createComponent(function MenuContent(
 			onEscape,
 			escapeKeydownBehavior,
 		});
-		return Div(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -416,7 +417,7 @@ type MenuItemOptions = {
 	closeOnSelect?: boolean;
 };
 
-export type MenuItemProps = ComponentProps<typeof Div> & MenuItemOptions;
+export type MenuItemProps = RenderableProps<typeof Div> & MenuItemOptions;
 
 /**
  * The behavior every selectable menu item shares: focus follows the pointer,
@@ -486,12 +487,13 @@ export const MenuItem = createComponent(function MenuItem(
 		onSelect = noop,
 		disabled = false,
 		closeOnSelect = true,
+		render = Div,
 		...restProps
 	}: MenuItemProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
-		return Div(
+		return render(
 			mergeProps(
 				menuItemProps(state, {
 					id,
@@ -512,16 +514,16 @@ class MenuGroupState {
 
 const MenuGroupCtx = context<MenuGroupState>("MenuGroupCtx");
 
-export type MenuGroupProps = ComponentProps<typeof Div>;
+export type MenuGroupProps = RenderableProps<typeof Div>;
 
 export const MenuGroup = createComponent(function MenuGroup(
-	{ id = getId(), ...restProps }: MenuGroupProps,
+	{ id = getId(), render = Div, ...restProps }: MenuGroupProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
 		const group = new MenuGroupState();
 		return MenuGroupCtx.Provide(group).To(
-			Div(
+			render(
 				mergeProps(
 					{
 						id,
@@ -537,16 +539,16 @@ export const MenuGroup = createComponent(function MenuGroup(
 	});
 });
 
-export type MenuGroupHeadingProps = ComponentProps<typeof Div>;
+export type MenuGroupHeadingProps = RenderableProps<typeof Div>;
 
 export const MenuGroupHeading = createComponent(function MenuGroupHeading(
-	{ id = getId(), ...restProps }: MenuGroupHeadingProps,
+	{ id = getId(), render = Div, ...restProps }: MenuGroupHeadingProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
 		return MenuGroupCtx.Use((group) => {
 			group.headingId.set(getReadableValue(id));
-			return Div(
+			return render(
 				mergeProps({ id, role: "presentation", [state.attr("group-heading")]: "" }, restProps),
 				...children,
 			);
@@ -554,7 +556,7 @@ export const MenuGroupHeading = createComponent(function MenuGroupHeading(
 	});
 });
 
-export type MenuCheckboxGroupProps = ComponentProps<typeof Div> & {
+export type MenuCheckboxGroupProps = RenderableProps<typeof Div> & {
 	/** The values of the checked items. Pass a signal to control them from outside. */
 	value?: Signal<string[]> | string[];
 };
@@ -576,14 +578,14 @@ class MenuCheckboxGroupState extends MenuGroupState {
 const MenuCheckboxGroupCtx = context<MenuCheckboxGroupState>("MenuCheckboxGroupCtx");
 
 export const MenuCheckboxGroup = createComponent(function MenuCheckboxGroup(
-	{ id = getId(), value, ...restProps }: MenuCheckboxGroupProps,
+	{ id = getId(), value, render = Div, ...restProps }: MenuCheckboxGroupProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
 		const group = new MenuCheckboxGroupState(value);
 		return MenuGroupCtx.Provide(group).To(
 			MenuCheckboxGroupCtx.Provide(group).To(
-				Div(
+				render(
 					mergeProps(
 						{
 							id,
@@ -614,6 +616,7 @@ export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 		onSelect = noop,
 		disabled = false,
 		closeOnSelect = true,
+		render = Div,
 		...restProps
 	}: MenuCheckboxItemProps,
 	...children: Child[]
@@ -629,7 +632,7 @@ export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 					? checkedSignal
 					: membership.group.value.bind((values) => values.includes(membership.value));
 
-			return Div(
+			return render(
 				mergeProps(
 					menuItemProps(state, {
 						id,
@@ -659,7 +662,7 @@ export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 	});
 });
 
-export type MenuRadioGroupProps = ComponentProps<typeof Div> & {
+export type MenuRadioGroupProps = RenderableProps<typeof Div> & {
 	value?: Signal<string | null> | string | null;
 };
 
@@ -674,14 +677,14 @@ class MenuRadioGroupState extends MenuGroupState {
 const MenuRadioGroupCtx = context<MenuRadioGroupState>("MenuRadioGroupCtx");
 
 export const MenuRadioGroup = createComponent(function MenuRadioGroup(
-	{ id = getId(), value, ...restProps }: MenuRadioGroupProps,
+	{ id = getId(), value, render = Div, ...restProps }: MenuRadioGroupProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
 		const group = new MenuRadioGroupState(value);
 		return MenuGroupCtx.Provide(group).To(
 			MenuRadioGroupCtx.Provide(group).To(
-				Div(
+				render(
 					mergeProps(
 						{
 							id,
@@ -698,7 +701,7 @@ export const MenuRadioGroup = createComponent(function MenuRadioGroup(
 	});
 });
 
-export type MenuRadioItemProps = ComponentProps<typeof Div> & {
+export type MenuRadioItemProps = RenderableProps<typeof Div> & {
 	/** Identifies the item. Must be unique within the radio group. */
 	value: string;
 	onSelect?: () => void;
@@ -713,6 +716,7 @@ export const MenuRadioItem = createComponent(function MenuRadioItem(
 		onSelect = noop,
 		disabled = false,
 		closeOnSelect = true,
+		render = Div,
 		...restProps
 	}: MenuRadioItemProps,
 	...children: Child[]
@@ -720,7 +724,7 @@ export const MenuRadioItem = createComponent(function MenuRadioItem(
 	return MenuCtx.Use((state) => {
 		return MenuRadioGroupCtx.Use((group) => {
 			const checked = group.value.bind((current) => current === value);
-			return Div(
+			return render(
 				mergeProps(
 					menuItemProps(state, {
 						id,
@@ -746,14 +750,14 @@ export const MenuRadioItem = createComponent(function MenuRadioItem(
 	});
 });
 
-export type MenuSeparatorProps = ComponentProps<typeof Div>;
+export type MenuSeparatorProps = RenderableProps<typeof Div>;
 
 export const MenuSeparator = createComponent(function MenuSeparator(
-	{ id = getId(), ...restProps }: MenuSeparatorProps,
+	{ id = getId(), render = Div, ...restProps }: MenuSeparatorProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
-		return Div(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -863,14 +867,20 @@ export const MenuSub = createComponent(function MenuSub(props: MenuSubProps, ...
 	});
 });
 
-export type MenuSubTriggerProps = ComponentProps<typeof Div> & {
+export type MenuSubTriggerProps = RenderableProps<typeof Div> & {
 	disabled?: Signal<boolean> | boolean;
 	/** How long the pointer must rest on the trigger before the submenu opens, in milliseconds. */
 	openDelay?: number;
 };
 
 export const MenuSubTrigger = createComponent(function MenuSubTrigger(
-	{ id = getId(), disabled = false, openDelay = 100, ...restProps }: MenuSubTriggerProps,
+	{
+		id = getId(),
+		disabled = false,
+		openDelay = 100,
+		render = Div,
+		...restProps
+	}: MenuSubTriggerProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((root) => {
@@ -886,7 +896,7 @@ export const MenuSubTrigger = createComponent(function MenuSubTrigger(
 
 			return ImplementLifecycle(
 				{ onUnmount: clearHoverTimer },
-				Div(
+				render(
 					mergeProps(
 						menuItemProps(root, {
 							id,
@@ -950,6 +960,7 @@ export const MenuSubContent = createComponent(function MenuSubContent(
 		onInteractOutsideBehavior = "close",
 		onEscape = noop,
 		escapeKeydownBehavior = "close",
+		render = Div,
 		...restProps
 	}: MenuSubContentProps,
 	...children: Child[]
@@ -969,7 +980,7 @@ export const MenuSubContent = createComponent(function MenuSubContent(
 				onEscape,
 				escapeKeydownBehavior,
 			});
-			return Div(
+			return render(
 				mergeProps(
 					{
 						id,

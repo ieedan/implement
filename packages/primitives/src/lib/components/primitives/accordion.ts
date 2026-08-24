@@ -7,7 +7,6 @@ import {
 	ref,
 	signal,
 	type Child,
-	type ComponentProps,
 	type Readable,
 	type Ref,
 	type Signal,
@@ -17,6 +16,7 @@ import { collapsePresence } from "../helpers/collapse-presence";
 import { mergeProps } from "../../merge-props";
 import { getId, LIB_PREFIX, resolveId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
 const CONTENT_HEIGHT_VAR = `--${LIB_PREFIX}-accordion-content-height`;
 const CONTENT_WIDTH_VAR = `--${LIB_PREFIX}-accordion-content-width`;
@@ -24,7 +24,7 @@ const CONTENT_WIDTH_VAR = `--${LIB_PREFIX}-accordion-content-width`;
 export type AccordionRootProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
 	? { type: "multiple"; value?: Signal<string[]> }
 	: { type?: "single"; value?: Signal<string | null> }) &
-	ComponentProps<typeof Div> & {
+	RenderableProps<typeof Div> & {
 		disabled?: Signal<boolean> | boolean;
 		/** Whether arrow keys wrap from the last trigger back to the first. */
 		loop?: boolean;
@@ -126,6 +126,7 @@ export const Accordion = createComponent(function Accordion(
 		disabled = false,
 		loop = true,
 		orientation = "vertical",
+		render = Div,
 		...restProps
 	}: AccordionRootProps<"single" | "multiple">,
 	...children: Child[]
@@ -140,7 +141,7 @@ export const Accordion = createComponent(function Accordion(
 	/* oxlint-enable typescript/no-unsafe-type-assertion */
 
 	return AccordionCtx.Provide(state).To(
-		Div(
+		render(
 			mergeProps(
 				{
 					id,
@@ -156,7 +157,7 @@ export const Accordion = createComponent(function Accordion(
 	);
 });
 
-export type AccordionItemProps = ComponentProps<typeof Div> & {
+export type AccordionItemProps = RenderableProps<typeof Div> & {
 	/** Identifies the item. Must be unique within the accordion. */
 	value: string;
 	disabled?: Signal<boolean> | boolean;
@@ -207,13 +208,13 @@ class AccordionItemState {
 const AccordionItemCtx = context<AccordionItemState>("AccordionItemCtx");
 
 export const AccordionItem = createComponent(function AccordionItem(
-	{ id = getId(), value, disabled = false, ...restProps }: AccordionItemProps,
+	{ id = getId(), value, disabled = false, render = Div, ...restProps }: AccordionItemProps,
 	...children: Child[]
 ) {
 	return AccordionCtx.Use((rootState) => {
 		const state = new AccordionItemState(rootState, value, disabled);
 		return AccordionItemCtx.Provide(state).To(
-			Div(
+			render(
 				mergeProps(
 					{
 						id,
@@ -230,12 +231,12 @@ export const AccordionItem = createComponent(function AccordionItem(
 	});
 });
 
-export type AccordionTriggerProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
+export type AccordionTriggerProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
 export const AccordionTrigger = createComponent(function AccordionTrigger(
-	{ id = getId(), disabled = false, ...restProps }: AccordionTriggerProps,
+	{ id = getId(), disabled = false, render = Button, ...restProps }: AccordionTriggerProps,
 	...children: Child[]
 ) {
 	return AccordionItemCtx.Use((state) => {
@@ -243,7 +244,7 @@ export const AccordionTrigger = createComponent(function AccordionTrigger(
 		const ownDisabled = signal(disabled);
 		const isDisabled = derived([ownDisabled, state.disabled], (own, item) => own || item);
 
-		return Button(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -266,12 +267,12 @@ export const AccordionTrigger = createComponent(function AccordionTrigger(
 	});
 });
 
-export type AccordionContentProps = ComponentProps<typeof Div> & {
+export type AccordionContentProps = RenderableProps<typeof Div> & {
 	hiddenUntilFound?: boolean;
 };
 
 export const AccordionContent = createComponent(function AccordionContent(
-	{ id = getId(), hiddenUntilFound = false, ...restProps }: AccordionContentProps,
+	{ id = getId(), hiddenUntilFound = false, render = Div, ...restProps }: AccordionContentProps,
 	...children: Child[]
 ) {
 	return AccordionItemCtx.Use((state) => {
@@ -287,7 +288,7 @@ export const AccordionContent = createComponent(function AccordionContent(
 
 		return ImplementLifecycle(
 			{ onMount },
-			Div(
+			render(
 				mergeProps(
 					{
 						id,
@@ -309,16 +310,16 @@ export const AccordionContent = createComponent(function AccordionContent(
 	});
 });
 
-export type AccordionHeaderProps = ComponentProps<typeof Div> & {
+export type AccordionHeaderProps = RenderableProps<typeof Div> & {
 	level?: 1 | 2 | 3 | 4 | 5 | 6;
 };
 
 export const AccordionHeader = createComponent(function AccordionHeader(
-	{ id = getId(), level = 3, ...restProps }: AccordionHeaderProps,
+	{ id = getId(), level = 3, render = Div, ...restProps }: AccordionHeaderProps,
 	...children: Child[]
 ) {
 	return AccordionItemCtx.Use((state) => {
-		return Div(
+		return render(
 			mergeProps(
 				{
 					id,

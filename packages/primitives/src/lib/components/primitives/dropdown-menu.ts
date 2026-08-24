@@ -3,7 +3,6 @@ import {
 	Portal,
 	signal,
 	type Child,
-	type ComponentProps,
 	type PortalProps,
 	type Signal,
 } from "@implementjs/core";
@@ -41,6 +40,7 @@ import {
 	type MenuSubTriggerProps,
 } from "./menu";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
 export type DropdownMenuRootProps = MenuRootOptions;
 
@@ -56,17 +56,17 @@ export const DropdownMenu = createComponent(function DropdownMenu(
 	return MenuRoot(state, ...children);
 });
 
-export type DropdownMenuTriggerProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
+export type DropdownMenuTriggerProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
 export const DropdownMenuTrigger = createComponent(function DropdownMenuTrigger(
-	{ id = getId(), disabled = false, ...restProps }: DropdownMenuTriggerProps,
+	{ id = getId(), disabled = false, render = Button, ...restProps }: DropdownMenuTriggerProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
 		const disabledSignal = signal(disabled);
-		return Button(
+		return render(
 			mergeProps(
 				{
 					id,
