@@ -168,8 +168,50 @@ async function copyMarkdown(page: SearchPage) {
 	await copyText(await response.text());
 }
 
+/**
+ * `preventScroll` throughout: the palette is a fixed panel, and a browser that
+ * scrolls the page to reach a field inside it takes the panel along with it.
+ */
 function focusSearchInput() {
-	queueMicrotask(() => document.getElementById(SEARCH_INPUT_ID)?.focus());
+	queueMicrotask(() => {
+		document.getElementById(SEARCH_INPUT_ID)?.focus({ preventScroll: true });
+	});
+}
+
+/** The longest transition currently declared on `el`, in ms. */
+function transitionMs(el: HTMLElement): number {
+	return Math.max(
+		0,
+		...getComputedStyle(el)
+			.transitionDuration.split(",")
+			.map((value) => {
+				const n = Number.parseFloat(value);
+				if (Number.isNaN(n)) return 0;
+				return value.trim().endsWith("ms") ? n : n * 1000;
+			}),
+	);
+}
+
+/**
+ * The same, but held until the panel has finished arriving.
+ *
+ * Focusing while the panel is still animating in points the browser at a field
+ * that is, at that moment, still off the bottom of the screen — so iOS scrolls
+ * the page to reach it, and takes the panel and everything behind it along. The
+ * palette then opens with its search box above the top of the screen, which is
+ * why re-focusing the same field afterwards looks fine: by then nothing moves.
+ *
+ * Waiting out the panel's own transition costs nothing anyone can see, and asks
+ * the browser to focus something already where it belongs.
+ */
+function focusSearchInputWhenSettled() {
+	queueMicrotask(() => {
+		const input = document.getElementById(SEARCH_INPUT_ID);
+		const panel = input?.closest("[data-drawer-content], [data-dialog-content]");
+		// reduced motion declares no transition at all, and so focuses right away
+		const wait = panel instanceof HTMLElement ? transitionMs(panel) : 0;
+		setTimeout(() => input?.focus({ preventScroll: true }), wait);
+	});
 }
 
 /** How long to keep trying for an anchor that is not in reach yet. */
@@ -398,7 +440,7 @@ export function DocsSearch(): Mountable {
 				const unsubOpen = open.onChange((isOpen) => {
 					if (isOpen) {
 						// after the modal's own focus pass, move focus into the search box
-						focusSearchInput();
+						focusSearchInputWhenSettled();
 						// first open pays for the index; every later one is free
 						loadIndex();
 					} else {
@@ -513,7 +555,10 @@ export function DocsSearch(): Mountable {
 				Div(
 					{
 						class:
-							"flex items-center justify-end gap-3 border-t px-3 py-2 text-xs text-muted-foreground",
+							// Desktop only. Everything in it is either a keyboard hint or an
+							// action for a keyboard to reach, and nobody is copying markdown
+							// on a phone.
+							"flex items-center justify-end gap-3 border-t px-3 py-2 text-xs text-muted-foreground max-md:hidden",
 					},
 					Div(
 						{ class: "flex min-w-0 items-center gap-2" },
