@@ -1,5 +1,21 @@
 # create-implement-app
 
+## 0.0.5
+
+### Patch Changes
+
+- [#57](https://github.com/ieedan/implement/pull/57) [`b51e829`](https://github.com/ieedan/implement/commit/b51e8295af17c8d72287b71e6e312c50bcc12c4f) Thanks [@ieedan](https://github.com/ieedan)! - Use valibot as the schema library everywhere the docs and templates need one
+
+  Kit still takes any [Standard Schema](https://standardschema.dev) — arktype and zod included,
+  each still converted to JSON Schema through its own package — but every example, doc and
+  scaffolded file is now written in valibot, which is what `@implementjs/formish` already
+  required. A scaffolded kit app ships `valibot` as a devDependency in place of `zod`.
+
+  Kit's valibot-to-JSON-Schema conversion now runs with `errorMode: "ignore"`, so a schema
+  carrying a transform is documented as unconstrained instead of dropping the route's
+  parameters and warning. That matches what the zod converter already did with
+  `unrepresentable: "any"`.
+
 ## 0.0.4
 
 ### Patch Changes

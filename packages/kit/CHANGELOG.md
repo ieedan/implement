@@ -1,5 +1,27 @@
 # @implementjs/kit
 
+## 0.0.7
+
+### Patch Changes
+
+- [#59](https://github.com/ieedan/implement/pull/59) [`e9bf3b1`](https://github.com/ieedan/implement/commit/e9bf3b1e2919f8518248ad3804f310f8a15a2878) Thanks [@ieedan](https://github.com/ieedan)! - Warn about files in the routes tree whose names only just miss a routing one. `+server.ts`, `page.tsx`, and `+page.server.js` are colocated code as far as the scan is concerned, so the route they were meant to be simply never existed and nothing said why. The dev server and the build now print `unknown file "src/routes/api/+server.ts" — did you mean "server.ts"?`, and the dev server says it the moment such a file is written. Genuinely colocated code (`Button.ts`, `layout.css`, `page.test.ts`) stays silent.
+
+- [#57](https://github.com/ieedan/implement/pull/57) [`b51e829`](https://github.com/ieedan/implement/commit/b51e8295af17c8d72287b71e6e312c50bcc12c4f) Thanks [@ieedan](https://github.com/ieedan)! - Use valibot as the schema library everywhere the docs and templates need one
+
+  Kit still takes any [Standard Schema](https://standardschema.dev) — arktype and zod included,
+  each still converted to JSON Schema through its own package — but every example, doc and
+  scaffolded file is now written in valibot, which is what `@implementjs/formish` already
+  required. A scaffolded kit app ships `valibot` as a devDependency in place of `zod`.
+
+  Kit's valibot-to-JSON-Schema conversion now runs with `errorMode: "ignore"`, so a schema
+  carrying a transform is documented as unconstrained instead of dropping the route's
+  parameters and warning. That matches what the zod converter already did with
+  `unrepresentable: "any"`.
+
+- Updated dependencies [[`00239de`](https://github.com/ieedan/implement/commit/00239de0e84fe27b2f8737e977d973b4d24c454e)]:
+  - @implementjs/core@0.0.6
+  - @implementjs/router@0.0.7
+
 ## 0.0.6
 
 ### Patch Changes
