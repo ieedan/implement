@@ -2,15 +2,10 @@ import { confirm, log, multiselect, select, text } from "@clack/prompts";
 import { type Command, Option } from "commander";
 import { err, ok, type Result } from "nevereverthrow";
 import pc from "picocolors";
-import { z } from "zod";
+import * as v from "valibot";
 import { adders as ADDER_REGISTRY, applyAdders } from "@/adders";
 import { type AdderContext, ADDERS, type AdderId } from "@/adders/types";
-import {
-	commonOptions,
-	defaultCommandOptionsSchema,
-	parseOptions,
-	tryCommand,
-} from "@/commands/utils";
+import { commonOptions, defaultCommandOptions, parseOptions, tryCommand } from "@/commands/utils";
 import { getTemplate } from "@/templates";
 import { UI_ITEMS, UI_REGISTRY, UI_REGISTRY_DIR, UI_SCRIPT } from "@/templates/shared";
 import {
@@ -66,27 +61,28 @@ const REQUIRES: Partial<Record<Addon, Addon[]>> = {
 	ui: ["tailwind", "primitives"],
 };
 
-export const schema = defaultCommandOptionsSchema.extend({
-	name: z.string().optional(),
-	template: z.enum(TEMPLATES).optional(),
-	tailwind: z.boolean().optional(),
-	primitives: z.boolean().optional(),
-	ui: z.boolean().optional(),
-	icons: z.boolean().optional(),
-	forms: z.boolean().optional(),
-	modeWatcher: z.boolean().optional(),
-	oxlint: z.boolean().optional(),
-	packageManager: z.enum(PACKAGE_MANAGERS).optional(),
-	link: z.string().optional(),
-	install: z.boolean(),
-	git: z.boolean(),
-	workspace: z.boolean(),
-	overwrite: z.boolean(),
-	yes: z.boolean(),
-	verbose: z.boolean(),
+export const schema = v.object({
+	...defaultCommandOptions,
+	name: v.optional(v.string()),
+	template: v.optional(v.picklist(TEMPLATES)),
+	tailwind: v.optional(v.boolean()),
+	primitives: v.optional(v.boolean()),
+	ui: v.optional(v.boolean()),
+	icons: v.optional(v.boolean()),
+	forms: v.optional(v.boolean()),
+	modeWatcher: v.optional(v.boolean()),
+	oxlint: v.optional(v.boolean()),
+	packageManager: v.optional(v.picklist(PACKAGE_MANAGERS)),
+	link: v.optional(v.string()),
+	install: v.boolean(),
+	git: v.boolean(),
+	workspace: v.boolean(),
+	overwrite: v.boolean(),
+	yes: v.boolean(),
+	verbose: v.boolean(),
 });
 
-export type CreateOptions = z.infer<typeof schema>;
+export type CreateOptions = v.InferOutput<typeof schema>;
 
 export type CreateCommandResult = {
 	directory: AbsolutePath;

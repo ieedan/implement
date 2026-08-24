@@ -1,4 +1,5 @@
-import { Div, H4, Input, Label, P } from "@implementjs/core";
+import { Div, H4, Label, P } from "@implementjs/core";
+import { Input } from "@/lib/components/ui/input";
 import {
 	Popover,
 	PopoverClose,
@@ -14,8 +15,7 @@ function Field(id: string, label: string, value: string) {
 		Input({
 			id,
 			value,
-			class:
-				"col-span-2 h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+			class: "col-span-2 h-8",
 		}),
 	);
 }

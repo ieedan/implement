@@ -49,6 +49,14 @@ import DialogDemo from "./dialog-demo.ts";
 import dialogSource from "./dialog-demo.ts?raw";
 import DialogNestedDemo from "./dialog-nested-demo.ts";
 import dialogNestedSource from "./dialog-nested-demo.ts?raw";
+import DrawerDemo from "./drawer-demo.ts";
+import drawerSource from "./drawer-demo.ts?raw";
+import DrawerDirectionsDemo from "./drawer-directions-demo.ts";
+import drawerDirectionsSource from "./drawer-directions-demo.ts?raw";
+import DrawerSnapPointsDemo from "./drawer-snap-points-demo.ts";
+import drawerSnapPointsSource from "./drawer-snap-points-demo.ts?raw";
+import ResponsiveDialogDemo from "./responsive-dialog-demo.ts";
+import responsiveDialogSource from "./responsive-dialog-demo.ts?raw";
 import TooltipDemo from "./tooltip-demo.ts";
 import tooltipSource from "./tooltip-demo.ts?raw";
 import AlertDialogDemo from "./alert-dialog-demo.ts";
@@ -81,6 +89,8 @@ import BreadcrumbDemo from "./breadcrumb-demo.ts";
 import breadcrumbSource from "./breadcrumb-demo.ts?raw";
 import ButtonDemo from "./button-demo.ts";
 import buttonSource from "./button-demo.ts?raw";
+import ButtonLoadingDemo from "./button-loading-demo.ts";
+import buttonLoadingSource from "./button-loading-demo.ts?raw";
 import ButtonGroupDemo from "./button-group-demo.ts";
 import buttonGroupSource from "./button-group-demo.ts?raw";
 import CardDemo from "./card-demo.ts";
@@ -174,6 +184,19 @@ export const demos: Record<string, Demo> = {
 	"toggle-group": { source: toggleGroupSource, component: ToggleGroupDemo },
 	dialog: { source: dialogSource, component: DialogDemo },
 	"dialog-nested": { source: dialogNestedSource, component: DialogNestedDemo },
+	drawer: { source: drawerSource, component: DrawerDemo },
+	"drawer-directions": {
+		source: drawerDirectionsSource,
+		component: DrawerDirectionsDemo,
+	},
+	"drawer-snap-points": {
+		source: drawerSnapPointsSource,
+		component: DrawerSnapPointsDemo,
+	},
+	"responsive-dialog": {
+		source: responsiveDialogSource,
+		component: ResponsiveDialogDemo,
+	},
 	"alert-dialog": { source: alertDialogSource, component: AlertDialogDemo },
 	tooltip: { source: tooltipSource, component: TooltipDemo },
 	toast: { source: toastSource, component: ToastDemo },
@@ -186,6 +209,7 @@ export const demos: Record<string, Demo> = {
 	badge: { source: badgeSource, component: BadgeDemo },
 	breadcrumb: { source: breadcrumbSource, component: BreadcrumbDemo },
 	button: { source: buttonSource, component: ButtonDemo },
+	"button-loading": { source: buttonLoadingSource, component: ButtonLoadingDemo },
 	"button-group": { source: buttonGroupSource, component: ButtonGroupDemo },
 	card: { source: cardSource, component: CardDemo },
 	empty: { source: emptySource, component: EmptyDemo },

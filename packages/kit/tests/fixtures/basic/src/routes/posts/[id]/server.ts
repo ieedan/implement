@@ -1,17 +1,25 @@
-import * as z from "zod";
+import * as v from "valibot";
 import { handler } from "./$types";
 
 /** No response schema — the client's `data` type comes from what `handle` returns. */
 export const GET = handler({
-	query: z.object({ draft: z.stringbool().default(false) }),
+	query: v.object({
+		draft: v.optional(
+			v.pipe(
+				v.picklist(["true", "false"]),
+				v.transform((value) => value === "true"),
+			),
+			"false",
+		),
+	}),
 	handle: ({ params, query }) => ({ id: params.id, draft: query.draft }),
 });
 
-/** A declared response, and params coerced past `string`. */
+/** A declared response, and params parsed past `string`. */
 export const PATCH = handler({
-	params: z.object({ id: z.coerce.number() }),
-	body: z.object({ title: z.string() }),
-	response: z.object({ id: z.number(), title: z.string() }),
+	params: v.object({ id: v.pipe(v.string(), v.transform(Number), v.number()) }),
+	body: v.object({ title: v.string() }),
+	response: v.object({ id: v.number(), title: v.string() }),
 	handle: ({ params, body }) => ({ id: params.id, title: body.title }),
 });
 

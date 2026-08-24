@@ -3,6 +3,7 @@ import {
 	derived,
 	ReactiveMap,
 	ReactiveSet,
+	ref,
 	Signal,
 	signal,
 	type Readable,
@@ -151,6 +152,65 @@ describe("selector bind unwrapping", () => {
 	});
 });
 
+describe("path binds through a missing value", () => {
+	type Issue = { title: string; author: { name: string } };
+	type Data = { issue?: Issue };
+
+	it("reads undefined instead of throwing", () => {
+		const data = signal<Data>({});
+
+		expect(data.bind("issue.title").get()).toBeUndefined();
+		expect(data.bind("issue").bind("title").get()).toBeUndefined();
+	});
+
+	it("reads undefined through a read-only source", () => {
+		const source = signal<Data>({});
+		const data: Readable<Data> = derived([source], (value) => value);
+
+		expect(data.bind("issue.title").get()).toBeUndefined();
+		expect(data.bind("issue").bind("title").get()).toBeUndefined();
+	});
+
+	it("binds a ref before its node mounts", () => {
+		const button = ref<HTMLButtonElement>();
+
+		expect(button.bind("disabled").get()).toBeUndefined();
+	});
+
+	it("notifies subscribers once the value arrives", () => {
+		const data = signal<Data>({});
+		const title = data.bind("issue").bind("title");
+		const seen: (string | undefined)[] = [];
+		title.subscribe((value) => seen.push(value));
+
+		data.set({ issue: { title: "Ship docs", author: { name: "Ada" } } });
+
+		expect(title.get()).toBe("Ship docs");
+		expect(seen).toEqual(["Ship docs"]);
+	});
+
+	it("writes through the chain once the value arrives", () => {
+		const data = signal<Data>({});
+		const title = data.bind("issue").bind("title");
+
+		data.set({ issue: { title: "Ship docs", author: { name: "Ada" } } });
+		title.set("Ship v2");
+
+		expect(data.get().issue).toEqual({ title: "Ship v2", author: { name: "Ada" } });
+	});
+
+	it("throws on a write with nowhere to land, naming the missing segment", () => {
+		const data = signal<Data>({});
+
+		expect(() => data.bind("issue.author.name").set("Ada")).toThrow(
+			'Cannot set "issue.author.name": "issue" is undefined',
+		);
+		expect(() => data.bind("issue").bind("title").set("Ship v2")).toThrow(
+			'Cannot set "title" on undefined',
+		);
+	});
+});
+
 describe("signal()", () => {
 	it("returns an existing writable unchanged", () => {
 		const count = signal(0);
@@ -174,47 +234,6 @@ describe("signal()", () => {
 
 		open = signal(true);
 		expect(signal(open)).toBe(open);
-	});
-});
-
-describe("path bind through a missing value", () => {
-	it("reads undefined instead of throwing when an intermediate is nullish", () => {
-		const todo = signal<{ author: { name: string } | null }>({ author: null });
-		expect(todo.bind("author.name").get()).toBeUndefined();
-	});
-
-	it("chains a bind onto a link that has not arrived yet", () => {
-		// what a route's `data` looks like before its load lands
-		const data = signal<{ issue?: { title: string } }>({});
-		const issue = data.bind("issue");
-		const title = issue.bind("title");
-
-		expect(title.get()).toBeUndefined();
-
-		const seen: unknown[] = [];
-		const unsubscribe = title.subscribe((value) => seen.push(value));
-
-		data.set({ issue: { title: "Ship docs" } });
-		expect(seen).toEqual(["Ship docs"]);
-		expect(title.get()).toBe("Ship docs");
-
-		unsubscribe();
-	});
-
-	it("chains through a read-only source", () => {
-		const store = signal<{ issue?: { title: string } }>({});
-		const data: Readable<{ issue?: { title: string } }> = derived([store], (value) => value);
-		const title = data.bind("issue").bind("title");
-
-		expect(title.get()).toBeUndefined();
-
-		store.set({ issue: { title: "Ship docs" } });
-		expect(title.get()).toBe("Ship docs");
-	});
-
-	it("still throws when writing through a missing parent", () => {
-		const todo = signal<{ author: { name: string } | null }>({ author: null });
-		expect(() => todo.bind("author.name").set("Ada")).toThrow('Cannot set "author.name"');
 	});
 });
 

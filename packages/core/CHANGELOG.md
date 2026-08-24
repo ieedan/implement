@@ -1,5 +1,44 @@
 # @implementjs/core
 
+## 0.0.7
+
+### Patch Changes
+
+- [#65](https://github.com/ieedan/implement/pull/65) [`5077090`](https://github.com/ieedan/implement/commit/50770900102e0dafbccbf187054ed2cdfcdcefa5) Thanks [@ieedan](https://github.com/ieedan)! - Fix a path bind throwing when the value it reads through is missing. `getAtPath` treated a `null` or `undefined` along the path as an error, so `data.bind("issue").bind("title")` — or the equivalent `data.bind("issue.title")` — threw `Cannot read "title" from undefined` while the load was still in flight, taking the component down for a value that arrives a tick later. The same applied to `ref.bind("disabled")` before the node mounted. A path now reads through a missing value the way optional chaining does, reading `undefined` and updating when the value lands, which is also what the path types describe: `PathsOf` walks `NonNullable`, so binding through an optional field is the case they were written for. Writes still throw — a write has nowhere to land, rather than merely nothing to read — and now name the segment that was missing.
+
+## 0.0.6
+
+### Patch Changes
+
+- [#53](https://github.com/ieedan/implement/pull/53) [`00239de`](https://github.com/ieedan/implement/commit/00239de0e84fe27b2f8737e977d973b4d24c454e) Thanks [@ieedan](https://github.com/ieedan)! - Add `mediaQuery(query, { fallback })`, a CSS media query as a `Readable<boolean>`.
+  It listens only while something is listening to it, and reports the fallback on
+  the server — and through hydration, so the pass matches the markup the server
+  produced instead of throwing it out and re-rendering.
+
+## 0.0.5
+
+### Patch Changes
+
+- [#54](https://github.com/ieedan/implement/pull/54) [`f60114f`](https://github.com/ieedan/implement/commit/f60114f329cd73c5922a60c8337566afa97d3f21) Thanks [@ieedan](https://github.com/ieedan)! - Mount a branch's children inside the region its end marker bounds, so a child
+  that owns more than one node is torn down with the branch.
+
+  `If` appended its branch children to the parent and then moved each child's
+  first DOM node back in front of its end marker. A child standing on a single
+  node came out right; a `ForEach` did not. Its rows went in as siblings of
+  whatever else the parent held, and only the first of them was pulled inside the
+  branch — the rest stayed past the marker, where the next swap neither moved nor
+  removed them. Toggling a menu left its dots sitting beside the other branch's
+  content, looking like both branches were mounted at once. Worse, the marker now
+  stood between the `ForEach`'s first row and its own marker, so clearing the list
+  took the branch's marker with it in the range deletion and the next swap threw.
+
+  Branch children are now mounted against the end marker, the way `ForEach`
+  already mounts its rows, so every node they own lands inside the region and
+  leaves with it. The same fix applies to `Switch`, `Key`, `Dynamic`, `Await`,
+  `ImplementBoundary`, `Portal` and `Outlet`, which all swap children the same
+  way, and `Html` now attaches its delimiters through the same path so a block
+  inside one of them is not split from its markup.
+
 ## 0.0.4
 
 ### Patch Changes

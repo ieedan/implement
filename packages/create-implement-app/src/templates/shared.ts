@@ -145,6 +145,51 @@ export function vscodeExtensions(ctx: TemplateContext): string {
 	return `${JSON.stringify({ recommendations }, null, "\t")}\n`;
 }
 
+/**
+ * The class strings the tailwind extension cannot find on its own.
+ *
+ * implement has no JSX, so there is no `class="..."` attribute to key off — a class is an object
+ * property in a call (`Div({ class: "flex gap-2" }, ...)`), and the extension's built in attribute
+ * matching never sees it. Each entry is a regex the extension runs itself:
+ *
+ * - the first matches `class:` / `className:` followed by a quoted string, which is every class
+ *   written inline in a component;
+ * - the second is the two part form — find a `styles = { ... }` object, then treat every quoted
+ *   string inside it as classes. That is the shape the generated components keep their classes in,
+ *   and without it the object the app actually edits is the one place with no completions.
+ */
+const TAILWIND_CLASS_REGEX: string[][] = [
+	["(?:class(?:Name)?)\\s*:\\s*['\"`]([^'\"`]*)['\"`]"],
+	["styles\\s*=\\s*\\{([^}]*)\\}", "['\"`]([^'\"`]*)['\"`]"],
+];
+
+/**
+ * The helpers the `ui` addon's components pass classes through — `cn()` merges them and `tv()`
+ * holds the variant tables. Naming them here is what makes `cn("flex gap-2")` complete like a
+ * class attribute would.
+ */
+const TAILWIND_CLASS_FUNCTIONS = ["cn", "tv"];
+
+/**
+ * `.vscode/settings.json`, written only for a tailwind app: what it configures is the tailwind
+ * extension {@link vscodeExtensions} recommends, and it is the difference between that extension
+ * being installed and it doing anything in an implement component.
+ *
+ * `quickSuggestions.strings` comes with it because every class here is inside a string literal,
+ * where VS Code does not offer completions unless it is asked to.
+ */
+export function vscodeSettings(ctx: TemplateContext): string {
+	return `${JSON.stringify(
+		{
+			"editor.quickSuggestions": { strings: "on" },
+			...(hasAddon(ctx, "ui") ? { "tailwindCSS.classFunctions": TAILWIND_CLASS_FUNCTIONS } : {}),
+			"tailwindCSS.experimental.classRegex": TAILWIND_CLASS_REGEX,
+		},
+		null,
+		"\t",
+	)}\n`;
+}
+
 export function gitignore(): string {
 	return (
 		dedent`

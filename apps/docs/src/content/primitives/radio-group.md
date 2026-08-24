@@ -40,6 +40,8 @@ density.set("compact"); // checks it from outside
 
 Clicking an item checks it. `null` means nothing is checked yet; a radio group cannot be uncleared by clicking.
 
+`onValueChange` reports the checked item after each change, so a form can react without owning the signal.
+
 ## Keyboard and focus
 
 The group is one Tab stop: Tab lands on the checked item, and arrow keys move between the options — moving also checks, the way native radios work. `loop` (default `true`) wraps from the last item to the first, and Home and End jump to the ends. `orientation` (default `"vertical"`) is announced to assistive technology and lands on the `data-orientation` attributes; all four arrow keys move focus either way.

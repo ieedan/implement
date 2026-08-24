@@ -1,5 +1,6 @@
 import { Button, signal, type Child, type Signal } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
+import { withChangeEffect, type ChangeHandler } from "../../on-change";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
@@ -7,6 +8,8 @@ import type { RenderableProps } from "../../render";
 export type ToggleProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
 	pressed?: Signal<boolean> | boolean;
 	disabled?: Signal<boolean> | boolean;
+	/** Runs whenever the pressed state changes. */
+	onPressedChange?: ChangeHandler<boolean>;
 };
 
 /**
@@ -16,29 +19,40 @@ export type ToggleProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
  * two announce differently to assistive technology.
  */
 export const Toggle = createComponent(function Toggle(
-	{ id = getId(), pressed = false, disabled = false, render = Button, ...restProps }: ToggleProps,
+	{
+		id = getId(),
+		pressed = false,
+		disabled = false,
+		onPressedChange,
+		render = Button,
+		...restProps
+	}: ToggleProps,
 	...children: Child[]
 ) {
 	const pressedSignal = signal(pressed);
 	const disabledSignal = signal(disabled);
 
-	return render(
-		mergeProps(
-			{
-				id,
-				type: "button",
-				"aria-pressed": pressedSignal,
-				"data-toggle-root": "",
-				"data-state": pressedSignal.bind((pressed) => (pressed ? "on" : "off")),
-				"data-disabled": disabledSignal.bind((disabled) => (disabled ? "" : undefined)),
-				disabled: disabledSignal,
-				onClick: () => {
-					if (disabledSignal.get()) return;
-					pressedSignal.toggle();
+	return withChangeEffect(
+		render(
+			mergeProps(
+				{
+					id,
+					type: "button",
+					"aria-pressed": pressedSignal,
+					"data-toggle-root": "",
+					"data-state": pressedSignal.bind((pressed) => (pressed ? "on" : "off")),
+					"data-disabled": disabledSignal.bind((disabled) => (disabled ? "" : undefined)),
+					disabled: disabledSignal,
+					onClick: () => {
+						if (disabledSignal.get()) return;
+						pressedSignal.toggle();
+					},
 				},
-			},
-			restProps,
+				restProps,
+			),
+			...children,
 		),
-		...children,
+		pressedSignal,
+		onPressedChange,
 	);
 });

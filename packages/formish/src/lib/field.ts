@@ -1,25 +1,29 @@
-import { derived, isReadable, signal, type Readable } from "@implementjs/core";
-import { getElementInput, isArrayField } from "./element";
-import { INTERNAL, type FormStore } from "./form";
-import { getAtPath, isDirtyInput, pathName, type Path } from "./path";
+import { derived, isReadable, Ref, signal, type Readable } from "@implementjs/core";
+import { INTERNAL } from "./internal";
 import {
-	errorsAt,
-	hasErrorsUnder,
-	hasFlag,
-	markArrayField,
-	markEdited,
-	markTouched,
-	writeInput,
-	type InternalFormStore,
+	bump,
+	getElementInput,
+	getFieldBool,
+	getFieldInput,
+	getFieldStore,
+	isFieldElement,
+	pathName,
+	setFieldInput,
 } from "./store";
 import { validateIfRequired } from "./validate";
+import type { FormStore } from "./form";
 import type {
+	FieldElement,
 	FieldElementProps,
 	FieldErrors,
 	FieldPath,
 	FormSchema,
 	InferInput,
-	PartialInput,
+	InternalFieldStore,
+	InternalFormStore,
+	MaybeReadable,
+	PartialValues,
+	Path,
 	PathValue,
 } from "./types";
 
@@ -31,12 +35,7 @@ export interface UseFieldConfig<
 	 * Where the field lives, e.g. `["email"]` or `["todos", 0, "label"]`. A
 	 * readable path lets a field follow an array item as it moves.
 	 */
-	readonly path: TPath | Readable<TPath>;
-	/**
-	 * Force the field to hold a list. Only needed for a group that starts out
-	 * empty and carries no `multiple` attribute, such as a set of checkboxes.
-	 */
-	readonly array?: boolean | undefined;
+	readonly path: MaybeReadable<TPath>;
 }
 
 export interface FieldStore<
@@ -46,7 +45,7 @@ export interface FieldStore<
 	readonly path: Readable<Path>;
 	/** The field's name in the store and on its elements. */
 	readonly name: Readable<string>;
-	readonly input: Readable<PartialInput<PathValue<InferInput<TSchema>, TPath>>>;
+	readonly input: Readable<PartialValues<PathValue<InferInput<TSchema>, TPath>>>;
 	readonly errors: Readable<FieldErrors | null>;
 	/** The first error, which is what a field usually shows. */
 	readonly error: Readable<string | null>;
@@ -58,14 +57,84 @@ export interface FieldStore<
 	 * Writes the field, as an element's handler would. Use it for values the
 	 * DOM cannot express — a number, a date — or for a custom component.
 	 */
-	readonly setInput: (input: PartialInput<PathValue<InferInput<TSchema>, TPath>>) => void;
+	readonly onInput: (input: PartialValues<PathValue<InferInput<TSchema>, TPath>>) => void;
 	/** Spread onto the element that edits this field. */
 	readonly props: FieldElementProps;
 }
 
 /** Both a static and a readable path arrive here as one readable. */
-function toPathReadable(path: Path | Readable<Path>): Readable<Path> {
-	return isReadable<Path>(path) ? path : signal(path);
+export function toPathReadable(path: MaybeReadable<Path>): Readable<Path> {
+	return isReadable<Path>(path) ? path : signal<Path>(path);
+}
+
+/** A readable over a field, recomputed whenever anything in the form changes. */
+export function fieldReadable<T>(
+	form: InternalFormStore,
+	path: Readable<Path>,
+	read: (field: InternalFieldStore | undefined) => T,
+): Readable<T> {
+	return derived([form.revision, path], (_, current) => read(getFieldStore(form, current)));
+}
+
+/**
+ * A ref that registers its element with the field for as long as it is
+ * mounted. `props` hands out a new one per spread, so a radio or checkbox
+ * group registers each of its elements rather than only the last.
+ */
+class FieldElementRef extends Ref<HTMLElement> {
+	#form: InternalFormStore;
+	#path: Readable<Path>;
+	#element: FieldElement | null = null;
+	#registered: InternalFieldStore | null = null;
+	#unwatch: (() => void) | null = null;
+
+	constructor(form: InternalFormStore, path: Readable<Path>) {
+		super();
+		this.#form = form;
+		this.#path = path;
+	}
+
+	override set(value: HTMLElement | null): void {
+		if (value === null) {
+			this.#unwatch?.();
+			this.#unwatch = null;
+			this.#detach();
+			this.#element = null;
+		} else if (isFieldElement(value)) {
+			this.#element = value;
+			this.#attach();
+			// a row that moves keeps its elements but changes its path, so the
+			// element has to follow it to the field store it now belongs to
+			this.#unwatch ??= this.#path.onChange(() => {
+				this.#detach();
+				this.#attach();
+			});
+		}
+		super.set(value);
+	}
+
+	#attach(): void {
+		const element = this.#element;
+		if (!element) return;
+		const field = getFieldStore(this.#form, this.#path.get());
+		if (!field) return;
+		// an array reorder moves the elements between field stores, so the
+		// element may already be registered against the one it moved to
+		if (!field.elements.includes(element)) field.elements.push(element);
+		this.#registered = field;
+	}
+
+	#detach(): void {
+		const field = this.#registered;
+		const element = this.#element;
+		this.#registered = null;
+		if (!field || !element) return;
+		const elements = field.elements.filter((current) => current !== element);
+		// `initialElements` follows while the field still owns its elements; a
+		// reorder has moved them otherwise, and they belong to their new field
+		if (field.elements === field.initialElements) field.initialElements = elements;
+		field.elements = elements;
+	}
 }
 
 /**
@@ -84,57 +153,65 @@ export function useField<
 >(form: FormStore<TSchema>, config: UseFieldConfig<TSchema, TPath>): FieldStore<TSchema, TPath> {
 	const store: InternalFormStore = form[INTERNAL];
 	const path = toPathReadable(config.path);
-	const name = derived([path], (value) => pathName(value));
+	const name = derived([path], (current) => pathName(current));
+	const errors = fieldReadable(store, path, (field) => field?.errors.get() ?? null);
 
-	if (config.array) markArrayField(store, path.get());
+	const write = (input: unknown): void => {
+		const current = path.get();
+		const field = getFieldStore(store, current);
+		if (!field) return;
+		setFieldInput(store, current, input);
+		validateIfRequired(store, field, "input");
+		bump(store);
+	};
 
-	const errors = derived([store.errors, path], (map, value) => errorsAt(map, value));
-
-	const write = (input: unknown, mode: "input" | "change"): void => {
-		const target = path.get();
-		if (config.array) markArrayField(store, target);
-		writeInput(store, target, input);
-		markTouched(store, target);
-		markEdited(store, target);
-		validateIfRequired(store, target, mode);
+	const onEvent = (mode: "touch" | "change" | "blur"): void => {
+		const field = getFieldStore(store, path.get());
+		if (!field) return;
+		if (mode === "touch") {
+			field.isTouched.set(true);
+			bump(store);
+		}
+		validateIfRequired(store, field, mode);
 	};
 
 	const props: FieldElementProps = {
 		name,
-		onFocus() {
-			const target = path.get();
-			markTouched(store, target);
-			validateIfRequired(store, target, "touch");
+		autofocus: derived([errors], (current) => Boolean(current)),
+		// a getter, so every spread of `props` hands out a ref of its own — one
+		// element per ref is what lets a group register all of its elements
+		get this() {
+			return new FieldElementRef(store, path);
 		},
+		onFocus: () => onEvent("touch"),
 		onInput(event) {
-			const target = path.get();
-			const element = event.currentTarget;
-			const array = isArrayField(store, target, config.array, element);
-			write(getElementInput(store, element, target, array), "input");
+			const field = getFieldStore(store, path.get());
+			if (!field) return;
+			write(getElementInput(event.currentTarget, field));
 		},
-		onChange() {
-			validateIfRequired(store, path.get(), "change");
-		},
-		onBlur() {
-			validateIfRequired(store, path.get(), "blur");
-		},
+		onChange: () => onEvent("change"),
+		onBlur: () => onEvent("blur"),
 	};
 
 	return {
 		path,
 		name,
-		input: derived([store.input, path], (input, value) => getAtPath(input, value)) as Readable<
-			PartialInput<PathValue<InferInput<TSchema>, TPath>>
-		>,
+		input: fieldReadable(store, path, (field) =>
+			field ? getFieldInput(field) : undefined,
+		) as Readable<PartialValues<PathValue<InferInput<TSchema>, TPath>>>,
 		errors,
-		error: derived([errors], (value) => value?.[0] ?? null),
-		isTouched: derived([store.touched, path], (touched, value) => hasFlag(touched, value)),
-		isEdited: derived([store.edited, path], (edited, value) => hasFlag(edited, value)),
-		isDirty: derived([store.input, store.startInput, path], (input, start, value) =>
-			isDirtyInput(getAtPath(start, value), getAtPath(input, value)),
+		error: derived([errors], (current) => current?.[0] ?? null),
+		isTouched: fieldReadable(store, path, (field) =>
+			field ? getFieldBool(field, "isTouched") : false,
 		),
-		isValid: derived([store.errors, path], (map, value) => !hasErrorsUnder(map, value)),
-		setInput: (input) => write(input, "input"),
+		isEdited: fieldReadable(store, path, (field) =>
+			field ? getFieldBool(field, "isEdited") : false,
+		),
+		isDirty: fieldReadable(store, path, (field) =>
+			field ? getFieldBool(field, "isDirty") : false,
+		),
+		isValid: fieldReadable(store, path, (field) => !field || !getFieldBool(field, "errors")),
+		onInput: write,
 		props,
 	};
 }

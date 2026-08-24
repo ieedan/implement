@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as z from "zod";
+import * as v from "valibot";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	generateParamsModule,
@@ -14,7 +14,11 @@ import { comparePatterns, matchPage, matchRoutePattern, routeId } from "../src/m
 import { isParamMatcher, matcher, matcherTable, mismatch } from "../src/params.ts";
 import { parseSegment, scanRoutes, segmentKey } from "../src/scan.ts";
 import { createKitServer } from "../src/server.ts";
-import { generateRouteTypes, generateRouterDeclaration } from "../src/typegen.ts";
+import {
+	generateParamTypesDeclaration,
+	generateRouteTypes,
+	generateRouterDeclaration,
+} from "../src/typegen.ts";
 
 const integer = matcher((value) => {
 	const parsed = Number(value);
@@ -49,7 +53,7 @@ describe("matcher", () => {
 	});
 
 	it("builds one from a standard schema, rejecting what the schema rejects", () => {
-		const uuid = matcher(z.uuid());
+		const uuid = matcher(v.pipe(v.string(), v.uuid()));
 		expect(uuid.match("0189c2e4-9b3d-7a2f-8c1e-2f0a5b6d7e8f")).toBe(
 			"0189c2e4-9b3d-7a2f-8c1e-2f0a5b6d7e8f",
 		);
@@ -57,13 +61,20 @@ describe("matcher", () => {
 	});
 
 	it("takes the schema's output, so a coercing schema parses the segment", () => {
-		const page = matcher(z.coerce.number().int().positive());
+		const page = matcher(
+			v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1)),
+		);
 		expect(page.match("3")).toBe(3);
 		expect(page.match("0")).toBe(mismatch);
 	});
 
 	it("refuses a schema that cannot answer synchronously", () => {
-		const async = matcher(z.string().refine(async () => true));
+		const async = matcher(
+			v.pipeAsync(
+				v.string(),
+				v.checkAsync(async () => true),
+			),
+		);
 		expect(() => async.match("x")).toThrow(/synchronously/);
 	});
 
@@ -300,22 +311,33 @@ describe("the types a matched param gets", () => {
 	});
 
 	it("declares the matchers' types to the router, so links and renders see them", () => {
-		const declaration = generateRouterDeclaration(
-			[{ pattern: "/posts/:id=integer", params: [{ name: "id", matcher: "integer" }] }],
-			false,
-			PATHS,
-			["integer"],
-		);
+		const declaration = generateParamTypesDeclaration(["integer"], PATHS);
 		expect(declaration).toContain('declare module "@implementjs/router" {');
 		expect(declaration).toContain(
 			'"integer": import("@implementjs/kit/params").ParamType<typeof import("./src/params/integer.ts").default>;',
 		);
-		expect(declaration).toContain('declare module "$implement/params"');
 	});
 
-	it("declares nothing to the router for an app with no matchers", () => {
-		const declaration = generateRouterDeclaration([{ pattern: "/", params: [] }], false, PATHS, []);
+	it("augments the router rather than replacing it, which needs a module", () => {
+		// in a script, `declare module "@implementjs/router"` declares an ambient
+		// module that takes the name over: the package's own exports stop existing
+		// and everything typed through them — `router`, `Link`, `RouterError` —
+		// silently becomes `any`. A top-level import is what makes this a module.
+		expect(generateParamTypesDeclaration(["integer"], PATHS)).toMatch(
+			/^import type \{\} from "@implementjs\/router";/,
+		);
+	});
+
+	it("keeps the ParamTypes augmentation out of the script that declares $implement/*", () => {
+		const declaration = generateRouterDeclaration(
+			[{ pattern: "/posts/:id=integer", params: [{ name: "id", matcher: "integer" }] }],
+			false,
+			PATHS,
+		);
+		expect(declaration).toContain('declare module "$implement/params"');
 		expect(declaration).not.toContain('declare module "@implementjs/router"');
+		// a script, so its `declare module`s stay ambient and `App` merges globally
+		expect(declaration).not.toMatch(/^(?:import|export)[\s{]/m);
 	});
 });
 

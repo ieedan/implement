@@ -22,6 +22,7 @@ import {
 	HOOKS_ID,
 	PAGES_ID,
 	prerenderServerFiles,
+	taggedWarning,
 } from "./dev.ts";
 import {
 	evaluateEnvFile,
@@ -50,7 +51,15 @@ import { buildOpenApiDocument, type OpenApiEndpoint, type OpenApiOptions } from 
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
 import type { KitPluginApi } from "./sync.ts";
-import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
+import {
+	formatRouteWarning,
+	isRouteFileName,
+	routeFileSuggestion,
+	scanRoutes,
+	type RouteNode,
+	type RouteTree,
+	type RouteWarning,
+} from "./scan.ts";
 import { DEFAULT_ALIASES, DEFAULT_PARAMS_DIR, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
 export type {
@@ -99,6 +108,28 @@ const SERVER_IDS = [RESOLVED_PAGES_ID, RESOLVED_ENDPOINTS_ID, RESOLVED_HOOKS_ID]
 const ENTRY_SERVER = `/${IMPLEMENT_DIR}/entry-server.ts`;
 /** Deliberately unmatched, so the fallback renders for the 404 page. */
 const NOT_FOUND_ROUTE = "/__implement__/not-found";
+
+/**
+ * The bare imports kit's generated modules make that nothing on disk does.
+ *
+ * Vite's dep scanner externalizes anything whose resolved id carries a `\0`,
+ * so the crawl that decides what to prebundle stops dead at every virtual
+ * module kit owns. `$implement/router` is imported by the generated client
+ * entry, and the scanner walks straight past it — so the packages behind it
+ * are invisible at startup, discovered instead by the browser on first load.
+ * A dep discovered then re-bundles, which moves every optimized URL's `?v=`
+ * hash and answers the requests already in flight with
+ * `504 (Outdated Optimize Dep)`.
+ *
+ * Naming them here puts them in the first prebundle instead. `params` is here
+ * even for an app with no matchers yet: adding the first one would otherwise
+ * be its own discovery, mid-session, with the dev server already running.
+ */
+const OPTIMIZE_INCLUDE = [
+	"@implementjs/router",
+	"@implementjs/kit/runtime",
+	"@implementjs/kit/params",
+];
 
 /** Writes a file, creating its directory — the build's own small needs. */
 function write(file: string, contents: string): void {
@@ -331,6 +362,9 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	const routesBase = `/${routes.replaceAll("\\", "/")}`;
 	const paramsPath = options.params ?? DEFAULT_PARAMS_DIR;
 	const paramsBase = `/${paramsPath.replaceAll("\\", "/")}`;
+	/** The same two, as the dep scanner wants them: relative to the Vite root. */
+	const routesGlob = routesBase.slice(1);
+	const paramsGlob = paramsBase.slice(1);
 	const hooksPath = (options.hooks ?? "src/hooks.server.ts").replaceAll("\\", "/");
 	const aliases = { ...DEFAULT_ALIASES, ...options.alias };
 	const genOptions = {
@@ -348,6 +382,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	let outDir = join(root, "dist");
 	let devServer: ViteDevServer | null = null;
 	let resolvedConfig: ResolvedConfig | null = null;
+	/** Vite's logger once there is a config; `console` for a scan that runs before one. */
+	let logger: { warn(message: string): void } = console;
+	/** The warnings the last scan reported, so a rescan only speaks up about what changed. */
+	let reportedWarnings = new Set<string>();
 	/** Client-graph parents, recorded as rollup parses, for the importer chain. */
 	const clientParents = new Map<string, string>();
 
@@ -380,8 +418,28 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		return serializeEnvModule(exports, file.info.file);
 	};
 
+	/**
+	 * A near miss (`+server.ts`, `page.tsx`) is colocated code as far as the scan
+	 * is concerned, so the route it was meant to be simply never exists and
+	 * nothing says why. Kit says it here instead, once per scan that turned the
+	 * warning up anew: a warning that is still there after an unrelated edit does
+	 * not repeat itself, and one that comes back after a rename is worth
+	 * repeating.
+	 */
+	const reportWarnings = (warnings: RouteWarning[]): void => {
+		const current = new Set<string>();
+		for (const warning of warnings) {
+			const key = `${warning.file} → ${warning.suggestion}`;
+			current.add(key);
+			if (reportedWarnings.has(key)) continue;
+			logger.warn(taggedWarning(formatRouteWarning(warning, routes)));
+		}
+		reportedWarnings = current;
+	};
+
 	const scan = (): RouteTree => {
 		tree = scanRoutes(routesDir, paramsDir);
+		reportWarnings(tree.warnings);
 		return tree;
 	};
 
@@ -541,6 +599,24 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				appType: "custom",
 				publicDir: userConfig.publicDir ?? "static",
 				resolve: { alias },
+				optimizeDeps: {
+					// the route modules and the matchers hang off `$implement/router`,
+					// which the scanner will not walk through (see OPTIMIZE_INCLUDE), so
+					// point it at the real files instead: their deps are the app's own,
+					// and kit cannot name those in advance. Vite concatenates what a
+					// plugin returns onto the app's own entries, and the shell is here
+					// because listing anything at all replaces what the scan would have
+					// crawled by default. `*.server.ts` stays out — a server-only dep has
+					// no business in the browser's prebundle.
+					entries: [
+						...(shellPath === null ? [] : [shellPath.relative.replaceAll("\\", "/")]),
+						`${routesGlob}/**/{page,layout}.ts`,
+						`${routesGlob}/**/{page,layout}@*.ts`,
+						`${routesGlob}/**/error.ts`,
+						`${paramsGlob}/*.ts`,
+					],
+					include: OPTIMIZE_INCLUDE,
+				},
 				build: {
 					// the prerender needs chunk filenames to emit preload hints for
 					// each route's own modules, and only the manifest has them
@@ -558,6 +634,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			// be this same plugin instance answering for it — the adapter stage
 			// wants what the client build resolved, not what serving it resolves
 			if (config.command === "build" && config.build.ssr === false) resolvedConfig = config;
+			logger = config.logger;
 			root = config.root;
 			routesDir = join(root, routes);
 			paramsDir = join(root, paramsPath);
@@ -622,7 +699,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		 * — so even a total guard bypass leaks nothing.
 		 *
 		 * Every export is inlined, not just the `defineEnv(...)` call: narrowing the
-		 * replacement to the call expression would leave `import { z } from "zod"`
+		 * replacement to the call expression would leave `import * as v from "valibot"`
 		 * and the schema expressions in the module, and "probably tree-shakes"
 		 * undercuts the whole reason for evaluating these files up front.
 		 */
@@ -662,7 +739,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		configureServer(server) {
 			devServer = server;
 			const isRouteFile = (file: string) =>
-				(file.startsWith(routesDir + sep) && isRouteFileName(basename(file))) ||
+				(file.startsWith(routesDir + sep) &&
+					// a near miss changes no route, but the rescan is what notices it
+					// and warns — writing `+server.ts` into a running dev server is
+					// exactly when you want to hear about it
+					(isRouteFileName(basename(file)) || routeFileSuggestion(basename(file)) !== null)) ||
 				// a matcher appearing or vanishing changes which `[id=name]` routes
 				// are valid, and what type every param behind it carries
 				(dirname(file) === paramsDir && file.endsWith(".ts")) ||

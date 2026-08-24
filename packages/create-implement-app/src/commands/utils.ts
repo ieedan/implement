@@ -2,19 +2,20 @@ import * as p from "@clack/prompts";
 import { Option } from "commander";
 import type { Result } from "nevereverthrow";
 import pc from "picocolors";
-import { z } from "zod";
+import * as v from "valibot";
 import { CreateImplementAppError, InvalidOptionsError } from "@/utils/errors";
+import { safeValidate } from "@/utils/schema";
 import type { AbsolutePath } from "@/utils/types";
-import { safeValidate } from "@/utils/zod";
 
 export const TRACE_ENV_VAR = "CREATE_IMPLEMENT_APP_TRACE";
 
-export const defaultCommandOptionsSchema = z.object({
-	cwd: z.string().transform(
+export const defaultCommandOptions = {
+	cwd: v.pipe(
+		v.string(),
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Branded path: CLI cwd is normalized to absolute before use.
-		(v) => v as AbsolutePath,
+		v.transform((value) => value as AbsolutePath),
 	),
-});
+};
 
 export const commonOptions = {
 	cwd: new Option("--cwd <path>", "The current working directory.").default(process.cwd()),
@@ -25,13 +26,13 @@ export const commonOptions = {
 	verbose: new Option("--verbose", "Include debug logs.").default(false),
 };
 
-export function parseOptions<T>(
-	schema: z.ZodSchema<T>,
+export function parseOptions<TSchema extends v.GenericSchema>(
+	schema: TSchema,
 	rawOptions: unknown,
-): z.infer<typeof schema> {
+): v.InferOutput<TSchema> {
 	return safeValidate(schema, rawOptions).match(
-		(v) => v,
-		(e) => error(new InvalidOptionsError(e.zodError)),
+		(options) => options,
+		(e) => error(new InvalidOptionsError(e.issues)),
 	);
 }
 

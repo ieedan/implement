@@ -1,4 +1,4 @@
-import { isReadable, type Bindable, type Readable } from "@implementjs/core";
+import { isReadable, type Bindable, type Readable, type Signal } from "@implementjs/core";
 
 export type MaybeReadable<T> = T | Readable<T>;
 
@@ -8,6 +8,27 @@ export function getReadableValue<T>(value: MaybeReadable<T>): T {
 	}
 	return value;
 }
+
+/**
+ * The value bound to a select or menu item. Numbers keep their type on the way
+ * in and back out; only the DOM's `data-value` sees their string form.
+ */
+export type ItemValue = string | number;
+
+/**
+ * A signal holding the one value a select or radio group has chosen.
+ *
+ * `Signal` is invariant in its value, so `Signal<ItemValue | null>` on its own
+ * would turn away the `signal<string | null>(…)` callers already hold. Naming
+ * each shape keeps those working and adds the number ones beside them.
+ */
+export type ItemValueSignal =
+	| Signal<string | null>
+	| Signal<number | null>
+	| Signal<ItemValue | null>;
+
+/** The many-values counterpart of {@link ItemValueSignal}, for multi-select and checkbox groups. */
+export type ItemValuesSignal = Signal<string[]> | Signal<number[]> | Signal<ItemValue[]>;
 
 export const LIB_PREFIX = "ip";
 

@@ -13,7 +13,7 @@ import {
 
 const INFO = { title: "Docs API", version: "1.0.0" };
 
-const Post = z.object({ id: z.number(), title: z.string() });
+const Post = v.object({ id: v.number(), title: v.string() });
 
 const posts: OpenApiEndpoint = {
 	key: "/api/posts/[id]",
@@ -21,12 +21,12 @@ const posts: OpenApiEndpoint = {
 	file: "api/posts/[id]/server.ts",
 	module: {
 		GET: handler({
-			query: z.object({ draft: z.stringbool().default(false), tag: z.string() }),
+			query: v.object({ draft: v.optional(v.string()), tag: v.string() }),
 			handle: () => ({ ok: true }),
 		}),
 		PATCH: handler({
-			params: z.object({ id: z.coerce.number() }),
-			body: Post.pick({ title: true }),
+			params: v.object({ id: v.string() }),
+			body: v.pick(Post, ["title"]),
 			response: Post,
 			handle: () => ({ id: 1, title: "x" }),
 		}),
@@ -81,7 +81,7 @@ describe("buildOpenApiDocument", () => {
 			content: {
 				"application/json": {
 					schema: {
-						$schema: "https://json-schema.org/draft/2020-12/schema",
+						$schema: "http://json-schema.org/draft-07/schema#",
 						type: "object",
 						properties: { title: { type: "string" } },
 						required: ["title"],
@@ -163,6 +163,31 @@ describe("buildOpenApiDocument", () => {
 			module: {
 				GET: handler({
 					query: v.object({ area: v.optional(v.picklist(["kit", "ui"])) }),
+					handle: () => [],
+				}),
+			},
+		};
+		const get = await operation([search], "/search.json", "get");
+		expect(get?.["parameters"]).toEqual([
+			{
+				name: "area",
+				in: "query",
+				required: false,
+				schema: { type: "string", enum: ["kit", "ui"] },
+			},
+		]);
+	});
+
+	// kit converts per vendor, so every vendor it knows needs its own case even
+	// though the documentation and these tests are written in valibot
+	it("converts a zod schema through the vendor's own package", async () => {
+		const search: OpenApiEndpoint = {
+			key: "/search.json",
+			params: [],
+			file: "search/.json/server.ts",
+			module: {
+				GET: handler({
+					query: z.object({ area: z.enum(["kit", "ui"]).optional() }),
 					handle: () => [],
 				}),
 			},

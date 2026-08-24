@@ -108,7 +108,6 @@ describe("generateRouterDeclaration", () => {
 			],
 			false,
 			PATHS,
-			[],
 		);
 		expect(declaration).toContain('declare module "$implement/router"');
 		expect(declaration).toContain('"/": (params: {}) => Child;');
@@ -121,8 +120,8 @@ describe("generateRouterDeclaration", () => {
 
 	it("declares the error page export only for an app that has one", () => {
 		const routes = [{ pattern: "/", params: [] }];
-		expect(generateRouterDeclaration(routes, false, PATHS, [])).not.toContain("errorPage");
-		expect(generateRouterDeclaration(routes, true, PATHS, [])).toContain(
+		expect(generateRouterDeclaration(routes, false, PATHS)).not.toContain("errorPage");
+		expect(generateRouterDeclaration(routes, true, PATHS)).toContain(
 			"export function errorPage(error: RouterError): Child;",
 		);
 	});
@@ -132,7 +131,7 @@ describe("App.Api", () => {
 	const routes = [{ pattern: "/", params: [] }];
 
 	it("merges the generated client in, keyed off the app's own route table", () => {
-		const declaration = generateRouterDeclaration(routes, false, PATHS, []);
+		const declaration = generateRouterDeclaration(routes, false, PATHS);
 		expect(declaration).toContain("declare namespace App {");
 		expect(declaration).toContain(
 			'type GeneratedApi = import("@implementjs/kit/client").TypedClient<import("../client.ts").Api>;',
@@ -140,7 +139,7 @@ describe("App.Api", () => {
 	});
 
 	it("names the client before extending it, since an interface may only extend a name", () => {
-		const declaration = generateRouterDeclaration(routes, false, PATHS, []);
+		const declaration = generateRouterDeclaration(routes, false, PATHS);
 		// `interface Api extends import("…").Client<…> {}` is TS2499, which
 		// `skipLibCheck` hides — leaving `App.Api` empty and `event.api` useless
 		expect(declaration).toContain("interface Api extends GeneratedApi {}");
@@ -148,11 +147,11 @@ describe("App.Api", () => {
 	});
 
 	it("follows the app's chosen error style", () => {
-		expect(generateRouterDeclaration(routes, false, PATHS, [], { errors: "neverthrow" })).toContain(
+		expect(generateRouterDeclaration(routes, false, PATHS, { errors: "neverthrow" })).toContain(
 			'import("@implementjs/kit/client/neverthrow").ResultClient<import("../client.ts").Api>',
 		);
 		expect(
-			generateRouterDeclaration(routes, false, PATHS, [], { errors: "throw", style: "nested" }),
+			generateRouterDeclaration(routes, false, PATHS, { errors: "throw", style: "nested" }),
 		).toContain(
 			'import("@implementjs/kit/client").NestedClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
 		);
@@ -268,6 +267,24 @@ describe("writeGenerated", () => {
 		expect(readFileSync(join(app, ".implement/client.ts"), "utf8")).toContain(
 			"export const api: ResultClient<Api> = createClient();",
 		);
+	});
+
+	it("writes the ParamTypes augmentation only while the app has matchers", () => {
+		const app = makeApp(["page.ts", "posts/[id=integer]/page.ts"]);
+		const routesDir = join(app, "src/routes");
+		const paramsDir = join(app, "src/params");
+		mkdirSync(paramsDir, { recursive: true });
+		writeFileSync(join(paramsDir, "integer.ts"), "export default null;\n");
+		const augmentation = join(app, ".implement/types/$implement-params.d.ts");
+
+		writeGenerated(app, scanRoutes(routesDir, paramsDir));
+		expect(readFileSync(augmentation, "utf8")).toContain('declare module "@implementjs/router"');
+
+		// left behind, it augments the registry with a matcher module that is gone
+		rmSync(join(routesDir, "posts"), { recursive: true });
+		rmSync(paramsDir, { recursive: true });
+		writeGenerated(app, scanRoutes(routesDir, paramsDir));
+		expect(existsSync(augmentation)).toBe(false);
 	});
 
 	it("prunes $types for removed routes", () => {

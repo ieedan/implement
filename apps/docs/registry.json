@@ -4,7 +4,7 @@
 	"description": "Styled components built on @implementjs/primitives.",
 	"homepage": "https://github.com/ieedan/implement",
 	"repository": "https://github.com/ieedan/implement",
-	"version": "0.0.1",
+	"version": "0.0.4",
 	"type": "repository",
 	"defaultPaths": {
 		"ui": "src/lib/components/ui",
@@ -22,7 +22,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -230,7 +230,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -310,6 +310,7 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
+				"spinner",
 				"utils"
 			],
 			"dependencies": [
@@ -327,6 +328,15 @@
 					"path": "button.ts",
 					"relativePath": "src/lib/components/ui/button.ts",
 					"_imports_": [
+						{
+							"import": "./spinner",
+							"item": "spinner",
+							"file": {
+								"type": "ui",
+								"path": "spinner.ts"
+							},
+							"meta": {}
+						},
 						{
 							"import": "@/lib/utils",
 							"item": "utils",
@@ -355,7 +365,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -434,7 +444,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -514,7 +524,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -595,7 +605,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -605,6 +615,54 @@
 					"role": "file",
 					"path": "dialog.ts",
 					"relativePath": "src/lib/components/ui/dialog.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "drawer",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "~0.0.7"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "drawer.ts",
+					"relativePath": "src/lib/components/ui/drawer.ts",
 					"_imports_": [
 						{
 							"import": "./button",
@@ -643,7 +701,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -1100,7 +1158,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -1140,7 +1198,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -1196,7 +1254,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -1224,6 +1282,48 @@
 			]
 		},
 		{
+			"name": "responsive-dialog",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"dialog",
+				"drawer"
+			],
+			"dependencies": [],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "responsive-dialog.ts",
+					"relativePath": "src/lib/components/ui/responsive-dialog.ts",
+					"_imports_": [
+						{
+							"import": "./dialog",
+							"item": "dialog",
+							"file": {
+								"type": "ui",
+								"path": "dialog.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./drawer",
+							"item": "drawer",
+							"file": {
+								"type": "ui",
+								"path": "drawer.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
 			"name": "select",
 			"type": "ui",
 			"add": "when-added",
@@ -1235,7 +1335,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -1315,7 +1415,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -1359,7 +1459,7 @@
 				"button",
 				"input",
 				"separator",
-				"sheet",
+				"drawer",
 				"skeleton",
 				"tooltip",
 				"utils"
@@ -1368,7 +1468,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				},
 				{
 					"ecosystem": "js",
@@ -1412,11 +1512,11 @@
 							"meta": {}
 						},
 						{
-							"import": "./sheet",
-							"item": "sheet",
+							"import": "./drawer",
+							"item": "drawer",
 							"file": {
 								"type": "ui",
-								"path": "sheet.ts"
+								"path": "drawer.ts"
 							},
 							"meta": {}
 						},
@@ -1497,7 +1597,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],
@@ -1638,7 +1738,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.7"
 				}
 			],
 			"devDependencies": [],

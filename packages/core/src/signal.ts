@@ -765,8 +765,11 @@ export class ReactiveMap<K, V> extends Map<K, V> implements Readable<ReadonlyMap
  * Cached readable that watches sources only while it has subscribers (or until
  * {@link dispose}). Creating one inside a per-row factory no longer leaks a
  * source subscription when the row is discarded or unmounted.
+ *
+ * Exported for the readables core builds on top of it (`derived`,
+ * `mediaQuery`), not for apps — `index.ts` does not re-export it.
  */
-abstract class LazyReadable<T> extends Notifier<T> implements Readable<T> {
+export abstract class LazyReadable<T> extends Notifier<T> implements Readable<T> {
 	protected value!: T;
 	private sourceUnsubscribe: Unsubscribe | null = null;
 	private disposed = false;
@@ -991,13 +994,14 @@ export function derived<T, Signals extends readonly Readable<any>[]>(
 }
 
 /**
- * Reads the value at `path`, or `undefined` when a segment along the way is
- * nullish. A binding is a live view, and what it reads through is routinely
- * absent for a while: route data before its load lands, an optional field, the
- * middle link of a chained `data.bind("issue").bind("title")`. Throwing there
- * turns an ordinary empty state into a crash, so a read stops at the gap the
- * way optional chaining does. Writing still throws (see {@link setAtKeys}),
- * because there is no parent object to update.
+ * Reads a dotted path, stopping at `undefined` the way optional chaining does
+ * rather than throwing. A path bind is a live view, and the value it reads
+ * through is allowed to be missing: `data.bind("issue").bind("title")` is
+ * built before the load lands, `ref.bind("disabled")` before the node mounts.
+ * Throwing there would take the component down for a value that arrives a tick
+ * later — and the path types already walk `NonNullable`, so binding through an
+ * optional field is what they describe. Writes stay loud: {@link setAtKeys}
+ * throws, because a write with nowhere to land is lost, not merely absent.
  */
 function getAtPath(obj: unknown, path: string): unknown {
 	let current = obj;
@@ -1014,9 +1018,21 @@ function setAtPath(obj: unknown, path: string, value: unknown): unknown {
 	return setAtKeys(obj, keys, value, path);
 }
 
+/**
+ * Unlike a read, a write through a missing value throws: the value is not
+ * merely absent, there is nowhere to put the one being written. `keys` is
+ * what is left of `path`, so the message can name the segment that was
+ * missing rather than only the path as a whole.
+ */
 function setAtKeys(obj: unknown, keys: readonly string[], value: unknown, path: string): unknown {
 	if (obj == null || typeof obj !== "object") {
-		throw new Error(`Cannot set "${path}" on ${String(obj)}`);
+		const segments = path.split(".");
+		const walked = segments.slice(0, segments.length - keys.length).join(".");
+		throw new Error(
+			walked === ""
+				? `Cannot set "${path}" on ${String(obj)}`
+				: `Cannot set "${path}": "${walked}" is ${String(obj)}`,
+		);
 	}
 	const head = keys[0];
 	if (head === undefined) return value;

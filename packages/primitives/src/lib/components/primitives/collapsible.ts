@@ -11,6 +11,7 @@ import {
 } from "@implementjs/core";
 import { collapsePresence } from "../helpers/collapse-presence";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId, LIB_PREFIX, resolveId } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
@@ -20,6 +21,8 @@ const CONTENT_WIDTH_VAR = `--${LIB_PREFIX}-collapsible-content-width`;
 
 export type CollapsibleRootProps = RenderableProps<typeof Div> & {
 	open?: Signal<boolean> | boolean;
+	/** Runs whenever the open state changes. */
+	onOpenChange?: ChangeHandler<boolean>;
 };
 
 const CollapsibleCtx = context<CollapsibleState>("CollapsibleCtx");
@@ -42,11 +45,12 @@ class CollapsibleState {
 }
 
 export const Collapsible = createComponent(function Collapsible(
-	{ open, render = Div, ...restProps }: CollapsibleRootProps,
+	{ open, onOpenChange, render = Div, ...restProps }: CollapsibleRootProps,
 	...children: Child[]
 ) {
 	const state = new CollapsibleState({ open });
 	return CollapsibleCtx.Provide(state).To(
+		...changeEffect(state.open, onOpenChange),
 		render(
 			mergeProps({ "data-collapsible-root": "", "data-state": state.state }, restProps),
 			...children,

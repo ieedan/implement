@@ -32,6 +32,12 @@ Button({ onClick: () => enabled.set(true) }, "Turn on");
 
 Clicking the switch toggles `checked`. Space and Enter do the same, because it is a real `Button`.
 
+`onCheckedChange` runs on every change to `checked`, so you can react without holding a signal of your own:
+
+```ts
+Switch({ onCheckedChange: (checked) => console.log(checked) }, SwitchThumb());
+```
+
 ## Thumb
 
 `SwitchThumb` is the knob that slides. Put it inside the switch and style it against `data-state`, which is `"checked"` or `"unchecked"` on both parts:

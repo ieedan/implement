@@ -13,12 +13,23 @@ import {
 } from "@implementjs/core";
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
 
 export type ToggleGroupRootProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
-	? { type: "multiple"; value?: Signal<string[]> }
-	: { type?: "single"; value?: Signal<string | null> }) &
+	? {
+			type: "multiple";
+			value?: Signal<string[]>;
+			/** Runs whenever the set of pressed items changes. */
+			onValueChange?: ChangeHandler<string[]>;
+		}
+	: {
+			type?: "single";
+			value?: Signal<string | null>;
+			/** Runs whenever the pressed item changes. `null` once nothing is pressed. */
+			onValueChange?: ChangeHandler<string | null>;
+		}) &
 	ComponentProps<typeof Div> & {
 		disabled?: Signal<boolean> | boolean;
 		/** Whether arrow keys wrap from the last item back to the first. */
@@ -126,6 +137,7 @@ export const ToggleGroup = createComponent(function ToggleGroup(
 		id = getId(),
 		type = "single",
 		value,
+		onValueChange,
 		disabled = false,
 		loop = true,
 		orientation = "horizontal",
@@ -145,9 +157,15 @@ export const ToggleGroup = createComponent(function ToggleGroup(
 					disabled,
 					value as Signal<string | null> | undefined,
 				);
+	// the same `type` decides which shape the callback is handed
+	const valueChange = changeEffect(
+		state.value as Readable<string | string[] | null>,
+		onValueChange as ChangeHandler<string | string[] | null> | undefined,
+	);
 	/* oxlint-enable typescript/no-unsafe-type-assertion */
 
 	return ToggleGroupCtx.Provide(state).To(
+		...valueChange,
 		Div(
 			mergeProps(
 				{

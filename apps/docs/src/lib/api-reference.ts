@@ -113,10 +113,15 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			props: [
 				{
 					name: "value",
-					type: "Signal<string[]> | string[]",
+					type: "Signal<ItemValue[]> | ItemValue[]",
 					default: "[]",
 					description:
-						"The values of the checked items. Pass a signal to control them from outside.",
+						"The values of the checked items, where ItemValue is string | number. Pass a signal to control them from outside.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: ItemValue[]) => void",
+					description: "Runs whenever the set of checked items changes.",
 				},
 			],
 			dataAttributes: [{ name: `data-${variant}-checkbox-group`, value: "Present" }],
@@ -129,9 +134,9 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			props: [
 				{
 					name: "value",
-					type: "string",
+					type: "ItemValue",
 					description:
-						"Identifies the item inside a checkbox group. Must be unique within the group; ignored outside one.",
+						"Identifies the item inside a checkbox group, as a string or a number. Must be unique within the group; ignored outside one.",
 				},
 				{
 					name: "checked",
@@ -139,6 +144,12 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 					default: "false",
 					description:
 						"The checked state; selecting toggles it. Pass a signal to control it from outside. Inside a checkbox group the group's value owns it instead.",
+				},
+				{
+					name: "onCheckedChange",
+					type: "(checked: boolean) => void",
+					description:
+						"Runs whenever the item's checked state changes, inside a group or on its own.",
 				},
 				{
 					name: "closeOnSelect",
@@ -168,9 +179,15 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			props: [
 				{
 					name: "value",
-					type: "Signal<string | null> | string | null",
+					type: "Signal<ItemValue | null> | ItemValue | null",
 					default: "null",
-					description: "The checked item. Pass a signal to control it from outside.",
+					description:
+						"The checked item, where ItemValue is string | number. Pass a signal to control it from outside.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: ItemValue | null) => void",
+					description: "Runs whenever the checked item changes. null once nothing is checked.",
 				},
 			],
 			dataAttributes: [{ name: `data-${variant}-radio-group`, value: "Present" }],
@@ -182,9 +199,10 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			props: [
 				{
 					name: "value",
-					type: "string",
+					type: "ItemValue",
 					required: true,
-					description: "Identifies the item. Must be unique within the radio group.",
+					description:
+						"Identifies the item, as a string or a number. Must be unique within the radio group.",
 				},
 				{
 					name: "closeOnSelect",
@@ -217,6 +235,11 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the submenu opens or closes.",
 				},
 			],
 		},
@@ -612,10 +635,20 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The value of the highlighted item. Pass a signal to control or observe it from outside.",
 				},
 				{
+					name: "onValueChange",
+					type: "(value: string) => void",
+					description: "Runs whenever the highlighted item changes.",
+				},
+				{
 					name: "search",
 					type: "Signal<string> | string",
 					description:
 						"The search query. Pass a signal to control or observe it from outside; CommandInput binds to it.",
+				},
+				{
+					name: "onSearchChange",
+					type: "(search: string) => void",
+					description: "Runs whenever the search query changes.",
 				},
 				{
 					name: "shouldFilter",
@@ -875,6 +908,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						'The selection. CalendarDate | null when type is "single", CalendarDate[] when "multiple". Pass a signal to control it from outside.',
 				},
 				{
+					name: "onValueChange",
+					type: "(value: CalendarDate | null) => void (single) | (value: CalendarDate[]) => void (multiple)",
+					description: "Runs whenever the selection changes, including a deselection.",
+				},
+				{
 					name: "maxDays",
 					type: "number",
 					description:
@@ -938,6 +976,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "{ start: null, end: null }",
 					description:
 						"The selected range. Inverted writes are reordered. Pass a signal to control it from outside.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: DateRange) => void",
+					description: "Runs whenever the range changes, including while only one end is picked.",
 				},
 				{
 					name: "minDays",
@@ -1026,6 +1069,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					type: "Signal<string | null> (single) | Signal<string[]> (multiple)",
 					description:
 						"The open item(s). Pass a signal to control the accordion from outside; omit it for uncontrolled state.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string | null) => void (single) | (value: string[]) => void (multiple)",
+					description: "Runs whenever the open item(s) change.",
 				},
 				{
 					name: "disabled",
@@ -1163,6 +1211,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the collapsible opens or closes.",
+				},
 			],
 			dataAttributes: [
 				{ name: "data-collapsible-root", value: "Present" },
@@ -1266,11 +1319,21 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The checked state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onCheckedChange",
+					type: "(checked: boolean) => void",
+					description: "Runs whenever the checked state changes.",
+				},
+				{
 					name: "indeterminate",
 					type: "Signal<boolean> | boolean",
 					default: "false",
 					description:
 						'Partial selection. While true, data-state is "indeterminate" and aria-checked is "mixed". A click clears it and checks the box.',
+				},
+				{
+					name: "onIndeterminateChange",
+					type: "(indeterminate: boolean) => void",
+					description: "Runs whenever the indeterminate state changes.",
 				},
 				{
 					name: "name",
@@ -1312,6 +1375,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The checked state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onCheckedChange",
+					type: "(checked: boolean) => void",
+					description: "Runs whenever the checked state changes.",
 				},
 				{
 					name: "name",
@@ -1439,6 +1507,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The pressed state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onPressedChange",
+					type: "(pressed: boolean) => void",
+					description: "Runs whenever the pressed state changes.",
+				},
+				{
 					name: "disabled",
 					type: "Signal<boolean> | boolean",
 					default: "false",
@@ -1464,6 +1537,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the menu opens or closes.",
 				},
 				{
 					name: "preventScroll",
@@ -1509,6 +1587,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the menu opens or closes.",
+				},
+				{
 					name: "preventScroll",
 					type: "boolean",
 					default: "true",
@@ -1551,6 +1634,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "null",
 					description:
 						"The open menu's value, or null while all are closed. Pass a signal to control it from outside.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string | null) => void",
+					description: "Runs whenever the open menu changes. null once every menu is closed.",
 				},
 				{
 					name: "loop",
@@ -1618,6 +1706,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: '""',
 					description:
 						"The selected tab. Pass a signal to control it from outside; a string seeds uncontrolled state. Empty means nothing is selected.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string) => void",
+					description: "Runs whenever the selected tab changes.",
 				},
 				{
 					name: "orientation",
@@ -1742,6 +1835,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						'The pressed value(s). string | null when type is "single", string[] when "multiple". Pass a signal to control it from outside.',
 				},
 				{
+					name: "onValueChange",
+					type: "(value: string | null) => void (single) | (value: string[]) => void (multiple)",
+					description: "Runs whenever the pressed value(s) change.",
+				},
+				{
 					name: "disabled",
 					type: "Signal<boolean> | boolean",
 					default: "false",
@@ -1807,6 +1905,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "null",
 					description:
 						"The checked item. Pass a signal to control it from outside; a string seeds uncontrolled state.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string | null) => void",
+					description: "Runs whenever the selected item changes. null while nothing is selected.",
 				},
 				{
 					name: "disabled",
@@ -1880,6 +1983,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "0",
 					description:
 						"The current rating. Pass a signal to control it from outside; a number seeds uncontrolled state.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: number) => void",
+					description: "Runs whenever the rating changes.",
 				},
 				{
 					name: "min",
@@ -2021,6 +2129,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the preview opens or closes.",
 				},
 				{
 					name: "preventScroll",
@@ -2197,6 +2310,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the tooltip opens or closes.",
+				},
+				{
 					name: "delayDuration",
 					type: "number",
 					description: "Overrides the provider's delayDuration for this tooltip.",
@@ -2341,6 +2459,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the popover opens or closes.",
+				},
+				{
 					name: "preventScroll",
 					type: "boolean",
 					default: "false",
@@ -2456,6 +2579,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the dialog opens or closes.",
 				},
 				{
 					name: "preventScroll",
@@ -2590,6 +2718,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
 				},
 				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the alert dialog opens or closes.",
+				},
+				{
 					name: "preventScroll",
 					type: "boolean",
 					default: "true",
@@ -2716,6 +2849,254 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			dataAttributes: [{ name: "data-alert-dialog-action", value: "Present" }],
 		},
 	],
+	drawer: [
+		{
+			name: "Drawer",
+			description:
+				"The root. Owns whether the drawer is open, which edge it lives on, and where a released drag lands.",
+			props: [
+				{
+					name: "open",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "direction",
+					type: '"top" | "bottom" | "left" | "right"',
+					default: '"bottom"',
+					description: "Edge the panel is anchored to, and therefore the way it drags out.",
+				},
+				{
+					name: "dismissible",
+					type: "boolean",
+					default: "true",
+					description:
+						"When false, nothing the drawer owns closes it — the drag, Escape, the scrim, and DrawerClose all stop. Drive open yourself. A drawer nested in one that closes still goes with it.",
+				},
+				{
+					name: "snapPoints",
+					type: "(number | string)[]",
+					description:
+						'Resting positions, least to most of the screen: a fraction of the viewport (0.5) or a length it does not enter into ("148px"). Without them the panel only opens fully.',
+				},
+				{
+					name: "activeSnapPoint",
+					type: "Signal<number | string | null> | number | string | null",
+					default: "snapPoints[0]",
+					description:
+						"The snap point the panel rests at. Pass a signal to read the current one or move the panel from outside.",
+				},
+				{
+					name: "fadeFromIndex",
+					type: "number",
+					default: "snapPoints.length - 1",
+					description:
+						"The snap point the overlay finishes fading in at. Below it the overlay is clear, so the page behind stays usable to look at.",
+				},
+				{
+					name: "snapToSequentialPoint",
+					type: "boolean",
+					default: "false",
+					description:
+						"When true a hard fling moves one snap point instead of skipping to the far end. For drawers where every snap point matters.",
+				},
+				{
+					name: "closeThreshold",
+					type: "number",
+					default: "0.25",
+					description:
+						"Fraction of the panel a slow drag has to cover before releasing dismisses it. A fast one dismisses on velocity alone.",
+				},
+				{
+					name: "scrollLockTimeout",
+					type: "number",
+					default: "100",
+					description:
+						"ms after scrolling inside the panel during which a drag will not start, so the end of a scroll does not throw the drawer.",
+				},
+				{
+					name: "handleOnly",
+					type: "boolean",
+					default: "false",
+					description: "When true only DrawerHandle starts a drag; the rest of the panel does not.",
+				},
+				{
+					name: "scaleBackground",
+					type: "boolean",
+					default: "false",
+					description:
+						"Marks the document with data-drawer-open, --ip-drawer-scale, and --ip-drawer-progress while an outermost drawer is open, so a [data-drawer-wrapper] can scale the page back behind it.",
+				},
+				{
+					name: "preventScroll",
+					type: "boolean",
+					default: "true",
+					description:
+						"When true, the page behind cannot scroll while the drawer is open. The panel can still scroll if you give it overflow.",
+				},
+				{
+					name: "onDrag",
+					type: "(progress: number) => void",
+					description:
+						"Runs on every drag frame with how far the panel has been pulled from its resting position, 0 to 1.",
+				},
+				{
+					name: "onRelease",
+					type: "(open: boolean) => void",
+					description: "Runs when a drag ends, with whether the drawer stays open.",
+				},
+			],
+		},
+		{
+			name: "DrawerTrigger",
+			element: "Button",
+			description:
+				"Toggles the drawer open and closed. Clicking a different trigger keeps it open and remembers that button for focus return.",
+			props: [
+				{
+					name: "default",
+					type: "boolean",
+					default: "false",
+					description:
+						"When the drawer starts open, return focus to this trigger instead of the first one in the tree.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-drawer-trigger", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+			],
+		},
+		{
+			name: "DrawerOverlay",
+			element: "Div",
+			description:
+				"The scrim behind the panel. Style its opacity against --ip-drawer-fade so it follows the drag; the primitive does not hide it for you.",
+			dataAttributes: [
+				{ name: "data-drawer-overlay", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-drawer-direction", value: '"top" | "bottom" | "left" | "right"' },
+				{ name: "data-dragging", value: "Present while a drag is in progress" },
+				{ name: "data-snap-points", value: "Present when the root was given snap points" },
+				{
+					name: "data-faded-in",
+					value: "Present when the panel rests at or above fadeFromIndex",
+				},
+				{ name: "data-nested", value: "Present when this drawer is nested in another" },
+				{ name: "data-nested-open", value: "Present when a nested drawer is open" },
+				{ name: "data-nested-count", value: "Number of open nested drawers" },
+				{ name: "data-nested-level", value: "Depth in the stack; 0 is the outermost drawer" },
+			],
+			cssVariables: [
+				{
+					name: "--ip-drawer-fade",
+					description:
+						"The scrim's opacity, 1 covering the page and 0 clear. Follows the drag, and stays 0 while the panel rests below fadeFromIndex.",
+				},
+				{
+					name: "--ip-drawer-progress",
+					description: "How far the drag has pulled the panel from its resting position, 0 to 1.",
+				},
+			],
+		},
+		{
+			name: "DrawerContent",
+			element: "Div",
+			description:
+				'The panel. Sets role="dialog" and aria-modal, and takes the drag. Position it against the edge named by direction and translate it with the offset variables; the primitive does not hide or place it for you.',
+			dataAttributes: [
+				{ name: "data-drawer-content", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+				{ name: "data-drawer-direction", value: '"top" | "bottom" | "left" | "right"' },
+				{ name: "data-dragging", value: "Present while a drag is in progress" },
+				{ name: "data-snap-points", value: "Present when the root was given snap points" },
+				{ name: "data-snap-point", value: "Index of the snap point the panel rests at" },
+				{ name: "data-nested", value: "Present when this drawer is nested in another" },
+				{ name: "data-nested-open", value: "Present when a nested drawer is open" },
+				{ name: "data-nested-count", value: "Number of open nested drawers" },
+				{ name: "data-nested-level", value: "Depth in the stack; 0 is the outermost drawer" },
+			],
+			cssVariables: [
+				{
+					name: "--ip-drawer-offset-x",
+					description:
+						"The panel's horizontal translate, the drag and the active snap point together. Always 0px for a top or bottom drawer.",
+				},
+				{
+					name: "--ip-drawer-offset-y",
+					description:
+						"The panel's vertical translate, the drag and the active snap point together. Always 0px for a left or right drawer.",
+				},
+				{
+					name: "--ip-drawer-progress",
+					description:
+						"How far the drag has pulled the panel from its resting position, 0 to 1. Also written to the document while scaleBackground is on.",
+				},
+				{
+					name: "--ip-drawer-keyboard-inset",
+					description:
+						"How much of the bottom of the viewport an on-screen keyboard has taken, in px, and 0px when it has taken none. A fixed panel sits against the layout viewport, which the keyboard does not shrink, so the keyboard covers the bottom of the panel. Spend this on space at the end of the panel rather than on the panel's own position: move the panel and the browser scrolls the page to chase the focused field.",
+				},
+			],
+		},
+		{
+			name: "DrawerHandle",
+			element: "Div",
+			description:
+				"The grab bar. It is the only drag surface when the root sets handleOnly, and tapping it steps to the next snap point (closing from the last one). Renders a span with data-drawer-handle-hitarea inside, for a hit area larger than the bar.",
+			props: [
+				{
+					name: "preventCycle",
+					type: "boolean",
+					default: "false",
+					description: "When true, tapping the handle no longer steps through the snap points.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-drawer-handle", value: "Present" },
+				{ name: "data-state", value: '"open" | "closed"' },
+			],
+		},
+		{
+			name: "DrawerTitle",
+			element: "H2",
+			description: "The heading. Put it inside the content. Wires up aria-labelledby on the panel.",
+			dataAttributes: [{ name: "data-drawer-title", value: "Present" }],
+		},
+		{
+			name: "DrawerDescription",
+			element: "P",
+			description:
+				"Supporting text. Put it inside the content. Wires up aria-describedby on the panel.",
+			dataAttributes: [{ name: "data-drawer-description", value: "Present" }],
+		},
+		{
+			name: "DrawerPortal",
+			description:
+				"Renders its children into another DOM parent so the scrim and panel escape overflow and stacking. This is the core Portal helper; context still resolves from where the portal is declared.",
+			props: [
+				{
+					name: "to",
+					type: "HTMLElement | Readable<HTMLElement>",
+					default: "document.body",
+					description: "The element to mount into. Also available as chained .To(target).",
+				},
+				{
+					name: "disabled",
+					type: "boolean | Readable<boolean>",
+					default: "false",
+					description:
+						"Mount in place instead of teleporting. Keep nested drawers portaled so they stack above the parent. Also available as chained .Disabled(value).",
+				},
+			],
+		},
+		{
+			name: "DrawerClose",
+			element: "Button",
+			description: "Closes the drawer when clicked. Put it inside the content.",
+		},
+	],
 	select: [
 		{
 			name: "Select",
@@ -2730,9 +3111,14 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "value",
-					type: "Signal<string | null> | Signal<string[]>",
+					type: "Signal<ItemValue | null> | Signal<ItemValue[]>",
 					description:
-						'The selected value. string | null when type is "single", string[] when "multiple". Pass a signal to control it from outside.',
+						'The selected value, where ItemValue is string | number. ItemValue | null when type is "single", ItemValue[] when "multiple". Pass a signal to control it from outside.',
+				},
+				{
+					name: "onValueChange",
+					type: "(value: ItemValue | null) => void (single) | (value: ItemValue[]) => void (multiple)",
+					description: "Runs whenever the selected value changes.",
 				},
 				{
 					name: "open",
@@ -2740,6 +3126,11 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description:
 						"The open state. Pass a signal to control it from outside; omit it for uncontrolled state.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the list opens or closes.",
 				},
 				{
 					name: "preventScroll",
@@ -2752,7 +3143,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					name: "items",
 					type: "SelectItemData[] | Readable<SelectItemData[]>",
 					description:
-						"Value/label pairs for SelectValue. When omitted, labels come from each item's label prop or its text content.",
+						"Value/label pairs for SelectValue, where each value is a string or a number. When omitted, labels come from each item's label prop or its text content.",
 				},
 			],
 		},
@@ -2842,9 +3233,10 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "value",
-					type: "string",
+					type: "ItemValue",
 					required: true,
-					description: "Identifies the item. Must be unique within the select.",
+					description:
+						"Identifies the item, as a string or a number. Must be unique within the select.",
 				},
 				{
 					name: "label",
@@ -3424,6 +3816,115 @@ const styledReference: Record<string, ApiPart[]> = {
 			},
 		},
 	}),
+	"ui-drawer": styledParts("drawer", {
+		parts: {
+			DrawerTrigger: { props: buttonStyleProps("outline", "default") },
+			DrawerClose: { props: buttonStyleProps("outline", "default") },
+			DrawerOverlay: {
+				note: "Styled as a fixed scrim whose opacity is --ip-drawer-fade, so it follows the drag; a nested drawer's scrim renders transparent so the stack does not darken twice. DrawerContent renders one for you — this export is for composing a panel of your own.",
+			},
+			DrawerHandle: {
+				note: "Styled as a rounded bar at the dragging edge, laid out across the panel for a top or bottom drawer and down it for a left or right one.",
+			},
+			DrawerContent: {
+				props: [
+					{
+						name: "showHandle",
+						type: "boolean",
+						default: "true",
+						description: "Renders a DrawerHandle as the panel's first child.",
+					},
+					{
+						name: "showCloseButton",
+						type: "boolean",
+						default: "false",
+						description:
+							"Renders a DrawerClose in the top right corner. Off by default — the handle, the scrim, and Escape are the affordances.",
+					},
+					{
+						name: "overlay",
+						type: "DrawerOverlayProps",
+						default: "{}",
+						description: "Props for the overlay the content renders behind itself.",
+					},
+				],
+				note: "Styled from the root's direction: anchored to that edge, rounded on the inside corners, and translated by the offset variables so the drag and the active snap point move it. Given snap points it fills the axis instead of capping at 85%. Renders its own DrawerOverlay inside a DrawerPortal, so neither has to be placed by hand.",
+			},
+		},
+	}),
+	"ui-responsive-dialog": [
+		{
+			name: "ResponsiveDialog",
+			description:
+				"The root. Reads the viewport once and renders a Drawer below the breakpoint or a Dialog above it, around the same children. Both shapes share one open signal, so the switch does not lose the open state. Every other prop reaches the shape it belongs to — snapPoints, direction, dismissible and the rest of the drawer's root props reach the drawer; preventScroll reaches both.",
+			props: [
+				{
+					name: "open",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"The open state. Pass a signal to control it from outside; a boolean seeds uncontrolled state.",
+				},
+				{
+					name: "query",
+					type: "string",
+					default: '"(max-width: 767px)"',
+					description:
+						"The media query that picks the drawer. Exported as RESPONSIVE_DIALOG_QUERY for anything that has to agree with it.",
+				},
+			],
+		},
+		{
+			name: "ResponsiveDialogTrigger",
+			element: "Button",
+			description: "Toggles it open and closed. The same trigger under either shape.",
+			props: buttonStyleProps("outline", "default"),
+		},
+		{
+			name: "ResponsiveDialogContent",
+			element: "Div",
+			description:
+				"The panel: a centered dialog, or a drawer from the bottom edge. Both bring their own scrim and portal. It takes the content props of both shapes, and each one reaches the shape that has it — showHandle the drawer, showCloseButton either.",
+			props: [
+				{
+					name: "showHandle",
+					type: "boolean",
+					default: "true",
+					description: "Renders the drawer's grab bar. No effect on the dialog.",
+				},
+				{
+					name: "showCloseButton",
+					type: "boolean",
+					default: "false on the drawer, true on the dialog",
+					description: "Renders a close button in the top right corner.",
+				},
+				{
+					name: "overlay",
+					type: "ResponsiveDialogOverlayProps",
+					default: "{}",
+					description: "Props for the scrim the content renders behind itself.",
+				},
+			],
+		},
+		{
+			name: "ResponsiveDialogTitle",
+			element: "H2",
+			description:
+				"The heading, and the panel's accessible name. One component under either shape: Drawer and Dialog are the same modal primitive, so it picks up whichever root is above it.",
+		},
+		{
+			name: "ResponsiveDialogDescription",
+			element: "P",
+			description:
+				"Supporting text, wired to the panel's aria-describedby. One under either shape.",
+		},
+		{
+			name: "ResponsiveDialogClose",
+			element: "Button",
+			description: "Closes it. One under either shape.",
+			props: buttonStyleProps("ghost", "sm"),
+		},
+	],
 	"ui-dropdown-menu": styledParts("dropdown-menu", {
 		parts: {
 			DropdownMenuTrigger: { props: buttonStyleProps("outline", "default") },
@@ -3627,11 +4128,25 @@ const styledReference: Record<string, ApiPart[]> = {
 					description:
 						"Height and padding. The icon sizes are square and drop the horizontal padding. Also set as data-size.",
 				},
+				{
+					name: "loading",
+					type: "boolean | Readable<boolean>",
+					default: "false",
+					description:
+						"Render a spinner and disable the button. An icon size shows the spinner in place of its icon; every other size puts it before the label.",
+				},
+				{
+					name: "onClickPromise",
+					type: "(event: MouseEvent) => unknown",
+					description:
+						"A click handler that is awaited: the button loads until the promise it returns settles. A non-promise return leaves it alone, and onClick still runs first when both are passed.",
+				},
 			],
 			dataAttributes: [
 				{ name: "data-slot", value: '"button"' },
 				{ name: "data-variant", value: BUTTON_VARIANTS },
 				{ name: "data-size", value: BUTTON_SIZES },
+				{ name: "data-loading", value: "Present while the button is loading." },
 			],
 		},
 	],

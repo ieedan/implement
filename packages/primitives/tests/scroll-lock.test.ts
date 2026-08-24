@@ -215,3 +215,95 @@ describe("overlay scroll lock defaults", () => {
 		expect(document.body.style.overflow).toBe("");
 	});
 });
+
+/** A touch at `y`, as the browser delivers it to a non-passive listener. */
+function touch(type: string, target: EventTarget, x: number, y: number): boolean {
+	const event = new Event(type, { bubbles: true, cancelable: true });
+	Object.assign(event, { touches: [{ clientX: x, clientY: y }] });
+	target.dispatchEvent(event);
+	return event.defaultPrevented;
+}
+
+/** A real scroll container: overflow that scrolls, and content taller than the box. */
+function scroller(scrollHeight: number, clientHeight: number, scrollTop: number): HTMLElement {
+	const el = document.createElement("div");
+	el.style.overflowY = "auto";
+	Object.defineProperties(el, {
+		scrollHeight: { value: scrollHeight, configurable: true },
+		clientHeight: { value: clientHeight, configurable: true },
+	});
+	el.scrollTop = scrollTop;
+	document.body.appendChild(el);
+	return el;
+}
+
+/**
+ * `overflow: hidden` on the body is not enough on iOS Safari, so a lock also
+ * cancels touch moves that nothing under the finger can absorb. Everything the
+ * page behind is made of is one of those.
+ */
+describe("holding the page still under a finger", () => {
+	afterEach(() => {
+		document.body.replaceChildren();
+		document.body.removeAttribute("style");
+	});
+
+	it("cancels a drag over the page behind, and leaves it alone unlocked", () => {
+		const page = document.createElement("p");
+		document.body.appendChild(page);
+
+		touch("touchstart", page, 20, 400);
+		expect(touch("touchmove", page, 20, 300)).toBe(false);
+
+		const unlock = lockBodyScroll();
+		touch("touchstart", page, 20, 400);
+		expect(touch("touchmove", page, 20, 300)).toBe(true);
+
+		unlock();
+		touch("touchstart", page, 20, 400);
+		expect(touch("touchmove", page, 20, 300)).toBe(false);
+	});
+
+	it("lets a scrollable panel inside the modal keep scrolling", () => {
+		const list = scroller(800, 200, 100);
+		const unlock = lockBodyScroll();
+
+		// room above and below, so both directions are the list's to take
+		touch("touchstart", list, 20, 400);
+		expect(touch("touchmove", list, 20, 300)).toBe(false);
+		touch("touchstart", list, 20, 300);
+		expect(touch("touchmove", list, 20, 400)).toBe(false);
+
+		unlock();
+	});
+
+	it("cancels once that panel has run out of room, rather than chaining to the page", () => {
+		const list = scroller(800, 200, 0);
+		const unlock = lockBodyScroll();
+
+		// at the top: pulling down has nowhere to go, pushing up does
+		touch("touchstart", list, 20, 300);
+		expect(touch("touchmove", list, 20, 400)).toBe(true);
+		touch("touchstart", list, 20, 400);
+		expect(touch("touchmove", list, 20, 300)).toBe(false);
+
+		unlock();
+	});
+
+	it("does not mistake an overflowing box for one that scrolls", () => {
+		// a drawer handle is a small bar wrapping a larger hit area: it overflows
+		// without ever scrolling, and must not be taken for a list
+		const bar = document.createElement("div");
+		Object.defineProperties(bar, {
+			scrollHeight: { value: 44, configurable: true },
+			clientHeight: { value: 6, configurable: true },
+		});
+		document.body.appendChild(bar);
+		const unlock = lockBodyScroll();
+
+		touch("touchstart", bar, 20, 400);
+		expect(touch("touchmove", bar, 20, 300)).toBe(true);
+
+		unlock();
+	});
+});

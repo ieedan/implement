@@ -47,6 +47,6 @@
 		"comments": "off",
 		"strings": "on"
 	},
-	"tailwindCSS.classFunctions": ["classes"],
+	"tailwindCSS.classFunctions": ["cn", "tv"],
 	"tailwindCSS.experimental.classRegex": [["(?:class(?:Name)?)\\s*:\\s*['\"`]([^'\"`]*)['\"`]"]]
 }

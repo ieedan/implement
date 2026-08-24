@@ -15,14 +15,9 @@ import {
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import { ArrowRightIcon, SearchIcon } from "@implementjs/lucide";
+import { ArrowRightIcon, SearchIcon, XIcon } from "@implementjs/lucide";
 import {
-	Dialog as DialogPrimitive,
-	DialogContent as DialogContentPrimitive,
-	DialogDescription as DialogDescriptionPrimitive,
-	DialogOverlay as DialogOverlayPrimitive,
-	DialogPortal as DialogPortalPrimitive,
-	DialogTitle as DialogTitlePrimitive,
+	DialogClose as DialogClosePrimitive,
 	DialogTrigger as DialogTriggerPrimitive,
 } from "@implementjs/primitives";
 import { copyText } from "@/lib/copy-text";
@@ -36,6 +31,12 @@ import {
 	type SearchPage,
 	type SearchResult,
 } from "@/lib/search";
+import {
+	ResponsiveDialog,
+	ResponsiveDialogContent,
+	ResponsiveDialogDescription,
+	ResponsiveDialogTitle,
+} from "../ui/responsive-dialog";
 import {
 	Command,
 	CommandEmpty,
@@ -150,8 +151,14 @@ function hitValue(area: SearchArea, result: SearchResult): string {
 	return `${area.key} ${result.href} ${fold(rowKey(result))}`;
 }
 
+/** The look of a key cap: a small bordered chip. */
 const kbdClass =
-	"pointer-events-none flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1 font-sans text-[10px] font-medium text-muted-foreground select-none";
+	"flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1 font-sans text-[10px] font-medium text-muted-foreground select-none";
+/**
+ * A key cap that is only naming a key. Every one of these sits inside something
+ * clickable — the trigger, the actions menu — so it must not swallow the click.
+ */
+const kbdHintClass = `pointer-events-none ${kbdClass}`;
 
 const SEARCH_INPUT_ID = "docs-search-input";
 
@@ -161,8 +168,50 @@ async function copyMarkdown(page: SearchPage) {
 	await copyText(await response.text());
 }
 
+/**
+ * `preventScroll` throughout: the palette is a fixed panel, and a browser that
+ * scrolls the page to reach a field inside it takes the panel along with it.
+ */
 function focusSearchInput() {
-	queueMicrotask(() => document.getElementById(SEARCH_INPUT_ID)?.focus());
+	queueMicrotask(() => {
+		document.getElementById(SEARCH_INPUT_ID)?.focus({ preventScroll: true });
+	});
+}
+
+/** The longest transition currently declared on `el`, in ms. */
+function transitionMs(el: HTMLElement): number {
+	return Math.max(
+		0,
+		...getComputedStyle(el)
+			.transitionDuration.split(",")
+			.map((value) => {
+				const n = Number.parseFloat(value);
+				if (Number.isNaN(n)) return 0;
+				return value.trim().endsWith("ms") ? n : n * 1000;
+			}),
+	);
+}
+
+/**
+ * The same, but held until the panel has finished arriving.
+ *
+ * Focusing while the panel is still animating in points the browser at a field
+ * that is, at that moment, still off the bottom of the screen — so iOS scrolls
+ * the page to reach it, and takes the panel and everything behind it along. The
+ * palette then opens with its search box above the top of the screen, which is
+ * why re-focusing the same field afterwards looks fine: by then nothing moves.
+ *
+ * Waiting out the panel's own transition costs nothing anyone can see, and asks
+ * the browser to focus something already where it belongs.
+ */
+function focusSearchInputWhenSettled() {
+	queueMicrotask(() => {
+		const input = document.getElementById(SEARCH_INPUT_ID);
+		const panel = input?.closest("[data-drawer-content], [data-dialog-content]");
+		// reduced motion declares no transition at all, and so focuses right away
+		const wait = panel instanceof HTMLElement ? transitionMs(panel) : 0;
+		setTimeout(() => input?.focus({ preventScroll: true }), wait);
+	});
 }
 
 /** How long to keep trying for an anchor that is not in reach yet. */
@@ -370,7 +419,7 @@ export function DocsSearch(): Mountable {
 		if (hash !== -1) scrollToAnchor(result.href.slice(hash + 1));
 	};
 
-	return DialogPrimitive(
+	return ResponsiveDialog(
 		{ open },
 		// ⌘K / Ctrl+K opens the palette; pressed again it opens the actions
 		// menu for the highlighted result.
@@ -391,7 +440,7 @@ export function DocsSearch(): Mountable {
 				const unsubOpen = open.onChange((isOpen) => {
 					if (isOpen) {
 						// after the modal's own focus pass, move focus into the search box
-						focusSearchInput();
+						focusSearchInputWhenSettled();
 						// first open pays for the index; every later one is free
 						loadIndex();
 					} else {
@@ -417,140 +466,158 @@ export function DocsSearch(): Mountable {
 			},
 			SearchIcon({ class: "size-4 shrink-0", "aria-hidden": true }),
 			Span({ class: "flex-1 text-left max-sm:hidden" }, "Search docs..."),
-			Kbd({ class: [kbdClass, "max-sm:hidden"] }, "⌘K"),
+			Kbd({ class: [kbdHintClass, "max-sm:hidden"] }, "⌘K"),
 		),
-		// portaled to the body: the site header is a `z-10` stacking context, so
-		// an overlay left inside it paints under the page's own dialogs
-		DialogPortalPrimitive(
-			DialogOverlayPrimitive({
+		// A palette above the page on a desktop, a drawer up from the bottom edge
+		// on a phone — where the panel is tall enough to keep the input above the
+		// keyboard, and a swipe puts it away. Both shapes portal to the body: the
+		// site header is a `z-10` stacking context, so an overlay left inside it
+		// would paint under the page's own dialogs, and `z-60` puts search above
+		// those too.
+		ResponsiveDialogContent(
+			{
+				showCloseButton: false,
+				overlay: { class: "z-60" },
 				class: [
-					"fixed inset-0 z-60 bg-black/50",
-					"transition-[opacity,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
-					"data-[state=open]:block data-[state=open]:opacity-100",
-					"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:opacity-0",
-					"starting:data-[state=open]:opacity-0",
+					"z-60 gap-0 overflow-hidden p-0",
+					"md:top-[12%] md:max-w-2xl md:translate-y-0 md:rounded-xl",
+					// grows with the keyboard for the same reason the drawer's own cap does:
+					// what is being held to 85dvh is the part of the panel you can see
+					"max-md:h-[min(calc(85dvh+var(--ip-drawer-keyboard-inset,0px)),100dvh)]",
 				],
-			}),
-			DialogContentPrimitive(
+			},
+			ResponsiveDialogTitle({ class: "sr-only" }, "Search docs"),
+			ResponsiveDialogDescription(
+				{ class: "sr-only" },
+				"Search every docs page by title, description, and page content.",
+			),
+			Command(
 				{
-					class: [
-						"fixed top-[12%] left-1/2 z-60 w-full max-w-2xl -translate-x-1/2 overflow-hidden rounded-xl border bg-background text-foreground shadow-lg outline-none",
-						"transition-[opacity,scale,display] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] transition-discrete motion-reduce:transition-none",
-						"data-[state=open]:block data-[state=open]:scale-100 data-[state=open]:opacity-100",
-						"data-[state=closed]:pointer-events-none data-[state=closed]:hidden data-[state=closed]:scale-95 data-[state=closed]:opacity-0",
-						"starting:data-[state=open]:opacity-0 starting:data-[state=open]:scale-95",
-					],
+					label: "Search docs",
+					value,
+					search,
+					// results are matched, ranked, and highlighted above
+					shouldFilter: false,
+					// ctrl+k opens the actions menu instead of moving the highlight
+					vimBindings: false,
+					class: "bg-transparent max-md:min-h-0 max-md:flex-1",
 				},
-				DialogTitlePrimitive({ class: "sr-only" }, "Search docs"),
-				DialogDescriptionPrimitive(
-					{ class: "sr-only" },
-					"Search every docs page by title, description, and page content.",
+				Div(
+					{ class: "flex items-center gap-2 px-3 pt-3 pb-1" },
+					// the filters scroll sideways rather than wrap; esc stays put beside them
+					Div(
+						{ class: "no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" },
+						AreaChip(area, "all", "All"),
+						// the areas are whatever the index names, so the filters
+						// appear with it rather than being declared twice
+						ForEach(
+							areas,
+							(entry) => entry.key,
+							// keyed on the area, so the chip's identity is pinned
+							(entry) => AreaChip(area, entry.get().key, entry.get().label),
+						),
+					),
+					// the chip named the key that closes the palette without being able to
+					// close it, which on a phone named a key that is not there either
+					DialogClosePrimitive(
+						{
+							class: [
+								kbdClass,
+								"shrink-0 cursor-pointer transition-colors hover:bg-accent hover:text-foreground",
+								// a key cap is the right size for something a mouse points at
+								// and a poor one for a thumb, so the ✕ gets a bigger box
+								"max-md:h-7 max-md:min-w-7",
+							],
+							"aria-label": "Close search",
+						},
+						Span({ "aria-hidden": true, class: "max-md:hidden" }, "esc"),
+						XIcon({ class: "size-3.5 md:hidden", "aria-hidden": true }),
+					),
 				),
-				Command(
+				CommandInput({ id: SEARCH_INPUT_ID, placeholder: "Search docs..." }),
+				CommandList(
+					// fixed height in the dialog; in the drawer it takes what the panel
+					// has left, so the input stays put and the results scroll under it
 					{
-						label: "Search docs",
-						value,
-						search,
-						// results are matched, ranked, and highlighted above
-						shouldFilter: false,
-						// ctrl+k opens the actions menu instead of moving the highlight
-						vimBindings: false,
-						class: "bg-transparent",
+						class:
+							"h-80 max-h-[50dvh] max-md:h-auto max-md:max-h-none max-md:min-h-0 max-md:flex-1",
+					},
+					CommandViewport(
+						{},
+						CommandEmpty({}, emptyText),
+						ForEach(
+							ranked,
+							(entry) => entry.key,
+							// keyed on the area, so the row's identity is pinned and
+							// reading it once here is safe
+							(entry) => AreaGroup(entry.get(), results, goTo),
+						),
+					),
+				),
+				Div(
+					{
+						class:
+							// Desktop only. Everything in it is either a keyboard hint or an
+							// action for a keyboard to reach, and nobody is copying markdown
+							// on a phone.
+							"flex items-center justify-end gap-3 border-t px-3 py-2 text-xs text-muted-foreground max-md:hidden",
 					},
 					Div(
-						{ class: "flex items-center gap-2 px-3 pt-3 pb-1" },
-						// the filters scroll sideways rather than wrap; esc stays put beside them
-						Div(
-							{ class: "no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" },
-							AreaChip(area, "all", "All"),
-							// the areas are whatever the index names, so the filters
-							// appear with it rather than being declared twice
-							ForEach(
-								areas,
-								(entry) => entry.key,
-								// keyed on the area, so the chip's identity is pinned
-								(entry) => AreaChip(area, entry.get().key, entry.get().label),
+						{ class: "flex min-w-0 items-center gap-2" },
+						Span(
+							{ class: "truncate" },
+							selected.bind((hit) =>
+								hit === null ? "Go to page" : `Go to ${hit.result.page.title}`,
 							),
 						),
-						Kbd({ class: [kbdClass, "shrink-0"] }, "esc"),
+						Kbd({ class: [kbdHintClass, "max-md:hidden"] }, "⏎"),
 					),
-					CommandInput({ id: SEARCH_INPUT_ID, placeholder: "Search docs..." }),
-					CommandList(
-						{ class: "h-80 max-h-[50dvh]" },
-						CommandViewport(
-							{},
-							CommandEmpty({}, emptyText),
-							ForEach(
-								ranked,
-								(entry) => entry.key,
-								// keyed on the area, so the row's identity is pinned and
-								// reading it once here is safe
-								(entry) => AreaGroup(entry.get(), results, goTo),
-							),
+					Div({ class: "h-4 w-px bg-border", "aria-hidden": true }),
+					DropdownMenu(
+						{ open: actionsOpen, preventScroll: false },
+						DropdownMenuTrigger(
+							{
+								variant: "ghost",
+								size: "xs",
+								class: "gap-2 text-xs text-muted-foreground hover:text-foreground",
+							},
+							"Actions",
+							Kbd({ class: [kbdHintClass, "max-md:hidden"] }, "⌘K"),
 						),
-					),
-					Div(
-						{
-							class:
-								"flex items-center justify-end gap-3 border-t px-3 py-2 text-xs text-muted-foreground",
-						},
-						Div(
-							{ class: "flex min-w-0 items-center gap-2" },
-							Span(
-								{ class: "truncate" },
-								selected.bind((hit) =>
-									hit === null ? "Go to page" : `Go to ${hit.result.page.title}`,
-								),
-							),
-							Kbd({ class: kbdClass }, "⏎"),
-						),
-						Div({ class: "h-4 w-px bg-border", "aria-hidden": true }),
-						DropdownMenu(
-							{ open: actionsOpen, preventScroll: false },
-							DropdownMenuTrigger(
+						DropdownMenuContent(
+							{ side: "top", align: "end", class: "w-64" },
+							DropdownMenuItem(
 								{
-									variant: "ghost",
-									size: "xs",
-									class: "gap-2 text-xs text-muted-foreground hover:text-foreground",
+									onSelect: () => {
+										const hit = selected.get();
+										if (hit) goTo(hit.result);
+									},
 								},
-								"Actions",
-								Kbd({ class: kbdClass }, "⌘K"),
+								Span(
+									{ class: "truncate" },
+									selected.bind((hit) =>
+										hit === null ? "Go to page" : `Go to ${hit.result.page.title}`,
+									),
+								),
+								ArrowRightIcon({
+									class: "ml-auto size-4 text-muted-foreground",
+									"aria-hidden": true,
+								}),
 							),
-							DropdownMenuContent(
-								{ side: "top", align: "end", class: "w-64" },
+							// lessons have no markdown twin, so the action drops out for them
+							If(derived([selected], (hit) => hit?.area.markdown === true)).Then(
 								DropdownMenuItem(
 									{
 										onSelect: () => {
 											const hit = selected.get();
-											if (hit) goTo(hit.result);
+											if (hit) void copyMarkdown(hit.result.page);
 										},
 									},
-									Span(
-										{ class: "truncate" },
-										selected.bind((hit) =>
-											hit === null ? "Go to page" : `Go to ${hit.result.page.title}`,
-										),
-									),
-									ArrowRightIcon({
+									"Copy Markdown",
+									MarkdownIcon({
 										class: "ml-auto size-4 text-muted-foreground",
 										"aria-hidden": true,
 									}),
-								),
-								// lessons have no markdown twin, so the action drops out for them
-								If(derived([selected], (hit) => hit?.area.markdown === true)).Then(
-									DropdownMenuItem(
-										{
-											onSelect: () => {
-												const hit = selected.get();
-												if (hit) void copyMarkdown(hit.result.page);
-											},
-										},
-										"Copy Markdown",
-										MarkdownIcon({
-											class: "ml-auto size-4 text-muted-foreground",
-											"aria-hidden": true,
-										}),
-									),
 								),
 							),
 						),

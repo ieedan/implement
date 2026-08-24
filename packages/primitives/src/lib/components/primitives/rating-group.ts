@@ -12,11 +12,14 @@ import {
 	type Signal,
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
 
 export type RatingGroupRootProps = ComponentProps<typeof Div> & {
 	value?: Signal<number> | number;
+	/** Runs whenever the rating changes. */
+	onValueChange?: ChangeHandler<number>;
 	min?: number;
 	max?: number;
 	/** Allow half-step values: pointer position picks the half, arrows move by 0.5. */
@@ -147,6 +150,7 @@ export const RatingGroup = createComponent(function RatingGroup(
 	{
 		id = getId(),
 		value = 0,
+		onValueChange,
 		min = 0,
 		max = 5,
 		allowHalf = false,
@@ -167,6 +171,7 @@ export const RatingGroup = createComponent(function RatingGroup(
 	);
 
 	return RatingGroupCtx.Provide(state).To(
+		...changeEffect(state.value, onValueChange),
 		Div(
 			mergeProps(
 				{

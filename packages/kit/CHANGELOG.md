@@ -1,5 +1,51 @@
 # @implementjs/kit
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`5077090`](https://github.com/ieedan/implement/commit/50770900102e0dafbccbf187054ed2cdfcdcefa5)]:
+  - @implementjs/core@0.0.7
+  - @implementjs/router@0.0.8
+
+## 0.0.8
+
+### Patch Changes
+
+- [#62](https://github.com/ieedan/implement/pull/62) [`2702c55`](https://github.com/ieedan/implement/commit/2702c55c546c2a82a3517ff997aad4628e203b70) Thanks [@ieedan](https://github.com/ieedan)! - Fix an app with a param matcher losing every type it gets from `@implementjs/router` — `router.Link` included. The `ParamTypes` block filling in the matchers' types was written into `$implement.d.ts`, which is a script (no top-level `import` or `export`), and there a `declare module "@implementjs/router"` is an _ambient module declaration_ that takes the package's name over rather than augmenting it. Nothing errored: the package's own exports simply stopped existing, so `RouterHelper` resolved to nothing, `router` collapsed to `any`, and `to`, `params`, `Router`, and `RouterError` went unchecked along with it. The augmentation now goes to `.implement/types/$implement-params.d.ts`, a module, and is removed again when the last matcher does — `$implement.d.ts` stays a script, which its own `declare module "$implement/*"` blocks and `declare namespace App` require.
+
+- [#62](https://github.com/ieedan/implement/pull/62) [`05d9b20`](https://github.com/ieedan/implement/commit/05d9b20ead7c52f3eba9fdbaff03363a7b81f8b3) Thanks [@ieedan](https://github.com/ieedan)! - Pre-bundle the deps that only kit's generated modules import, so dev stops answering with `504 (Outdated Optimize Dep)`. Vite's dep scanner externalizes virtual modules, so its startup crawl stopped at `$implement/router` and never saw what hangs off it — the route modules, the param matchers, or `@implementjs/router` and `@implementjs/kit/params` themselves. The browser discovered them instead on first load, which re-bundles, moves every optimized URL's `?v=` hash, and kills the requests already in flight. The plugin now points the scan at the real files behind those virtual modules (`page.ts`, `layout.ts`, their `@` reset variants, `error.ts`, and `src/params/*.ts`) and names kit's own imports in `optimizeDeps.include`, so an app no longer has to declare them in its own `vite.config.ts`. Server files stay out of it: a dep only a `*.server.ts` imports is still no business of the browser's pre-bundle.
+
+## 0.0.7
+
+### Patch Changes
+
+- [#59](https://github.com/ieedan/implement/pull/59) [`e9bf3b1`](https://github.com/ieedan/implement/commit/e9bf3b1e2919f8518248ad3804f310f8a15a2878) Thanks [@ieedan](https://github.com/ieedan)! - Warn about files in the routes tree whose names only just miss a routing one. `+server.ts`, `page.tsx`, and `+page.server.js` are colocated code as far as the scan is concerned, so the route they were meant to be simply never existed and nothing said why. The dev server and the build now print `unknown file "src/routes/api/+server.ts" — did you mean "server.ts"?`, and the dev server says it the moment such a file is written. Genuinely colocated code (`Button.ts`, `layout.css`, `page.test.ts`) stays silent.
+
+- [#57](https://github.com/ieedan/implement/pull/57) [`b51e829`](https://github.com/ieedan/implement/commit/b51e8295af17c8d72287b71e6e312c50bcc12c4f) Thanks [@ieedan](https://github.com/ieedan)! - Use valibot as the schema library everywhere the docs and templates need one
+
+  Kit still takes any [Standard Schema](https://standardschema.dev) — arktype and zod included,
+  each still converted to JSON Schema through its own package — but every example, doc and
+  scaffolded file is now written in valibot, which is what `@implementjs/formish` already
+  required. A scaffolded kit app ships `valibot` as a devDependency in place of `zod`.
+
+  Kit's valibot-to-JSON-Schema conversion now runs with `errorMode: "ignore"`, so a schema
+  carrying a transform is documented as unconstrained instead of dropping the route's
+  parameters and warning. That matches what the zod converter already did with
+  `unrepresentable: "any"`.
+
+- Updated dependencies [[`00239de`](https://github.com/ieedan/implement/commit/00239de0e84fe27b2f8737e977d973b4d24c454e)]:
+  - @implementjs/core@0.0.6
+  - @implementjs/router@0.0.7
+
+## 0.0.6
+
+### Patch Changes
+
+- Updated dependencies [[`f60114f`](https://github.com/ieedan/implement/commit/f60114f329cd73c5922a60c8337566afa97d3f21)]:
+  - @implementjs/core@0.0.5
+  - @implementjs/router@0.0.6
+
 ## 0.0.5
 
 ### Patch Changes

@@ -100,7 +100,7 @@ const groups: PackageGroup[] = [
 			{
 				name: "@implementjs/formish",
 				description:
-					"Schema-first forms. The schema types the fields, validates the input and produces the submit handler's output — valibot, zod and arktype all fit.",
+					"Schema-first forms, ported from Formisch. The valibot schema types the fields, validates the input and produces the submit handler's output.",
 				docs: { label: "Read the docs", to: "/formish" },
 				sourceDir: "formish",
 			},

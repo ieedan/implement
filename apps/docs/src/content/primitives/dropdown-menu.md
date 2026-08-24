@@ -31,6 +31,8 @@ Each part accepts optional props and children — pass a props object when you n
 
 `DropdownMenu` owns whether the menu is open. Pass a boolean to seed it, or a [signal](/docs/signals) to control it from outside. Clicking the trigger toggles; Escape, selecting an item, or interacting outside closes.
 
+`onOpenChange` reports every open and close, whether it came from the trigger, a selected item, Escape, or a write to a signal you passed in. Submenus take the same prop on `DropdownMenuSub`.
+
 ## Items
 
 `DropdownMenuItem` runs `onSelect` when clicked or activated with Enter or Space, then closes the menu — pass `closeOnSelect: false` to keep it open. `disabled` items are skipped by the keyboard and set `data-disabled`.
@@ -63,6 +65,20 @@ DropdownMenuCheckboxGroup(
 ```
 
 The group is a `role="group"` like `DropdownMenuGroup`, so a `DropdownMenuGroupHeading` placed inside names it. Inside a group the group's array owns each item's checked state and the item's own `checked` prop is ignored; an item with no `value` keeps its own boolean.
+
+Item values are strings or numbers, in the checkbox group and in the radio group alike, so a row id from a database can go straight in without being stringified and parsed again:
+
+```ts
+const size = signal<number | null>(14);
+
+DropdownMenuRadioGroup(
+	{ value: size },
+	DropdownMenuRadioItem({ value: 12 }, "12px"),
+	DropdownMenuRadioItem({ value: 14 }, "14px"),
+);
+```
+
+The DOM only speaks strings, so `data-value` on the item is the number written out. Values are matched by identity, though, so `12` and `"12"` are two different items — pick one shape per group.
 
 ### A checkbox indicator, and two click targets
 

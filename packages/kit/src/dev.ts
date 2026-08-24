@@ -30,6 +30,8 @@ const COLOR =
 
 const dim = (text: string) => (COLOR ? `\u001B[2m${text}\u001B[22m` : text);
 const boldRed = (text: string) => (COLOR ? `\u001B[1m\u001B[31m${text}\u001B[39m\u001B[22m` : text);
+const boldYellow = (text: string) =>
+	COLOR ? `\u001B[1m\u001B[33m${text}\u001B[39m\u001B[22m` : text;
 
 /**
  * Kit's own tag for a log line. Vite stamps `[vite]` on anything it timestamps
@@ -39,6 +41,11 @@ const boldRed = (text: string) => (COLOR ? `\u001B[1m\u001B[31m${text}\u001B[39m
  */
 function tagged(message: string): string {
 	return `${dim(new Date().toLocaleTimeString())} ${boldRed("[implement]")} ${message}`;
+}
+
+/** The same tag in the colour a warning wears, for what is worth saying but not an error. */
+export function taggedWarning(message: string): string {
+	return `${dim(new Date().toLocaleTimeString())} ${boldYellow("[implement]")} ${message}`;
 }
 
 /**

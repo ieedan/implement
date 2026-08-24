@@ -1,6 +1,6 @@
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Reading back stubbed responses requires intentional narrowing. */
+import * as v from "valibot";
 import { describe, expect, it } from "vitest";
-import * as z from "zod";
 import {
 	ApiError,
 	buildUrl,
@@ -18,16 +18,24 @@ import {
 } from "../src/client-neverthrow.ts";
 import { handler } from "../src/endpoint.ts";
 
-const Post = z.object({ id: z.number(), title: z.string() });
+const Post = v.object({ id: v.number(), title: v.string() });
 
 /** A stand-in `server.ts` module, so the table is built exactly the way generation builds it. */
 const posts = {
 	GET: handler({
-		query: z.object({ draft: z.stringbool().default(false) }),
+		query: v.object({
+			draft: v.optional(
+				v.pipe(
+					v.string(),
+					v.transform((value) => value === "true"),
+				),
+				"false",
+			),
+		}),
 		handle: ({ params }) => ({ id: params["id"] ?? "", title: "hello" }),
 	}),
 	PATCH: handler({
-		body: Post.pick({ title: true }),
+		body: v.pick(Post, ["title"]),
 		response: Post,
 		handle: ({ body }) => ({ id: 1, title: body.title }),
 	}),

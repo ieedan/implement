@@ -184,6 +184,7 @@ export {
 	type RatingGroupItemProps,
 	type RatingGroupItemStateValue,
 } from "./lib/components/primitives/rating-group";
+export { type ItemValue, type ItemValueSignal, type ItemValuesSignal } from "./lib/utils";
 export { mergeProps } from "./lib/merge-props";
 export { createComponent, type Component, type ComponentInit } from "./lib/create-component";
 export { Checkbox, type CheckboxProps } from "./lib/components/primitives/checkbox";
@@ -389,3 +390,27 @@ export {
 	type AlertDialogDescriptionProps,
 	type AlertDialogPortalProps,
 } from "./lib/components/primitives/alert-dialog";
+export {
+	Drawer,
+	DrawerClose,
+	DrawerContent,
+	DrawerCtx,
+	DrawerDescription,
+	DrawerHandle,
+	DrawerOverlay,
+	DrawerPortal,
+	DrawerState,
+	DrawerTitle,
+	DrawerTrigger,
+	type DrawerCloseProps,
+	type DrawerContentProps,
+	type DrawerDescriptionProps,
+	type DrawerDirection,
+	type DrawerHandleProps,
+	type DrawerOverlayProps,
+	type DrawerPortalProps,
+	type DrawerRootProps,
+	type DrawerSnapPoint,
+	type DrawerTitleProps,
+	type DrawerTriggerProps,
+} from "./lib/components/primitives/drawer";

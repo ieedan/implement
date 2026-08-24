@@ -58,10 +58,24 @@ export type ExtensionEndpoint = {
 	file: string;
 };
 
+/**
+ * A file in the routes tree that reads like a routing file but is not one —
+ * `+server.ts` next to the `server.ts` kit was waiting for. It changes nothing
+ * about the scan; it is what the dev server and the build warn about.
+ */
+export type RouteWarning = {
+	/** Path of the file relative to the routes dir. */
+	file: string;
+	/** The routing file name it was most likely reaching for. */
+	suggestion: string;
+};
+
 export type RouteTree = {
 	root: RouteNode;
 	/** Relative path of the root `error.ts`, when present. */
 	error: string | null;
+	/** Near-miss file names found anywhere in the tree, in scan order. */
+	warnings: RouteWarning[];
 	/**
 	 * The param matchers the app declares, sorted: one name per
 	 * `<params>/<name>.ts`, which is the name a `[param=<name>]` directory uses.
@@ -126,6 +140,48 @@ export function isRouteFileName(name: string): boolean {
 	);
 }
 
+/**
+ * The extensions a routing file gets written with by mistake. Kit's own is
+ * `.ts`; the rest are the habits of the frameworks people arrive from.
+ */
+const SOURCE_EXTENSIONS = new Set([
+	".ts",
+	".tsx",
+	".js",
+	".jsx",
+	".mjs",
+	".cjs",
+	".mts",
+	".cts",
+	".svelte",
+	".vue",
+]);
+
+/**
+ * The routing file a name was probably reaching for, or `null` when it is
+ * ordinary colocated code: `+server.ts` → `server.ts`, `page.tsx` → `page.ts`,
+ * `+page.server.js` → `page.server.ts`. Only near misses count — a name that
+ * becomes a routing file once a `+` prefix comes off and the extension is
+ * kit's — so `Button.ts`, `layout.css`, and `page.test.ts` stay silent.
+ */
+export function routeFileSuggestion(name: string): string | null {
+	if (isRouteFileName(name)) return null;
+	const dot = name.lastIndexOf(".");
+	if (dot <= 0) return null;
+	if (!SOURCE_EXTENSIONS.has(name.slice(dot).toLowerCase())) return null;
+	const candidate = `${name.slice(0, dot).replace(/^\+/, "")}.ts`;
+	return candidate !== name && isRouteFileName(candidate) ? candidate : null;
+}
+
+/**
+ * How a near miss reads in the terminal. It says why the file did nothing as
+ * well as what to call it — a misnamed route is invisible otherwise, which is
+ * the whole reason the warning exists.
+ */
+export function formatRouteWarning(warning: RouteWarning, routes: string): string {
+	return `unknown file "${routes}/${warning.file}" — did you mean "${warning.suggestion}"? Anything else in the routes tree is colocated code, so this file routes nothing.`;
+}
+
 /** `.md`, `.json`, `.tar.gz` — a dot-directory naming the extension its `server.ts` serves. */
 const EXTENSION_DIR = /^(\.[a-z0-9]+)+$/i;
 
@@ -160,9 +216,14 @@ export function scanMatchers(paramsDir: string | null): string[] {
  */
 export function scanRoutes(routesDir: string, paramsDir: string | null = null): RouteTree {
 	const matchers = scanMatchers(paramsDir);
+	// collected into one array as the walk goes, so a near miss is still
+	// reported from a directory the scan drops for having no routes in it —
+	// which is exactly the directory holding nothing but a misnamed file
+	const warnings: RouteWarning[] = [];
 	const tree: RouteTree = {
-		root: scanDirectory(routesDir, "", null, []),
+		root: scanDirectory(routesDir, "", null, [], warnings),
 		error: null,
+		warnings,
 		matchers,
 	};
 	if (
@@ -182,6 +243,7 @@ function scanDirectory(
 	dir: string,
 	segment: RouteSegment | null,
 	params: RouteParam[],
+	warnings: RouteWarning[],
 ): RouteNode {
 	const node: RouteNode = {
 		dir,
@@ -224,7 +286,11 @@ function scanDirectory(
 				continue;
 			}
 			const info = parseRouteFileName(entry.name);
-			if (info === null) continue;
+			if (info === null) {
+				const suggestion = routeFileSuggestion(entry.name);
+				if (suggestion !== null) warnings.push({ file: relative, suggestion });
+				continue;
+			}
 			if (info.resetTo !== null) validateResetTarget(info, dir, relative);
 			if (info.kind === "page") {
 				if (node.page !== null) {
@@ -270,7 +336,7 @@ function scanDirectory(
 			childSegment.kind === "param" || childSegment.kind === "rest"
 				? [...params, { name: childSegment.name, matcher: childSegment.matcher }]
 				: params;
-		const child = scanDirectory(routesDir, relative, childSegment, childParams);
+		const child = scanDirectory(routesDir, relative, childSegment, childParams, warnings);
 		if (!hasRouteFiles(child)) continue;
 		// a rest segment swallows the rest of the path — nothing can route below it
 		if (segmentIsRest(segment)) {

@@ -18,6 +18,7 @@ import {
 } from "@implementjs/core";
 import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import {
 	DismissableLayer,
 	EscapeEvent,
@@ -142,6 +143,8 @@ export const TooltipProvider = createComponent(function TooltipProvider(
 
 export type TooltipRootProps = {
 	open?: Signal<boolean> | boolean;
+	/** Runs whenever the open state changes. */
+	onOpenChange?: ChangeHandler<boolean>;
 	/** Overrides the provider's `delayDuration` for this tooltip. */
 	delayDuration?: number;
 	/** Overrides the provider's `disableHoverableContent` for this tooltip. */
@@ -387,6 +390,7 @@ export const Tooltip = createComponent(function Tooltip(
 					c === null ? "close" : c.opts.onInteractOutsideBehavior,
 				),
 			},
+			...changeEffect(state.open, props.onOpenChange),
 			TooltipContext.Provide(state).To(
 				ImplementLifecycle(
 					{

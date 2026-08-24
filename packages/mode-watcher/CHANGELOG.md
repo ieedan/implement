@@ -1,5 +1,26 @@
 # @implementjs/mode-watcher
 
+## 0.0.7
+
+### Patch Changes
+
+- Updated dependencies [[`5077090`](https://github.com/ieedan/implement/commit/50770900102e0dafbccbf187054ed2cdfcdcefa5)]:
+  - @implementjs/core@0.0.7
+
+## 0.0.6
+
+### Patch Changes
+
+- Updated dependencies [[`00239de`](https://github.com/ieedan/implement/commit/00239de0e84fe27b2f8737e977d973b4d24c454e)]:
+  - @implementjs/core@0.0.6
+
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [[`f60114f`](https://github.com/ieedan/implement/commit/f60114f329cd73c5922a60c8337566afa97d3f21)]:
+  - @implementjs/core@0.0.5
+
 ## 0.0.4
 
 ### Patch Changes

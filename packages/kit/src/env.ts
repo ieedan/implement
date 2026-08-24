@@ -49,17 +49,17 @@ type ContextHolder = { [CONTEXT_KEY]?: EnvContext };
 /**
  * Declares an app's environment variables and returns them validated.
  *
- * Each key maps to a [Standard Schema](https://standardschema.dev) — zod,
- * valibot, arktype, anything implementing the spec — and the returned object is
+ * Each key maps to a [Standard Schema](https://standardschema.dev) — valibot,
+ * arktype, zod, anything implementing the spec — and the returned object is
  * typed by each schema's output, so `typeof env` flows straight into every
  * module that imports it. No code generation is involved.
  *
  * ```ts
  * // src/lib/env.public.ts
  * import { defineEnv } from "@implementjs/kit";
- * import { z } from "zod";
+ * import * as v from "valibot";
  *
- * export const env = defineEnv({ PUBLIC_DOCS_URL: z.url() });
+ * export const env = defineEnv({ PUBLIC_DOCS_URL: v.pipe(v.string(), v.url()) });
  * ```
  *
  * Under the kit plugin both env files are evaluated in Node at build time and

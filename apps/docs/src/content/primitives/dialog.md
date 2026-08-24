@@ -51,6 +51,8 @@ If it starts open (`open: true`, or a signal that's already true) focus moves in
 
 While open, the page behind cannot scroll. Pass `preventScroll: false` to leave it scrollable. The overlay and panel can still scroll if you give them `overflow`.
 
+`onOpenChange` reports every open and close, whether it came from a trigger, a close button, Escape, or a write to a signal you passed in.
+
 ## Overlay and content
 
 `DialogOverlay` is a `Div` that covers the page behind the panel. `DialogContent` is a `Div` with `role="dialog"` and `aria-modal`. Style them against `data-state`; the primitive does not hide them for you, and it does not position the panel. Center it with CSS.

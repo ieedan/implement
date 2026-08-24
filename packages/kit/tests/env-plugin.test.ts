@@ -52,14 +52,14 @@ describe("env files", () => {
 		const code = await transformIn(server, "ssr", "/src/lib/env.public.ts");
 		expect(code).toContain(`"PUBLIC_SITE_URL":"${PUBLIC_VALUE}"`);
 		expect(code).toContain('"PUBLIC_ANALYTICS_ID":"UA-fixture"');
-		expect(code).not.toContain("zod");
+		expect(code).not.toContain("valibot");
 		expect(code).not.toContain("defineEnv");
 	});
 
 	it("inlines the public file as literals in the client graph too", async () => {
 		const code = await transformIn(server, "client", "/src/lib/env.public.ts");
 		expect(code).toContain(`"PUBLIC_SITE_URL":"${PUBLIC_VALUE}"`);
-		expect(code).not.toContain("zod");
+		expect(code).not.toContain("valibot");
 	});
 
 	it("inlines every export of the file, not just the defineEnv call", async () => {

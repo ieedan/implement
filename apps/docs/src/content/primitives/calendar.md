@@ -94,6 +94,8 @@ value.set(new CalendarDate(2026, 12, 24)); // selects it and moves the view
 
 Clicking a selected date clears it back to `null` unless `preventDeselect` is set. With `type: "multiple"` the value is a `Signal<CalendarDate[]>` instead, clicks toggle membership, and `maxDays` caps how many dates can be selected — exceeding it restarts the selection at the clicked date.
 
+`onValueChange` reports the selection after each change, including a deselection. It is handed a `CalendarDate | null` under `"single"` and a `CalendarDate[]` under `"multiple"`. `onDateSelect` is the narrower hook: it runs only after a date is picked, and says nothing about what the selection now holds.
+
 ## Placeholder
 
 The `placeholder` is the date the view starts on and keyboard focus follows; it is not a selection. Pass a signal to move the view programmatically — selecting a date, navigating, and arrowing across a month boundary all write it back.

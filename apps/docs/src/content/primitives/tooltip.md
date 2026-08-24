@@ -66,6 +66,8 @@ Button({ onClick: () => open.set(false) }, "Close");
 Tooltip({ disabled: true }, TooltipTrigger("Hover"), TooltipContent("Never opens."));
 ```
 
+`onOpenChange` reports every open and close, including the ones the delay timers drive.
+
 ## Portal
 
 `TooltipPortal` is the [Portal](/docs/portal) helper under a tooltip name. It renders its children into `document.body` by default so the bubble is not clipped by `overflow` or trapped in a parent stacking context. Context still resolves from where you declared it.

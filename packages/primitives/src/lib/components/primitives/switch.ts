@@ -9,6 +9,7 @@ import {
 } from "@implementjs/core";
 import { HiddenInput } from "../../hidden-input";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
@@ -16,6 +17,8 @@ import type { RenderableProps } from "../../render";
 export type SwitchProps = RenderableProps<typeof Button> & {
 	checked?: Signal<boolean> | boolean;
 	required?: Bindable<boolean>;
+	/** Runs whenever the checked state changes. */
+	onCheckedChange?: ChangeHandler<boolean>;
 };
 
 const SwitchCtx = context<SwitchState>("SwitchCtx");
@@ -39,6 +42,7 @@ export const Switch = createComponent(function Switch(
 		value = "on",
 		required,
 		disabled,
+		onCheckedChange,
 		render = Button,
 		...restProps
 	}: SwitchProps,
@@ -46,6 +50,7 @@ export const Switch = createComponent(function Switch(
 ) {
 	const state = new SwitchState({ checked });
 	return SwitchCtx.Provide(state).To(
+		...changeEffect(state.checked, onCheckedChange),
 		render(
 			mergeProps(
 				{

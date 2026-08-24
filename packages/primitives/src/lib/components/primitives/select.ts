@@ -16,8 +16,17 @@ import {
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
+import {
+	getId,
+	getReadableValue,
+	noop,
+	type ItemValue,
+	type ItemValuesSignal,
+	type ItemValueSignal,
+	type MaybeReadable,
+} from "../../utils";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import {
 	DismissableLayer,
 	EscapeEvent,
@@ -30,21 +39,33 @@ import { createComponent } from "../../create-component";
 
 /** One option in {@link SelectProps.items}. */
 export type SelectItemData = {
-	value: string;
+	value: ItemValue;
 	label: string;
 	disabled?: boolean;
 };
 
 /** A selected option as shown by {@link SelectValue}. */
 export type SelectSelectedItem = {
-	value: string;
+	value: ItemValue;
 	label: string;
 };
 
 export type SelectProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
-	? { type: "multiple"; value?: Signal<string[]> }
-	: { type?: "single"; value?: Signal<string | null> }) & {
+	? {
+			type: "multiple";
+			value?: ItemValuesSignal;
+			/** Runs whenever the set of selected values changes. */
+			onValueChange?: ChangeHandler<ItemValue[]>;
+		}
+	: {
+			type?: "single";
+			value?: ItemValueSignal;
+			/** Runs whenever the selected value changes. `null` while nothing is selected. */
+			onValueChange?: ChangeHandler<ItemValue | null>;
+		}) & {
 	open?: Signal<boolean>;
+	/** Runs whenever the list opens or closes. */
+	onOpenChange?: ChangeHandler<boolean>;
 	closeOnSelect?: boolean;
 	/** When true, the page behind cannot scroll while the list is open. Defaults to false. */
 	preventScroll?: boolean;
@@ -56,13 +77,13 @@ export type SelectProps<T extends "single" | "multiple" = "single"> = (T extends
 };
 
 function labelForValue(
-	value: string,
+	value: ItemValue,
 	items: readonly SelectItemData[],
-	labels: ReadonlyMap<string, string>,
+	labels: ReadonlyMap<ItemValue, string>,
 ): string {
 	const fromItems = items.find((item) => item.value === value)?.label;
 	if (fromItems !== undefined) return fromItems;
-	return labels.get(value) ?? value;
+	return labels.get(value) ?? String(value);
 }
 
 /** Immediate label from a sole string child, so SelectValue does not wait for mount. */
@@ -79,7 +100,13 @@ const SelectCtx = context<SelectState>("SelectCtx");
 abstract class SelectState {
 	open: Signal<boolean>;
 	items: Readable<SelectItemData[]>;
-	itemLabels = ImplementMap<string, string>();
+	itemLabels = ImplementMap<ItemValue, string>();
+	/**
+	 * Every rendered item's value, keyed by the string its `data-value` carries.
+	 * Keyboard navigation walks the DOM, so this is what turns an attribute back
+	 * into the number or string the item was bound with.
+	 */
+	itemValues = new Map<string, ItemValue>();
 	trigger = ref<HTMLButtonElement>();
 	content = signal<SelectContentState | null>(null);
 	autoUpdateDispose: (() => void) | null = null;
@@ -90,10 +117,21 @@ abstract class SelectState {
 			: signal(this.opts.items ?? []);
 	}
 
-	abstract value(): Signal<string | null> | Signal<string[]>;
+	abstract value(): Signal<ItemValue | null> | Signal<ItemValue[]>;
 
-	registerItemLabel(value: string, label: string) {
+	registerItemLabel(value: ItemValue, label: string) {
 		this.itemLabels.set(value, label);
+	}
+
+	registerItemValue(value: ItemValue) {
+		this.itemValues.set(String(value), value);
+	}
+
+	/** The value an item element stands for, in the type it was bound with. */
+	private valueForItem(item: HTMLElement | undefined): ItemValue | undefined {
+		const attr = item?.getAttribute("data-value");
+		if (attr == null) return undefined;
+		return this.itemValues.get(attr) ?? attr;
 	}
 
 	registerContent(content: SelectContentState) {
@@ -108,9 +146,12 @@ abstract class SelectState {
 		return derived([this.content], (c) => (c === null ? null : c.opts.ref.get()));
 	}
 
-	abstract toggle(value: string): void;
+	abstract toggle(value: ItemValue): void;
 
-	abstract isSelected(value: string): Readable<boolean>;
+	abstract isSelected(value: ItemValue): Readable<boolean>;
+
+	/** The values currently selected, empty while nothing is. */
+	abstract selectedValues(): readonly ItemValue[];
 
 	toggleOpen() {
 		if (this.open.get()) {
@@ -135,10 +176,19 @@ abstract class SelectState {
 		});
 
 		const activeItems = this.getActiveItems();
+		// open on the value already chosen, not on whatever happens to be first
+		this.highlight(activeItems, this.selectedItem(activeItems) ?? activeItems[0], true);
+	}
 
-		activeItems.forEach((item) => item.removeAttribute("data-highlighted"));
-
-		activeItems[0]?.setAttribute("data-highlighted", "");
+	/**
+	 * The rendered item standing for the current selection. Disabled items are
+	 * never highlighted, so a selection that has since been disabled has none.
+	 */
+	private selectedItem(items: readonly HTMLElement[]): HTMLElement | undefined {
+		const selected = this.selectedValues();
+		if (selected.length === 0) return undefined;
+		const attrs = new Set(selected.map(String));
+		return items.find((item) => attrs.has(item.getAttribute("data-value") ?? ""));
 	}
 
 	private getActiveItems(): HTMLElement[] {
@@ -186,7 +236,7 @@ abstract class SelectState {
 			if (!start) continue;
 
 			if (label.toLowerCase().startsWith(e.key.toLowerCase())) {
-				this.setActiveItem(item.getAttribute("data-value") ?? "");
+				this.highlight(items, item, true);
 				break;
 			}
 		}
@@ -200,8 +250,8 @@ abstract class SelectState {
 			(item) => item.getAttribute("data-highlighted") !== null,
 		);
 		if (currentIndex === -1) return;
-		const value = activeItems[currentIndex]?.getAttribute("data-value");
-		if (value) this.toggle(value);
+		const value = this.valueForItem(activeItems[currentIndex]);
+		if (value !== undefined) this.toggle(value);
 	}
 
 	handleArrowKey(e: KeyboardEvent) {
@@ -217,15 +267,34 @@ abstract class SelectState {
 
 		const nextIndex = (currentIndex + direction + activeItems.length) % activeItems.length;
 
-		this.setActiveItem(activeItems[nextIndex]?.getAttribute("data-value") ?? "");
+		this.highlight(activeItems, activeItems[nextIndex], true);
 	}
 
-	setActiveItem(value: string) {
+	setActiveItem(value: ItemValue) {
 		const activeItems = this.getActiveItems();
-		activeItems.forEach((item) => item.removeAttribute("data-highlighted"));
-		activeItems
-			.find((item) => item.getAttribute("data-value") === value)
-			?.setAttribute("data-highlighted", "");
+		const attr = String(value);
+		this.highlight(
+			activeItems,
+			activeItems.find((item) => item.getAttribute("data-value") === attr),
+		);
+	}
+
+	/**
+	 * Move `data-highlighted` onto `active`, clearing it from the rest. `scroll`
+	 * brings it into view, for the moves the pointer did not make: the list
+	 * opening, and the keyboard. Scrolling under the pointer would fight it.
+	 */
+	private highlight(
+		items: readonly HTMLElement[],
+		active: HTMLElement | undefined,
+		scroll = false,
+	) {
+		items.forEach((item) => item.removeAttribute("data-highlighted"));
+		if (!active) return;
+		active.setAttribute("data-highlighted", "");
+		if (scroll && typeof active.scrollIntoView === "function") {
+			active.scrollIntoView({ block: "nearest" });
+		}
 	}
 
 	close() {
@@ -241,13 +310,14 @@ abstract class SelectState {
 }
 
 class SelectStateSingle extends SelectState {
-	#value: Signal<string | null>;
+	#value: Signal<ItemValue | null>;
 	constructor(readonly opts: SelectProps) {
 		super(opts);
-		this.#value = signal(this.opts.value ?? (null as string | null));
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ItemValueSignal names each concrete signal shape; the state holds the widest one.
+		this.#value = signal(this.opts.value ?? (null as ItemValue | null)) as Signal<ItemValue | null>;
 	}
 
-	override toggle(value: string) {
+	override toggle(value: ItemValue) {
 		const currentValue = this.#value.get();
 		if (currentValue === value) {
 			if (this.opts.closeOnSelect) this.close();
@@ -257,8 +327,13 @@ class SelectStateSingle extends SelectState {
 		if (this.opts.closeOnSelect) this.close();
 	}
 
-	override isSelected(value: string) {
+	override isSelected(value: ItemValue) {
 		return this.#value.bind((v) => v === value);
+	}
+
+	override selectedValues(): readonly ItemValue[] {
+		const current = this.#value.get();
+		return current === null ? [] : [current];
 	}
 
 	override value() {
@@ -267,13 +342,14 @@ class SelectStateSingle extends SelectState {
 }
 
 class SelectStateMultiple extends SelectState {
-	#value: Signal<string[]>;
+	#value: Signal<ItemValue[]>;
 	constructor(readonly opts: SelectProps<"multiple">) {
 		super(opts);
-		this.#value = signal(this.opts.value ?? ([] as string[]));
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ItemValuesSignal names each concrete signal shape; the state holds the widest one.
+		this.#value = signal(this.opts.value ?? ([] as ItemValue[])) as Signal<ItemValue[]>;
 	}
 
-	override toggle(value: string) {
+	override toggle(value: ItemValue) {
 		const index = this.#value.get().indexOf(value);
 		if (index === -1) {
 			this.#value.push(value);
@@ -283,8 +359,12 @@ class SelectStateMultiple extends SelectState {
 		}
 	}
 
-	override isSelected(value: string) {
+	override isSelected(value: ItemValue) {
 		return this.#value.bind((v) => v.includes(value));
+	}
+
+	override selectedValues(): readonly ItemValue[] {
+		return this.#value.get();
 	}
 
 	override value() {
@@ -299,6 +379,12 @@ export const Select = createComponent(function Select(
 	props.closeOnSelect = props.closeOnSelect ?? props.type !== "multiple";
 	const state =
 		props.type === "multiple" ? new SelectStateMultiple(props) : new SelectStateSingle(props);
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- the same `type` decides the shape of the value and of the callback handed it. */
+	const valueChange = changeEffect(
+		state.value() as Readable<ItemValue | ItemValue[] | null>,
+		props.onValueChange as ChangeHandler<ItemValue | ItemValue[] | null> | undefined,
+	);
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 	return DismissableLayer(
 		{
 			open: state.open,
@@ -315,6 +401,8 @@ export const Select = createComponent(function Select(
 			),
 		},
 		ScrollLock({ open: state.open, enabled: state.opts.preventScroll === true }),
+		...changeEffect(state.open, props.onOpenChange),
+		...valueChange,
 		SelectCtx.Provide(state).To(
 			ImplementLifecycle(
 				{
@@ -357,12 +445,12 @@ export const SelectTrigger = createComponent(function SelectTrigger(
 export type SelectValueRenderProps =
 	| {
 			type: "single";
-			value: Signal<string | null>;
+			value: Signal<ItemValue | null>;
 			selected: Readable<SelectSelectedItem | null>;
 	  }
 	| {
 			type: "multiple";
-			value: Signal<string[]>;
+			value: Signal<ItemValue[]>;
 			selected: Readable<SelectSelectedItem[]>;
 	  };
 
@@ -378,7 +466,7 @@ export const SelectValue = createComponent(function SelectValue({
 	return SelectCtx.Use((state) => {
 		if (state.opts.type === "multiple") {
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Select state value shape follows the discriminated `type` prop.
-			const value = state.value() as Signal<string[]>;
+			const value = state.value() as Signal<ItemValue[]>;
 			const selected = derived([value, state.items, state.itemLabels], (values, items, labels) =>
 				values.map((current) => ({
 					value: current,
@@ -393,7 +481,7 @@ export const SelectValue = createComponent(function SelectValue({
 		}
 
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Select state value shape follows the discriminated `type` prop.
-		const value = state.value() as Signal<string | null>;
+		const value = state.value() as Signal<ItemValue | null>;
 		const selected = derived([value, state.items, state.itemLabels], (current, items, labels) =>
 			current == null ? null : { value: current, label: labelForValue(current, items, labels) },
 		);
@@ -469,7 +557,7 @@ export const SelectContent = createComponent(function SelectContent(
 });
 
 export type SelectItemsProps = ComponentProps<typeof Div> & {
-	value: string;
+	value: ItemValue;
 	label?: string;
 	disabled?: Signal<boolean> | boolean;
 };
@@ -504,6 +592,7 @@ export const SelectItem = createComponent(function SelectItem(
 			label ??
 			textChild(children) ??
 			rootState.items.get().find((item) => item.value === value)?.label;
+		rootState.registerItemValue(value);
 		if (immediateLabel !== undefined) rootState.registerItemLabel(value, immediateLabel);
 
 		return ImplementLifecycle(

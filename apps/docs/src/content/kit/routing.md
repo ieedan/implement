@@ -31,6 +31,14 @@ src/routes
 
 Any other file is colocated code and kit ignores it, so keep your components, helpers, and tests right next to the routes that use them. Dot-directories are skipped too.
 
+A file that only just misses one of those names is the exception. `+server.ts`, `page.tsx`, `+page.svelte` — a name kit would route if you dropped a `+` or wrote `.ts` — gets a warning from the dev server and the build:
+
+```
+12:00:00 [implement] unknown file "src/routes/api/+server.ts" — did you mean "server.ts"? Anything else in the routes tree is colocated code, so this file routes nothing.
+```
+
+The file is still ignored, it just no longer goes unmentioned: a misnamed route is invisible otherwise, and looks exactly like a route that does not work.
+
 ## Pages
 
 A page default-exports a function that receives `params` and `url`:
@@ -143,7 +151,7 @@ Nothing declares that type twice. The generated `./$types` reads it straight off
 `matcher()` takes a pattern, a parse function, or any [Standard Schema](https://standardschema.dev) — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) use:
 
 ```ts
-import * as z from "zod";
+import * as v from "valibot";
 import { matcher, mismatch } from "@implementjs/kit/params";
 
 // a pattern — the param stays a string
@@ -154,11 +162,13 @@ export default matcher((value) => (value === "en" || value === "fr" ? value : mi
 //                                  → Readable<"en" | "fr">
 
 // a schema — the param is the schema's output
-export default matcher(z.coerce.number().int().positive());
+export default matcher(
+	v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1)),
+);
 //                                  → Readable<number>
 ```
 
-A schema has to validate synchronously; matching a route can't wait on a database. Reach for a schema when you want its parsing (`z.coerce.number()`, `z.iso.date()`), a pattern when a regex says it, and a function when neither does.
+A schema has to validate synchronously; matching a route can't wait on a database. Reach for a schema when you want its parsing (a `v.transform(Number)` pipe, `v.isoDate()`), a pattern when a regex says it, and a function when neither does.
 
 ### What matching does with them
 

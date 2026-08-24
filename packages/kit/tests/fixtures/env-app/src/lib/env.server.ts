@@ -1,6 +1,6 @@
 import { defineEnv } from "@implementjs/kit";
-import { z } from "zod";
+import * as v from "valibot";
 
 export const env = defineEnv({
-	DATABASE_URL: z.string(),
+	DATABASE_URL: v.string(),
 });

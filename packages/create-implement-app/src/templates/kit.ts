@@ -17,6 +17,7 @@ import {
 	UI_SCRIPT,
 	vitePlugins,
 	vscodeExtensions,
+	vscodeSettings,
 } from "@/templates/shared";
 import { hasAddon, type Template, type TemplateContext } from "@/templates/types";
 import { dependencies, type Dependency } from "@/templates/versions";
@@ -64,6 +65,10 @@ export const kit: Template = {
 		{ path: "static/favicon.svg", contents: favicon() },
 		{ path: ".gitignore", contents: gitignore() },
 		{ path: ".vscode/extensions.json", contents: vscodeExtensions(ctx) },
+		// the recommended tailwind extension needs telling where an implement app keeps its classes
+		...(hasAddon(ctx, "tailwind")
+			? [{ path: ".vscode/settings.json", contents: vscodeSettings(ctx) }]
+			: []),
 		{ path: "README.md", contents: readme(ctx) },
 	],
 };
@@ -80,9 +85,11 @@ function pkg(ctx: TemplateContext): string {
 	// tailwind-merge behind `cn()` that makes a class passed in override the one baked in
 	if (hasAddon(ctx, "ui")) deps.push("tailwind-merge", "tailwind-variants");
 
-	// zod is a devDependency on purpose: kit evaluates the env files at build time and inlines
-	// the results, so the schemas never reach a bundle
-	const devDeps: Dependency[] = ["@implementjs/kit", "@types/node", "typescript", "vite", "zod"];
+	// valibot is a devDependency on purpose: kit evaluates the env files at build time and
+	// inlines the results, so the schemas never reach a bundle
+	const devDeps: Dependency[] = ["@implementjs/kit", "@types/node", "typescript", "vite"];
+	// the forms addon already depends on valibot at runtime, so it is not added twice
+	if (!hasAddon(ctx, "forms")) devDeps.push("valibot");
 	if (hasAddon(ctx, "tailwind")) devDeps.push("@tailwindcss/vite", "tailwindcss");
 	if (hasAddon(ctx, "ui")) devDeps.push("jsrepo");
 
@@ -254,12 +261,12 @@ function envPublic(): string {
 	return (
 		dedent`
 		import { defineEnv } from "@implementjs/kit";
-		import { z } from "zod";
+		import * as v from "valibot";
 
 		// Every key here must start with PUBLIC_ — these values are inlined into the browser
 		// bundle. Secrets belong in a sibling \`env.server.ts\`, which never ships.
 		export const env = defineEnv({
-			PUBLIC_APP_NAME: z.string(),
+			PUBLIC_APP_NAME: v.string(),
 		});
 	` + "\n"
 	);

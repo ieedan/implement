@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/mode-watcher",
-	"version": "0.0.4",
+	"version": "0.0.7",
 	"description": "Dark mode for implement, applied before the first paint: the visitor's choice, the system preference and the class on <html>.",
 	"keywords": [
 		"implement",

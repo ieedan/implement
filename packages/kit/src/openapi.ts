@@ -307,8 +307,15 @@ async function vendorConverter(vendor: string): Promise<ToJsonSchema | null> {
 	if (vendor === "valibot") {
 		const valibot = await loadModule("@valibot/to-json-schema");
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- valibot's converter ships in its own package.
-		const toJsonSchema = valibot["toJsonSchema"] as (schema: unknown) => JsonSchema;
-		return (schema) => toJsonSchema(schema);
+		const toJsonSchema = valibot["toJsonSchema"] as (
+			schema: unknown,
+			options: unknown,
+		) => JsonSchema;
+		// `errorMode: "ignore"` for the same reason zod gets `unrepresentable: "any"`:
+		// a transform is a perfectly good schema that simply has no JSON-Schema
+		// spelling, and documenting it as unconstrained beats refusing to document
+		// the route it is on
+		return (schema) => toJsonSchema(schema, { errorMode: "ignore" });
 	}
 	return null;
 }
