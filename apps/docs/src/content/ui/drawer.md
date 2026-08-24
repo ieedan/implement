@@ -111,6 +111,8 @@ An on-screen keyboard covers the bottom of the panel and the panel does not move
 
 `DrawerContent` does that by ending its column with a spacer as tall as `--ip-drawer-keyboard-inset` from the [primitive](/primitives/docs/drawer#on-screen-keyboards). A spacer rather than padding, so that reaching for `class` to set your own padding does not quietly take it away.
 
+Its height cap grows by the same inset, so the 85dvh it holds the panel to is the part of the panel you can actually see. A bottom drawer with a keyboard up therefore takes the whole band above it, the way an iOS sheet does. If you set your own `max-h`, keep the inset in it — a flat cap squeezes the spacer back out and puts the end of your column behind the keyboard.
+
 Put whatever must stay visible near the top of the panel, and give the part that can afford to shrink `min-h-0 flex-1 overflow-y-auto`.
 
 ## Scaling the page behind

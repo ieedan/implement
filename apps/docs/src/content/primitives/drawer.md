@@ -96,13 +96,24 @@ So don't move it. Leave the panel where it is, let the keyboard cover the bottom
 
 ```ts
 DrawerContent(
-	{ class: "fixed inset-x-0 bottom-0 flex max-h-[85dvh] flex-col" },
+	{
+		class: [
+			"fixed inset-x-0 bottom-0 flex flex-col",
+			// what is being held to 85dvh is the part of the panel you can see, so the
+			// cap has to grow by the keyboard's share too — up to the whole screen
+			"max-h-[min(calc(85dvh+var(--ip-drawer-keyboard-inset,0px)),100dvh)]",
+		],
+	},
 	SearchField(),
 	Div({ class: "min-h-0 flex-1 overflow-y-auto" }, Results()),
 	// the keyboard's share of the panel, so the column above it lands in what is left
 	Div({ class: "h-[var(--ip-drawer-keyboard-inset,0px)] shrink-0", "aria-hidden": true }),
 );
 ```
+
+Both halves, or neither. A height cap that does not know about the inset squeezes the spacer's height back out of the content, and the end of the column — the submit button, usually — goes down behind the keyboard, which is the thing the spacer was there to prevent.
+
+This is for the edges the keyboard rises into. A panel hanging from the top of the screen has no room at the end of its column to give away; cap it at `min(85dvh,calc(100dvh-var(--ip-drawer-keyboard-inset,0px)))` and leave the spacer out.
 
 The measurement is live for as long as the drawer is open, and it comes from `visualViewport` — the same reading Vaul takes for `repositionInputs`. What it does with it is the part that differs: Vaul resizes and repositions the panel, and this leaves the panel alone.
 

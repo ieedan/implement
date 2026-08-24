@@ -118,13 +118,13 @@ export const DrawerOverlay = createComponent(function DrawerOverlay(
  */
 const directionClasses: Record<DrawerDirection, string> = {
 	bottom: [
-		"inset-x-0 bottom-0 mt-24 max-h-[85dvh] rounded-t-lg border-t",
+		"inset-x-0 bottom-0 mt-24 max-h-[min(calc(85dvh+var(--ip-drawer-keyboard-inset,0px)),100dvh)] rounded-t-lg border-t",
 		"data-[snap-points]:mt-0 data-[snap-points]:h-full data-[snap-points]:max-h-none",
 		"data-[state=closed]:[translate:0_100%] starting:data-[state=open]:[translate:0_100%]",
 		"after:inset-x-0 after:top-full after:h-[200%]",
 	].join(" "),
 	top: [
-		"inset-x-0 top-0 mb-24 max-h-[85dvh] rounded-b-lg border-b",
+		"inset-x-0 top-0 mb-24 max-h-[min(85dvh,calc(100dvh-var(--ip-drawer-keyboard-inset,0px)))] rounded-b-lg border-b",
 		"data-[snap-points]:mb-0 data-[snap-points]:h-full data-[snap-points]:max-h-none",
 		"data-[state=closed]:[translate:0_-100%] starting:data-[state=open]:[translate:0_-100%]",
 		"after:inset-x-0 after:bottom-full after:h-[200%]",
@@ -150,8 +150,16 @@ const directionClasses: Record<DrawerDirection, string> = {
  * content itself clear: an empty box at the end of the panel's column, as tall
  * as the keyboard, so the flex layout above it lands in the space that is left.
  *
+ * It pairs with the height cap in `directionClasses`, which grows by the same
+ * inset. Without that the spacer would be squeezed out of a capped panel and
+ * take the last of the content down behind the keyboard with it.
+ *
  * A spacer rather than `padding-bottom` because padding is the first thing a
  * caller reaches for `class` to change, and this is not theirs to lose.
+ *
+ * Only for the edges the keyboard rises into. A top drawer hangs from the top
+ * of the screen, so a box at the end of its column would grow it further under
+ * the keyboard rather than clear of it — that one caps its height instead.
  */
 function KeyboardSpacer(): Mountable {
 	return Div({
@@ -216,7 +224,7 @@ export const DrawerContent = createComponent(function DrawerContent(
 					: null,
 				...children,
 				showHandle && state.direction === "top" ? DrawerHandle({ class: handleClasses.top }) : null,
-				KeyboardSpacer(),
+				state.direction !== "top" ? KeyboardSpacer() : null,
 				showCloseButton
 					? DrawerClose(
 							{

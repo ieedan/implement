@@ -481,7 +481,9 @@ export function DocsSearch(): Mountable {
 				class: [
 					"z-60 gap-0 overflow-hidden p-0",
 					"md:top-[12%] md:max-w-2xl md:translate-y-0 md:rounded-xl",
-					"max-md:h-[85dvh]",
+					// grows with the keyboard for the same reason the drawer's own cap does:
+					// what is being held to 85dvh is the part of the panel you can see
+					"max-md:h-[min(calc(85dvh+var(--ip-drawer-keyboard-inset,0px)),100dvh)]",
 				],
 			},
 			ResponsiveDialogTitle({ class: "sr-only" }, "Search docs"),
