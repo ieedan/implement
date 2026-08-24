@@ -310,6 +310,7 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
+				"spinner",
 				"utils"
 			],
 			"dependencies": [
@@ -327,6 +328,15 @@
 					"path": "button.ts",
 					"relativePath": "src/lib/components/ui/button.ts",
 					"_imports_": [
+						{
+							"import": "./spinner",
+							"item": "spinner",
+							"file": {
+								"type": "ui",
+								"path": "spinner.ts"
+							},
+							"meta": {}
+						},
 						{
 							"import": "@/lib/utils",
 							"item": "utils",
