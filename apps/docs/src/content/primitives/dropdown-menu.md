@@ -66,6 +66,20 @@ DropdownMenuCheckboxGroup(
 
 The group is a `role="group"` like `DropdownMenuGroup`, so a `DropdownMenuGroupHeading` placed inside names it. Inside a group the group's array owns each item's checked state and the item's own `checked` prop is ignored; an item with no `value` keeps its own boolean.
 
+Item values are strings or numbers, in the checkbox group and in the radio group alike, so a row id from a database can go straight in without being stringified and parsed again:
+
+```ts
+const size = signal<number | null>(14);
+
+DropdownMenuRadioGroup(
+	{ value: size },
+	DropdownMenuRadioItem({ value: 12 }, "12px"),
+	DropdownMenuRadioItem({ value: 14 }, "14px"),
+);
+```
+
+The DOM only speaks strings, so `data-value` on the item is the number written out. Values are matched by identity, though, so `12` and `"12"` are two different items — pick one shape per group.
+
 ### A checkbox indicator, and two click targets
 
 A checkbox item is a `Div` you fill yourself, so the checked indicator is whatever you draw against `data-state` — a check, a dot, or a checkbox like a label picker's. And because `closeOnSelect` is a property of the _item_, an element nested inside it can opt out of that behavior on its own: stop the click before it reaches the item and the item never selects, so the menu stays open.

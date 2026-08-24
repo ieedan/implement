@@ -113,14 +113,14 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			props: [
 				{
 					name: "value",
-					type: "Signal<string[]> | string[]",
+					type: "Signal<ItemValue[]> | ItemValue[]",
 					default: "[]",
 					description:
-						"The values of the checked items. Pass a signal to control them from outside.",
+						"The values of the checked items, where ItemValue is string | number. Pass a signal to control them from outside.",
 				},
 				{
 					name: "onValueChange",
-					type: "(value: string[]) => void",
+					type: "(value: ItemValue[]) => void",
 					description: "Runs whenever the set of checked items changes.",
 				},
 			],
@@ -134,9 +134,9 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			props: [
 				{
 					name: "value",
-					type: "string",
+					type: "ItemValue",
 					description:
-						"Identifies the item inside a checkbox group. Must be unique within the group; ignored outside one.",
+						"Identifies the item inside a checkbox group, as a string or a number. Must be unique within the group; ignored outside one.",
 				},
 				{
 					name: "checked",
@@ -179,13 +179,14 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			props: [
 				{
 					name: "value",
-					type: "Signal<string | null> | string | null",
+					type: "Signal<ItemValue | null> | ItemValue | null",
 					default: "null",
-					description: "The checked item. Pass a signal to control it from outside.",
+					description:
+						"The checked item, where ItemValue is string | number. Pass a signal to control it from outside.",
 				},
 				{
 					name: "onValueChange",
-					type: "(value: string | null) => void",
+					type: "(value: ItemValue | null) => void",
 					description: "Runs whenever the checked item changes. null once nothing is checked.",
 				},
 			],
@@ -198,9 +199,10 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 			props: [
 				{
 					name: "value",
-					type: "string",
+					type: "ItemValue",
 					required: true,
-					description: "Identifies the item. Must be unique within the radio group.",
+					description:
+						"Identifies the item, as a string or a number. Must be unique within the radio group.",
 				},
 				{
 					name: "closeOnSelect",
@@ -2861,13 +2863,13 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "value",
-					type: "Signal<string | null> | Signal<string[]>",
+					type: "Signal<ItemValue | null> | Signal<ItemValue[]>",
 					description:
-						'The selected value. string | null when type is "single", string[] when "multiple". Pass a signal to control it from outside.',
+						'The selected value, where ItemValue is string | number. ItemValue | null when type is "single", ItemValue[] when "multiple". Pass a signal to control it from outside.',
 				},
 				{
 					name: "onValueChange",
-					type: "(value: string | null) => void (single) | (value: string[]) => void (multiple)",
+					type: "(value: ItemValue | null) => void (single) | (value: ItemValue[]) => void (multiple)",
 					description: "Runs whenever the selected value changes.",
 				},
 				{
@@ -2893,7 +2895,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					name: "items",
 					type: "SelectItemData[] | Readable<SelectItemData[]>",
 					description:
-						"Value/label pairs for SelectValue. When omitted, labels come from each item's label prop or its text content.",
+						"Value/label pairs for SelectValue, where each value is a string or a number. When omitted, labels come from each item's label prop or its text content.",
 				},
 			],
 		},
@@ -2983,9 +2985,10 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "value",
-					type: "string",
+					type: "ItemValue",
 					required: true,
-					description: "Identifies the item. Must be unique within the select.",
+					description:
+						"Identifies the item, as a string or a number. Must be unique within the select.",
 				},
 				{
 					name: "label",

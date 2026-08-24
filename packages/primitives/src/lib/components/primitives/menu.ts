@@ -22,7 +22,15 @@ import {
 	InteractOutsideEvent,
 	type DismissBehavior,
 } from "../helpers/dismissable-layer";
-import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
+import {
+	getId,
+	getReadableValue,
+	noop,
+	type ItemValue,
+	type ItemValuesSignal,
+	type ItemValueSignal,
+	type MaybeReadable,
+} from "../../utils";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, withChangeEffect, type ChangeHandler } from "../../on-change";
 import { ScrollLock } from "../helpers/scroll-lock";
@@ -562,19 +570,20 @@ export const MenuGroupHeading = createComponent(function MenuGroupHeading(
 
 export type MenuCheckboxGroupProps = RenderableProps<typeof Div> & {
 	/** The values of the checked items. Pass a signal to control them from outside. */
-	value?: Signal<string[]> | string[];
+	value?: ItemValuesSignal | ItemValue[];
 	/** Runs whenever the set of checked items changes. */
-	onValueChange?: ChangeHandler<string[]>;
+	onValueChange?: ChangeHandler<ItemValue[]>;
 };
 
 class MenuCheckboxGroupState extends MenuGroupState {
-	value: Signal<string[]>;
+	value: Signal<ItemValue[]>;
 	constructor(value: MenuCheckboxGroupProps["value"]) {
 		super();
-		this.value = signal(value ?? []);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ItemValuesSignal names each concrete signal shape; the group holds the widest one.
+		this.value = signal(value ?? ([] as ItemValue[])) as Signal<ItemValue[]>;
 	}
 
-	toggle(item: string) {
+	toggle(item: ItemValue) {
 		this.value.update((values) =>
 			values.includes(item) ? values.filter((value) => value !== item) : [...values, item],
 		);
@@ -614,7 +623,7 @@ export type MenuCheckboxItemProps = MenuItemProps & {
 	/** Runs whenever the item's checked state changes, inside a group or on its own. */
 	onCheckedChange?: ChangeHandler<boolean>;
 	/** Identifies the item inside a MenuCheckboxGroup. Must be unique within the group. */
-	value?: string;
+	value?: ItemValue;
 };
 
 export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
@@ -677,16 +686,17 @@ export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 });
 
 export type MenuRadioGroupProps = RenderableProps<typeof Div> & {
-	value?: Signal<string | null> | string | null;
+	value?: ItemValueSignal | ItemValue | null;
 	/** Runs whenever the selected item changes. `null` while nothing is selected. */
-	onValueChange?: ChangeHandler<string | null>;
+	onValueChange?: ChangeHandler<ItemValue | null>;
 };
 
 class MenuRadioGroupState extends MenuGroupState {
-	value: Signal<string | null>;
+	value: Signal<ItemValue | null>;
 	constructor(value: MenuRadioGroupProps["value"]) {
 		super();
-		this.value = signal(value ?? null);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ItemValueSignal names each concrete signal shape; the group holds the widest one.
+		this.value = signal(value ?? (null as ItemValue | null)) as Signal<ItemValue | null>;
 	}
 }
 
@@ -720,7 +730,7 @@ export const MenuRadioGroup = createComponent(function MenuRadioGroup(
 
 export type MenuRadioItemProps = RenderableProps<typeof Div> & {
 	/** Identifies the item. Must be unique within the radio group. */
-	value: string;
+	value: ItemValue;
 	onSelect?: () => void;
 	disabled?: Signal<boolean> | boolean;
 	closeOnSelect?: boolean;

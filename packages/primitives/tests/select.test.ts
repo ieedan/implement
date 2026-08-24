@@ -9,6 +9,7 @@ import {
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
+	type ItemValue,
 } from "../src/index";
 
 /** Flush the microtask queue so deferred `Lifecycle.onMount` hooks run. */
@@ -214,6 +215,115 @@ describe("select groups", () => {
 		expect(group.getAttribute("aria-labelledby")).toBe(heading.id);
 		expect(heading.textContent).toBe("Citrus");
 
+		unmount();
+	});
+});
+
+describe("select number values", () => {
+	it("keeps a number a number through selection", async () => {
+		const value = signal<number | null>(null);
+		const { target, unmount } = await mount(
+			Select(
+				{
+					value,
+					items: [
+						{ value: 1, label: "One" },
+						{ value: 2, label: "Two" },
+					],
+				},
+				SelectTrigger({}, SelectValue({ placeholder: "Pick" })),
+				SelectContent({}, SelectItem({ value: 1 }, "One"), SelectItem({ value: 2 }, "Two")),
+			),
+		);
+
+		const items = target.querySelectorAll<HTMLElement>("[data-select-item]");
+		// the DOM only speaks strings, so `data-value` is where the number flattens
+		expect(items[1]!.getAttribute("data-value")).toBe("2");
+
+		items[1]!.click();
+		expect(value.get()).toBe(2);
+		expect(items[1]!.getAttribute("data-selected")).toBe("");
+		expect(element(target, "[data-select-trigger]").textContent).toBe("Two");
+
+		unmount();
+	});
+
+	it("reads the number back off the DOM when a key selects the item", async () => {
+		const value = signal<number | null>(null);
+		const { target, unmount } = await mount(
+			Select(
+				{ value },
+				SelectTrigger({}, SelectValue({ placeholder: "Pick" })),
+				SelectContent({}, SelectItem({ value: 10 }, "Ten"), SelectItem({ value: 20 }, "Twenty")),
+			),
+		);
+
+		const trigger = element(target, "[data-select-trigger]");
+		trigger.click();
+		trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+		trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+		expect(value.get()).toBe(20);
+
+		unmount();
+	});
+
+	it("holds numbers in a multiple selection", async () => {
+		const value = signal<number[]>([]);
+		const { target, unmount } = await mount(
+			Select(
+				{
+					type: "multiple",
+					value,
+					items: [
+						{ value: 1, label: "One" },
+						{ value: 2, label: "Two" },
+					],
+				},
+				SelectTrigger({}, SelectValue({ placeholder: "Pick" })),
+				SelectContent({}, SelectItem({ value: 1 }, "One"), SelectItem({ value: 2 }, "Two")),
+			),
+		);
+
+		const items = target.querySelectorAll<HTMLElement>("[data-select-item]");
+		items[0]!.click();
+		items[1]!.click();
+		expect(value.get()).toEqual([1, 2]);
+		expect(element(target, "[data-select-trigger]").textContent).toBe("One, Two");
+
+		items[0]!.click();
+		expect(value.get()).toEqual([2]);
+
+		unmount();
+	});
+
+	it("hands onValueChange the number", async () => {
+		const seen: (ItemValue | null)[] = [];
+		const { target, unmount } = await mount(
+			Select(
+				{ onValueChange: (value) => seen.push(value) },
+				SelectTrigger({}, SelectValue({ placeholder: "Pick" })),
+				SelectContent({}, SelectItem({ value: 1 }, "One"), SelectItem({ value: 2 }, "Two")),
+			),
+		);
+
+		target.querySelectorAll<HTMLElement>("[data-select-item]")[1]!.click();
+		expect(seen).toEqual([2]);
+
+		unmount();
+	});
+
+	it("falls back to the number itself when nothing names the item", async () => {
+		const value = signal<number | null>(7);
+		const { target, unmount } = await mount(
+			Select(
+				{ value },
+				SelectTrigger({}, SelectValue({ placeholder: "Pick" })),
+				SelectContent({}, SelectItem({ value: 7 })),
+			),
+		);
+
+		expect(element(target, "[data-select-trigger]").textContent).toBe("7");
 		unmount();
 	});
 });

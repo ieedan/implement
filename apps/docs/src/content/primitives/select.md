@@ -53,7 +53,7 @@ The primitive does not hide the content for you. Style it against `data-state`, 
 
 ## Single or multiple
 
-`type` defaults to `"single"`: choosing an item sets `value` to that item's string. Pass `"multiple"` to toggle items in and out of an array instead.
+`type` defaults to `"single"`: choosing an item sets `value` to that item's value. Pass `"multiple"` to toggle items in and out of an array instead.
 
 ```ts
 const fruit = signal<string | null>(null);
@@ -75,7 +75,21 @@ Select(
 );
 ```
 
-Every item needs a stable `value`. That string is what the root tracks, so it also has to be unique within the select.
+Every item needs a stable `value`, a string or a number. That is what the root tracks, so it also has to be unique within the select.
+
+A number stays a number on the way back out — an id from a database can go straight in without being stringified and parsed again:
+
+```ts
+const fruit = signal<number | null>(null);
+
+Select(
+	{ value: fruit, items: [{ value: 1, label: "Apple" }] },
+	SelectTrigger(SelectValue({ placeholder: "Select a fruit" })),
+	SelectContent(SelectItem({ value: 1 }, "Apple")),
+);
+```
+
+The DOM only speaks strings, so `data-value` on the option is the number written out. Values are matched by identity, though, so `1` and `"1"` are two different items — pick one shape per select.
 
 <div data-demo="select-multiple" data-demo-description="A multiple-select of five pizza toppings; the trigger summarizes the picks and the selected values are echoed below."></div>
 
@@ -91,7 +105,7 @@ Select(
 
 ## The selected label
 
-`SelectValue` belongs inside the trigger. The root stores item `value` strings; `SelectValue` turns those into labels.
+`SelectValue` belongs inside the trigger. The root stores item values; `SelectValue` turns those into labels.
 
 Pass `items` on the root when you can. That list is the source of truth, so the trigger is correct even before the list mounts, and even if an option's children are more than plain text:
 
@@ -112,7 +126,7 @@ Without `items`, the label is the item's `label` prop, or the text content of th
 
 `placeholder` is shown when nothing is selected. Omit `render` and a single select prints that label, while a multiple select joins labels with a comma.
 
-`render` is for custom markup. Discriminate on `props.type`: `value` is the stored ids (`Signal<string | null>` or `Signal<string[]>`), and `selected` is `{ value, label }` or an array of those:
+`render` is for custom markup. Discriminate on `props.type`: `value` is the stored ids (`Signal<ItemValue | null>` or `Signal<ItemValue[]>`, where `ItemValue` is `string | number`), and `selected` is `{ value, label }` or an array of those:
 
 ```ts
 SelectValue({
