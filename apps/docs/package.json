@@ -41,6 +41,7 @@
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",
+		"happy-dom": "^20.0.11",
 		"jsrepo": "^3.8.1",
 		"rehype-slug": "^6.0.0",
 		"remark-github-blockquote-alert": "^2.1.0",
