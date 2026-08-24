@@ -136,13 +136,14 @@ function parentState(): ParentState | null {
 
 /**
  * Position a freshly created node (a helper's anchor comment) during
- * hydration. Fresh mounting appends anchors and lets `syncDomOrder` pull
- * content into place, but during hydration an anchor appended at the end
- * would sit beyond later siblings' still-unclaimed nodes and the sync pass
- * would drag content past them. Inserting at the cursor — the exact spot the
- * replay has reached — keeps every subsequent sync convergent with the
- * arrangement a fresh mount produces. Returns false when not hydrating (the
- * caller appends normally).
+ * hydration. A fresh mount puts such an anchor at the end of the region it
+ * bounds and mounts the region's children in front of it, but during hydration
+ * the children claim serialized nodes where they stand and the extent of the
+ * region is not known until they have. So the anchor goes in at the cursor —
+ * the exact spot the replay has reached — and `placeRegionEnd` calls this
+ * again once the children are mounted, when the cursor has advanced to the
+ * region's true end. Returns false when not hydrating (the caller appends
+ * normally).
  */
 function attachAtCursor(parent: HTMLElement, node: Node): boolean {
 	const entry = parentStateFor(parent);
