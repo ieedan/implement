@@ -1,9 +1,9 @@
 import { defineEnv } from "@implementjs/kit";
-import { z } from "zod";
+import * as v from "valibot";
 
 export const env = defineEnv({
-	PUBLIC_SITE_URL: z.url(),
-	PUBLIC_ANALYTICS_ID: z.string(),
+	PUBLIC_SITE_URL: v.pipe(v.string(), v.url()),
+	PUBLIC_ANALYTICS_ID: v.string(),
 });
 
 /** A plain export, inlined alongside the env object. */

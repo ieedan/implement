@@ -47,7 +47,7 @@ If(message).Then(FieldError(message));
 
 ## Where fields start
 
-A field nobody has typed into holds nothing, which would make a required string fail as "expected string, received undefined" rather than with your own message. So formish walks the schema when the form is created and gives every field a starting value: `""` for a string, `false` for a boolean, `[]` for an array, `null` for a nullable. Write your messages for the empty case and they are what the user gets:
+A field nobody has typed into holds nothing, which would make a required string fail as "expected string, received undefined" rather than with your own message. So formish walks the schema when the form is created and gives every field a starting value: `""` for a string, `[]` for an array, `null` for a nullable. Write your messages for the empty case and they are what the user gets:
 
 ```ts
 v.pipe(v.string(), v.minLength(1, "Enter your email"));
@@ -55,22 +55,29 @@ v.pipe(v.string(), v.minLength(1, "Enter your email"));
 
 This comes from the schema, not from the DOM, so it does not depend on what is currently rendered. A field behind a collapsed section, on a tab nobody has opened, or with no `Field` written for it at all validates exactly like one that is on screen.
 
-A field with no empty value to stand in for — a number, a date — stays missing, and the schema reports it as such. Name one per type to change that:
+A field with no empty value to stand in for — a number, a boolean, a date — stays missing, and the schema reports it as such. Name one per type to change that:
 
 ```ts
 createForm({
 	schema: SignUpSchema,
 	emptyInput: {
 		number: 0, // required numbers start at 0 instead of missing
+		boolean: false, // an untouched checkbox validates as unchecked
 		string: undefined, // opt a type out entirely
 	},
 });
 ```
 
-`emptyInput` is merged over the defaults (`{ string: "", boolean: false }`), so naming `number` leaves the other two in place. Optional fields are never affected — they accept a missing value already.
+`emptyInput` is merged over the default, which is `{ string: "" }` and nothing else, so naming `number` leaves the string default in place. Optional fields are never affected — they accept a missing value already.
 
 > [!NOTE]
-> Formish walks objects, arrays, tuples, intersections and the optional/nullable wrappers. It does not walk into a `v.union`, a `v.variant` or a `v.record`, since there is no single branch or key set to seed from; those fields hold whatever `initialInput` gives them.
+> A required checkbox is the case worth knowing about: `v.boolean()` starts missing, so an untouched box validates as "expected boolean, received undefined". Either name `boolean: false` above, or write the field as `v.optional(v.boolean(), false)`.
+
+## The schemas a form can be built from
+
+Formish reads the schema itself, so it has to be one whose fields are known before anything runs: objects, arrays, tuples, intersections, unions, variants, `v.lazy`, and the optional/nullable wrappers around any of them. A union or variant shares one field per key across its branches, so a key only one branch carries is still addressable; where the branches disagree about a key, the last one wins.
+
+Four have no fixed set of fields at all, and `createForm` throws rather than building a form that is quietly missing them: `v.record`, `v.objectWithRest`, `v.tupleWithRest` and `v.promise`.
 
 ## Validating by hand
 
@@ -140,10 +147,19 @@ And `submit(form)` submits from anywhere — a button outside the form, a keyboa
 ```ts
 const result = await api.signUp(output);
 if (result.error === "email-taken") {
-	setErrors(form, { path: ["email"], errors: "That email is already registered" });
+	setErrors(form, { path: ["email"], errors: ["That email is already registered"] });
 }
 ```
 
-They behave like any other error — the field is invalid, `form.isValid` is false — and the next validation replaces them. `clearErrors(form, { path: ["email"] })` drops them early; without a path it clears the whole form.
+They behave like any other error — the field is invalid, `form.isValid` is false — and the next validation replaces them. Passing `errors: null` clears the ones a field has.
 
-`getErrors(form, { path })` reads one field's errors once, and `getAllErrors(form)` returns every error in the form with the path that reported it, which is handy for an error summary at the top of a long form.
+`getErrors(form, { path })` reads one field's own errors once. For a field whose value is a shape of its own — an address, a tags input — the errors are on the fields inside it, and four readers walk down to them:
+
+| Reader                            | Returns                                                    |
+| --------------------------------- | ---------------------------------------------------------- |
+| `getDeepErrors(form, config?)`    | Every message at or below the field, as one list           |
+| `getDeepError(form, config?)`     | The first of them, for a field that shows a single message |
+| `getDeepErrorEntry(form, ...)`    | That first one with the path it came from                  |
+| `getDeepErrorEntries(form, ...) ` | Every message paired with its path                         |
+
+The last is what an error summary at the top of a long form is built from — each entry links back to the field it belongs to. All four include the form's own errors, under an empty path.

@@ -12,11 +12,11 @@ order: 1
 Schemas are [valibot](https://valibot.dev). Formish reads the schema itself, not just the values it rejects: at `createForm` it walks the schema and gives every field a starting value, which is what lets a field validate whether or not you ever render it.
 
 > [!NOTE]
-> The API is modeled on [Formisch](https://formisch.dev) by Fabian Hiller, which does the same job for React, Solid, Vue and Svelte. If you have used it, you already know this library; the difference is that state arrives as [readables](/docs/signals) instead of framework reactivity.
+> This is a port of [Formisch](https://formisch.dev) by Fabian Hiller, which does the same job for React, Solid, Vue, Svelte and friends. Same schemas, same store shapes, same methods, same semantics — the difference is that state arrives as [readables](/docs/signals) instead of framework reactivity. [What differs](#what-differs-from-formisch) lists everything that is not the same.
 
 ## Every field starts at a value
 
-A form's fields are whatever the schema says they are. Formish walks it once, up front, and fills in a starting value for each one — `""` for a string, `false` for a boolean, `[]` for an array, `null` for a nullable — so `input` holds the whole shape before anything is rendered:
+A form's fields are whatever the schema says they are. Formish builds a field store for each of them when the form is created, and gives it a starting value — `""` for a string, `[]` for an array, `null` for a nullable — so `input` holds the whole shape before anything is rendered:
 
 ```ts
 const form = createForm({
@@ -29,9 +29,9 @@ const form = createForm({
 getInput(form); // { email: "", nickname: "" }
 ```
 
-The practical effect is that **forgetting to render a field does not quietly break the form**. `nickname` above has nothing left to satisfy, so the form still submits, with `nickname: ""`. If it were `v.pipe(v.string(), v.minLength(1, "Pick a nickname"))`, submission would be blocked — but the error is the schema's own message on `["nickname"]`, which `getAllErrors` will show you, rather than a type error about a value nothing on screen was ever going to supply.
+The practical effect is that **forgetting to render a field does not quietly break the form**. `nickname` above has nothing left to satisfy, so the form still submits, with `nickname: ""`. If it were `v.pipe(v.string(), v.minLength(1, "Pick a nickname"))`, submission would be blocked — but the error is the schema's own message on `["nickname"]`, which `getDeepErrorEntries` will show you, rather than a type error about a value nothing on screen was ever going to supply.
 
-Fields that accept nothing are left that way: an optional field stays missing, and a nullable one starts at `null`. Where a required field starts is configurable per type with [`emptyInput`](/formish/validation#where-fields-start).
+Fields that accept nothing are left that way: an optional field stays missing, and a nullable one starts at `null`. Only a string starts empty by default — a required number or boolean has no value the form may invent, so it stays missing and the schema says so. Where a required field starts is configurable per type with [`emptyInput`](/formish/validation#where-fields-start).
 
 ## Installation
 
@@ -92,6 +92,15 @@ useField(form, { path: ["profile", "nickmame"] }); // type error
 ```
 
 The same path is what the store keys state on and what the element's `name` attribute becomes (`profile.nickname`), which is how a radio or checkbox group ties its elements together.
+
+## What differs from Formisch
+
+Everything Formisch exports, formish exports, with the same configs and the same behaviour. Four things are not the same:
+
+- **State is a readable.** `field.input` is a `Readable<T>` rather than a value a re-render hands you, and `form` carries an `input` readable of its own where Formisch has only `getInput(form)`. `field.error`, `field.name` and `useFieldArray`'s `itemPath` and bound array methods are additions on top; nothing upstream has is missing.
+- **A path may be a readable.** Formisch rebuilds `["todos", index, "label"]` on every render; implement has nothing to re-render, so a path that has to follow an array item as it moves arrives as a readable instead. Every `path` — on `useField`, on the components, on the methods — takes either.
+- **`name` is dotted.** `todos.0.label`, not the JSON Formisch writes. A `name` containing quotes is legal HTML but cannot be addressed by a CSS selector, which is what `document.getElementsByName` and a radio group's own grouping are built on.
+- **A `nullable` field starts at `null`, and an `exactOptional` field keeps its key absent.** Formisch leaves both `undefined`, which `v.nullable` and `v.exactOptional` each reject — so the two schemas could never validate. Everything else about where fields start is upstream's, including `emptyInput` defaulting to `{ string: "" }` alone.
 
 ## Where to go next
 

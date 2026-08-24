@@ -4,7 +4,18 @@ import { Field, FieldArray } from "./components";
 import { useField } from "./field";
 import { useFieldArray } from "./field-array";
 import { createForm } from "./form";
-import { getInput, insert, remove, setInput } from "./methods";
+import {
+	getDeepErrors,
+	getDirtyInput,
+	getDirtyPaths,
+	getInput,
+	insert,
+	isDirty,
+	isTouched,
+	remove,
+	setErrors,
+	setInput,
+} from "./methods";
 
 /** Only the types matter here — nothing in this file is validated or run. */
 const SignUpSchema = v.object({
@@ -27,10 +38,10 @@ age.input satisfies Readable<number | undefined>;
 label.input satisfies Readable<string | undefined>;
 nickname.input satisfies Readable<string | undefined>;
 
-email.setInput("hi@example.com");
-age.setInput(42);
+email.onInput("hi@example.com");
+age.onInput(42);
 // @ts-expect-error a string field does not take a number
-email.setInput(42);
+email.onInput(42);
 
 // @ts-expect-error not a field of the schema
 useField(form, { path: ["nope"] });
@@ -59,11 +70,22 @@ remove(form, { path: ["todos"], at: 0 });
 // @ts-expect-error a value field cannot be inserted into
 insert(form, { path: ["email"] });
 
-getInput(form) satisfies { email?: string | undefined } | undefined;
+getInput(form) satisfies { email: string | undefined };
 getInput(form, { path: ["profile", "name"] }) satisfies string | undefined;
 setInput(form, { path: ["profile"], input: { name: "Ada" } });
 // @ts-expect-error the whole input is written without a path
 setInput(form, { input: { email: 42 } });
+
+getDeepErrors(form) satisfies [string, ...string[]] | null;
+getDeepErrors(form, { path: ["profile"] }) satisfies [string, ...string[]] | null;
+getDirtyInput(form, { path: ["profile"] }) satisfies { name?: string | undefined } | undefined;
+getDirtyPaths(form) satisfies readonly (readonly (string | number)[])[];
+isDirty(form, { path: ["email"] }) satisfies boolean;
+isTouched(form) satisfies boolean;
+setErrors(form, { path: ["email"], errors: ["Taken"] });
+setErrors(form, { path: ["email"], errors: null });
+// @ts-expect-error errors are a non-empty list or null
+setErrors(form, { path: ["email"], errors: "Taken" });
 
 Field({ of: form, path: ["email"] }, (field) => {
 	field.input satisfies Readable<string | undefined>;

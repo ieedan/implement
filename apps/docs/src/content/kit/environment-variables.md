@@ -19,25 +19,25 @@ Each file calls `defineEnv` with a schema per variable and exports the result:
 ```ts
 // src/lib/env.public.ts
 import { defineEnv } from "@implementjs/kit";
-import { z } from "zod";
+import * as v from "valibot";
 
 export const env = defineEnv({
-	PUBLIC_DOCS_URL: z.url(),
+	PUBLIC_DOCS_URL: v.pipe(v.string(), v.url()),
 });
 ```
 
 ```ts
 // src/lib/env.server.ts
 import { defineEnv } from "@implementjs/kit";
-import { z } from "zod";
+import * as v from "valibot";
 
 export const env = defineEnv({
-	DATABASE_URL: z.string(),
-	STRIPE_KEY: z.string().startsWith("sk_"),
+	DATABASE_URL: v.string(),
+	STRIPE_KEY: v.pipe(v.string(), v.startsWith("sk_")),
 });
 ```
 
-The schemas are [Standard Schema](https://standardschema.dev) — zod, valibot, arktype, anything implementing the spec. Kit never imports the library itself, so the choice is yours and it costs the bundle nothing.
+The schemas are [Standard Schema](https://standardschema.dev) — [valibot](https://valibot.dev) here and everywhere else in these docs, but arktype, zod or anything else implementing the spec works the same. Kit never imports the library itself, so the choice is yours and it costs the bundle nothing.
 
 Then import them where you need them:
 
@@ -67,7 +67,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 };
 ```
 
-`env.DATABASE_URL` is a `string` because that is what `z.string()` produces. Give a variable `z.coerce.number()` and it arrives as a number. The editor knows, with no annotations and no `./$types` involved.
+`env.DATABASE_URL` is a `string` because that is what `v.string()` produces. Give a variable `v.pipe(v.string(), v.transform(Number), v.number())` and it arrives as a number. The editor knows, with no annotations and no `./$types` involved.
 
 Server code takes two imports rather than one merged object. That is deliberate: a merged `env` would leave TypeScript seeing only one file's keys, and a call site that reads `env.DATABASE_URL` should be visibly different from one that reads `env.PUBLIC_DOCS_URL`.
 
@@ -80,7 +80,7 @@ The rule exists because the type system was never going to catch the mistake tha
 ```ts
 // src/lib/env.public.ts
 export const env = defineEnv({
-	DATABASE_URL: z.string(), // ✗ build error: must start with PUBLIC_
+	DATABASE_URL: v.string(), // ✗ build error: must start with PUBLIC_
 });
 ```
 

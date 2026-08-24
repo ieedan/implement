@@ -27,11 +27,11 @@ Everything it reports is a [readable](/docs/signals), so it binds straight into 
 | `name`      | `Readable<string>`           | The dotted path, which is also the element's `name`        |
 | `path`      | `Readable<Path>`             | The path itself                                            |
 
-Plus `setInput(value)` to write it by hand, and `props` to spread onto the element.
+Plus `onInput(value)` to write it by hand, and `props` to spread onto the element.
 
 ## Binding an element
 
-`field.props` is deliberately small: the `name` and the four handlers that keep the store in step with the element.
+`field.props` is deliberately small: the `name`, an `autofocus` that is set while the field has errors, the `this` that registers the element with the field, and the four handlers that keep the store in step with the element.
 
 ```ts
 Input({ ...field.props, type: "email", value: field.input });
@@ -44,6 +44,8 @@ Input({ ...field.props, type: "checkbox", checked: field.input });
 ```
 
 Bind it in that direction — `field.input` is a readable, so it drives the element and the handlers drive the store. That is what makes `setInput`, `reset` and a loaded record all show up on screen.
+
+Spread `props` once per element. A radio or checkbox group spreads the same object onto several, and each spread hands out a `this` of its own, so every element of the group is registered — which is what `focus` and a file input's `reset` reach for.
 
 > [!NOTE]
 > Do not pass a writable signal to `value` as well. implement two-way binds `value` to a writable, which would leave two things writing the element.
@@ -124,7 +126,7 @@ setInput(form, { path: ["address"], input: { city: "Paris", zip: "75001" } });
 
 ## Writing a field by hand
 
-`field.setInput(value)` is the same write the input handler does — it marks the field touched and edited and revalidates if the mode calls for it. Reach for it when the value cannot come off the DOM as-is, or when a component of your own reports the change:
+`field.onInput(value)` is the same write the input handler does — it marks the field touched and edited and revalidates if the mode calls for it. Reach for it when the value cannot come off the DOM as-is, or when a component of your own reports the change:
 
 ```ts
 Input({
@@ -132,7 +134,7 @@ Input({
 	type: "number",
 	value: field.input,
 	// a number input reads back as a string, so convert before storing
-	onInput: (event) => field.setInput(event.currentTarget.valueAsNumber),
+	onInput: (event) => field.onInput(event.currentTarget.valueAsNumber),
 });
 ```
 
@@ -160,6 +162,21 @@ form.isValid; // Readable<boolean> — the last validation found nothing
 Button({ onClick: () => console.log(getInput(form, { path: ["email"] })) }, "Log");
 ```
 
+`isTouched`, `isEdited`, `isDirty` and `isValid` read the same way, for the form or for one field:
+
+```ts
+isDirty(form, { path: ["address"] }); // boolean, right now
+```
+
+And `getDirtyInput` reads only what changed — an object keeps its dirty keys, an array is reported whole — which is what a `PATCH` wants:
+
+```ts
+getDirtyInput(form); // { address: { city: "Paris" } }
+getDirtyPaths(form); // [["address", "city"]]
+```
+
+`pickDirty(form, { from })` does the same to a value of your own, using the form as the mask.
+
 ## Resetting
 
 `reset` puts a field — or the whole form — back to what it started at, dropping errors and touched state with it:
@@ -171,3 +188,10 @@ reset(form, { initialInput: loadedRecord }); // a new starting point, which late
 ```
 
 That last form is how you load a record into an already-rendered form: the fields fill in and nothing reports itself dirty.
+
+Each part of a reset can be held back: `keepInput`, `keepTouched`, `keepEdited`, `keepErrors`, and — for the whole form — `keepSubmitted`.
+
+```ts
+// a new baseline for the dirty state, without throwing away what was typed
+reset(form, { initialInput: savedRecord, keepInput: true });
+```

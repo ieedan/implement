@@ -4,11 +4,13 @@
  *
  * ```ts
  * // src/routes/api/posts/[id]/server.ts
- * import * as z from "zod";
+ * import * as v from "valibot";
  * import { handler } from "./$types";
  *
  * export const GET = handler({
- * 	query: z.object({ draft: z.stringbool().default(false) }),
+ * 	query: v.object({
+ * 		draft: v.optional(v.pipe(v.string(), v.transform((value) => value === "true")), "false"),
+ * 	}),
  * 	async handle({ params, query }) {
  * 		//          ^? { id: string }    ^? { draft: boolean }
  * 		return await db.post(params.id, { draft: query.draft });
@@ -23,7 +25,7 @@
  * other `HttpError`.
  *
  * The schemas are anything implementing [Standard
- * Schema](https://standardschema.dev) — zod, valibot, arktype — the same
+ * Schema](https://standardschema.dev) — valibot, arktype, zod — the same
  * contract `defineEnv` uses. `response` is optional: declare one and the
  * result is validated and documented, omit it and the client's `data` type is
  * inferred from what `handle` returns.

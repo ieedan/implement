@@ -1,5 +1,5 @@
 import pc from "picocolors";
-import type { z } from "zod";
+import type * as v from "valibot";
 
 export type CLIError =
 	| CreateImplementAppError
@@ -48,10 +48,13 @@ export class DirectoryNotEmptyError extends CreateImplementAppError {
 }
 
 export class InvalidOptionsError extends CreateImplementAppError {
-	constructor(error: z.ZodError) {
+	constructor(issues: readonly v.BaseIssue<unknown>[]) {
 		super(
-			`Invalid options provided: ${error.issues
-				.map((issue) => `${issue.path.join(".")} (${issue.message})`)
+			`Invalid options provided: ${issues
+				.map(
+					(issue) =>
+						`${issue.path?.map((item) => String(item.key)).join(".") ?? ""} (${issue.message})`,
+				)
 				.join(", ")}`,
 			{ suggestion: "Please check the options and try again." },
 		);

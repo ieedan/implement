@@ -3,14 +3,14 @@ import { Div, Input } from "@implementjs/core";
 import * as v from "valibot";
 import { describe, expect, it, vi } from "vitest";
 import {
-	clearErrors,
 	createForm,
 	Field,
 	Form,
-	getAllErrors,
+	getDeepErrorEntries,
 	getErrors,
 	getInput,
 	handleSubmit,
+	setErrors,
 	setInput,
 	submit,
 	useField,
@@ -101,7 +101,9 @@ describe("nested fields", () => {
 		expect(getErrors(form, { path: ["address", "city"] })).toEqual(["Enter a city"]);
 		expect(useField(form, { path: ["address"] }).isValid.get()).toBe(false);
 		expect(useField(form, { path: ["name"] }).isValid.get()).toBe(true);
-		expect(getAllErrors(form)).toEqual([{ path: ["address", "city"], errors: ["Enter a city"] }]);
+		expect(getDeepErrorEntries(form)).toEqual([
+			{ path: ["address", "city"], errors: ["Enter a city"] },
+		]);
 	});
 
 	it("rolls state up from a nested field to its parents", () => {
@@ -118,16 +120,16 @@ describe("nested fields", () => {
 		expect(form.isDirty.get()).toBe(true);
 	});
 
-	it("clears the errors of a subtree", async () => {
+	it("clears the errors of a field", async () => {
 		const form = createForm({ schema: ProfileSchema });
 		await validate(form);
-		expect(getAllErrors(form)).toHaveLength(2);
+		expect(getDeepErrorEntries(form)).toHaveLength(2);
 
-		clearErrors(form, { path: ["address"] });
-		expect(getAllErrors(form)).toHaveLength(1);
+		setErrors(form, { path: ["address", "city"], errors: null });
+		expect(getDeepErrorEntries(form)).toHaveLength(1);
 
-		clearErrors(form);
-		expect(getAllErrors(form)).toHaveLength(0);
+		setErrors(form, { path: ["name"], errors: null });
+		expect(getDeepErrorEntries(form)).toHaveLength(0);
 		expect(form.isValid.get()).toBe(true);
 	});
 });
@@ -174,7 +176,7 @@ describe("submit", () => {
 		const fresh = validate(form);
 
 		await Promise.all([stale, fresh]);
-		expect(getAllErrors(form)).toHaveLength(0);
+		expect(getDeepErrorEntries(form)).toHaveLength(0);
 	});
 });
 
@@ -198,10 +200,10 @@ describe("form state", () => {
 		const form = createForm({ schema: ProfileSchema });
 		const name = useField(form, { path: ["name"] });
 
-		name.setInput("Ada");
+		name.onInput("Ada");
 		expect(name.isDirty.get()).toBe(true);
 
-		name.setInput("");
+		name.onInput("");
 		expect(name.isDirty.get()).toBe(false);
 		// editing is remembered even once the value is back where it started
 		expect(name.isEdited.get()).toBe(true);
@@ -259,7 +261,7 @@ describe("fields the form never renders", () => {
 		// the error is still on a field nothing renders, but it now says what is
 		// wrong instead of reading as a type mismatch
 		expect(getErrors(form, { path: ["nickname"] })).toEqual(["Pick a nickname"]);
-		expect(getAllErrors(form)).toContainEqual({
+		expect(getDeepErrorEntries(form)).toContainEqual({
 			path: ["nickname"],
 			errors: ["Pick a nickname"],
 		});
@@ -284,14 +286,15 @@ describe("fields the form never renders", () => {
 
 	it("takes an empty input of its own", async () => {
 		const Schema = v.object({ count: v.number(), agreed: v.boolean() });
-		const seeded = createForm({ schema: Schema, emptyInput: { number: 0 } });
+		const seeded = createForm({ schema: Schema, emptyInput: { number: 0, boolean: false } });
 		const bare = createForm({ schema: Schema });
 
 		expect(getInput(seeded)).toEqual({ count: 0, agreed: false });
 		expect(await validate(seeded)).toMatchObject({ success: true });
 
-		// a number has no empty value to stand in for unless the form names one
-		expect(getInput(bare)).toEqual({ agreed: false });
+		// only a string starts empty by default: nothing else has a value the
+		// form may invent unless it is named here
+		expect(getInput(bare)).toEqual({ count: undefined, agreed: undefined });
 		expect(getErrors(bare, { path: ["count"] })).toBe(null);
 		await validate(bare);
 		expect(getErrors(bare, { path: ["count"] })).not.toBe(null);

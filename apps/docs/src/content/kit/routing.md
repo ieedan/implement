@@ -143,7 +143,7 @@ Nothing declares that type twice. The generated `./$types` reads it straight off
 `matcher()` takes a pattern, a parse function, or any [Standard Schema](https://standardschema.dev) — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) use:
 
 ```ts
-import * as z from "zod";
+import * as v from "valibot";
 import { matcher, mismatch } from "@implementjs/kit/params";
 
 // a pattern — the param stays a string
@@ -154,11 +154,13 @@ export default matcher((value) => (value === "en" || value === "fr" ? value : mi
 //                                  → Readable<"en" | "fr">
 
 // a schema — the param is the schema's output
-export default matcher(z.coerce.number().int().positive());
+export default matcher(
+	v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1)),
+);
 //                                  → Readable<number>
 ```
 
-A schema has to validate synchronously; matching a route can't wait on a database. Reach for a schema when you want its parsing (`z.coerce.number()`, `z.iso.date()`), a pattern when a regex says it, and a function when neither does.
+A schema has to validate synchronously; matching a route can't wait on a database. Reach for a schema when you want its parsing (a `v.transform(Number)` pipe, `v.isoDate()`), a pattern when a regex says it, and a function when neither does.
 
 ### What matching does with them
 

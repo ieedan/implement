@@ -119,9 +119,9 @@ describe("templates", () => {
 		expect(files.get(".gitignore")).toContain(".env");
 		expect(files.get(".gitignore")).toContain("!.env.example");
 		expect(files.get("src/routes/about/page.ts")).toContain('from "@/lib/env.public"');
-		// the schemas are evaluated at build time and inlined, so zod never ships
-		expect(pkg(files).devDependencies.zod).toBeDefined();
-		expect(pkg(files).dependencies.zod).toBeUndefined();
+		// the schemas are evaluated at build time and inlined, so valibot never ships
+		expect(pkg(files).devDependencies.valibot).toBeDefined();
+		expect(pkg(files).dependencies.valibot).toBeUndefined();
 	});
 
 	it("the csr template mounts an app into the page", () => {

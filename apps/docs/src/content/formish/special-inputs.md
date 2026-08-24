@@ -26,7 +26,7 @@ Several checkboxes sharing one field make a list of the checked values. They sha
 ```ts
 const Schema = v.object({ tags: v.array(v.string()) });
 
-Field({ of: form, path: ["tags"], array: true }, (field) =>
+Field({ of: form, path: ["tags"] }, (field) =>
 	Div(
 		...["news", "offers"].map((value) =>
 			Input({
@@ -40,7 +40,7 @@ Field({ of: form, path: ["tags"], array: true }, (field) =>
 );
 ```
 
-`array: true` is a hint formish rarely needs now: the schema already says which fields hold a list, and a `v.array(...)` field starts at `[]` whether or not anything renders it. Reach for it when the schema cannot answer — a list inside a `v.union` or a `v.record`, which formish does not walk into.
+Nothing marks the group as a group: the schema already says the field holds a list, so a `v.array(...)` field reads every box under its `name` and a `v.string()` field reads a single `checked`. A misconfigured element cannot change that — the schema decides the shape, not the DOM.
 
 ## Radio group
 
@@ -73,7 +73,7 @@ Field({ of: form, path: ["country"] }, (field) =>
 );
 ```
 
-A `multiple` select holds the list of selected values, and needs no `array` hint because the element says so:
+A `multiple` select holds the list of selected values, because the schema says the field is an array:
 
 ```ts
 Field({ of: form, path: ["colors"] }, (field) =>
@@ -104,7 +104,7 @@ Input({
 	...field.props,
 	type: "number",
 	value: field.input,
-	onInput: (event) => field.setInput(event.currentTarget.valueAsNumber),
+	onInput: (event) => field.onInput(event.currentTarget.valueAsNumber),
 });
 ```
 
@@ -112,7 +112,7 @@ Input({
 Input({
 	...field.props,
 	type: "date",
-	onInput: (event) => field.setInput(event.currentTarget.valueAsDate ?? undefined),
+	onInput: (event) => field.onInput(event.currentTarget.valueAsDate ?? undefined),
 });
 ```
 
@@ -137,8 +137,8 @@ const rating = useField(form, { path: ["rating"] });
 
 RatingGroup({
 	value: rating.input.bind((value) => value ?? 0),
-	onValueChange: (value) => rating.setInput(value),
+	onValueChange: (value) => rating.onInput(value),
 });
 ```
 
-`field.props` is for native elements; a component that has no `name` and fires no DOM events only needs `setInput`.
+`field.props` is for native elements; a component that has no `name` and fires no DOM events only needs `onInput`.

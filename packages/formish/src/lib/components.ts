@@ -7,9 +7,10 @@ import {
 } from "@implementjs/core";
 import { useField, type FieldStore, type UseFieldConfig } from "./field";
 import { useFieldArray, type FieldArrayStore, type UseFieldArrayConfig } from "./field-array";
-import { INTERNAL, type FormStore } from "./form";
-import { handleSubmit, type SubmitHandler } from "./methods";
-import type { ArrayPath, FieldPath, FormSchema, InferInput } from "./types";
+import { INTERNAL } from "./internal";
+import { handleSubmit } from "./methods";
+import type { FormStore } from "./form";
+import type { ArrayPath, FieldPath, FormSchema, InferInput, SubmitEventHandler } from "./types";
 
 export type FormProps<TSchema extends FormSchema> = Omit<
 	ElementProps<"form">,
@@ -18,7 +19,7 @@ export type FormProps<TSchema extends FormSchema> = Omit<
 	/** The form this element submits. */
 	readonly of: FormStore<TSchema>;
 	/** Runs with the schema's output once the input validates. */
-	readonly onSubmit: SubmitHandler<TSchema>;
+	readonly onSubmit: SubmitEventHandler<TSchema>;
 };
 
 /**

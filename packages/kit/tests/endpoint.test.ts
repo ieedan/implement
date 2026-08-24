@@ -1,6 +1,6 @@
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Reading back JSON bodies and breaking a schema on purpose require intentional narrowing. */
+import * as v from "valibot";
 import { describe, expect, it } from "vitest";
-import * as z from "zod";
 import { handler, handlerDefinition, json as jsonResponse, parseQuery } from "../src/endpoint.ts";
 import type { EndpointRoute, RequestEvent } from "../src/match.ts";
 import { createKitServer, type ServerHooks } from "../src/server.ts";
@@ -13,7 +13,16 @@ const endpoint = (pattern: string, module: Record<string, unknown>): EndpointRou
 	module,
 });
 
-const Post = z.object({ id: z.number(), title: z.string() });
+const Post = v.object({ id: v.number(), title: v.string() });
+
+/** A query string carries strings, so a boolean field has to be parsed out of one. */
+const stringbool = v.optional(
+	v.pipe(
+		v.string(),
+		v.transform((value) => value === "true"),
+	),
+	"false",
+);
 
 /** A server over the handlers under test, dispatched the way a real request is. */
 function server(endpoints: EndpointRoute[], hooks: ServerHooks = {}) {
@@ -91,7 +100,7 @@ describe("handler()", () => {
 
 	it("validates query and hands the output to handle", async () => {
 		const GET = handler({
-			query: z.object({ draft: z.stringbool().default(false), tags: z.array(z.string()) }),
+			query: v.object({ draft: stringbool, tags: v.array(v.string()) }),
 			handle: ({ query }) => ({ draft: query.draft, tags: query.tags }),
 		});
 		const get = server([endpoint("/api", { GET })]);
@@ -107,7 +116,7 @@ describe("handler()", () => {
 
 	it("400s an invalid query with the issues in the message", async () => {
 		const GET = handler({
-			query: z.object({ page: z.coerce.number().int() }),
+			query: v.object({ page: v.pipe(v.string(), v.transform(Number), v.number(), v.integer()) }),
 			handle: ({ query }) => query,
 		});
 		const response = await server([endpoint("/api", { GET })])("/api?page=nope");
@@ -119,7 +128,7 @@ describe("handler()", () => {
 
 	it("coerces params through a params schema", async () => {
 		const GET = handler({
-			params: z.object({ id: z.coerce.number() }),
+			params: v.object({ id: v.pipe(v.string(), v.transform(Number), v.number()) }),
 			handle: ({ params }) => ({ id: params.id, type: typeof params.id }),
 		});
 		const get = server([endpoint("/posts/:id", { GET })]);
@@ -129,7 +138,7 @@ describe("handler()", () => {
 
 	it("parses and validates a JSON body", async () => {
 		const POST = handler({
-			body: Post.pick({ title: true }),
+			body: v.pick(Post, ["title"]),
 			handle: ({ body }) => ({ title: body.title.toUpperCase() }),
 		});
 		const post = server([endpoint("/posts", { POST })]);
@@ -140,7 +149,7 @@ describe("handler()", () => {
 	});
 
 	it("400s a body that is not the JSON it claims to be", async () => {
-		const POST = handler({ body: z.object({}), handle: () => ({ ok: true }) });
+		const POST = handler({ body: v.object({}), handle: () => ({ ok: true }) });
 		const response = await server([endpoint("/posts", { POST })])("/posts", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -155,7 +164,7 @@ describe("handler()", () => {
 		form.append("tag", "a");
 		form.append("tag", "b");
 		const POST = handler({
-			body: z.object({ title: z.string(), tag: z.array(z.string()) }),
+			body: v.object({ title: v.string(), tag: v.array(v.string()) }),
 			handle: ({ body }) => body,
 		});
 		const response = await server([endpoint("/posts", { POST })])("/posts", {
@@ -170,7 +179,7 @@ describe("handler()", () => {
 		const GET = handler({
 			response: Post,
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Deliberately breaking the response schema.
-			handle: () => ({ id: 1, title: 2 }) as unknown as z.infer<typeof Post>,
+			handle: () => ({ id: 1, title: 2 }) as unknown as v.InferOutput<typeof Post>,
 		});
 		const response = await server([endpoint("/api", { GET })])("/api");
 		expect(response.status).toBe(500);
@@ -181,7 +190,7 @@ describe("handler()", () => {
 			response: Post,
 			validateResponse: false,
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Deliberately breaking the response schema.
-			handle: () => ({ id: 1, title: 2 }) as unknown as z.infer<typeof Post>,
+			handle: () => ({ id: 1, title: 2 }) as unknown as v.InferOutput<typeof Post>,
 		});
 		const response = await server([endpoint("/api", { GET })])("/api");
 		expect(response.status).toBe(200);
@@ -190,7 +199,7 @@ describe("handler()", () => {
 
 	it("throws validation failures as HttpErrors, so hooks.server.ts sees them", async () => {
 		const seen: unknown[] = [];
-		const GET = handler({ query: z.object({ page: z.string() }), handle: () => ({ ok: true }) });
+		const GET = handler({ query: v.object({ page: v.string() }), handle: () => ({ ok: true }) });
 		const get = server([endpoint("/api", { GET })], {
 			handleError: ({ error: thrown }) => {
 				seen.push(thrown);
@@ -226,7 +235,7 @@ describe("handler()", () => {
 
 describe("handlerDefinition", () => {
 	it("exposes the schemas a handler was built with, and nothing for a plain one", () => {
-		const query = z.object({ page: z.string() });
+		const query = v.object({ page: v.string() });
 		const GET = handler({ query, handle: () => ({ ok: true }) });
 		expect(handlerDefinition(GET)?.query).toBe(query);
 		expect(handlerDefinition(() => new Response(null))).toBeNull();
@@ -237,7 +246,7 @@ describe("handlerDefinition", () => {
 /** `event.params` is typed from the route, so this only has to compile. */
 export const typeChecks = (): void => {
 	const GET = handler({
-		query: z.object({ draft: z.stringbool().default(false) }),
+		query: v.object({ draft: stringbool }),
 		handle: ({ params, query }: { params: Record<string, string>; query: { draft: boolean } }) => ({
 			id: params["id"],
 			draft: query.draft,

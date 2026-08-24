@@ -26,7 +26,7 @@ function SpecialForm(form: SpecialForm) {
 		Field({ of: form, path: ["terms"] }, (field) =>
 			Input({ ...field.props, type: "checkbox", checked: field.input }),
 		),
-		Field({ of: form, path: ["tags"], array: true }, (field) =>
+		Field({ of: form, path: ["tags"] }, (field) =>
 			Div(
 				...["news", "offers"].map((value) =>
 					Input({
@@ -63,7 +63,7 @@ function SpecialForm(form: SpecialForm) {
 				type: "number",
 				value: field.input,
 				// a number input reads back as a string, so the field is written by hand
-				onInput: (event) => field.setInput(event.currentTarget.valueAsNumber),
+				onInput: (event) => field.onInput(event.currentTarget.valueAsNumber),
 			}),
 		),
 	);
@@ -141,19 +141,32 @@ describe("special inputs", () => {
 		unmount();
 	});
 
-	it("validates an untouched checkbox as unchecked and an untouched group as empty", async () => {
+	it("validates an untouched group as empty, and an untouched checkbox as missing", async () => {
 		const form = createForm({ schema: Schema });
 		const { unmount } = await mount(SpecialForm(form));
 
 		await validate(form);
 
-		// nothing was touched, yet what the user sees is a form of empty fields —
-		// so a checkbox validates as `false` and a group as `[]`, not as missing
-		expect(useField(form, { path: ["terms"] }).errors.get()).toBe(null);
-		expect(useField(form, { path: ["tags"], array: true }).errors.get()).toBe(null);
+		// an array field is a container, so an untouched group is an empty list
+		// rather than a missing value
+		expect(useField(form, { path: ["tags"] }).errors.get()).toBe(null);
 		expect(useField(form, { path: ["colors"] }).errors.get()).toBe(null);
-		// a number field has no empty value to stand in for, so it is still missing
+		// only a string starts empty by default: a required boolean or number has
+		// no value the form may invent for it, so it validates as missing
+		expect(useField(form, { path: ["terms"] }).errors.get()).not.toBe(null);
 		expect(useField(form, { path: ["age"] }).errors.get()).not.toBe(null);
+		unmount();
+	});
+
+	it("starts a checkbox unchecked when the form asks for it", async () => {
+		const form = createForm({ schema: Schema, emptyInput: { boolean: false, number: 0 } });
+		const { unmount } = await mount(SpecialForm(form));
+
+		await validate(form);
+
+		expect(useField(form, { path: ["terms"] }).errors.get()).toBe(null);
+		expect(useField(form, { path: ["age"] }).errors.get()).toBe(null);
+		expect(getInput(form)).toMatchObject({ terms: false, age: 0 });
 		unmount();
 	});
 });

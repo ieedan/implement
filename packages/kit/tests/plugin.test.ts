@@ -443,7 +443,12 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			expect(live.openapi).toBe("3.1.0");
 			expect(live.paths["/posts/{id}"]?.["get"]?.parameters).toEqual([
 				{ name: "id", in: "path", required: true, schema: { type: "string" } },
-				{ name: "draft", in: "query", required: false, schema: { type: "string" } },
+				{
+					name: "draft",
+					in: "query",
+					required: false,
+					schema: { type: "string", enum: ["true", "false"], default: "false" },
+				},
 			]);
 			// `output` lands under static/, so its URL answers in dev too — built
 			// from the routes as they are now, not from a file a build left behind

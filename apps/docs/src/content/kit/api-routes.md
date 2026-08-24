@@ -12,12 +12,20 @@ A [`server.ts` endpoint](/kit/server-routes) is a function that takes a `Request
 ```ts
 // src/routes/api/posts/[id]/server.ts
 import { error } from "@implementjs/kit/server";
-import * as z from "zod";
+import * as v from "valibot";
 import { db } from "@/lib/db";
 import { handler } from "./$types";
 
 export const GET = handler({
-	query: z.object({ draft: z.stringbool().default(false) }),
+	query: v.object({
+		draft: v.optional(
+			v.pipe(
+				v.string(),
+				v.transform((value) => value === "true"),
+			),
+			"false",
+		),
+	}),
 	async handle({ params, query }) {
 		//          ^? { id: string }    ^? { draft: boolean }
 		const post = await db.post(params.id, { draft: query.draft });
@@ -41,12 +49,12 @@ Every field is optional. Declare one and kit validates that part of the request;
 | `query`  | the schema's output    | `url.searchParams`, one value per key (an array where a key repeats) |
 | `body`   | the schema's output    | `undefined` — an undeclared body is never read                       |
 
-Schemas are anything implementing [Standard Schema](https://standardschema.dev) — zod, valibot, arktype. Kit does not bundle one; you bring the library you already use, exactly as with [`defineEnv`](/kit/environment-variables).
+Schemas are anything implementing [Standard Schema](https://standardschema.dev). These docs use [valibot](https://valibot.dev), but arktype, zod or anything else implementing the spec works the same. Kit does not bundle one; you bring the library you already use, exactly as with [`defineEnv`](/kit/environment-variables).
 
 ```ts
 export const PATCH = handler({
-	params: z.object({ id: z.coerce.number() }), // overrides the route's string, coerced
-	body: Post.pick({ title: true }).partial(),
+	params: v.object({ id: v.pipe(v.string(), v.transform(Number), v.number()) }), // overrides the route's string
+	body: v.partial(v.pick(Post, ["title"])),
 	response: Post,
 	handle: ({ params, body }) => db.update(params.id, body),
 });
@@ -66,7 +74,7 @@ Return anything and kit serializes it as JSON. Return `undefined` and the respon
 
 ```ts
 export const GET = handler({
-	params: z.object({ slug: z.string() }),
+	params: v.object({ slug: v.string() }),
 	handle: ({ params }) =>
 		new Response(markdownFor(params.slug), {
 			headers: { "content-type": "text/markdown; charset=utf-8" },
