@@ -202,9 +202,16 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect(types).toContain(
 			'export type ServerParams = { "id": import("@implementjs/kit/params").ParamType<typeof import("../../../../src/params/integer.ts").default> };',
 		);
-		const declaration = readFileSync(join(fixture, ".implement/types/$implement.d.ts"), "utf8");
-		expect(declaration).toContain('declare module "@implementjs/router" {');
-		expect(declaration).toContain(
+		// the matchers reach the router through its own registry, from a file of
+		// their own: a module, so this augments `@implementjs/router` instead of
+		// replacing it the way the script beside it would
+		const augmentation = readFileSync(
+			join(fixture, ".implement/types/$implement-params.d.ts"),
+			"utf8",
+		);
+		expect(augmentation).toContain('import type {} from "@implementjs/router";');
+		expect(augmentation).toContain('declare module "@implementjs/router" {');
+		expect(augmentation).toContain(
 			'"integer": import("@implementjs/kit/params").ParamType<typeof import("./src/params/integer.ts").default>;',
 		);
 	});

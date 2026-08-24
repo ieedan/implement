@@ -250,12 +250,17 @@ ${HANDLER_EXPORT}`;
  * This file sits at \`.implement/types/\`, which the tsconfig's \`rootDirs\` merges
  * with the app root — so \`./src/params/integer.ts\` addresses the app's matcher
  * from here the same way a route's \`$types\` addresses it from its own directory.
+ *
+ * It has to stay a *script* — no top-level \`import\` or \`export\`. \`$implement/*\`
+ * has no file behind it, so each block here has to be an ambient module
+ * declaration, and \`declare namespace App\` only merges globally from a script.
+ * That is also why the \`ParamTypes\` augmentation cannot live here: see
+ * {@link generateParamTypesDeclaration}.
  */
 export function generateRouterDeclaration(
 	routes: PageRoute[],
 	hasErrorPage: boolean,
 	paths: GenPaths,
-	matchers: string[],
 	client: ClientStyle = {},
 ): string {
 	const params = `./${paths.params}`;
@@ -268,23 +273,6 @@ export function generateRouterDeclaration(
 	const errorPage = hasErrorPage
 		? `\n\n\texport function errorPage(error: RouterError): Child;`
 		: "";
-	// the router does the client-side matching, and its `:param=<name>` keys are
-	// strings — so what a matcher produces reaches its types through the registry
-	// it declares for exactly this, filled in here from the app's own matchers
-	const paramTypes =
-		matchers.length === 0
-			? ""
-			: `\ndeclare module "@implementjs/router" {
-	interface ParamTypes {
-${matchers
-	.map(
-		(name) =>
-			`\t\t${JSON.stringify(name)}: import("@implementjs/kit/params").ParamType<typeof import(${JSON.stringify(`${params}/${name}.ts`)}).default>;`,
-	)
-	.join("\n")}
-	}
-}
-`;
 	return `declare module "$implement/router" {
 	import type { Child, Readable } from "@implementjs/core";
 	import type { RouterError, RouterHelper } from "@implementjs/router";
@@ -300,7 +288,7 @@ declare module "$implement/params" {
 	/** The app's \`${paths.params}/*.ts\` matchers, keyed by filename. */
 	export const matchers: ParamMatchers;
 }
-${paramTypes}
+
 declare module "$implement/pages" {
 	import type { PageRoute } from "@implementjs/kit/server";
 
@@ -338,6 +326,45 @@ declare namespace App {
 	 * same way an app's \`src/app.d.ts\` fills in \`Locals\`.
 	 */
 	interface Api extends GeneratedApi {}
+}
+`;
+}
+
+/**
+ * The app's matchers, declared to \`@implementjs/router\`'s \`ParamTypes\` registry.
+ *
+ * The router does the client-side matching, and its \`:param=<name>\` keys are
+ * strings — so what a matcher *produces* reaches the router's own types through
+ * the registry the package declares for exactly this: the params a route
+ * factory is called with, and what \`href\`, \`navigate\`, and \`Link\` take for
+ * that segment.
+ *
+ * This is a file of its own, and it is deliberate. Filling in an interface from
+ * a real package is a *module augmentation*, which only happens inside a
+ * module; in a script, \`declare module "@implementjs/router"\` declares an
+ * ambient module that **takes the name over** instead. That is not an error
+ * anywhere — the package's own exports simply stop existing, so \`RouterHelper\`
+ * resolves to nothing and \`$implement/router\`'s \`router\` collapses to \`any\`,
+ * along with every \`Link\`, \`Router\`, and \`RouterError\` the app imports. The
+ * two cannot share a file either: \`$implement.d.ts\` has to be a script for its
+ * own sake (see {@link generateRouterDeclaration}), and an augmentation of
+ * \`$implement/router\` — a name with no file behind it — is \`TS2664\`.
+ *
+ * So: \`import type {}\` makes this one a module, and nothing else goes in it.
+ */
+export function generateParamTypesDeclaration(matchers: string[], paths: GenPaths): string {
+	const entries = matchers
+		.map(
+			(name) =>
+				`\t\t${JSON.stringify(name)}: import("@implementjs/kit/params").ParamType<typeof import(${JSON.stringify(`./${paths.params}/${name}.ts`)}).default>;`,
+		)
+		.join("\n");
+	return `import type {} from "@implementjs/router";
+
+declare module "@implementjs/router" {
+	interface ParamTypes {
+${entries}
+	}
 }
 `;
 }
@@ -447,14 +474,14 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	);
 	writeIfChanged(
 		join(typesDir, "$implement.d.ts"),
-		generateRouterDeclaration(
-			pageRoutes(tree),
-			tree.error !== null,
-			paths,
-			tree.matchers,
-			options.client ?? {},
-		),
+		generateRouterDeclaration(pageRoutes(tree), tree.error !== null, paths, options.client ?? {}),
 	);
+	// its own file because it is a module and `$implement.d.ts` is a script — and
+	// removed rather than emptied, since what is left of it once the last matcher
+	// goes is a module augmentation of an interface with nothing to add
+	const paramTypesFile = join(typesDir, "$implement-params.d.ts");
+	if (tree.matchers.length === 0) rmSync(paramTypesFile, { force: true });
+	else writeIfChanged(paramTypesFile, generateParamTypesDeclaration(tree.matchers, paths));
 	writeIfChanged(join(typesDir, "app.d.ts"), generateAppDeclaration());
 
 	const chains = dataChains(tree);
