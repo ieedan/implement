@@ -43,15 +43,23 @@ const theme = EditorView.theme({
 		color: "var(--editor-foreground)",
 		height: "100%",
 	},
-	".cm-content": {
-		caretColor: "var(--editor-foreground)",
+	// The metrics sit on the scroller, not on `.cm-content`: the gutters are a
+	// sibling of the content, so anything set only on the content leaves the
+	// line numbers at the page's own font — bigger than the code beside them.
+	".cm-scroller": {
 		fontFamily: editorFontFamily,
 		fontSize: "13px",
 		lineHeight: "1.65",
+	},
+	".cm-content": {
+		caretColor: "var(--editor-foreground)",
 		padding: "8px 0",
 	},
+	// The gutters stay put while the code scrolls under them, so they need an
+	// opaque background — transparent ones let long lines slide through the
+	// line numbers, which is what a narrow (phone-width) pane does constantly.
 	".cm-gutters": {
-		backgroundColor: "transparent",
+		backgroundColor: "var(--background)",
 		color: "var(--editor-gutter)",
 		border: "none",
 	},

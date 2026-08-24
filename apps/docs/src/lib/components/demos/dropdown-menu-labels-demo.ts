@@ -1,13 +1,12 @@
 import { Div, P, Span, signal, type Signal } from "@implementjs/core";
 import { CheckIcon, TagIcon } from "@implementjs/lucide";
-import { DropdownMenuCheckboxItem } from "@implementjs/primitives";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxGroup,
+	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuGroupHeading,
 	DropdownMenuTrigger,
-	menuItemClasses,
 } from "@/lib/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
@@ -71,10 +70,8 @@ export default function DropdownMenuLabelsDemo() {
 					{ value: selected },
 					DropdownMenuGroupHeading("Add labels..."),
 					...LABELS.map((label) =>
-						// the primitive, not the styled item: this row draws its own indicator
 						DropdownMenuCheckboxItem(
-							{ value: label.value, class: cn("group/menu-item", menuItemClasses) },
-							LabelCheckbox(selected, label.value),
+							{ value: label.value, indicator: LabelCheckbox(selected, label.value) },
 							Span({ "aria-hidden": true, class: cn("size-2 shrink-0 rounded-full", label.dot) }),
 							Span({ "aria-hidden": true }, label.emoji),
 							Span(label.name),
