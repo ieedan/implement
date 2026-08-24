@@ -70,6 +70,10 @@ jobs:
       # lives in a generated tsconfig that is not committed. Typecheck already
       # gets this because `docs check` syncs first; `docs test` does not.
       - run: pnpm --filter docs sync
+      # `@implementjs/lucide` exports generated sources that are not committed
+      # either, and the docs UI tests reach them through the registry's spinner.
+      # No package's own `test` script generates them, so this does.
+      - run: pnpm --filter @implementjs/lucide generate
       - run: pnpm test
 
   extension:
