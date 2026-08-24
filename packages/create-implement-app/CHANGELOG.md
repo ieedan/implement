@@ -1,5 +1,13 @@
 # create-implement-app
 
+## 0.0.7
+
+### Patch Changes
+
+- [#70](https://github.com/ieedan/implement/pull/70) [`899a612`](https://github.com/ieedan/implement/commit/899a6129b6ed6dd001b7bec9445a1bc2f3d843ae) Thanks [@ieedan](https://github.com/ieedan)! - Route the csr template with `@implementjs/router`: `src/router.ts` holds the table, `src/layout.ts` the nav both routes render inside, and `src/not-found.ts` the fallback. Views that read `router` annotate their return type, since inferring it would mean inferring `router` from the table that renders them.
+
+- [#70](https://github.com/ieedan/implement/pull/70) [`dc8afec`](https://github.com/ieedan/implement/commit/dc8afec501579ce02c509d21252a94da9935211d) Thanks [@ieedan](https://github.com/ieedan)! - Drop `@implementjs/router` from the kit template's dependencies. Nothing a kit app writes imports it, and kit now resolves it itself — so the app no longer carries a version of a package it never names.
+
 ## 0.0.6
 
 ### Patch Changes
