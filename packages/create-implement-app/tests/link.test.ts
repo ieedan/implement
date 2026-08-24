@@ -56,13 +56,14 @@ describe("--link", () => {
 		);
 
 		expect(unwrap(result).linked).toMatchObject({ "@implementjs/core": expect.any(String) });
+		// no `@implementjs/router`: kit aliases it at its own copy, so a kit app never names it
 		expect(deps("my-app")).toMatchObject({
 			"@implementjs/core": "link:../implement/packages/core",
 			"@implementjs/kit": "link:../implement/packages/kit",
-			"@implementjs/router": "link:../implement/packages/router",
 			"@implementjs/primitives": "link:../implement/packages/primitives",
 			"@implementjs/lucide": "link:../implement/packages/lucide",
 		});
+		expect(deps("my-app")).not.toHaveProperty("@implementjs/router");
 	});
 
 	it("leaves everything else on a version", async () => {
@@ -78,6 +79,8 @@ describe("--link", () => {
 
 		await runCreate("my-app", options({ link: repo, template: "csr" }));
 
+		// the csr app routes with the router itself, and builds on plain vite rather than kit
+		expect(deps("my-app")["@implementjs/router"]).toBe("link:../implement/packages/router");
 		expect(Object.keys(deps("my-app"))).toEqual(
 			expect.not.arrayContaining(["@implementjs/kit", "@implementjs/lucide"]),
 		);

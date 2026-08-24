@@ -14,11 +14,11 @@ section: Components
 npx jsrepo add @implementjs/ui/range-calendar
 ```
 
-jsrepo pulls `button` and [`calendar`](/ui/calendar) along with it, and installs `@implementjs/lucide`.
+jsrepo pulls `button` along with it, and installs `@implementjs/lucide`.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/range-calendar.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and `button` and [`calendar`](/ui/calendar) from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/range-calendar.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and `button` from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide
@@ -54,7 +54,7 @@ RangeCalendar({ value, numberOfMonths: 2, calendarLabel: "Trip dates" });
 
 ## What it shares with the calendar
 
-The root's border and padding come from `calendarRootClasses`, exported by `calendar.ts` — which is why installing this brings the calendar with it. The day classes are its own, since a range needs states a single date has no use for.
+The root wears the same border and padding as the [calendar](/ui/calendar), written out in this file rather than borrowed from it, so the range calendar installs on its own. The day classes differ either way: a range needs states a single date has no use for.
 
 The root is assembled, so the header, grid, and cell parts are not re-exported here. Import them from `@implementjs/primitives` when you want a different structure; [Range Calendar](/primitives/docs/range-calendar) covers them.
 

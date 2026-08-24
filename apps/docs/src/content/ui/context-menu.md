@@ -14,11 +14,15 @@ section: Components
 npx jsrepo add @implementjs/ui/context-menu
 ```
 
-jsrepo pulls [`dropdown-menu`](/ui/dropdown-menu) along with it.
+It installs `@implementjs/lucide` at the same time.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/context-menu.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and [`dropdown-menu`](/ui/dropdown-menu) from the same directory — copy those in beside it too.
+Copy the file below to `src/lib/components/ui/context-menu.ts`. It imports `cn`, so copy [`utils.ts`](/ui#merging-classes) to `src/lib/utils.ts` too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+
+```sh
+npm install @implementjs/lucide
+```
 
 <div data-source="context-menu"></div>
 
@@ -49,11 +53,9 @@ ContextMenu(
 );
 ```
 
-## Shared with the dropdown menu
+## Styled like the dropdown menu
 
-Every panel and item class comes from `dropdown-menu.ts` — `menuContentClasses`, `menuItemClasses`, and the check and chevron indicators are exported from there and used here, by the [menubar](/ui/menubar), and by the [select](/ui/select)'s group headings. Restyling the menus is one file, not four.
-
-That is also why installing this one brings `dropdown-menu` with it.
+The panels, items, separators, and indicators are drawn to match the [dropdown menu](/ui/dropdown-menu), but the classes live in this file — it installs on its own, and editing it restyles the context menu and nothing else.
 
 ## API Reference
 

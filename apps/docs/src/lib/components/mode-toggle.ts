@@ -10,11 +10,6 @@ import {
 	DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-// every row already leads with its own icon, so the radio dot reads as clutter:
-// it is hidden along with the gutter it sat in, and the choice is marked by a
-// check at the end of the row instead
-const itemClasses = "pl-2! [&>[data-slot=menu-item-indicator]]:hidden";
-
 /** The check that marks the mode currently chosen. */
 function CheckMark() {
 	return CheckIcon({
@@ -48,22 +43,25 @@ export function ModeToggle(): Mountable {
 			),
 			DropdownMenuContent(
 				{ align: "end", class: "min-w-36" },
+				// every row already leads with its own icon, so the radio dot reads as
+				// clutter: it is hidden along with the gutter it sat in, and the choice is
+				// marked by a check at the end of the row instead
 				DropdownMenuRadioGroup(
 					{ value: preference },
 					DropdownMenuRadioItem(
-						{ value: "light", class: itemClasses },
+						{ value: "light", class: "pl-2! [&>[data-slot=menu-item-indicator]]:hidden" },
 						SunIcon({ class: "size-4", "aria-hidden": true }),
 						Span("Light"),
 						CheckMark(),
 					),
 					DropdownMenuRadioItem(
-						{ value: "dark", class: itemClasses },
+						{ value: "dark", class: "pl-2! [&>[data-slot=menu-item-indicator]]:hidden" },
 						MoonIcon({ class: "size-4", "aria-hidden": true }),
 						Span("Dark"),
 						CheckMark(),
 					),
 					DropdownMenuRadioItem(
-						{ value: "system", class: itemClasses },
+						{ value: "system", class: "pl-2! [&>[data-slot=menu-item-indicator]]:hidden" },
 						MonitorIcon({ class: "size-4", "aria-hidden": true }),
 						Span("System"),
 						CheckMark(),

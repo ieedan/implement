@@ -1,5 +1,12 @@
 # @implementjs/adapter-cloudflare
 
+## 0.0.10
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @implementjs/kit@0.0.10
+
 ## 0.0.9
 
 ### Patch Changes

@@ -10,6 +10,8 @@ import {
 	generateRouteTypes,
 	generateRouterDeclaration,
 	generateTsconfig,
+	routerAliases,
+	ROUTER_PACKAGE,
 	writeGenerated,
 } from "../src/typegen.ts";
 
@@ -184,6 +186,29 @@ describe("generateTsconfig", () => {
 			"$implement/client": ["./client.ts"],
 			"@utils": ["../src/lib/utils.ts"],
 		});
+	});
+});
+
+describe("routerAliases", () => {
+	it("points both halves at a file that is there", () => {
+		const { vite, tsconfig } = routerAliases();
+
+		// resolvable from kit, which is the whole point: an app that never depended on
+		// the router still has somewhere for `$implement/router` to import it from
+		expect(existsSync(vite[ROUTER_PACKAGE]!)).toBe(true);
+		expect(existsSync(tsconfig[ROUTER_PACKAGE]!)).toBe(true);
+	});
+
+	it("declares the router to TypeScript, so the ParamTypes augmentation resolves", () => {
+		const app = makeApp(["page.ts"]);
+		writeGenerated(app, scanRoutes(join(app, "src/routes")));
+		const generated = JSON.parse(readFileSync(join(app, ".implement/tsconfig.json"), "utf8")) as {
+			compilerOptions: { paths: Record<string, string[]> };
+		};
+
+		expect(generated.compilerOptions.paths[ROUTER_PACKAGE]).toEqual([
+			routerAliases().tsconfig[ROUTER_PACKAGE],
+		]);
 	});
 });
 

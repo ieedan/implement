@@ -22,7 +22,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -230,7 +230,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -365,7 +365,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -444,7 +444,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -524,7 +524,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -556,10 +556,15 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"dropdown-menu",
 				"utils"
 			],
-			"dependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "~0.0.8"
+				}
+			],
 			"devDependencies": [],
 			"files": [
 				{
@@ -568,15 +573,6 @@
 					"path": "context-menu.ts",
 					"relativePath": "src/lib/components/ui/context-menu.ts",
 					"_imports_": [
-						{
-							"import": "./dropdown-menu",
-							"item": "dropdown-menu",
-							"file": {
-								"type": "ui",
-								"path": "dropdown-menu.ts"
-							},
-							"meta": {}
-						},
 						{
 							"import": "@/lib/utils",
 							"item": "utils",
@@ -605,7 +601,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -653,7 +649,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -701,7 +697,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -1004,10 +1000,15 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"dropdown-menu",
 				"utils"
 			],
-			"dependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "~0.0.8"
+				}
+			],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1016,15 +1017,6 @@
 					"path": "menubar.ts",
 					"relativePath": "src/lib/components/ui/menubar.ts",
 					"_imports_": [
-						{
-							"import": "./dropdown-menu",
-							"item": "dropdown-menu",
-							"file": {
-								"type": "ui",
-								"path": "dropdown-menu.ts"
-							},
-							"meta": {}
-						},
 						{
 							"import": "@/lib/utils",
 							"item": "utils",
@@ -1158,7 +1150,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -1191,14 +1183,13 @@
 			"add": "when-added",
 			"registryDependencies": [
 				"button",
-				"calendar",
 				"utils"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -1215,15 +1206,6 @@
 							"file": {
 								"type": "ui",
 								"path": "button.ts"
-							},
-							"meta": {}
-						},
-						{
-							"import": "./calendar",
-							"item": "calendar",
-							"file": {
-								"type": "ui",
-								"path": "calendar.ts"
 							},
 							"meta": {}
 						},
@@ -1254,7 +1236,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -1328,14 +1310,13 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"dropdown-menu",
 				"utils"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -1346,15 +1327,6 @@
 					"path": "select.ts",
 					"relativePath": "src/lib/components/ui/select.ts",
 					"_imports_": [
-						{
-							"import": "./dropdown-menu",
-							"item": "dropdown-menu",
-							"file": {
-								"type": "ui",
-								"path": "dropdown-menu.ts"
-							},
-							"meta": {}
-						},
 						{
 							"import": "@/lib/utils",
 							"item": "utils",
@@ -1415,7 +1387,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -1468,7 +1440,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				},
 				{
 					"ecosystem": "js",
@@ -1597,7 +1569,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],
@@ -1738,7 +1710,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.7"
+					"version": "~0.0.8"
 				}
 			],
 			"devDependencies": [],

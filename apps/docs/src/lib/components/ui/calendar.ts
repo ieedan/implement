@@ -22,18 +22,6 @@ import { createComponent } from "@implementjs/primitives";
 
 export type CalendarProps = CalendarRootProps | CalendarRootProps<"multiple">;
 
-export const calendarRootClasses = "inline-block rounded-md border bg-background p-3 shadow-sm";
-
-export const calendarDayClasses = [
-	"inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-sm font-normal whitespace-nowrap select-none",
-	"outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
-	"data-today:not-data-selected:bg-accent data-today:not-data-selected:text-accent-foreground",
-	"data-selected:bg-primary data-selected:text-primary-foreground data-selected:hover:bg-primary",
-	"data-outside-month:text-muted-foreground",
-	"data-disabled:pointer-events-none data-disabled:text-muted-foreground data-disabled:opacity-50",
-	"data-unavailable:text-muted-foreground data-unavailable:line-through",
-].join(" ");
-
 export function CalendarNav() {
 	return CalendarHeader(
 		{ class: "flex items-center justify-between" },
@@ -54,7 +42,6 @@ export function CalendarMonthGrid(
 	weekdays: Readable<string[]>,
 	Cell: typeof CalendarCell = CalendarCell,
 	Day: typeof CalendarDay = CalendarDay,
-	dayClasses: string = calendarDayClasses,
 ) {
 	return CalendarGrid(
 		{ class: "w-full border-collapse" },
@@ -84,7 +71,21 @@ export function CalendarMonthGrid(
 						ForEach(
 							week,
 							(date) => date.toString(),
-							(date) => Cell({ date, month, class: "p-0" }, Day({ class: dayClasses })),
+							(date) =>
+								Cell(
+									{ date, month, class: "p-0" },
+									Day({
+										class: cn(
+											"inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-sm font-normal whitespace-nowrap select-none",
+											"outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
+											"data-today:not-data-selected:bg-accent data-today:not-data-selected:text-accent-foreground",
+											"data-selected:bg-primary data-selected:text-primary-foreground data-selected:hover:bg-primary",
+											"data-outside-month:text-muted-foreground",
+											"data-disabled:pointer-events-none data-disabled:text-muted-foreground data-disabled:opacity-50",
+											"data-unavailable:text-muted-foreground data-unavailable:line-through",
+										),
+									}),
+								),
 						),
 					),
 			),
@@ -98,7 +99,10 @@ export const Calendar = createComponent(function Calendar({
 	...props
 }: CalendarProps) {
 	return CalendarPrimitive(
-		{ ...props, class: cn(calendarRootClasses, className) },
+		{
+			...props,
+			class: cn("inline-block rounded-md border bg-background p-3 shadow-sm", className),
+		},
 		({ months, weekdays }) =>
 			Fragment(
 				CalendarNav(),

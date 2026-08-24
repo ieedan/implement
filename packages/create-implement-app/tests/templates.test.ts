@@ -186,6 +186,30 @@ describe("templates", () => {
 		expect(pkg(files).devDependencies["@implementjs/kit"]).toBeUndefined();
 	});
 
+	it("the csr template routes with the router it depends on", () => {
+		const files = fileMap("csr", ctx());
+
+		expect(pkg(files).dependencies["@implementjs/router"]).toBeDefined();
+		// the router is the mountable, so the entry renders it in place of a single component
+		expect(files.get("src/index.ts")).toContain('import { router } from "./router"');
+		expect(files.get("src/index.ts")).toContain("app.render(router)");
+		expect(files.get("src/router.ts")).toContain('import { Router } from "@implementjs/router"');
+		expect(files.get("src/router.ts")).toContain('"/about": () => About()');
+		expect(files.get("src/not-found.ts")).toContain("error: RouterError");
+	});
+
+	it("writes the return type of every csr view that reads the router", () => {
+		const files = fileMap("csr", ctx());
+
+		// inferring it would mean inferring `router` from the table that renders the view,
+		// which is TS7022 rather than a type
+		expect(files.get("src/layout.ts")).toContain(
+			"export function Layout(children: Mountable): Mountable {",
+		);
+		expect(files.get("src/layout.ts")).toContain("router.Link(");
+		expect(files.get("src/not-found.ts")).toContain("): Mountable {");
+	});
+
 	it.each(TEMPLATES)("%s only pulls in tailwind when the addon is selected", (id) => {
 		const without = fileMap(id, ctx());
 		expect(without.get("vite.config.ts")).not.toContain("@tailwindcss/vite");

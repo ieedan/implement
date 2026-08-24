@@ -10,12 +10,6 @@ import { SourceBlock } from "./source-block";
 import { uiSourcePath, uiSources } from "@/lib/ui-sources";
 import { TabsBlock, type TabPanel } from "./tabs-block";
 
-const copyButtonClass = [
-	buttonVariants({ variant: "ghost", size: "icon-xs" }),
-	"absolute top-1.5 right-1.5 text-foreground/60 opacity-0 transition-opacity",
-	"group-hover/code:opacity-100 focus-visible:opacity-100",
-].join(" ");
-
 function addCopyButton(pre: HTMLPreElement) {
 	const wrapper = document.createElement("div");
 	wrapper.className = "group/code relative";
@@ -24,7 +18,7 @@ function addCopyButton(pre: HTMLPreElement) {
 
 	const button = document.createElement("button");
 	button.type = "button";
-	button.className = copyButtonClass;
+	button.className = `${buttonVariants({ variant: "ghost", size: "icon-xs" })} absolute top-1.5 right-1.5 text-foreground/60 opacity-0 transition-opacity group-hover/code:opacity-100 focus-visible:opacity-100`;
 	button.ariaLabel = "Copy code";
 
 	let icon = CopyIcon()();

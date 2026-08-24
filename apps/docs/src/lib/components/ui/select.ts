@@ -10,7 +10,6 @@ import {
 	SelectTrigger as SelectTriggerPrimitive,
 	SelectValue as SelectValuePrimitive,
 } from "@implementjs/primitives";
-import { menuGroupHeadingClasses } from "./dropdown-menu";
 import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
@@ -186,7 +185,7 @@ export const SelectGroupHeading = createComponent(function SelectGroupHeading(
 		{
 			...props,
 			"data-slot": "select-group-heading",
-			class: cn(menuGroupHeadingClasses, className),
+			class: cn("px-2 py-1.5 text-xs font-medium text-muted-foreground", className),
 		},
 		...children,
 	);

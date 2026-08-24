@@ -14,11 +14,15 @@ section: Components
 npx jsrepo add @implementjs/ui/menubar
 ```
 
-jsrepo pulls [`dropdown-menu`](/ui/dropdown-menu) along with it.
+It installs `@implementjs/lucide` at the same time.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/menubar.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and [`dropdown-menu`](/ui/dropdown-menu) from the same directory — copy those in beside it too.
+Copy the file below to `src/lib/components/ui/menubar.ts`. It imports `cn`, so copy [`utils.ts`](/ui#merging-classes) to `src/lib/utils.ts` too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+
+```sh
+npm install @implementjs/lucide
+```
 
 <div data-source="menubar"></div>
 
@@ -58,9 +62,9 @@ Menubar(
 
 `MenubarMenu` takes a `value` — a stable string the bar tracks as its open menu. Pass a signal as the root's `value` to open one from outside, or to know which is open.
 
-## Shared with the dropdown menu
+## Styled like the dropdown menu
 
-The panels, items, separators, and indicators come from `dropdown-menu.ts`, which is why installing the menubar brings that file too.
+The panels, items, separators, and indicators are drawn to match the [dropdown menu](/ui/dropdown-menu), but the classes live in this file — it installs on its own, and editing it restyles the menubar and nothing else.
 
 ## API Reference
 
