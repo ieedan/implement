@@ -73,19 +73,33 @@ export type ContextMenuCheckboxGroupProps = ComponentProps<
 >;
 export const ContextMenuCheckboxGroup = ContextMenuCheckboxGroupPrimitive;
 
-export type ContextMenuCheckboxItemProps = ComponentProps<typeof ContextMenuCheckboxItemPrimitive>;
+export type ContextMenuCheckboxItemProps = ComponentProps<
+	typeof ContextMenuCheckboxItemPrimitive
+> & {
+	/**
+	 * The checked indicator, drawn in place of the default check. The left
+	 * padding the default one is absolutely positioned into comes off with it:
+	 * a custom indicator sits in the row's flow, so placing it is yours.
+	 */
+	indicator?: Child;
+};
 
 export const ContextMenuCheckboxItem = createComponent(function ContextMenuCheckboxItem(
-	{ class: className, ...props }: ContextMenuCheckboxItemProps,
+	{ class: className, indicator, ...props }: ContextMenuCheckboxItemProps,
 	...children: Child[]
 ) {
 	return ContextMenuCheckboxItemPrimitive(
 		{
 			...props,
 			"data-slot": "context-menu-checkbox-item",
-			class: cn("group/menu-item", menuItemClasses, menuIndicatorItemClasses, className),
+			class: cn(
+				"group/menu-item",
+				menuItemClasses,
+				indicator === undefined && menuIndicatorItemClasses,
+				className,
+			),
 		},
-		MenuCheckIndicator(),
+		indicator ?? MenuCheckIndicator(),
 		...children,
 	);
 });

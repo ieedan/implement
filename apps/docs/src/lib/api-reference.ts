@@ -3278,7 +3278,17 @@ function menuStyledParts(prefix: string, contentOffset: string): Record<string, 
 			defaults: { offset: "8" },
 		},
 		[`${prefix}SubTrigger`]: { note: subTriggerNote },
-		[`${prefix}CheckboxItem`]: { note: checkboxItemNote },
+		[`${prefix}CheckboxItem`]: {
+			note: checkboxItemNote,
+			props: [
+				{
+					name: "indicator",
+					type: "Child",
+					description:
+						"Drawn in place of the default check. The left padding the default one is absolutely positioned into comes off with it, so a custom indicator sits in the row's flow.",
+				},
+			],
+		},
 		[`${prefix}RadioItem`]: { note: radioItemNote },
 	};
 }
