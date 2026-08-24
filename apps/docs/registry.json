@@ -4,7 +4,7 @@
 	"description": "Styled components built on @implementjs/primitives.",
 	"homepage": "https://github.com/ieedan/implement",
 	"repository": "https://github.com/ieedan/implement",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"type": "repository",
 	"defaultPaths": {
 		"ui": "src/lib/components/ui",
