@@ -109,6 +109,28 @@ const ENTRY_SERVER = `/${IMPLEMENT_DIR}/entry-server.ts`;
 /** Deliberately unmatched, so the fallback renders for the 404 page. */
 const NOT_FOUND_ROUTE = "/__implement__/not-found";
 
+/**
+ * The bare imports kit's generated modules make that nothing on disk does.
+ *
+ * Vite's dep scanner externalizes anything whose resolved id carries a `\0`,
+ * so the crawl that decides what to prebundle stops dead at every virtual
+ * module kit owns. `$implement/router` is imported by the generated client
+ * entry, and the scanner walks straight past it — so the packages behind it
+ * are invisible at startup, discovered instead by the browser on first load.
+ * A dep discovered then re-bundles, which moves every optimized URL's `?v=`
+ * hash and answers the requests already in flight with
+ * `504 (Outdated Optimize Dep)`.
+ *
+ * Naming them here puts them in the first prebundle instead. `params` is here
+ * even for an app with no matchers yet: adding the first one would otherwise
+ * be its own discovery, mid-session, with the dev server already running.
+ */
+const OPTIMIZE_INCLUDE = [
+	"@implementjs/router",
+	"@implementjs/kit/runtime",
+	"@implementjs/kit/params",
+];
+
 /** Writes a file, creating its directory — the build's own small needs. */
 function write(file: string, contents: string): void {
 	mkdirSync(dirname(file), { recursive: true });
@@ -340,6 +362,9 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	const routesBase = `/${routes.replaceAll("\\", "/")}`;
 	const paramsPath = options.params ?? DEFAULT_PARAMS_DIR;
 	const paramsBase = `/${paramsPath.replaceAll("\\", "/")}`;
+	/** The same two, as the dep scanner wants them: relative to the Vite root. */
+	const routesGlob = routesBase.slice(1);
+	const paramsGlob = paramsBase.slice(1);
 	const hooksPath = (options.hooks ?? "src/hooks.server.ts").replaceAll("\\", "/");
 	const aliases = { ...DEFAULT_ALIASES, ...options.alias };
 	const genOptions = {
@@ -574,6 +599,24 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				appType: "custom",
 				publicDir: userConfig.publicDir ?? "static",
 				resolve: { alias },
+				optimizeDeps: {
+					// the route modules and the matchers hang off `$implement/router`,
+					// which the scanner will not walk through (see OPTIMIZE_INCLUDE), so
+					// point it at the real files instead: their deps are the app's own,
+					// and kit cannot name those in advance. Vite concatenates what a
+					// plugin returns onto the app's own entries, and the shell is here
+					// because listing anything at all replaces what the scan would have
+					// crawled by default. `*.server.ts` stays out — a server-only dep has
+					// no business in the browser's prebundle.
+					entries: [
+						...(shellPath === null ? [] : [shellPath.relative.replaceAll("\\", "/")]),
+						`${routesGlob}/**/{page,layout}.ts`,
+						`${routesGlob}/**/{page,layout}@*.ts`,
+						`${routesGlob}/**/error.ts`,
+						`${paramsGlob}/*.ts`,
+					],
+					include: OPTIMIZE_INCLUDE,
+				},
 				build: {
 					// the prerender needs chunk filenames to emit preload hints for
 					// each route's own modules, and only the manifest has them
