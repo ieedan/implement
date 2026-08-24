@@ -30,6 +30,15 @@ Paths are fully typed, so `todo.bind("autor.name")` is a compile error. They wal
 
 On a read-only source the same call returns a `Readable` of the path.
 
+A path reads as `undefined` when something along the way is `null` or `undefined`, the way optional chaining does, so a bind can be created and chained before its value exists:
+
+```ts
+const issue = data.bind("issue"); // load has not landed yet
+const title = issue.bind("title"); // undefined for now, "Ship docs" once it does
+```
+
+Writing through a missing parent still throws, since there is no object to update.
+
 ## Selector bindings (one-way)
 
 Pass a function to derive a read-only view. This is shorthand for `derived([source], selector)`:
@@ -68,6 +77,15 @@ const amount = form.bind(
 
 Input({ value: amount });
 ```
+
+A two-way bind needs somewhere to write, so it throws on a read-only source. That is worth knowing because a readable can reach one through a prop the types call a `Signal` — a route's `data`, and anything bound off it, is read-only:
+
+```ts
+const issue = data.bind("issue"); // Readable, not Signal
+LabelPicker({ value: issue.bind((i) => i.labels.map((l) => l.id)) }); // still a Readable
+```
+
+Give the component a signal of its own and write the change back through an action instead.
 
 ## How updates propagate
 
