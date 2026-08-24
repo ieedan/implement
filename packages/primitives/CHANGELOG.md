@@ -1,5 +1,13 @@
 # @implementjs/primitives
 
+## 0.0.6
+
+### Patch Changes
+
+- [`4c9c7ea`](https://github.com/ieedan/implement/commit/4c9c7eab6a50398de4c1af26629aced332430952) Thanks [@ieedan](https://github.com/ieedan)! - feat: add render prop for custom element rendering in primitives
+- Updated dependencies [[`f60114f`](https://github.com/ieedan/implement/commit/f60114f329cd73c5922a60c8337566afa97d3f21)]:
+  - @implementjs/core@0.0.5
+
 ## 0.0.5
 
 ### Patch Changes
