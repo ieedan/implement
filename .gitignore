@@ -63,3 +63,7 @@ report/
 .DS_Store
 
 .super-review
+
+# Temp apps the kit optimize-deps test builds under tests/fixtures/, so a run
+# interrupted before its cleanup leaves nothing to commit by accident
+packages/kit/tests/fixtures/optimize-*/
