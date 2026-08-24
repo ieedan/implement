@@ -54,7 +54,7 @@ Calendar({ type: "multiple", value: dates, calendarLabel: "Available days" });
 
 ## Building your own layout
 
-The file exports its pieces so you do not have to fork it to rearrange them. `calendarRootClasses` and `calendarDayClasses` are the class strings; `CalendarNav()` is the header row; `CalendarMonthGrid(month, weekdays)` is one month, weekday header included. Its trailing arguments — `Cell`, `Day`, `dayClasses` — are the seams the [range calendar](/ui/range-calendar) uses to swap in its own cells.
+The file exports its pieces so you do not have to fork it to rearrange them. `CalendarNav()` is the header row, and `CalendarMonthGrid(month, weekdays)` is one month, weekday header included — its trailing `Cell` and `Day` arguments swap in parts of your own.
 
 Drop down to the primitive's own parts when you want a different structure entirely; [Calendar](/primitives/docs/calendar) covers them.
 

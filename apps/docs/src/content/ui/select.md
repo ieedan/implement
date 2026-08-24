@@ -14,11 +14,11 @@ section: Components
 npx jsrepo add @implementjs/ui/select
 ```
 
-jsrepo pulls [`dropdown-menu`](/ui/dropdown-menu) along with it, and installs `@implementjs/lucide`.
+It installs `@implementjs/lucide` at the same time.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/select.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and [`dropdown-menu`](/ui/dropdown-menu) from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/select.ts`. It imports `cn`, so copy [`utils.ts`](/ui#merging-classes) to `src/lib/utils.ts` too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide
@@ -73,7 +73,7 @@ Select(
 
 <div data-demo="select-group" data-demo-description="A fruit select grouped into Citrus, Berries, and Tropical; the current selection is echoed in text below."></div>
 
-`SelectGroup` and `SelectGroupHeading` divide a long list. The heading is styled to match the menu group headings, which is why the select installs `dropdown-menu` alongside it.
+`SelectGroup` and `SelectGroupHeading` divide a long list. The heading is drawn to match the group headings in the [dropdown menu](/ui/dropdown-menu), but its classes live in this file.
 
 ## Sizing
 

@@ -53,7 +53,7 @@ function registryVersion(cwd: string): string {
 
 /**
  * One item per file in {@link UI_DIR}, plus the `utils` they all import. jsrepo reads the imports
- * itself, so `select` pulling in `dropdown-menu`, `button` pulling in `utils`, and `accordion`
+ * itself, so `popover` pulling in `button`, `button` pulling in `utils`, and `accordion`
  * installing `@implementjs/lucide`, all fall out of the source rather than being listed here.
  *
  * `utils` is `when-needed`: nobody adds `cn` on purpose, it arrives with the first component that

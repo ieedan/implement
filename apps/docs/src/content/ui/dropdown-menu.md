@@ -99,9 +99,9 @@ That is half of the pattern below; the other half is that `closeOnSelect` belong
 
 The row stays a single `role="menuitemcheckbox"` — the checkbox is `aria-hidden` decoration with a click handler, not a nested control — so it keeps one accessible name and one checked state. The cost is that the split is pointer-only: Enter and Space activate the row, which toggles _and_ closes. If keyboard users need to check several labels in one pass, put `closeOnSelect: false` on the items and let the row behave like the checkbox does.
 
-## The shared menu styles
+## Restyling the menu
 
-This file is the source of the menu look. `menuContentClasses`, `menuItemClasses`, `menuGroupHeadingClasses`, and the indicator helpers are exported and reused by the [context menu](/ui/context-menu), the [menubar](/ui/menubar), and the [select](/ui/select) — so those three install this file alongside their own, and restyling every menu at once means editing one.
+Every class is written where it is used, so the panel, the items, the group headings, and the indicators are all in this file and nothing outside it changes when you edit them. The [context menu](/ui/context-menu), the [menubar](/ui/menubar), and the [select](/ui/select) are drawn to match, but each carries its own copy — restyle them the same way, in their own files.
 
 ## API Reference
 
