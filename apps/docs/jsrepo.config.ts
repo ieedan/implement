@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pnpm } from "@jsrepo/pnpm";
 import { defineConfig, DEFAULT_PROVIDERS, type RegistryItem } from "jsrepo";
 import { repository } from "jsrepo/outputs";
 import { fs as filesystem } from "jsrepo/providers";
@@ -16,12 +17,6 @@ const LIB_FILE = "src/lib/utils.ts";
 
 /** Where `jsrepo add` puts each type of item, unless the consuming project's config says otherwise. */
 const DEFAULT_PATHS = { ui: UI_DIR, lib: "src/lib" };
-
-/**
- * The packages a component pulls in ask for the latest tag, the same thing
- * `create-implement-app` writes into a scaffolded `package.json`.
- */
-const IMPLEMENT_VERSION = "latest";
 
 /**
  * `packages/ui`, which holds no code — only the version line and changelog changesets keeps for
@@ -102,9 +97,21 @@ export default defineConfig({
 	// `fs://.` resolves this checkout, which is how `create-implement-app --link` reads the registry
 	providers: [...DEFAULT_PROVIDERS, filesystem()],
 	build: {
-		// a workspace: range means nothing outside this repo; everything else is already the version
-		// the components are built against, read from the package.json beside this file
-		remoteDependencyResolver: (dep) =>
-			dep.version?.startsWith("workspace:") ? { ...dep, version: IMPLEMENT_VERSION } : dep,
+		/*
+		 * A `workspace:` range means nothing outside this repo, so every implement package a
+		 * component imports has to be rewritten before it is published. `@jsrepo/pnpm` walks up to
+		 * `pnpm-workspace.yaml` and reads the version off the package the range points at, which is
+		 * the version the components here were built against — and, because the `Registry` job runs
+		 * after the one that publishes to npm, one that exists by the time anyone installs it.
+		 *
+		 * It carries the sigil across rather than picking one, so the range a consumer gets is the
+		 * range the `package.json` beside this file asks for: `workspace:~` becomes `~0.0.6`. The
+		 * tilde is deliberate on this version line, for the reason `create-implement-app` spells out
+		 * in `templates/versions.ts` — `^0.0.6` is an exact pin, while a tilde is a floor a patch
+		 * release moves past on its own.
+		 *
+		 * Everything not on the `workspace:` protocol is already a real range and passes through.
+		 */
+		remoteDependencyResolver: pnpm(),
 	},
 });

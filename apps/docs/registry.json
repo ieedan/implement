@@ -22,7 +22,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -230,7 +230,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -365,7 +365,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -444,7 +444,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -524,7 +524,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -605,7 +605,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -653,7 +653,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -701,7 +701,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -1158,7 +1158,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -1198,7 +1198,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -1254,7 +1254,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -1335,7 +1335,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -1415,7 +1415,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -1468,7 +1468,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				},
 				{
 					"ecosystem": "js",
@@ -1597,7 +1597,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
@@ -1738,7 +1738,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "latest"
+					"version": "~0.0.6"
 				}
 			],
 			"devDependencies": [],
