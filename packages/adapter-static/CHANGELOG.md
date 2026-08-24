@@ -1,5 +1,12 @@
 # @implementjs/adapter-static
 
+## 0.0.11
+
+### Patch Changes
+
+- Updated dependencies [[`dc8afec`](https://github.com/ieedan/implement/commit/dc8afec501579ce02c509d21252a94da9935211d)]:
+  - @implementjs/kit@0.0.11
+
 ## 0.0.10
 
 ### Patch Changes
