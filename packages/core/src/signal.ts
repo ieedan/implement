@@ -967,12 +967,20 @@ export function derived<T, Signals extends readonly Readable<any>[]>(
 	return new Derived(signals, getter);
 }
 
+/**
+ * Reads a dotted path, stopping at `undefined` the way optional chaining does
+ * rather than throwing. A path bind is a live view, and the value it reads
+ * through is allowed to be missing: `data.bind("issue").bind("title")` is
+ * built before the load lands, `ref.bind("disabled")` before the node mounts.
+ * Throwing there would take the component down for a value that arrives a tick
+ * later — and the path types already walk `NonNullable`, so binding through an
+ * optional field is what they describe. Writes stay loud: {@link setAtKeys}
+ * throws, because a write with nowhere to land is lost, not merely absent.
+ */
 function getAtPath(obj: unknown, path: string): unknown {
 	let current = obj;
 	for (const key of path.split(".")) {
-		if (current == null) {
-			throw new Error(`Cannot read "${path}" from ${String(current)}`);
-		}
+		if (current == null) return undefined;
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Dotted paths walk plain object keys.
 		current = (current as Record<string, unknown>)[key];
 	}
@@ -984,9 +992,21 @@ function setAtPath(obj: unknown, path: string, value: unknown): unknown {
 	return setAtKeys(obj, keys, value, path);
 }
 
+/**
+ * Unlike a read, a write through a missing value throws: the value is not
+ * merely absent, there is nowhere to put the one being written. `keys` is
+ * what is left of `path`, so the message can name the segment that was
+ * missing rather than only the path as a whole.
+ */
 function setAtKeys(obj: unknown, keys: readonly string[], value: unknown, path: string): unknown {
 	if (obj == null || typeof obj !== "object") {
-		throw new Error(`Cannot set "${path}" on ${String(obj)}`);
+		const segments = path.split(".");
+		const walked = segments.slice(0, segments.length - keys.length).join(".");
+		throw new Error(
+			walked === ""
+				? `Cannot set "${path}" on ${String(obj)}`
+				: `Cannot set "${path}": "${walked}" is ${String(obj)}`,
+		);
 	}
 	const head = keys[0];
 	if (head === undefined) return value;

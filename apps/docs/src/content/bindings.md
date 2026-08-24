@@ -30,6 +30,22 @@ Paths are fully typed, so `todo.bind("autor.name")` is a compile error. They wal
 
 On a read-only source the same call returns a `Readable` of the path.
 
+### Missing values
+
+A path reads through a missing value the way optional chaining does: if anything along the way is `null` or `undefined`, the binding reads `undefined` and updates once the value arrives. This is what lets you bind into data that is not there yet — a `data` readable before its load lands, a [`Ref`](/docs/signals#element-references) before its node mounts:
+
+```ts
+const data = signal<{ issue?: { title: string } }>({});
+
+const title = data.bind("issue").bind("title");
+title.get(); // undefined, not a throw
+
+data.set({ issue: { title: "Ship docs" } });
+title.get(); // "Ship docs"
+```
+
+Writing is the other way around. `title.set("Ship v2")` while `issue` is missing throws, naming the segment that was: there is nowhere to put the value, and a write that silently goes nowhere is lost rather than merely absent.
+
 ## Selector bindings (one-way)
 
 Pass a function to derive a read-only view. This is shorthand for `derived([source], selector)`:
