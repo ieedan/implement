@@ -83,6 +83,22 @@ DropdownMenuCheckboxGroup(
 );
 ```
 
+### Drawing your own indicator
+
+`indicator` replaces the check a checkbox item renders. The left padding the default one is absolutely positioned into comes off with it, so a custom indicator sits in the row's flow and you place it yourself:
+
+```ts
+DropdownMenuCheckboxItem({ value: "bug", indicator: MyCheckbox() }, "Bug");
+```
+
+Anything you draw reads its state off the row, which is a `group/menu-item` — `group-data-[state=checked]/menu-item:` for checked, `group-data-[highlighted]/menu-item:` for the row under the pointer.
+
+That is half of the pattern below; the other half is that `closeOnSelect` belongs to the _item_, so an element inside it can stop its own click before the item ever selects. Clicking the checkbox toggles the label and leaves the menu open for the next one, while clicking the rest of the row toggles it and closes.
+
+<div data-demo="dropdown-menu-labels" data-demo-description="A “Labels” menu of six colored labels; each row's checkbox toggles without closing, while clicking the rest of the row toggles and closes."></div>
+
+The row stays a single `role="menuitemcheckbox"` — the checkbox is `aria-hidden` decoration with a click handler, not a nested control — so it keeps one accessible name and one checked state. The cost is that the split is pointer-only: Enter and Space activate the row, which toggles _and_ closes. If keyboard users need to check several labels in one pass, put `closeOnSelect: false` on the items and let the row behave like the checkbox does.
+
 ## The shared menu styles
 
 This file is the source of the menu look. `menuContentClasses`, `menuItemClasses`, `menuGroupHeadingClasses`, and the indicator helpers are exported and reused by the [context menu](/ui/context-menu), the [menubar](/ui/menubar), and the [select](/ui/select) — so those three install this file alongside their own, and restyling every menu at once means editing one.

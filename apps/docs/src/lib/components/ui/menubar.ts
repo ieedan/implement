@@ -106,19 +106,31 @@ export const MenubarItem = createComponent(function MenubarItem(
 export type MenubarCheckboxGroupProps = ComponentProps<typeof MenubarCheckboxGroupPrimitive>;
 export const MenubarCheckboxGroup = MenubarCheckboxGroupPrimitive;
 
-export type MenubarCheckboxItemProps = ComponentProps<typeof MenubarCheckboxItemPrimitive>;
+export type MenubarCheckboxItemProps = ComponentProps<typeof MenubarCheckboxItemPrimitive> & {
+	/**
+	 * The checked indicator, drawn in place of the default check. The left
+	 * padding the default one is absolutely positioned into comes off with it:
+	 * a custom indicator sits in the row's flow, so placing it is yours.
+	 */
+	indicator?: Child;
+};
 
 export const MenubarCheckboxItem = createComponent(function MenubarCheckboxItem(
-	{ class: className, ...props }: MenubarCheckboxItemProps,
+	{ class: className, indicator, ...props }: MenubarCheckboxItemProps,
 	...children: Child[]
 ) {
 	return MenubarCheckboxItemPrimitive(
 		{
 			...props,
 			"data-slot": "menubar-checkbox-item",
-			class: cn("group/menu-item", menuItemClasses, menuIndicatorItemClasses, className),
+			class: cn(
+				"group/menu-item",
+				menuItemClasses,
+				indicator === undefined && menuIndicatorItemClasses,
+				className,
+			),
 		},
-		MenuCheckIndicator(),
+		indicator ?? MenuCheckIndicator(),
 		...children,
 	);
 });

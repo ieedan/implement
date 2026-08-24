@@ -151,19 +151,31 @@ export const DropdownMenuCheckboxGroup = DropdownMenuCheckboxGroupPrimitive;
 
 export type DropdownMenuCheckboxItemProps = ComponentProps<
 	typeof DropdownMenuCheckboxItemPrimitive
->;
+> & {
+	/**
+	 * The checked indicator, drawn in place of the default check. The left
+	 * padding the default one is absolutely positioned into comes off with it:
+	 * a custom indicator sits in the row's flow, so placing it is yours.
+	 */
+	indicator?: Child;
+};
 
 export const DropdownMenuCheckboxItem = createComponent(function DropdownMenuCheckboxItem(
-	{ class: className, ...props }: DropdownMenuCheckboxItemProps,
+	{ class: className, indicator, ...props }: DropdownMenuCheckboxItemProps,
 	...children: Child[]
 ) {
 	return DropdownMenuCheckboxItemPrimitive(
 		{
 			...props,
 			"data-slot": "dropdown-menu-checkbox-item",
-			class: cn("group/menu-item", menuItemClasses, menuIndicatorItemClasses, className),
+			class: cn(
+				"group/menu-item",
+				menuItemClasses,
+				indicator === undefined && menuIndicatorItemClasses,
+				className,
+			),
 		},
-		MenuCheckIndicator(),
+		indicator ?? MenuCheckIndicator(),
 		...children,
 	);
 });

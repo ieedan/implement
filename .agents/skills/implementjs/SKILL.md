@@ -39,6 +39,7 @@ Start with **Introduction** and **Getting Started** if you have not built an imp
 - [ForEach](https://implementjs.dev/docs/foreach.md) — Keyed list rendering with per-row signals, reordering, and write-back into the source list.
 - [Await](https://implementjs.dev/docs/await.md) — Render from a promise's state with WhileLoading, Then, and Catch — and re-follow promises swapped into a signal.
 - [Key](https://implementjs.dev/docs/key.md) — Force a full remount of a subtree whenever a signal changes.
+- [Dynamic](https://implementjs.dev/docs/dynamic.md) — Mount whatever node a signal is holding, and swap it when the value changes.
 
 ### Composition
 

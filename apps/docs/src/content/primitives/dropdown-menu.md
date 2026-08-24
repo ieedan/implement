@@ -68,7 +68,7 @@ The group is a `role="group"` like `DropdownMenuGroup`, so a `DropdownMenuGroupH
 
 A checkbox item is a `Div` you fill yourself, so the checked indicator is whatever you draw against `data-state` — a check, a dot, or a checkbox like a label picker's. And because `closeOnSelect` is a property of the _item_, an element nested inside it can opt out of that behavior on its own: stop the click before it reaches the item and the item never selects, so the menu stays open.
 
-That is the whole trick behind the pattern below. Clicking the checkbox toggles the label and leaves the menu open for the next one; clicking anywhere else on the row toggles it and closes.
+That is the whole trick behind the pattern below. Clicking the checkbox toggles the label and leaves the menu open for the next one; clicking anywhere else on the row toggles it and closes. On the primitive the indicator is just the first child you pass; the demo goes through the [styled item](/ui/dropdown-menu)'s `indicator` prop, which swaps the check it would otherwise render.
 
 <div data-demo="dropdown-menu-labels" data-demo-description="A “Labels” menu of six colored labels; each row's checkbox toggles without closing, while clicking the rest of the row toggles and closes."></div>
 
