@@ -5,7 +5,7 @@ section: Start Here
 order: 2
 ---
 
-Pick a template with `--template` (`-t`), or let the CLI prompt you. Both templates render the same counter page, so what differs is the shape of the project, not the demo.
+Pick a template with `--template` (`-t`), or let the CLI prompt you. Both templates open on the same counter page behind the same two-link nav, so what differs is the shape of the project, not the demo — [kit](/kit) routes from the files under `src/routes`, the CSR app from a table you can read in one screen.
 
 ## implement-kit
 
@@ -48,10 +48,14 @@ Kit generates `.implement/` — the client and server entries, the tsconfig the 
 ```
 my-app/
 ├ src/             the vite root
+│  ├ about.ts      → /about
 │  ├ app.css       global styles
-│  ├ counter.ts    the component the page renders
+│  ├ counter.ts    the component / renders
 │  ├ index.html    the page vite serves
-│  └ index.ts      mounts the app into #root
+│  ├ index.ts      mounts the router into #root
+│  ├ layout.ts     the nav every route renders inside
+│  ├ not-found.ts  the router's fallback
+│  └ router.ts     the route table
 ├ tsconfig.json
 └ vite.config.ts
 ```
@@ -63,7 +67,11 @@ my-app/
 | `preview` | Serve the build locally            |
 | `check`   | Typecheck the app                  |
 
-The whole app lives under `src/`, including `index.html`, so the generated Vite config sets `root: "src"` and points the build back at `dist/`. `src/index.ts` creates the app, mounts the counter, and carries the [four-line HMR block](/docs/vite).
+The whole app lives under `src/`, including `index.html`, so the generated Vite config sets `root: "src"` and points the build back at `dist/`. `src/index.ts` creates the app, mounts the router, and carries the [four-line HMR block](/docs/vite).
+
+Routing is [`@implementjs/router`](/docs/router), written out rather than generated: `src/router.ts` is the whole table, and a route is a key in it. Two things about it are worth knowing before you add the third route. `src/layout.ts` imports `router` from the module that imports it back, and it works only because `router` is read inside the function body — a top-level `router.href(...)` in a view would crash at load. For the same circle, a view that reads `router` writes its return type out; inferring it would mean inferring `router` from the table that renders the view, and TypeScript stops with `TS7022`.
+
+The router uses history-mode URLs. `dev` and `preview` serve them, and a static host needs a rewrite from unknown paths to `index.html` or a reload on `/about` is a 404.
 
 ### A note on pnpm
 

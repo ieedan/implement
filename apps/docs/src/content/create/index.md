@@ -38,7 +38,7 @@ Two starting points, covered in [Templates](/create/templates):
 - **implement-kit** — file-based routing, server rendering in dev, a prerendered static site on build.
 - **CSR with vite** — a client-rendered single page app on plain Vite.
 
-Both open on the same counter page, so the difference you see is the project shape, not the demo. On top of either you can layer [Tailwind](https://tailwindcss.com), [`@implementjs/primitives`](/primitives), [`@implementjs/ui`](/ui), [`@implementjs/lucide`](/lucide), [`@implementjs/formish`](/formish), and [`@implementjs/mode-watcher`](/mode-watcher).
+Both open on the same counter page behind the same two-link nav, so the difference you see is the project shape, not the demo. On top of either you can layer [Tailwind](https://tailwindcss.com), [`@implementjs/primitives`](/primitives), [`@implementjs/ui`](/ui), [`@implementjs/lucide`](/lucide), [`@implementjs/formish`](/formish), and [`@implementjs/mode-watcher`](/mode-watcher).
 
 Linting and formatting come as an [adder](/create/adders), which is the same setup written whether you ask for it while scaffolding or long after:
 

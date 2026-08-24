@@ -37,3 +37,12 @@ cycle resolves only because views touch `router` inside function bodies; one
 top-level `router.href(...)` in a view module would crash at load.
 (`@implementjs/kit` file routes avoid this; `@implementjs/router`'s table
 does not.)
+
+TypeScript hits the same circle a step earlier, and less forgivingly: a view
+that reads `router` and has no written return type is inferred from `router`,
+which is inferred from the table that renders the view — `TS7022`/`TS7023`,
+and every type in the cycle collapses to `any`. Annotating the return type of
+each view that links breaks it, which is what `create-implement-app`'s csr
+template does and says. Inferring the helper's paths from the table is what
+puts the table in the view's inference chain at all, so the fix, if there is
+one, is on that side.
