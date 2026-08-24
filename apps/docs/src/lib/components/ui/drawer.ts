@@ -1,4 +1,4 @@
-import { Span, type Child, type ComponentProps } from "@implementjs/core";
+import { Div, Span, type Child, type ComponentProps, type Mountable } from "@implementjs/core";
 import { XIcon } from "@implementjs/lucide";
 import {
 	createComponent,
@@ -116,43 +116,50 @@ export const DrawerOverlay = createComponent(function DrawerOverlay(
  * it closes, and the `::after` overscroll patch that keeps the background from
  * peeling away from the edge when a drag pulls the panel past its open stop.
  */
-/**
- * A fixed panel is placed against the layout viewport, which an on-screen
- * keyboard does not shrink — so a bottom drawer opens underneath one, and the
- * browser scrolls the page to chase the focused field. `--ip-drawer-keyboard-inset`
- * is how much of the bottom the keyboard has taken: sit on top of it, and cap
- * the panel at what is left so it never has to be scrolled at all.
- */
-// Spelled out rather than composed: Tailwind reads these out of the source as
-// literal text, and a class it never sees written down is a class it never emits.
 const directionClasses: Record<DrawerDirection, string> = {
 	bottom: [
-		"inset-x-0 bottom-[var(--ip-drawer-keyboard-inset,0px)] mt-24 rounded-t-lg border-t",
-		"max-h-[min(85dvh,calc(100dvh-var(--ip-drawer-keyboard-inset,0px)-1.5rem))]",
+		"inset-x-0 bottom-0 mt-24 max-h-[85dvh] rounded-t-lg border-t",
 		"data-[snap-points]:mt-0 data-[snap-points]:h-full data-[snap-points]:max-h-none",
 		"data-[state=closed]:[translate:0_100%] starting:data-[state=open]:[translate:0_100%]",
 		"after:inset-x-0 after:top-full after:h-[200%]",
 	].join(" "),
 	top: [
-		"inset-x-0 top-0 mb-24 rounded-b-lg border-b",
-		"max-h-[min(85dvh,calc(100dvh-var(--ip-drawer-keyboard-inset,0px)-1.5rem))]",
+		"inset-x-0 top-0 mb-24 max-h-[85dvh] rounded-b-lg border-b",
 		"data-[snap-points]:mb-0 data-[snap-points]:h-full data-[snap-points]:max-h-none",
 		"data-[state=closed]:[translate:0_-100%] starting:data-[state=open]:[translate:0_-100%]",
 		"after:inset-x-0 after:bottom-full after:h-[200%]",
 	].join(" "),
 	left: [
-		"top-0 bottom-[var(--ip-drawer-keyboard-inset,0px)] left-0 w-3/4 max-w-sm rounded-r-lg border-r",
+		"inset-y-0 left-0 w-3/4 max-w-sm rounded-r-lg border-r",
 		"data-[snap-points]:w-full data-[snap-points]:max-w-none",
 		"data-[state=closed]:[translate:-100%_0] starting:data-[state=open]:[translate:-100%_0]",
 		"after:inset-y-0 after:right-full after:w-[200%]",
 	].join(" "),
 	right: [
-		"top-0 bottom-[var(--ip-drawer-keyboard-inset,0px)] right-0 w-3/4 max-w-sm rounded-l-lg border-l",
+		"inset-y-0 right-0 w-3/4 max-w-sm rounded-l-lg border-l",
 		"data-[snap-points]:w-full data-[snap-points]:max-w-none",
 		"data-[state=closed]:[translate:100%_0] starting:data-[state=open]:[translate:100%_0]",
 		"after:inset-y-0 after:left-full after:w-[200%]",
 	].join(" "),
 };
+
+/**
+ * The panel does not move for the keyboard — it stays anchored, and the
+ * keyboard covers the bottom of it, which is what keeps the top of the panel
+ * and everything near it exactly where the reader last saw it. This holds the
+ * content itself clear: an empty box at the end of the panel's column, as tall
+ * as the keyboard, so the flex layout above it lands in the space that is left.
+ *
+ * A spacer rather than `padding-bottom` because padding is the first thing a
+ * caller reaches for `class` to change, and this is not theirs to lose.
+ */
+function KeyboardSpacer(): Mountable {
+	return Div({
+		"data-slot": "drawer-keyboard-spacer",
+		"aria-hidden": true,
+		class: "h-[var(--ip-drawer-keyboard-inset,0px)] shrink-0",
+	});
+}
 
 /**
  * Where the grab bar goes, which is always the edge the panel drags out of —
@@ -209,6 +216,7 @@ export const DrawerContent = createComponent(function DrawerContent(
 					: null,
 				...children,
 				showHandle && state.direction === "top" ? DrawerHandle({ class: handleClasses.top }) : null,
+				KeyboardSpacer(),
 				showCloseButton
 					? DrawerClose(
 							{

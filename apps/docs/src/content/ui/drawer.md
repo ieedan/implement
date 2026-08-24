@@ -107,7 +107,11 @@ DrawerContent(DrawerTitle("Layers"), Div({ "data-drawer-no-drag": "" }, MapCanva
 
 ## Keyboards
 
-A panel with a field in it opens above the on-screen keyboard rather than under it, and shrinks to whatever room is left — so the browser never has to scroll the page to reach what you just focused. That is `--ip-drawer-keyboard-inset` from the [primitive](/primitives/docs/drawer#on-screen-keyboards), spent on the panel's `bottom` and `max-height`. Overriding either of those is the one thing that will undo it.
+An on-screen keyboard covers the bottom of the panel and the panel does not move, the way an iOS sheet behaves. Everything in it lays out in the room that is left, so a field near the top stays exactly where it was — and because nothing moved, the browser never scrolls the page to chase it.
+
+`DrawerContent` does that by ending its column with a spacer as tall as `--ip-drawer-keyboard-inset` from the [primitive](/primitives/docs/drawer#on-screen-keyboards). A spacer rather than padding, so that reaching for `class` to set your own padding does not quietly take it away.
+
+Put whatever must stay visible near the top of the panel, and give the part that can afford to shrink `min-h-0 flex-1 overflow-y-auto`.
 
 ## Scaling the page behind
 

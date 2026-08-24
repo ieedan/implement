@@ -88,22 +88,25 @@ Two things a drag deliberately does not do. It does not start from a scroll cont
 
 ## On-screen keyboards
 
-A `fixed` panel is placed against the layout viewport, and a phone keyboard does not shrink that — it shrinks the _visual_ viewport on top of it. So a bottom drawer opens underneath the keyboard, and the browser scrolls the page to chase whatever the reader just focused. A drawer with a field in it is exactly where that happens.
+A `fixed` panel is placed against the layout viewport, and a phone keyboard does not shrink that — it shrinks the _visual_ viewport on top of it. So a keyboard opens over the bottom of the panel, and if anything moves the panel to get out of its way, the browser scrolls the page to chase the field that was just focused, and what the reader was looking at goes with it.
 
-`DrawerContent` writes `--ip-drawer-keyboard-inset`: how much of the bottom of the viewport the keyboard has taken, in px, and `0px` when it has taken none. Sit on top of it, and cap the panel at what is left:
+So don't move it. Leave the panel where it is, let the keyboard cover the bottom of it, and hold the _content_ clear — the way an iOS sheet does. Whatever sits near the top of the panel then stays exactly where the reader last saw it, keyboard or no keyboard, which is the whole trick: a field up there never has to be scrolled into view because it never left.
+
+`DrawerContent` writes `--ip-drawer-keyboard-inset`: how much of the bottom of the viewport the keyboard has taken, in px, and `0px` when it has taken none. Spend it on space at the end of the panel rather than on the panel's own position:
 
 ```ts
-DrawerContent({
-	class: [
-		"fixed inset-x-0 bottom-[var(--ip-drawer-keyboard-inset,0px)]",
-		"max-h-[min(85dvh,calc(100dvh-var(--ip-drawer-keyboard-inset,0px)-1.5rem))]",
-	],
-});
+DrawerContent(
+	{ class: "fixed inset-x-0 bottom-0 flex max-h-[85dvh] flex-col" },
+	SearchField(),
+	Div({ class: "min-h-0 flex-1 overflow-y-auto" }, Results()),
+	// the keyboard's share of the panel, so the column above it lands in what is left
+	Div({ class: "h-[var(--ip-drawer-keyboard-inset,0px)] shrink-0", "aria-hidden": true }),
+);
 ```
 
-A panel that fits above the keyboard is a panel the browser never has to scroll, so the drawer stays where it was put and the field stays where the reader is looking.
+The measurement is live for as long as the drawer is open, and it comes from `visualViewport` — the same reading Vaul takes for `repositionInputs`. What it does with it is the part that differs: Vaul resizes and repositions the panel, and this leaves the panel alone.
 
-The measurement is live for as long as the drawer is open, and it comes from `visualViewport` — the same reading Vaul takes. Nothing reads it for you, so a drawer that never holds a field can ignore it.
+Nothing reads it for you, so a drawer that never holds a field can ignore it. And because nothing moves, a wrong reading costs you a covered footer rather than a panel scrolled off the top.
 
 ## Snap points
 

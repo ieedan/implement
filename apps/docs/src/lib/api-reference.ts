@@ -2903,7 +2903,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				{
 					name: "--ip-drawer-keyboard-inset",
 					description:
-						"How much of the bottom of the viewport an on-screen keyboard has taken, in px, and 0px when it has taken none. A fixed panel sits against the layout viewport, which the keyboard does not shrink — spend this on bottom and max-height so the panel opens above the keyboard rather than under it.",
+						"How much of the bottom of the viewport an on-screen keyboard has taken, in px, and 0px when it has taken none. A fixed panel sits against the layout viewport, which the keyboard does not shrink, so the keyboard covers the bottom of the panel. Spend this on space at the end of the panel rather than on the panel's own position: move the panel and the browser scrolls the page to chase the focused field.",
 				},
 			],
 		},
