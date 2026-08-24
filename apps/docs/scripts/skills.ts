@@ -42,6 +42,14 @@ function collection(name: string): Page[] {
 	return raw;
 }
 
+function page(name: string, permalink: string): Page {
+	const match = collection(name).find((entry) => entry.permalink === permalink);
+	if (match === undefined) {
+		throw new Error(`no page ${permalink} in collection ${name}`);
+	}
+	return match;
+}
+
 /** The pages grouped under their section headings, in the order the sidebar shows them. */
 function index(pages: Page[]): string {
 	const sections = new Map<string, Page[]>();
@@ -54,14 +62,118 @@ function index(pages: Page[]): string {
 	return [...sections]
 		.map(([section, group]) => {
 			const links = group.map(
-				(page) => `- [${page.title}](${SITE_ORIGIN}${page.permalink}.md) — ${page.description}`,
+				(entry) => `- [${entry.title}](${SITE_ORIGIN}${entry.permalink}.md) — ${entry.description}`,
 			);
 			return [`### ${section}`, "", ...links].join("\n");
 		})
 		.join("\n\n");
 }
 
-function write(skill: string, pages: Page[]): void {
+type PackageLink = {
+	name: string;
+	collection: string;
+	permalink: string;
+	/** When set, used instead of the docs page's description. */
+	description?: string;
+};
+
+type PackageGroup = {
+	title: string;
+	packages: PackageLink[];
+};
+
+/**
+ * One link per package, pointing at that package's published intro (or the
+ * page that covers it, for packages that share a collection).
+ */
+const catalog: PackageGroup[] = [
+	{
+		title: "Framework",
+		packages: [
+			{ name: "@implementjs/core", collection: "pages", permalink: "/docs" },
+			{ name: "@implementjs/router", collection: "pages", permalink: "/docs/router" },
+			{ name: "@implementjs/kit", collection: "kit", permalink: "/kit" },
+			{ name: "@implementjs/vite", collection: "pages", permalink: "/docs/vite" },
+		],
+	},
+	{
+		title: "Components",
+		packages: [
+			{ name: "@implementjs/primitives", collection: "primitives", permalink: "/primitives/docs" },
+			{ name: "@implementjs/ui", collection: "ui", permalink: "/ui" },
+		],
+	},
+	{
+		title: "Forms",
+		packages: [{ name: "@implementjs/formish", collection: "formish", permalink: "/formish" }],
+	},
+	{
+		title: "Theming",
+		packages: [
+			{
+				name: "@implementjs/mode-watcher",
+				collection: "modeWatcher",
+				permalink: "/mode-watcher",
+			},
+		],
+	},
+	{
+		title: "Icons",
+		packages: [{ name: "@implementjs/lucide", collection: "lucide", permalink: "/lucide" }],
+	},
+	{
+		title: "Tooling",
+		packages: [
+			{ name: "create-implement-app", collection: "create", permalink: "/create" },
+			{ name: "@implementjs/eslint", collection: "eslint", permalink: "/eslint" },
+		],
+	},
+	{
+		title: "Adapters",
+		packages: [
+			{
+				name: "@implementjs/adapter-static",
+				collection: "kit",
+				permalink: "/kit/adapters",
+				description: "Builds an implement kit app into static files for any static host.",
+			},
+			{
+				name: "@implementjs/adapter-node",
+				collection: "kit",
+				permalink: "/kit/adapters",
+				description: "Builds an implement kit app into a standalone Node server.",
+			},
+			{
+				name: "@implementjs/adapter-vercel",
+				collection: "kit",
+				permalink: "/kit/adapters",
+				description: "Builds an implement kit app for Vercel, through the Build Output API.",
+			},
+			{
+				name: "@implementjs/adapter-cloudflare",
+				collection: "kit",
+				permalink: "/kit/adapters",
+				description:
+					"Builds an implement kit app into a Cloudflare worker with static assets beside it.",
+			},
+		],
+	},
+];
+
+function packageIndex(groups: PackageGroup[]): string {
+	return groups
+		.map((group) => {
+			const links = group.packages.map((entry) => {
+				const docs = page(entry.collection, entry.permalink);
+				const description = entry.description ?? docs.description;
+				return `- [${entry.name}](${SITE_ORIGIN}${docs.permalink}.md) — ${description}`;
+			});
+			return [`### ${group.title}`, "", ...links].join("\n");
+		})
+		.join("\n\n");
+}
+
+function write(skill: string, body: string): void {
 	const file = path.join(root, ".agents", "skills", skill, "SKILL.md");
 	const source = fs.readFileSync(file, "utf8");
 	const start = source.indexOf(START);
@@ -70,11 +182,12 @@ function write(skill: string, pages: Page[]): void {
 		throw new Error(`${file} is missing its ${START} / ${END} markers.`);
 	}
 
-	const next = `${source.slice(0, start + START.length)}\n\n${index(pages)}\n\n${source.slice(end)}`;
+	const next = `${source.slice(0, start + START.length)}\n\n${body}\n\n${source.slice(end)}`;
 	if (next === source) return;
 	fs.writeFileSync(file, next);
 	console.log(`updated .agents/skills/${skill}/SKILL.md`);
 }
 
-write("implementjs", collection("pages"));
-write("implementjs-kit", collection("kit"));
+write("implementjs", index(collection("pages")));
+write("implementjs-kit", index(collection("kit")));
+write("implement-packages", packageIndex(catalog));

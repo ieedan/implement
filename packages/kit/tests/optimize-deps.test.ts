@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -18,6 +19,7 @@ const SHELL = `<!doctype html>
 `;
 
 let root: string | null = null;
+let cacheDir: string | null = null;
 
 /**
  * An app that names each dep exactly once, in a file the dep scanner only
@@ -69,12 +71,16 @@ describe("dep pre-bundling", () => {
 
 	beforeAll(async () => {
 		root = makeApp();
+		// its own directory, so a rerun never reads the last run's scan back, and
+		// outside the app: the optimizer keeps writing its temp bundle after
+		// `server.close()` resolves, which put the files back under `fixtures/`
+		// every run once the app itself had been removed
+		cacheDir = mkdtempSync(join(tmpdir(), "implement-optimize-"));
 		server = await createServer({
 			root,
 			configFile: false,
 			logLevel: "error",
-			// inside the app, so a rerun never reads the last run's scan back
-			cacheDir: join(root, ".vite"),
+			cacheDir,
 			server: { middlewareMode: true, watch: null },
 			plugins: [kit()],
 		});
@@ -90,7 +96,9 @@ describe("dep pre-bundling", () => {
 	afterAll(async () => {
 		await server.close();
 		if (root !== null) rmSync(root, { recursive: true, force: true });
+		if (cacheDir !== null) rmSync(cacheDir, { recursive: true, force: true });
 		root = null;
+		cacheDir = null;
 	});
 
 	it("finds a param matcher's deps, which only `$implement/params` imports", () => {

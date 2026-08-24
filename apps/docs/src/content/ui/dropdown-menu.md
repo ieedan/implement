@@ -88,16 +88,24 @@ DropdownMenuCheckboxGroup(
 `indicator` replaces the check a checkbox item renders. The left padding the default one is absolutely positioned into comes off with it, so a custom indicator sits in the row's flow and you place it yourself:
 
 ```ts
-DropdownMenuCheckboxItem({ value: "bug", indicator: MyCheckbox() }, "Bug");
+DropdownMenuCheckboxItem({ value: "bug", indicator: MyIndicator() }, "Bug");
 ```
 
 Anything you draw reads its state off the row, which is a `group/menu-item` — `group-data-[state=checked]/menu-item:` for checked, `group-data-[highlighted]/menu-item:` for the row under the pointer.
+
+To draw a real [checkbox](/ui/checkbox) there, reach for its `decorative` prop. The row is already the `role="menuitemcheckbox"`, so a second control inside it would put two checked states on one row; `decorative` renders the box as an `aria-hidden` span — the look and the click toggle, none of the semantics:
+
+```ts
+Checkbox({ decorative: true, checked: isChecked });
+```
+
+The state it shows is the group's, reached through a two-way [bind](/docs/signals) rather than copied — `selected.bind((labels) => labels.includes(value), ...)` is a `Signal<boolean>` view of one label's place in the array, so the box and the row toggle the same thing.
 
 That is half of the pattern below; the other half is that `closeOnSelect` belongs to the _item_, so an element inside it can stop its own click before the item ever selects. Clicking the checkbox toggles the label and leaves the menu open for the next one, while clicking the rest of the row toggles it and closes.
 
 <div data-demo="dropdown-menu-labels" data-demo-description="A “Labels” menu of six colored labels; each row's checkbox toggles without closing, while clicking the rest of the row toggles and closes."></div>
 
-The row stays a single `role="menuitemcheckbox"` — the checkbox is `aria-hidden` decoration with a click handler, not a nested control — so it keeps one accessible name and one checked state. The cost is that the split is pointer-only: Enter and Space activate the row, which toggles _and_ closes. If keyboard users need to check several labels in one pass, put `closeOnSelect: false` on the items and let the row behave like the checkbox does.
+The row stays a single `role="menuitemcheckbox"`, so it keeps one accessible name and one checked state. The cost is that the split is pointer-only: Enter and Space activate the row, which toggles _and_ closes. If keyboard users need to check several labels in one pass, put `closeOnSelect: false` on the items and let the row behave like the checkbox does.
 
 ## The shared menu styles
 

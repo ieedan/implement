@@ -1352,6 +1352,13 @@ const primitiveReference: Record<string, ApiPart[]> = {
 					default: "false",
 					description: "Marks the hidden input as required. Sets aria-required on the button.",
 				},
+				{
+					name: "decorative",
+					type: "boolean",
+					default: "false",
+					description:
+						"Draws the box inside something that is already the control. Renders a Span instead of a Button, drops role, aria-checked, and aria-required, and sets aria-hidden. data-state and the click toggle stay; name renders no hidden input and disabled is not forwarded.",
+				},
 			],
 			dataAttributes: [
 				{ name: "data-checkbox-root", value: "Present" },

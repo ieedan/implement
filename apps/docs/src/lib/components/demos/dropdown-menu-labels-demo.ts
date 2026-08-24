@@ -1,5 +1,6 @@
 import { Div, P, Span, signal, type Signal } from "@implementjs/core";
-import { CheckIcon, TagIcon } from "@implementjs/lucide";
+import { TagIcon } from "@implementjs/lucide";
+import { Checkbox } from "@/lib/components/ui/checkbox";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxGroup,
@@ -19,38 +20,37 @@ const LABELS = [
 	{ value: "question", name: "Question", emoji: "❓", dot: "bg-yellow-400" },
 ];
 
-function toggle(selected: Signal<string[]>, value: string) {
-	selected.update((current) =>
-		current.includes(value) ? current.filter((label) => label !== value) : [...current, value],
+/**
+ * A two-way view of one label's place in the group's array: reading is
+ * `includes`, writing adds or removes. The checkbox toggles it like any other
+ * signal, so the array stays the only copy of the state — nothing to keep in
+ * sync with the row.
+ */
+function membership(selected: Signal<string[]>, value: string): Signal<boolean> {
+	return selected.bind(
+		(labels) => labels.includes(value),
+		(labels, checked) => (checked ? [...labels, value] : labels.filter((label) => label !== value)),
 	);
 }
 
 /**
- * The row's indicator, drawn as a checkbox instead of the usual check. It
- * swallows its own click, so toggling from here never reaches the item and
- * the menu stays open; clicking anywhere else on the row goes through the
- * item and closes. Both read their checked state off the row's `data-state`.
+ * The row's indicator, drawn as a real checkbox. `decorative` renders it as a
+ * span outside the accessibility tree — the row is already the
+ * `menuitemcheckbox` — while the click still toggles. It swallows that click,
+ * so toggling from here never reaches the item and the menu stays open;
+ * clicking anywhere else on the row goes through the item and closes.
  */
 function LabelCheckbox(selected: Signal<string[]>, value: string) {
-	return Span(
-		{
-			"aria-hidden": true,
-			class: cn(
-				"grid size-4 shrink-0 place-content-center rounded-[4px] border border-input transition-opacity",
-				// idle rows show only their dot, the way the checkbox appears under the pointer
-				"opacity-0 group-data-[highlighted]/menu-item:opacity-100 group-data-[state=checked]/menu-item:opacity-100",
-				"group-data-[state=checked]/menu-item:border-primary group-data-[state=checked]/menu-item:bg-primary group-data-[state=checked]/menu-item:text-primary-foreground",
-			),
-			onClick: (e: MouseEvent) => {
-				e.stopPropagation();
-				toggle(selected, value);
-			},
-		},
-		CheckIcon({
-			"aria-hidden": true,
-			class: "size-3 hidden group-data-[state=checked]/menu-item:block",
-		}),
-	);
+	return Checkbox({
+		decorative: true,
+		checked: membership(selected, value),
+		onClick: (e: MouseEvent) => e.stopPropagation(),
+		// idle rows show only their dot; the box fades in under the pointer, or stays for a checked one
+		class: cn(
+			"transition-opacity opacity-0",
+			"group-data-[highlighted]/menu-item:opacity-100 group-data-[state=checked]/menu-item:opacity-100",
+		),
+	});
 }
 
 export default function DropdownMenuLabelsDemo() {

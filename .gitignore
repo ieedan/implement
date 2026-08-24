@@ -52,6 +52,10 @@ out/
 # fixture apps under test ship the .env they are tested against
 !packages/kit/tests/fixtures/*/.env
 
+# Throwaway app the dep pre-bundling test builds, left behind only when a run
+# is interrupted before it cleans up
+packages/kit/tests/fixtures/optimize-*/
+
 # Coverage
 coverage/
 .nyc_output/

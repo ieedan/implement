@@ -73,6 +73,7 @@ Start with **Introduction** and **Getting Started** if you have not built an imp
 ## Related skills
 
 - **implementjs-kit** — file-based routing, data loading, server routes, and adapters, for a fullstack app built on `@implementjs/kit`.
+- **implement-packages** — every implement package's published markdown docs, including the UI registry.
 
 ## Official implement packages
 

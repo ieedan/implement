@@ -77,6 +77,32 @@ Form(
 
 Without `name`, no hidden input is rendered. An indeterminate checkbox submits as unchecked.
 
+## Decoration
+
+Inside something that is already the control — a `menuitemcheckbox` row, a selectable card — a second checkbox would put two checked states on one thing. `decorative` draws the box without the semantics: a `Span` rather than a `Button`, no `role`, `aria-checked`, or `aria-required`, and `aria-hidden` over the lot, so nothing tabs to it and assistive tech reads the control around it instead.
+
+```ts
+Checkbox({ decorative: true, checked });
+```
+
+`data-state` and the click toggle stay, so it looks and behaves like every other checkbox — the only difference is that it is not one. Submitting belongs to the real control: `name` renders no hidden input here, and `disabled` is not forwarded.
+
+What it shows has to come from the state that already exists, and a two-way [bind](/docs/signals) is usually the shortest way there — a `Signal<boolean>` view of a value's place in a list, with no second copy to keep in sync:
+
+```ts
+const selected = signal(["ui-fix"]);
+
+Checkbox({
+	decorative: true,
+	checked: selected.bind(
+		(labels) => labels.includes("bug"),
+		(labels, checked) => (checked ? [...labels, "bug"] : labels.filter((l) => l !== "bug")),
+	),
+});
+```
+
+The [dropdown menu](/ui/dropdown-menu) draws its label rows exactly this way.
+
 ## Styling
 
 The primitive is unstyled until you give it a look. It sets `data-checkbox-root` and `data-state` as `"checked"`, `"unchecked"`, or `"indeterminate"`, so one class list can cover every state. Children are the indicator — typically a check icon that you show while checked, and a minus while mixed:

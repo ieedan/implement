@@ -38,3 +38,4 @@ Start with **Introduction**, which covers project layout, `src/lib`, the generat
 ## Related skills
 
 - **implementjs** — `@implementjs/core`: elements, signals, control flow, lifecycle, and context.
+- **implement-packages** — every implement package's published markdown docs, including the UI registry.
