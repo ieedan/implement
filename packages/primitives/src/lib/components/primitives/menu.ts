@@ -874,7 +874,13 @@ export type MenuSubTriggerProps = RenderableProps<typeof Div> & {
 };
 
 export const MenuSubTrigger = createComponent(function MenuSubTrigger(
-	{ id = getId(), disabled = false, openDelay = 100, render = Div, ...restProps }: MenuSubTriggerProps,
+	{
+		id = getId(),
+		disabled = false,
+		openDelay = 100,
+		render = Div,
+		...restProps
+	}: MenuSubTriggerProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((root) => {

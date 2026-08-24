@@ -130,10 +130,7 @@ export const TabsList = createComponent(function TabsList(
 	});
 });
 
-export type TabsTriggerProps = Omit<
-	RenderableProps<typeof Button>,
-	"disabled" | "value" | "id"
-> & {
+export type TabsTriggerProps = Omit<RenderableProps<typeof Button>, "disabled" | "value" | "id"> & {
 	/** Identifies the tab. Must match the `TabsContent` it opens. */
 	value: string;
 	/** Plain string: the panel points back at it with `aria-labelledby`. */
