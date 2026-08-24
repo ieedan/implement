@@ -64,6 +64,15 @@ Accordion(
 open.set("why"); // opens "why", closing "what"
 ```
 
+`onValueChange` reports the open item(s) after each change instead, so you can react without owning the signal — a `string | null` under `"single"`, a `string[]` under `"multiple"`.
+
+```ts
+Accordion(
+	{ onValueChange: (open) => console.log(open) },
+	AccordionItem({ value: "what" }, AccordionTrigger("A"), AccordionContent("First")),
+);
+```
+
 ## The trigger and the content
 
 `AccordionTrigger` renders a `Button`. Clicking it toggles the item. `AccordionContent` is a `Div` that sets the `hidden` attribute while the item is closed, so the body is out of the accessibility tree and not shown.

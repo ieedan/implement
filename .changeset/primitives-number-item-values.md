@@ -24,6 +24,9 @@ keyboard is what selected the item and the value made the round trip through
 the DOM. `Select` carries them the same way, in single and multiple alike, and
 `SelectValue` falls back to printing the number when nothing labels the item.
 
+`onValueChange` follows: it is handed the number the same way, so a select or
+group bound to numbers reports numbers.
+
 The DOM only speaks strings, so `data-value` is unchanged — the number written
 out. Values are matched by identity, so `1` and `"1"` are two different items;
 pick one shape per select or group. Existing string values, and the signals

@@ -13,6 +13,7 @@ import {
 } from "@implementjs/core";
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
@@ -26,6 +27,8 @@ export type TabsActivationMode = "automatic" | "manual";
 export type TabsRootProps = RenderableProps<typeof Div> & {
 	/** The selected tab. Pass a signal to control it from outside; a string seeds uncontrolled state. */
 	value?: Signal<string> | string;
+	/** Runs whenever the selected tab changes. */
+	onValueChange?: ChangeHandler<string>;
 	orientation?: "horizontal" | "vertical";
 	/** Whether arrow keys wrap from the last trigger back to the first. */
 	loop?: boolean;
@@ -77,6 +80,7 @@ export const Tabs = createComponent(function Tabs(
 	{
 		id = getId(),
 		value,
+		onValueChange,
 		orientation = "horizontal",
 		loop = true,
 		activationMode = "automatic",
@@ -90,6 +94,7 @@ export const Tabs = createComponent(function Tabs(
 	const state = new TabsState({ loop, orientation, activationMode }, root, value, disabled);
 
 	return TabsCtx.Provide(state).To(
+		...changeEffect(state.value, onValueChange),
 		render(
 			mergeProps(
 				{
@@ -130,10 +135,7 @@ export const TabsList = createComponent(function TabsList(
 	});
 });
 
-export type TabsTriggerProps = Omit<
-	RenderableProps<typeof Button>,
-	"disabled" | "value" | "id"
-> & {
+export type TabsTriggerProps = Omit<RenderableProps<typeof Button>, "disabled" | "value" | "id"> & {
 	/** Identifies the tab. Must match the `TabsContent` it opens. */
 	value: string;
 	/** Plain string: the panel points back at it with `aria-labelledby`. */

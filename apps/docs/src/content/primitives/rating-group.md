@@ -34,6 +34,8 @@ RatingGroup(
 
 Clicking a step sets the value. Clicking the first step when it is already the value clears the rating back to `0` (when `min` is `0`).
 
+`onValueChange` reports the rating after each change, so a form can submit it without owning the signal. The hover preview is not a change: it moves `data-state` on the items and leaves `value` alone until a click lands.
+
 ## Half steps and hover
 
 Pass `allowHalf` to work in half steps: the pointer's position inside an item picks the half, arrow keys move by `0.5`, and an item halfway filled gets `data-state="partial"`.

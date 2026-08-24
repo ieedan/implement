@@ -9,6 +9,7 @@ import {
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
+	type ItemValue,
 } from "../src/index";
 
 /** Flush the microtask queue so deferred `Lifecycle.onMount` hooks run. */
@@ -292,6 +293,22 @@ describe("select number values", () => {
 
 		items[0]!.click();
 		expect(value.get()).toEqual([2]);
+
+		unmount();
+	});
+
+	it("hands onValueChange the number", async () => {
+		const seen: (ItemValue | null)[] = [];
+		const { target, unmount } = await mount(
+			Select(
+				{ onValueChange: (value) => seen.push(value) },
+				SelectTrigger({}, SelectValue({ placeholder: "Pick" })),
+				SelectContent({}, SelectItem({ value: 1 }, "One"), SelectItem({ value: 2 }, "Two")),
+			),
+		);
+
+		target.querySelectorAll<HTMLElement>("[data-select-item]")[1]!.click();
+		expect(seen).toEqual([2]);
 
 		unmount();
 	});

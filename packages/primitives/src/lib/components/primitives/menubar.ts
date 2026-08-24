@@ -12,6 +12,7 @@ import {
 } from "@implementjs/core";
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId } from "../../utils";
 import {
 	MenuCheckboxGroup,
@@ -48,6 +49,8 @@ import type { RenderableProps } from "../../render";
 export type MenubarRootProps = RenderableProps<typeof Div> & {
 	/** The value of the open menu, or null while all are closed. */
 	value?: Signal<string | null> | string | null;
+	/** Runs whenever the open menu changes. `null` once every menu is closed. */
+	onValueChange?: ChangeHandler<string | null>;
 	/** Whether arrow keys wrap from the last trigger back to the first. */
 	loop?: boolean;
 };
@@ -105,13 +108,14 @@ class MenubarState {
  * and arrows move both between triggers and between open menus.
  */
 export const Menubar = createComponent(function Menubar(
-	{ id = getId(), value, loop = true, render = Div, ...restProps }: MenubarRootProps,
+	{ id = getId(), value, onValueChange, loop = true, render = Div, ...restProps }: MenubarRootProps,
 	...children: Child[]
 ) {
 	const root = ref<HTMLDivElement>();
 	const state = new MenubarState({ loop }, root, value);
 
 	return MenubarCtx.Provide(state).To(
+		...changeEffect(state.value, onValueChange),
 		render(
 			mergeProps(
 				{

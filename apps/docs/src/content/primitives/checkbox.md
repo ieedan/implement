@@ -30,6 +30,12 @@ Button({ onClick: () => accepted.set(true) }, "Accept");
 
 Clicking the checkbox toggles `checked`. Space and Enter do the same, because it is a real `Button`.
 
+`onCheckedChange` runs on every change to `checked`, so you can react without holding a signal of your own:
+
+```ts
+Checkbox({ onCheckedChange: (checked) => console.log(checked) });
+```
+
 ## Indeterminate
 
 `indeterminate` is for a parent that represents a mixed set — some children on, some off. Pass a boolean or a signal. While it is true, `data-state` is `"indeterminate"` and `aria-checked` is `"mixed"`.

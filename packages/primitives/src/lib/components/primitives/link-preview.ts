@@ -18,6 +18,7 @@ import {
 import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
 import { tabbable } from "../../focus";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import {
 	DismissableLayer,
 	EscapeEvent,
@@ -31,6 +32,8 @@ import { createComponent } from "../../create-component";
 
 export type LinkPreviewRootProps = {
 	open?: Signal<boolean> | boolean;
+	/** Runs whenever the open state changes. */
+	onOpenChange?: ChangeHandler<boolean>;
 	/** When disabled the preview never opens; the link still works. */
 	disabled?: Signal<boolean> | boolean;
 	/** When true, the page behind cannot scroll while the preview is open. Defaults to true. */
@@ -227,6 +230,7 @@ export const LinkPreview = createComponent(function LinkPreview(
 			),
 		},
 		ScrollLock({ open: state.open, enabled: state.opts.preventScroll !== false }),
+		...changeEffect(state.open, state.opts.onOpenChange),
 		LinkPreviewCtx.Provide(state).To(
 			ImplementDocument({ onPointerup: () => state.documentPointerup() }),
 			ImplementLifecycle(

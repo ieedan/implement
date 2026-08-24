@@ -35,6 +35,8 @@ Menubar(
 
 The bar owns which menu is open — `value` holds the open menu's value, or `null`. Opening one closes another, and while any menu is open, hovering a different trigger switches to it, the way native application menus feel. Pass a signal as `value` to control it from outside. While a menu is open, the page behind cannot scroll; pass `preventScroll: false` on that `MenubarMenu` to leave it scrollable.
 
+`onValueChange` reports which menu is open after each change, and `null` once they all close.
+
 ## Keyboard
 
 The bar is one Tab stop. Left and Right arrows move between triggers (wrapping unless `loop: false`); Enter, Space, or ArrowDown opens the focused menu with its first item focused. Inside an open menu the shared model applies — arrows move, typing jumps, Enter activates, Escape closes — and Left/Right close the open menu and open its neighbor.

@@ -55,6 +55,16 @@ value.onChange((current) => console.log("highlighted", current));
 
 Every item needs a stable, unique `value`; it is what the search is scored against (along with `keywords`) and what the root tracks as the highlight. When omitted, the item's text content is used.
 
+`onSearchChange` and `onValueChange` report the same two strings as callbacks, for when you do not want to hold the signals:
+
+```ts
+Command(
+	{ onSearchChange: (search) => console.log(search), onValueChange: (value) => console.log(value) },
+	CommandInput(),
+	CommandList(CommandViewport(CommandItem({ value: "calendar" }, "Calendar"))),
+);
+```
+
 ## Filtering
 
 Scoring uses `computeCommandScore`, which favors continuous matches and word starts — typing "cal" ranks "Calendar" above "Local time". An item whose score is 0 gets the `hidden` attribute; the rest are re-ordered in the DOM by score, best first. Clearing the search restores the original order.

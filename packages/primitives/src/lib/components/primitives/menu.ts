@@ -32,6 +32,7 @@ import {
 	type MaybeReadable,
 } from "../../utils";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, withChangeEffect, type ChangeHandler } from "../../on-change";
 import { ScrollLock } from "../helpers/scroll-lock";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
@@ -65,6 +66,8 @@ const GRACE_AREA_DURATION = 300;
 
 export type MenuRootOptions = {
 	open?: Signal<boolean> | boolean;
+	/** Runs whenever the open state changes. */
+	onOpenChange?: ChangeHandler<boolean>;
 	/** When true, the page behind cannot scroll while the menu is open. Defaults to true. */
 	preventScroll?: boolean;
 };
@@ -335,6 +338,7 @@ export function MenuRoot(state: MenuState, ...children: Child[]) {
 			),
 		},
 		ScrollLock({ open: state.open, enabled: state.opts.preventScroll !== false }),
+		...changeEffect(state.open, state.opts.onOpenChange),
 		MenuCtx.Provide(state).To(
 			ImplementLifecycle(
 				{
@@ -567,6 +571,8 @@ export const MenuGroupHeading = createComponent(function MenuGroupHeading(
 export type MenuCheckboxGroupProps = RenderableProps<typeof Div> & {
 	/** The values of the checked items. Pass a signal to control them from outside. */
 	value?: ItemValuesSignal | ItemValue[];
+	/** Runs whenever the set of checked items changes. */
+	onValueChange?: ChangeHandler<ItemValue[]>;
 };
 
 class MenuCheckboxGroupState extends MenuGroupState {
@@ -587,13 +593,14 @@ class MenuCheckboxGroupState extends MenuGroupState {
 const MenuCheckboxGroupCtx = context<MenuCheckboxGroupState>("MenuCheckboxGroupCtx");
 
 export const MenuCheckboxGroup = createComponent(function MenuCheckboxGroup(
-	{ id = getId(), value, render = Div, ...restProps }: MenuCheckboxGroupProps,
+	{ id = getId(), value, onValueChange, render = Div, ...restProps }: MenuCheckboxGroupProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
 		const group = new MenuCheckboxGroupState(value);
 		return MenuGroupCtx.Provide(group).To(
 			MenuCheckboxGroupCtx.Provide(group).To(
+				...changeEffect(group.value, onValueChange),
 				render(
 					mergeProps(
 						{
@@ -613,6 +620,8 @@ export const MenuCheckboxGroup = createComponent(function MenuCheckboxGroup(
 
 export type MenuCheckboxItemProps = MenuItemProps & {
 	checked?: Signal<boolean> | boolean;
+	/** Runs whenever the item's checked state changes, inside a group or on its own. */
+	onCheckedChange?: ChangeHandler<boolean>;
 	/** Identifies the item inside a MenuCheckboxGroup. Must be unique within the group. */
 	value?: ItemValue;
 };
@@ -621,6 +630,7 @@ export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 	{
 		id = getId(),
 		checked = false,
+		onCheckedChange,
 		value,
 		onSelect = noop,
 		disabled = false,
@@ -641,31 +651,35 @@ export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 					? checkedSignal
 					: membership.group.value.bind((values) => values.includes(membership.value));
 
-			return render(
-				mergeProps(
-					menuItemProps(state, {
-						id,
-						disabled: signal(disabled),
-						closeOnSelect,
-						select: () => {
-							if (membership === null) {
-								checkedSignal.toggle();
-							} else {
-								membership.group.toggle(membership.value);
-							}
-							onSelect();
+			return withChangeEffect(
+				render(
+					mergeProps(
+						menuItemProps(state, {
+							id,
+							disabled: signal(disabled),
+							closeOnSelect,
+							select: () => {
+								if (membership === null) {
+									checkedSignal.toggle();
+								} else {
+									membership.group.toggle(membership.value);
+								}
+								onSelect();
+							},
+						}),
+						{
+							role: "menuitemcheckbox",
+							[state.attr("checkbox-item")]: "",
+							"data-value": value,
+							"aria-checked": isChecked,
+							"data-state": isChecked.bind((checked) => (checked ? "checked" : "unchecked")),
 						},
-					}),
-					{
-						role: "menuitemcheckbox",
-						[state.attr("checkbox-item")]: "",
-						"data-value": value,
-						"aria-checked": isChecked,
-						"data-state": isChecked.bind((checked) => (checked ? "checked" : "unchecked")),
-					},
-					restProps,
+						restProps,
+					),
+					...children,
 				),
-				...children,
+				isChecked,
+				onCheckedChange,
 			);
 		}, null);
 	});
@@ -673,6 +687,8 @@ export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 
 export type MenuRadioGroupProps = RenderableProps<typeof Div> & {
 	value?: ItemValueSignal | ItemValue | null;
+	/** Runs whenever the selected item changes. `null` while nothing is selected. */
+	onValueChange?: ChangeHandler<ItemValue | null>;
 };
 
 class MenuRadioGroupState extends MenuGroupState {
@@ -687,13 +703,14 @@ class MenuRadioGroupState extends MenuGroupState {
 const MenuRadioGroupCtx = context<MenuRadioGroupState>("MenuRadioGroupCtx");
 
 export const MenuRadioGroup = createComponent(function MenuRadioGroup(
-	{ id = getId(), value, render = Div, ...restProps }: MenuRadioGroupProps,
+	{ id = getId(), value, onValueChange, render = Div, ...restProps }: MenuRadioGroupProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
 		const group = new MenuRadioGroupState(value);
 		return MenuGroupCtx.Provide(group).To(
 			MenuRadioGroupCtx.Provide(group).To(
+				...changeEffect(group.value, onValueChange),
 				render(
 					mergeProps(
 						{
@@ -872,6 +889,7 @@ export const MenuSub = createComponent(function MenuSub(props: MenuSubProps, ...
 		});
 
 		return MenuSubCtx.Provide(sub).To(
+			...changeEffect(sub.open, props.onOpenChange),
 			ImplementLifecycle({ onUnmount: () => sub.dispose() }, ...children),
 		);
 	});

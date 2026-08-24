@@ -17,6 +17,7 @@ import {
 } from "@implementjs/core";
 import { getId, getReadableValue, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { computeCommandScore } from "../helpers/command-score";
 import { createComponent } from "../../create-component";
 
@@ -87,8 +88,12 @@ export type CommandRootProps = ComponentProps<typeof Div> & {
 	label?: string;
 	/** The value of the highlighted item. Pass a signal to control it from outside. */
 	value?: Signal<string> | string;
+	/** Runs whenever the highlighted item changes. */
+	onValueChange?: ChangeHandler<string>;
 	/** The search query. Pass a signal to control or observe it from outside. */
 	search?: Signal<string> | string;
+	/** Runs whenever the search query changes. */
+	onSearchChange?: ChangeHandler<string>;
 	/**
 	 * Set to false to turn off the automatic filtering and sorting, and
 	 * conditionally render valid items yourself. Defaults to true.
@@ -744,7 +749,9 @@ export const Command = createComponent(function Command(
 		id = getId(),
 		label,
 		value,
+		onValueChange,
 		search,
+		onSearchChange,
 		shouldFilter,
 		filter,
 		loop,
@@ -769,6 +776,8 @@ export const Command = createComponent(function Command(
 	});
 	if (label !== undefined) state.labelId = getId();
 	return CommandCtx.Provide(state).To(
+		...changeEffect(state.value, onValueChange),
+		...changeEffect(state.search, onSearchChange),
 		ImplementLifecycle(
 			{
 				onMount: () => state.search.onChange(() => state.scheduleSync(true)),

@@ -18,6 +18,7 @@ import {
 import { getId, LIB_PREFIX, noop, type MaybeReadable } from "../../utils";
 import { tabbable, trapFocus } from "../../focus";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import {
 	DismissableLayer,
 	EscapeEvent,
@@ -51,6 +52,8 @@ export type ModalConfig = {
 
 export type ModalRootOptions = {
 	open?: Signal<boolean> | boolean;
+	/** Runs whenever the open state changes. */
+	onOpenChange?: ChangeHandler<boolean>;
 	/** When true, the page behind cannot scroll while the modal is open. Defaults to true. */
 	preventScroll?: boolean;
 };
@@ -288,6 +291,7 @@ export function ModalRoot(state: ModalState, ...children: Child[]) {
 				),
 			},
 			ScrollLock({ open: state.open, enabled: state.opts.preventScroll !== false }),
+			...changeEffect(state.open, state.opts.onOpenChange),
 			ModalCtx.Provide(state).To(
 				ImplementLifecycle(
 					{

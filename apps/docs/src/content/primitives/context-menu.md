@@ -31,6 +31,8 @@ Each part accepts optional props and children — pass a props object when you n
 
 The trigger intercepts the `contextmenu` event, so the browser menu is replaced inside the area. The panel anchors to the pointer position — right-clicking somewhere else while open moves it there. On touch, a long press (700ms) opens it. Pass `disabled` on the trigger to fall back to the native browser menu. While open, the page behind cannot scroll; pass `preventScroll: false` on the root to leave it scrollable.
 
+`open` and `onOpenChange` work as they do on [DropdownMenu](/primitives/docs/dropdown-menu): pass a signal to control the menu, or the callback to be told when it opens and closes.
+
 ## Items, structure, and keyboard
 
 Everything inside the panel is the shared menu set: `ContextMenuItem` with `onSelect` and `closeOnSelect`, `ContextMenuCheckboxItem` (grouped into one array of values by `ContextMenuCheckboxGroup`), `ContextMenuRadioGroup` and `ContextMenuRadioItem`, `ContextMenuGroup` with `ContextMenuGroupHeading`, `ContextMenuSeparator`, and nested [submenus](/primitives/docs/dropdown-menu#submenus) via `ContextMenuSub`, `ContextMenuSubTrigger`, and `ContextMenuSubContent`. The keyboard model matches the [dropdown menu](/primitives/docs/dropdown-menu#keyboard): arrows move, typing jumps, Enter and Space activate, ArrowRight and ArrowLeft enter and leave submenus, Escape closes.
