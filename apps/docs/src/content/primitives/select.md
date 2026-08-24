@@ -176,6 +176,8 @@ SelectContent(
 
 `SelectItem` is a `Div` with `role="option"`. Clicking it selects that value (or toggles it when `type` is `"multiple"`). Selected items set `aria-selected` and `data-selected`. Highlighted items set `data-highlighted`. Disabled items set `data-disabled` and `aria-disabled`, and cannot be selected. Pass `label` when the visible children are not the typeahead/display text.
 
+Opening the list highlights the item already selected — the first one when nothing is, or when the selection is disabled — and scrolls it into view, so the arrow keys carry on from the current value instead of from the top.
+
 ```ts
 SelectItem({ value: "apple" }, "Apple");
 SelectItem({ value: "us", label: "United States" }, "US");
