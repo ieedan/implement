@@ -184,6 +184,7 @@ export {
 	type RatingGroupItemProps,
 	type RatingGroupItemStateValue,
 } from "./lib/components/primitives/rating-group";
+export { type ItemValue, type ItemValueSignal, type ItemValuesSignal } from "./lib/utils";
 export { mergeProps } from "./lib/merge-props";
 export { createComponent, type Component, type ComponentInit } from "./lib/create-component";
 export { Checkbox, type CheckboxProps } from "./lib/components/primitives/checkbox";

@@ -22,7 +22,15 @@ import {
 	InteractOutsideEvent,
 	type DismissBehavior,
 } from "../helpers/dismissable-layer";
-import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
+import {
+	getId,
+	getReadableValue,
+	noop,
+	type ItemValue,
+	type ItemValuesSignal,
+	type ItemValueSignal,
+	type MaybeReadable,
+} from "../../utils";
 import { mergeProps } from "../../merge-props";
 import { ScrollLock } from "../helpers/scroll-lock";
 import { createComponent } from "../../create-component";
@@ -558,17 +566,18 @@ export const MenuGroupHeading = createComponent(function MenuGroupHeading(
 
 export type MenuCheckboxGroupProps = RenderableProps<typeof Div> & {
 	/** The values of the checked items. Pass a signal to control them from outside. */
-	value?: Signal<string[]> | string[];
+	value?: ItemValuesSignal | ItemValue[];
 };
 
 class MenuCheckboxGroupState extends MenuGroupState {
-	value: Signal<string[]>;
+	value: Signal<ItemValue[]>;
 	constructor(value: MenuCheckboxGroupProps["value"]) {
 		super();
-		this.value = signal(value ?? []);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ItemValuesSignal names each concrete signal shape; the group holds the widest one.
+		this.value = signal(value ?? ([] as ItemValue[])) as Signal<ItemValue[]>;
 	}
 
-	toggle(item: string) {
+	toggle(item: ItemValue) {
 		this.value.update((values) =>
 			values.includes(item) ? values.filter((value) => value !== item) : [...values, item],
 		);
@@ -605,7 +614,7 @@ export const MenuCheckboxGroup = createComponent(function MenuCheckboxGroup(
 export type MenuCheckboxItemProps = MenuItemProps & {
 	checked?: Signal<boolean> | boolean;
 	/** Identifies the item inside a MenuCheckboxGroup. Must be unique within the group. */
-	value?: string;
+	value?: ItemValue;
 };
 
 export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
@@ -663,14 +672,15 @@ export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 });
 
 export type MenuRadioGroupProps = RenderableProps<typeof Div> & {
-	value?: Signal<string | null> | string | null;
+	value?: ItemValueSignal | ItemValue | null;
 };
 
 class MenuRadioGroupState extends MenuGroupState {
-	value: Signal<string | null>;
+	value: Signal<ItemValue | null>;
 	constructor(value: MenuRadioGroupProps["value"]) {
 		super();
-		this.value = signal(value ?? null);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ItemValueSignal names each concrete signal shape; the group holds the widest one.
+		this.value = signal(value ?? (null as ItemValue | null)) as Signal<ItemValue | null>;
 	}
 }
 
@@ -703,7 +713,7 @@ export const MenuRadioGroup = createComponent(function MenuRadioGroup(
 
 export type MenuRadioItemProps = RenderableProps<typeof Div> & {
 	/** Identifies the item. Must be unique within the radio group. */
-	value: string;
+	value: ItemValue;
 	onSelect?: () => void;
 	disabled?: Signal<boolean> | boolean;
 	closeOnSelect?: boolean;
@@ -874,7 +884,13 @@ export type MenuSubTriggerProps = RenderableProps<typeof Div> & {
 };
 
 export const MenuSubTrigger = createComponent(function MenuSubTrigger(
-	{ id = getId(), disabled = false, openDelay = 100, render = Div, ...restProps }: MenuSubTriggerProps,
+	{
+		id = getId(),
+		disabled = false,
+		openDelay = 100,
+		render = Div,
+		...restProps
+	}: MenuSubTriggerProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((root) => {

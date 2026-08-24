@@ -1,6 +1,7 @@
 import { Div, ForEach, If, Span, type Child, type ComponentProps } from "@implementjs/core";
 import { CheckIcon, ChevronDownIcon, XIcon } from "@implementjs/lucide";
 import {
+	type ItemValue,
 	Select as SelectPrimitive,
 	SelectContent as SelectContentPrimitive,
 	SelectGroup as SelectGroupPrimitive,
@@ -41,7 +42,7 @@ export const SelectValue = createComponent(function SelectValue({
 
 			const values = props.value;
 
-			function removeValue(event: Event, id: string) {
+			function removeValue(event: Event, id: ItemValue) {
 				event.preventDefault();
 				event.stopPropagation();
 				const index = values.get().indexOf(id);

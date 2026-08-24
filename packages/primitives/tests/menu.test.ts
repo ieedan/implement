@@ -8,6 +8,8 @@ import {
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuGroupHeading,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
 } from "../src/index";
 
@@ -121,6 +123,65 @@ describe("menu checkbox group", () => {
 		items(target)[0]!.click();
 		expect(checked.get()).toBe(true);
 		expect(states(target)).toBe("checked");
+
+		unmount();
+	});
+});
+
+describe("menu number values", () => {
+	it("holds numbers in a checkbox group", async () => {
+		const columns = signal([1, 3]);
+		const { target, unmount } = await mount(
+			DropdownMenu(
+				DropdownMenuTrigger({}, "Open"),
+				DropdownMenuContent(
+					DropdownMenuCheckboxGroup(
+						{ value: columns },
+						DropdownMenuCheckboxItem({ value: 1 }, "One"),
+						DropdownMenuCheckboxItem({ value: 2 }, "Two"),
+						DropdownMenuCheckboxItem({ value: 3 }, "Three"),
+					),
+				),
+			),
+		);
+
+		expect(states(target)).toBe("checked,unchecked,checked");
+		// the DOM only speaks strings, so `data-value` is where the number flattens
+		expect(items(target).map((item) => item.getAttribute("data-value"))).toEqual(["1", "2", "3"]);
+
+		items(target)[1]!.click();
+		expect(columns.get()).toEqual([1, 3, 2]);
+
+		items(target)[0]!.click();
+		expect(columns.get()).toEqual([3, 2]);
+
+		unmount();
+	});
+
+	it("holds a number in a radio group", async () => {
+		const size = signal<number | null>(12);
+		const { target, unmount } = await mount(
+			DropdownMenu(
+				DropdownMenuTrigger({}, "Open"),
+				DropdownMenuContent(
+					DropdownMenuRadioGroup(
+						{ value: size },
+						DropdownMenuRadioItem({ value: 12 }, "12px"),
+						DropdownMenuRadioItem({ value: 14 }, "14px"),
+					),
+				),
+			),
+		);
+
+		const radios = Array.from(
+			target.querySelectorAll<HTMLElement>("[data-dropdown-menu-radio-item]"),
+		);
+		expect(radios.map((item) => item.getAttribute("data-state"))).toEqual(["checked", "unchecked"]);
+		expect(radios.map((item) => item.getAttribute("data-value"))).toEqual(["12", "14"]);
+
+		radios[1]!.click();
+		expect(size.get()).toBe(14);
+		expect(radios.map((item) => item.getAttribute("data-state"))).toEqual(["unchecked", "checked"]);
 
 		unmount();
 	});
