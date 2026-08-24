@@ -4,7 +4,6 @@ import {
 	Portal,
 	signal,
 	type Child,
-	type ComponentProps,
 	type PortalProps,
 	type Signal,
 } from "@implementjs/core";
@@ -42,6 +41,7 @@ import {
 	type MenuSubTriggerProps,
 } from "./menu";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
 /** How long a touch must hold before the menu opens, in milliseconds. */
 const LONG_PRESS_DURATION = 700;
@@ -82,12 +82,12 @@ export const ContextMenu = createComponent(function ContextMenu(
 	return MenuRoot(state, ...children);
 });
 
-export type ContextMenuTriggerProps = ComponentProps<typeof Div> & {
+export type ContextMenuTriggerProps = RenderableProps<typeof Div> & {
 	disabled?: Signal<boolean> | boolean;
 };
 
 export const ContextMenuTrigger = createComponent(function ContextMenuTrigger(
-	{ id = getId(), disabled = false, ...restProps }: ContextMenuTriggerProps,
+	{ id = getId(), disabled = false, render = Div, ...restProps }: ContextMenuTriggerProps,
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
@@ -106,7 +106,7 @@ export const ContextMenuTrigger = createComponent(function ContextMenuTrigger(
 
 		return ImplementLifecycle(
 			{ onUnmount: clearLongPressTimer },
-			Div(
+			render(
 				mergeProps(
 					{
 						id,

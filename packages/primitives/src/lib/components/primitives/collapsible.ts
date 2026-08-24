@@ -7,18 +7,18 @@ import {
 	signal,
 	type Bindable,
 	type Child,
-	type ComponentProps,
 	type Signal,
 } from "@implementjs/core";
 import { collapsePresence } from "../helpers/collapse-presence";
 import { mergeProps } from "../../merge-props";
 import { getId, LIB_PREFIX, resolveId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
 const CONTENT_HEIGHT_VAR = `--${LIB_PREFIX}-collapsible-content-height`;
 const CONTENT_WIDTH_VAR = `--${LIB_PREFIX}-collapsible-content-width`;
 
-export type CollapsibleRootProps = ComponentProps<typeof Div> & {
+export type CollapsibleRootProps = RenderableProps<typeof Div> & {
 	open?: Signal<boolean> | boolean;
 };
 
@@ -42,26 +42,26 @@ class CollapsibleState {
 }
 
 export const Collapsible = createComponent(function Collapsible(
-	{ open, ...restProps }: CollapsibleRootProps,
+	{ open, render = Div, ...restProps }: CollapsibleRootProps,
 	...children: Child[]
 ) {
 	const state = new CollapsibleState({ open });
 	return CollapsibleCtx.Provide(state).To(
-		Div(
+		render(
 			mergeProps({ "data-collapsible-root": "", "data-state": state.state }, restProps),
 			...children,
 		),
 	);
 });
 
-export type CollapsibleTriggerProps = ComponentProps<typeof Button>;
+export type CollapsibleTriggerProps = RenderableProps<typeof Button>;
 
 export const CollapsibleTrigger = createComponent(function CollapsibleTrigger(
-	{ ...restProps }: CollapsibleTriggerProps,
+	{ render = Button, ...restProps }: CollapsibleTriggerProps,
 	...children: Child[]
 ) {
 	return CollapsibleCtx.Use((state) => {
-		return Button(
+		return render(
 			mergeProps(
 				{
 					type: "button",
@@ -78,12 +78,12 @@ export const CollapsibleTrigger = createComponent(function CollapsibleTrigger(
 	});
 });
 
-export type CollapsibleContentProps = ComponentProps<typeof Div> & {
+export type CollapsibleContentProps = RenderableProps<typeof Div> & {
 	hiddenUntilFound?: boolean;
 };
 
 export const CollapsibleContent = createComponent(function CollapsibleContent(
-	{ id = getId(), hiddenUntilFound = false, ...restProps }: CollapsibleContentProps,
+	{ id = getId(), hiddenUntilFound = false, render = Div, ...restProps }: CollapsibleContentProps,
 	...children: Child[]
 ) {
 	return CollapsibleCtx.Use((state) => {
@@ -99,7 +99,7 @@ export const CollapsibleContent = createComponent(function CollapsibleContent(
 
 		return ImplementLifecycle(
 			{ onMount },
-			Div(
+			render(
 				mergeProps(
 					{
 						id,

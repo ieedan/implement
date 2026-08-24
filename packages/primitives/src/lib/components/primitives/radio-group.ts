@@ -7,7 +7,6 @@ import {
 	signal,
 	type Bindable,
 	type Child,
-	type ComponentProps,
 	type Ref,
 	type Signal,
 } from "@implementjs/core";
@@ -15,8 +14,9 @@ import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
-export type RadioGroupRootProps = ComponentProps<typeof Div> & {
+export type RadioGroupRootProps = RenderableProps<typeof Div> & {
 	value?: Signal<string | null> | string | null;
 	disabled?: Signal<boolean> | boolean;
 	required?: Bindable<boolean>;
@@ -73,6 +73,7 @@ export const RadioGroup = createComponent(function RadioGroup(
 		required,
 		loop = true,
 		orientation = "vertical",
+		render = Div,
 		...restProps
 	}: RadioGroupRootProps,
 	...children: Child[]
@@ -81,7 +82,7 @@ export const RadioGroup = createComponent(function RadioGroup(
 	const state = new RadioGroupState({ loop, orientation }, root, value, disabled);
 
 	return RadioGroupCtx.Provide(state).To(
-		Div(
+		render(
 			mergeProps(
 				{
 					id,
@@ -100,14 +101,14 @@ export const RadioGroup = createComponent(function RadioGroup(
 	);
 });
 
-export type RadioGroupItemProps = Omit<ComponentProps<typeof Button>, "disabled" | "value"> & {
+export type RadioGroupItemProps = Omit<RenderableProps<typeof Button>, "disabled" | "value"> & {
 	/** Identifies the item. Must be unique within the group. */
 	value: string;
 	disabled?: Signal<boolean> | boolean;
 };
 
 export const RadioGroupItem = createComponent(function RadioGroupItem(
-	{ id = getId(), value, disabled = false, ...restProps }: RadioGroupItemProps,
+	{ id = getId(), value, disabled = false, render = Button, ...restProps }: RadioGroupItemProps,
 	...children: Child[]
 ) {
 	return RadioGroupCtx.Use((root) => {
@@ -116,7 +117,7 @@ export const RadioGroupItem = createComponent(function RadioGroupItem(
 		const isDisabled = derived([disabledSignal, root.disabled], (own, group) => own || group);
 		const checked = root.value.bind((current) => current === value);
 
-		return Button(
+		return render(
 			mergeProps(
 				{
 					id,

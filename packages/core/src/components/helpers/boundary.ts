@@ -1,4 +1,4 @@
-import { dom } from "../../dom";
+import { dom, withInsertionAnchor } from "../../dom";
 import {
 	asParent,
 	mountChild,
@@ -7,7 +7,8 @@ import {
 	registerBoundary,
 	isDetaching,
 } from "../../tree";
-import { syncDomOrder, toError } from "../../utils";
+import { toError } from "../../utils";
+import { placeRegionEnd } from "./region";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
 
@@ -64,17 +65,18 @@ export function ImplementBoundary(...children: Child[]): BoundaryHelper {
 				if (!parent) return;
 
 				asParent(node, () => {
-					for (const factory of reconcileChildren({}, ...branch)) {
-						const instance = factory();
-						mounted.push(instance);
-						mountChild(instance, parent!);
-					}
+					// Anchored to the end marker, so every node the branch mounts lands
+					// inside the region it bounds and leaves with it — see the insertion
+					// anchor in `dom` for what being appended past it costs.
+					withInsertionAnchor(endMarker, () => {
+						for (const factory of reconcileChildren({}, ...branch)) {
+							const instance = factory();
+							mounted.push(instance);
+							mountChild(instance, parent!);
+						}
+					});
 				});
-				syncDomOrder(
-					parent,
-					mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
-					endMarker,
-				);
+				placeRegionEnd(parent, endMarker);
 			};
 
 			const fail = (error: Error) => {

@@ -12,7 +12,6 @@ import {
 	signal,
 	type Bindable,
 	type Child,
-	type ComponentProps,
 	type Readable,
 	type Signal,
 } from "@implementjs/core";
@@ -27,6 +26,7 @@ import {
 } from "../helpers/dismissable-layer";
 import { ScrollLock } from "../helpers/scroll-lock";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
 const NESTED_COUNT_VAR = `--${LIB_PREFIX}-nested-count`;
 const NESTED_LEVEL_VAR = `--${LIB_PREFIX}-nested-level`;
@@ -312,7 +312,7 @@ export function ModalRoot(state: ModalState, ...children: Child[]) {
 	}, null);
 }
 
-export type ModalTriggerProps = Omit<ComponentProps<typeof Button>, "id"> & {
+export type ModalTriggerProps = Omit<RenderableProps<typeof Button>, "id"> & {
 	id?: string;
 	/** When the modal starts open, return focus to this trigger instead of the first one. */
 	default?: boolean;
@@ -344,14 +344,14 @@ export class ModalTriggerState {
 }
 
 export const ModalTrigger = createComponent(function ModalTrigger(
-	{ id = getId(), default: isDefault = false, ...restProps }: ModalTriggerProps,
+	{ id = getId(), default: isDefault = false, render = Button, ...restProps }: ModalTriggerProps,
 	...children: Child[]
 ) {
 	return ModalCtx.Use((rootState) => {
 		const triggerRef = ref<HTMLButtonElement>();
 		const triggerState = new ModalTriggerState(rootState, { id, ref: triggerRef }, isDefault);
 
-		return Button(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -377,7 +377,7 @@ type ModalContentOptions = {
 	escapeKeydownBehavior: MaybeReadable<DismissBehavior>;
 };
 
-export type ModalContentProps = ComponentProps<typeof Div> & Partial<ModalContentOptions>;
+export type ModalContentProps = RenderableProps<typeof Div> & Partial<ModalContentOptions>;
 
 export class ModalContentState {
 	constructor(
@@ -395,6 +395,7 @@ export const ModalContent = createComponent(function ModalContent(
 		onInteractOutsideBehavior,
 		onEscape = noop,
 		escapeKeydownBehavior = "close",
+		render = Div,
 		...restProps
 	}: ModalContentProps,
 	...children: Child[]
@@ -411,7 +412,7 @@ export const ModalContent = createComponent(function ModalContent(
 			escapeKeydownBehavior,
 		});
 
-		return Div(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -433,14 +434,14 @@ export const ModalContent = createComponent(function ModalContent(
 	});
 });
 
-export type ModalOverlayProps = ComponentProps<typeof Div>;
+export type ModalOverlayProps = RenderableProps<typeof Div>;
 
 export const ModalOverlay = createComponent(function ModalOverlay(
-	{ id = getId(), ...restProps }: ModalOverlayProps,
+	{ id = getId(), render = Div, ...restProps }: ModalOverlayProps,
 	...children: Child[]
 ) {
 	return ModalCtx.Use((rootState) => {
-		return Div(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -455,15 +456,15 @@ export const ModalOverlay = createComponent(function ModalOverlay(
 	});
 });
 
-export type ModalTitleProps = ComponentProps<typeof H2>;
+export type ModalTitleProps = RenderableProps<typeof H2>;
 
 export const ModalTitle = createComponent(function ModalTitle(
-	{ id = getId(), ...restProps }: ModalTitleProps,
+	{ id = getId(), render = H2, ...restProps }: ModalTitleProps,
 	...children: Child[]
 ) {
 	return ModalCtx.Use((rootState) => {
 		rootState.registerTitle(id);
-		return H2(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -476,15 +477,15 @@ export const ModalTitle = createComponent(function ModalTitle(
 	});
 });
 
-export type ModalDescriptionProps = ComponentProps<typeof P>;
+export type ModalDescriptionProps = RenderableProps<typeof P>;
 
 export const ModalDescription = createComponent(function ModalDescription(
-	{ id = getId(), ...restProps }: ModalDescriptionProps,
+	{ id = getId(), render = P, ...restProps }: ModalDescriptionProps,
 	...children: Child[]
 ) {
 	return ModalCtx.Use((rootState) => {
 		rootState.registerDescription(id);
-		return P(
+		return render(
 			mergeProps(
 				{
 					id,
@@ -497,7 +498,7 @@ export const ModalDescription = createComponent(function ModalDescription(
 	});
 });
 
-export type ModalCloseProps = ComponentProps<typeof Button>;
+export type ModalCloseProps = RenderableProps<typeof Button>;
 
 export type ModalCloseOptions = {
 	/** Extra data attribute rendered on the button, e.g. "alert-dialog-cancel". */
@@ -508,14 +509,14 @@ export type ModalCloseOptions = {
 
 export function ModalClose(
 	{ dataAttribute, initialFocus = false }: ModalCloseOptions,
-	{ id = getId(), ...restProps }: ModalCloseProps,
+	{ id = getId(), render = Button, ...restProps }: ModalCloseProps,
 	...children: Child[]
 ) {
 	return ModalCtx.Use((state) => {
 		const closeRef = ref<HTMLButtonElement>();
 		if (initialFocus) state.registerInitialFocus(closeRef);
 
-		return Button(
+		return render(
 			mergeProps(
 				{
 					id,

@@ -1,6 +1,6 @@
-import { dom } from "../../dom";
+import { dom, withInsertionAnchor } from "../../dom";
 import { asParent, isDetaching, mountChild } from "../../tree";
-import { syncDomOrder } from "../../utils";
+import { placeRegionEnd } from "./region";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
 
@@ -54,17 +54,18 @@ export function Outlet(...initial: Child[]): OutletHelper {
 	const render = () => {
 		clear();
 		asParent(node!, () => {
-			for (const factory of reconcileChildren({}, ...children)) {
-				const instance = factory();
-				mounted.push(instance);
-				mountChild(instance, parent!);
-			}
+			// Anchored to the end marker, so every node the region mounts lands
+			// inside the span it bounds and the next `set` collects all of it —
+			// see the insertion anchor in `dom`.
+			withInsertionAnchor(endMarker, () => {
+				for (const factory of reconcileChildren({}, ...children)) {
+					const instance = factory();
+					mounted.push(instance);
+					mountChild(instance, parent!);
+				}
+			});
 		});
-		syncDomOrder(
-			parent!,
-			mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
-			endMarker,
-		);
+		placeRegionEnd(parent!, endMarker);
 	};
 
 	return Object.assign(

@@ -73,10 +73,14 @@ const browser: DomEnvironment = {
 let active: DomEnvironment = browser;
 
 /**
- * Where `attach` puts a node when its parent is this node's parent. `ForEach`
- * sets it to its end marker while mounting rows, so a row lands in its final
- * place instead of being appended past the marker and moved back afterwards —
- * ten thousand DOM moves the browser would otherwise have to do and undo.
+ * Where `attach` puts a node when its parent is this node's parent. Every
+ * helper that bounds a region with an end marker sets it while mounting that
+ * region's children, so each node lands inside the marker's span instead of
+ * being appended past it. `ForEach` is the case that makes it a performance
+ * matter too — ten thousand rows arrive in order rather than being appended
+ * past the marker and moved back — but the reason it exists is correctness:
+ * only the region's own first node is pulled back afterwards, so anything a
+ * child owns beyond that would be stranded outside the region and outlive it.
  */
 let anchor: Node | null = null;
 
@@ -124,6 +128,9 @@ export const dom: DomEnvironment & {
 			else parent.appendChild(node);
 			return;
 		}
+		// A replay has a claim cursor, which knows where in the serialized markup
+		// the mount has reached — a better answer than any anchor, whose region
+		// has not yet been told how much of that markup belongs to it.
 		if (wasClaimed(node)) return;
 		if (!attachAtCursor(parent, node)) parent.appendChild(node);
 	},

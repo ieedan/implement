@@ -1,16 +1,10 @@
-import {
-	derived,
-	Div,
-	signal,
-	type Child,
-	type ComponentProps,
-	type Signal,
-} from "@implementjs/core";
+import { derived, Div, signal, type Child, type Signal } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { getId } from "../../utils";
 import { createComponent } from "../../create-component";
+import type { RenderableProps } from "../../render";
 
-export type ProgressProps = ComponentProps<typeof Div> & {
+export type ProgressProps = RenderableProps<typeof Div> & {
 	/** The current value. Pass `null` for an indeterminate progress bar. */
 	value?: Signal<number | null> | number | null;
 	min?: Signal<number> | number;
@@ -25,7 +19,7 @@ export type ProgressProps = ComponentProps<typeof Div> & {
  * that can move in either direction, use a meter instead.
  */
 export const Progress = createComponent(function Progress(
-	{ id = getId(), value = 0, min = 0, max = 100, ...restProps }: ProgressProps,
+	{ id = getId(), value = 0, min = 0, max = 100, render = Div, ...restProps }: ProgressProps,
 	...children: Child[]
 ) {
 	const valueSignal = signal(value);
@@ -37,7 +31,7 @@ export const Progress = createComponent(function Progress(
 		return value === max ? "loaded" : "loading";
 	});
 
-	return Div(
+	return render(
 		mergeProps(
 			{
 				id,
