@@ -59,7 +59,9 @@ export const CommandInput = createComponent(function CommandInput({
 			...props,
 			"data-slot": "command-input",
 			class: cn(
-				"flex h-11 w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+				// 16px below the breakpoint like `input` and `textarea`: Safari on iOS
+				// zooms the page in on a focused field with smaller text than that
+				"flex h-11 w-full bg-transparent py-3 text-base outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
 				className,
 			),
 		}),

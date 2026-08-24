@@ -176,7 +176,8 @@ function CreateInput(
 		Input({
 			this: inputRef,
 			class:
-				"min-w-0 flex-1 rounded border border-ring bg-foreground/5 px-1 py-0.5 font-mono text-xs text-foreground outline-none",
+				// 16px on a phone, where anything smaller makes Safari zoom the page in
+				"min-w-0 flex-1 rounded border border-ring bg-foreground/5 px-1 py-0.5 font-mono text-base text-foreground outline-none md:text-xs",
 			spellcheck: false,
 			autocomplete: "off",
 			"aria-label": request.kind === "file" ? "New file name" : "New folder name",

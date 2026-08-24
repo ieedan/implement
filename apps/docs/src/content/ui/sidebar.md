@@ -1,6 +1,6 @@
 ---
 title: Sidebar
-description: A collapsible application sidebar, with an off-canvas sheet on mobile.
+description: A collapsible application sidebar, with an off-canvas drawer on mobile.
 section: Components
 ---
 
@@ -14,11 +14,11 @@ section: Components
 npx jsrepo add @implementjs/ui/sidebar
 ```
 
-jsrepo pulls `button`, [`input`](/ui/input), [`separator`](/ui/separator), `sheet`, [`skeleton`](/ui/skeleton) and [`tooltip`](/ui/tooltip) along with it, and installs `@implementjs/lucide` and `tailwind-variants`.
+jsrepo pulls `button`, [`drawer`](/ui/drawer), [`input`](/ui/input), [`separator`](/ui/separator), [`skeleton`](/ui/skeleton) and [`tooltip`](/ui/tooltip) along with it, and installs `@implementjs/lucide` and `tailwind-variants`.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/sidebar.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and `button`, [`input`](/ui/input), [`separator`](/ui/separator), `sheet`, [`skeleton`](/ui/skeleton) and [`tooltip`](/ui/tooltip) from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/sidebar.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and `button`, [`drawer`](/ui/drawer), [`input`](/ui/input), [`separator`](/ui/separator), [`skeleton`](/ui/skeleton) and [`tooltip`](/ui/tooltip) from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide tailwind-variants
@@ -115,7 +115,7 @@ SidebarMenuItem(
 
 ## Mobile
 
-Below 768px the sidebar becomes a [sheet](/ui/dialog) — an off-canvas panel with the dialog's focus trap and dismissal — and `SidebarTrigger` opens that instead. The switch is a `matchMedia` listener in the provider, so it follows a resize, and a sheet left open on a phone closes itself when the layout goes back to a docked sidebar.
+Below 768px the sidebar becomes a [drawer](/ui/drawer) — an off-canvas panel with the dialog's focus trap and dismissal, which a thumb can also swipe shut — and `SidebarTrigger` opens that instead. The switch is a [`mediaQuery`](/docs/media-query) in the provider, so it follows a resize, and a drawer left open on a phone closes itself when the layout goes back to a docked sidebar.
 
 Server rendering has no viewport to measure, so the desktop tree is the one that prerenders and the client corrects on mount.
 
