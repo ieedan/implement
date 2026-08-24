@@ -22,6 +22,7 @@ import {
 	HOOKS_ID,
 	PAGES_ID,
 	prerenderServerFiles,
+	taggedWarning,
 } from "./dev.ts";
 import {
 	evaluateEnvFile,
@@ -50,7 +51,15 @@ import { buildOpenApiDocument, type OpenApiEndpoint, type OpenApiOptions } from 
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
 import type { KitPluginApi } from "./sync.ts";
-import { isRouteFileName, scanRoutes, type RouteNode, type RouteTree } from "./scan.ts";
+import {
+	formatRouteWarning,
+	isRouteFileName,
+	routeFileSuggestion,
+	scanRoutes,
+	type RouteNode,
+	type RouteTree,
+	type RouteWarning,
+} from "./scan.ts";
 import { DEFAULT_ALIASES, DEFAULT_PARAMS_DIR, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
 
 export type {
@@ -348,6 +357,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	let outDir = join(root, "dist");
 	let devServer: ViteDevServer | null = null;
 	let resolvedConfig: ResolvedConfig | null = null;
+	/** Vite's logger once there is a config; `console` for a scan that runs before one. */
+	let logger: { warn(message: string): void } = console;
+	/** The warnings the last scan reported, so a rescan only speaks up about what changed. */
+	let reportedWarnings = new Set<string>();
 	/** Client-graph parents, recorded as rollup parses, for the importer chain. */
 	const clientParents = new Map<string, string>();
 
@@ -380,8 +393,28 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		return serializeEnvModule(exports, file.info.file);
 	};
 
+	/**
+	 * A near miss (`+server.ts`, `page.tsx`) is colocated code as far as the scan
+	 * is concerned, so the route it was meant to be simply never exists and
+	 * nothing says why. Kit says it here instead, once per scan that turned the
+	 * warning up anew: a warning that is still there after an unrelated edit does
+	 * not repeat itself, and one that comes back after a rename is worth
+	 * repeating.
+	 */
+	const reportWarnings = (warnings: RouteWarning[]): void => {
+		const current = new Set<string>();
+		for (const warning of warnings) {
+			const key = `${warning.file} → ${warning.suggestion}`;
+			current.add(key);
+			if (reportedWarnings.has(key)) continue;
+			logger.warn(taggedWarning(formatRouteWarning(warning, routes)));
+		}
+		reportedWarnings = current;
+	};
+
 	const scan = (): RouteTree => {
 		tree = scanRoutes(routesDir, paramsDir);
+		reportWarnings(tree.warnings);
 		return tree;
 	};
 
@@ -558,6 +591,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			// be this same plugin instance answering for it — the adapter stage
 			// wants what the client build resolved, not what serving it resolves
 			if (config.command === "build" && config.build.ssr === false) resolvedConfig = config;
+			logger = config.logger;
 			root = config.root;
 			routesDir = join(root, routes);
 			paramsDir = join(root, paramsPath);
@@ -662,7 +696,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		configureServer(server) {
 			devServer = server;
 			const isRouteFile = (file: string) =>
-				(file.startsWith(routesDir + sep) && isRouteFileName(basename(file))) ||
+				(file.startsWith(routesDir + sep) &&
+					// a near miss changes no route, but the rescan is what notices it
+					// and warns — writing `+server.ts` into a running dev server is
+					// exactly when you want to hear about it
+					(isRouteFileName(basename(file)) || routeFileSuggestion(basename(file)) !== null)) ||
 				// a matcher appearing or vanishing changes which `[id=name]` routes
 				// are valid, and what type every param behind it carries
 				(dirname(file) === paramsDir && file.endsWith(".ts")) ||

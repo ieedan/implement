@@ -49,6 +49,7 @@ const tree: RouteTree = {
 		],
 	}),
 	error: "error.ts",
+	warnings: [],
 	matchers: [],
 };
 
@@ -131,6 +132,7 @@ describe("generateRouterModule", () => {
 				],
 			}),
 			error: null,
+			warnings: [],
 			matchers: [],
 		};
 		const code = generateRouterModule(grouped, "/src/routes");
@@ -160,6 +162,7 @@ describe("generateRouterModule", () => {
 				],
 			}),
 			error: null,
+			warnings: [],
 			matchers: [],
 		};
 		const code = generateRouterModule(reset, "/src/routes");
@@ -194,6 +197,7 @@ describe("generateRouterModule", () => {
 				],
 			}),
 			error: null,
+			warnings: [],
 			matchers: [],
 		};
 		const code = generateRouterModule(reset, "/src/routes");
@@ -237,6 +241,7 @@ const loaded: RouteTree = {
 		],
 	}),
 	error: null,
+	warnings: [],
 	matchers: [],
 };
 
@@ -274,6 +279,7 @@ describe("dataChains", () => {
 				],
 			}),
 			error: null,
+			warnings: [],
 			matchers: [],
 		};
 		const chains = dataChains(reset);

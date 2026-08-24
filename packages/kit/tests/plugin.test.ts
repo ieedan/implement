@@ -18,10 +18,13 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 	let render: (url: string) => Promise<RenderResult>;
 	/** What the dev server printed — the terminal a developer would be watching. */
 	const logged: string[] = [];
+	/** The same terminal, for the lines kit writes as warnings rather than errors. */
+	const warned: string[] = [];
 
 	beforeAll(async () => {
 		const logger = createLogger("error");
 		logger.error = (message) => logged.push(message);
+		logger.warn = (message) => warned.push(message);
 		server = await createServer({
 			root: fixture,
 			configFile: false,
@@ -246,6 +249,20 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			expect(response.status).toBe(404);
 			expect(await response.text()).toContain("<p>not found</p>");
 		});
+	});
+
+	it("warns about a routes file whose name only just misses a routing one", () => {
+		// the fixture has a `misnamed/+server.ts`, which routes nothing at all —
+		// without this line the endpoint just silently never answers
+		const warning = warned.find((message) => message.includes("unknown file"));
+		expect(warning).toBeDefined();
+		expect(warning).toContain('unknown file "src/routes/misnamed/+server.ts"');
+		expect(warning).toContain('did you mean "server.ts"?');
+		// kit's own line, not the dev server's
+		expect(warning).toContain("[implement]");
+		expect(warning).not.toContain("[vite]");
+		// and it is said once, not once per scan
+		expect(warned.filter((message) => message.includes("unknown file"))).toHaveLength(1);
 	});
 
 	it("prints a server error to the dev log, with the file it came from", async () => {

@@ -44,6 +44,7 @@ const tree: RouteTree = {
 		],
 	}),
 	error: "error.ts",
+	warnings: [],
 	matchers: [],
 };
 
