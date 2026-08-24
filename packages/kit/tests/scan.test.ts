@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { pageRoutes, staticRoutePaths } from "../src/codegen.ts";
-import { parseSegment, scanRoutes } from "../src/scan.ts";
+import { formatRouteWarning, parseSegment, routeFileSuggestion, scanRoutes } from "../src/scan.ts";
 
 let dir: string | null = null;
 
@@ -70,6 +70,33 @@ describe("scanRoutes", () => {
 			makeRoutes(["page.ts", "components.ts", "docs/helpers.ts", ".hidden/page.ts"]),
 		);
 		expect(pageRoutes(tree)).toEqual([{ pattern: "/", params: [] }]);
+		expect(tree.warnings).toEqual([]);
+	});
+
+	it("warns about files that only just miss a routing name", () => {
+		const tree = scanRoutes(
+			makeRoutes([
+				"page.ts",
+				"api/+server.ts",
+				"docs/page.tsx",
+				"docs/+page.server.js",
+				"about/+page.svelte",
+			]),
+		);
+		expect(tree.warnings).toEqual([
+			{ file: "about/+page.svelte", suggestion: "page.ts" },
+			{ file: "api/+server.ts", suggestion: "server.ts" },
+			{ file: "docs/+page.server.js", suggestion: "page.server.ts" },
+			{ file: "docs/page.tsx", suggestion: "page.ts" },
+		]);
+		// the misnamed files route nothing, which is what the warning is for
+		expect(pageRoutes(tree)).toEqual([{ pattern: "/", params: [] }]);
+	});
+
+	it("warns from a directory the scan drops for having no routes", () => {
+		const tree = scanRoutes(makeRoutes(["page.ts", "api/+server.ts"]));
+		expect(tree.root.children).toEqual([]);
+		expect(tree.warnings).toEqual([{ file: "api/+server.ts", suggestion: "server.ts" }]);
 	});
 
 	it("rejects nested routes inside a catch-all directory", () => {
@@ -216,5 +243,42 @@ describe("scanRoutes", () => {
 		expect(() => scanRoutes(makeRoutes(["docs/layout.ts", "docs/layout@.ts"]))).toThrow(
 			/declares one layout/,
 		);
+	});
+});
+
+describe("routeFileSuggestion", () => {
+	it("names the routing file a near miss was reaching for", () => {
+		expect(routeFileSuggestion("+server.ts")).toBe("server.ts");
+		expect(routeFileSuggestion("+page.ts")).toBe("page.ts");
+		expect(routeFileSuggestion("+layout.svelte")).toBe("layout.ts");
+		expect(routeFileSuggestion("+page.server.js")).toBe("page.server.ts");
+		expect(routeFileSuggestion("layout.server.jsx")).toBe("layout.server.ts");
+		expect(routeFileSuggestion("+error.ts")).toBe("error.ts");
+		expect(routeFileSuggestion("+page@.ts")).toBe("page@.ts");
+		expect(routeFileSuggestion("page@(authed).mjs")).toBe("page@(authed).ts");
+	});
+
+	it("stays quiet for routing files and for colocated code", () => {
+		expect(routeFileSuggestion("page.ts")).toBe(null);
+		expect(routeFileSuggestion("server.ts")).toBe(null);
+		expect(routeFileSuggestion("layout@.ts")).toBe(null);
+		expect(routeFileSuggestion("Button.ts")).toBe(null);
+		expect(routeFileSuggestion("page.test.ts")).toBe(null);
+		// an asset named after its route is not a misnamed route
+		expect(routeFileSuggestion("layout.css")).toBe(null);
+		expect(routeFileSuggestion("page.md")).toBe(null);
+		expect(routeFileSuggestion(".gitkeep")).toBe(null);
+		expect(routeFileSuggestion("server")).toBe(null);
+	});
+});
+
+describe("formatRouteWarning", () => {
+	it("points at the file it found and the name it wanted", () => {
+		const message = formatRouteWarning(
+			{ file: "api/+server.ts", suggestion: "server.ts" },
+			"src/routes",
+		);
+		expect(message).toContain('unknown file "src/routes/api/+server.ts"');
+		expect(message).toContain('did you mean "server.ts"?');
 	});
 });

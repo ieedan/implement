@@ -31,6 +31,14 @@ src/routes
 
 Any other file is colocated code and kit ignores it, so keep your components, helpers, and tests right next to the routes that use them. Dot-directories are skipped too.
 
+A file that only just misses one of those names is the exception. `+server.ts`, `page.tsx`, `+page.svelte` — a name kit would route if you dropped a `+` or wrote `.ts` — gets a warning from the dev server and the build:
+
+```
+12:00:00 [implement] unknown file "src/routes/api/+server.ts" — did you mean "server.ts"? Anything else in the routes tree is colocated code, so this file routes nothing.
+```
+
+The file is still ignored, it just no longer goes unmentioned: a misnamed route is invisible otherwise, and looks exactly like a route that does not work.
+
 ## Pages
 
 A page default-exports a function that receives `params` and `url`:
