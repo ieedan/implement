@@ -13,6 +13,7 @@ import {
 	type Signal,
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId, type MaybeReadable } from "../../utils";
 import { CalendarDate, formatDate, isSameDay, type Month } from "../helpers/date";
 import {
@@ -77,6 +78,8 @@ export type CalendarRootProps<T extends "single" | "multiple" = "single"> = Comp
 	CalendarBaseOptions & {
 		/** The date the view starts on and keyboard focus follows. Pass a signal to control it. */
 		placeholder?: Signal<CalendarDate> | CalendarDate;
+		/** Runs whenever the view's date changes, by navigation or an outside write. */
+		onPlaceholderChange?: ChangeHandler<CalendarDate>;
 		disabled?: Signal<boolean> | boolean;
 		readonly?: Signal<boolean> | boolean;
 		/** Runs after a date is selected (not after a deselection). */
@@ -86,6 +89,8 @@ export type CalendarRootProps<T extends "single" | "multiple" = "single"> = Comp
 				type: "multiple";
 				/** The selected dates. Pass a signal to control them from outside. */
 				value?: Signal<CalendarDate[]>;
+				/** Runs whenever the selected dates change, including a deselection. */
+				onValueChange?: ChangeHandler<CalendarDate[]>;
 				/** The most dates that can be selected; exceeding it resets to the new date. */
 				maxDays?: number;
 			}
@@ -93,6 +98,8 @@ export type CalendarRootProps<T extends "single" | "multiple" = "single"> = Comp
 				type?: "single";
 				/** The selected date. Pass a signal to control it from outside. */
 				value?: Signal<CalendarDate | null> | CalendarDate | null;
+				/** Runs whenever the selected date changes, including a deselection. */
+				onValueChange?: ChangeHandler<CalendarDate | null>;
 			});
 
 abstract class CalendarState extends CalendarBaseState {
@@ -257,8 +264,10 @@ type CalendarAnyProps = ComponentProps<typeof Div> &
 	CalendarBaseOptions & {
 		type?: "single" | "multiple";
 		value?: Signal<CalendarDate | null> | CalendarDate | null | Signal<CalendarDate[]>;
+		onValueChange?: ChangeHandler<CalendarDate | null> | ChangeHandler<CalendarDate[]>;
 		maxDays?: number;
 		placeholder?: Signal<CalendarDate> | CalendarDate;
+		onPlaceholderChange?: ChangeHandler<CalendarDate>;
 		disabled?: Signal<boolean> | boolean;
 		readonly?: Signal<boolean> | boolean;
 		onDateSelect?: () => void;
@@ -276,8 +285,10 @@ export function Calendar(
 		id = getId(),
 		type = "single",
 		value,
+		onValueChange,
 		maxDays,
 		placeholder,
+		onPlaceholderChange,
 		disabled = false,
 		readonly: readonlyProp = false,
 		onDateSelect,
@@ -337,11 +348,18 @@ export function Calendar(
 					readonlyProp,
 					onDateSelect,
 				);
+	// the same `type` decides which shape the callback is handed
+	const valueChange = changeEffect(
+		state.value() as Readable<CalendarDate | CalendarDate[] | null>,
+		onValueChange as ChangeHandler<CalendarDate | CalendarDate[] | null> | undefined,
+	);
 	/* oxlint-enable typescript/no-unsafe-type-assertion */
 
 	const invalid = state.isInvalid();
 
 	return CalendarBaseCtx.Provide(state).To(
+		...valueChange,
+		...changeEffect(state.placeholder, onPlaceholderChange),
 		ImplementLifecycle(
 			{
 				onMount: () => state.ensureNonDisabledPlaceholder(),

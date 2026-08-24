@@ -18,6 +18,7 @@ import {
 } from "@implementjs/core";
 import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import {
 	DismissableLayer,
 	EscapeEvent,
@@ -42,9 +43,21 @@ export type SelectSelectedItem = {
 };
 
 export type SelectProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
-	? { type: "multiple"; value?: Signal<string[]> }
-	: { type?: "single"; value?: Signal<string | null> }) & {
+	? {
+			type: "multiple";
+			value?: Signal<string[]>;
+			/** Runs whenever the set of selected values changes. */
+			onValueChange?: ChangeHandler<string[]>;
+		}
+	: {
+			type?: "single";
+			value?: Signal<string | null>;
+			/** Runs whenever the selected value changes. `null` while nothing is selected. */
+			onValueChange?: ChangeHandler<string | null>;
+		}) & {
 	open?: Signal<boolean>;
+	/** Runs whenever the list opens or closes. */
+	onOpenChange?: ChangeHandler<boolean>;
 	closeOnSelect?: boolean;
 	/** When true, the page behind cannot scroll while the list is open. Defaults to false. */
 	preventScroll?: boolean;
@@ -299,6 +312,12 @@ export const Select = createComponent(function Select(
 	props.closeOnSelect = props.closeOnSelect ?? props.type !== "multiple";
 	const state =
 		props.type === "multiple" ? new SelectStateMultiple(props) : new SelectStateSingle(props);
+	/* oxlint-disable typescript/no-unsafe-type-assertion -- the same `type` decides the shape of the value and of the callback handed it. */
+	const valueChange = changeEffect(
+		state.value() as Readable<string | string[] | null>,
+		props.onValueChange as ChangeHandler<string | string[] | null> | undefined,
+	);
+	/* oxlint-enable typescript/no-unsafe-type-assertion */
 	return DismissableLayer(
 		{
 			open: state.open,
@@ -315,6 +334,8 @@ export const Select = createComponent(function Select(
 			),
 		},
 		ScrollLock({ open: state.open, enabled: state.opts.preventScroll === true }),
+		...changeEffect(state.open, props.onOpenChange),
+		...valueChange,
 		SelectCtx.Provide(state).To(
 			ImplementLifecycle(
 				{

@@ -31,6 +31,8 @@ Each part accepts optional props and children — pass a props object when you n
 
 `DropdownMenu` owns whether the menu is open. Pass a boolean to seed it, or a [signal](/docs/signals) to control it from outside. Clicking the trigger toggles; Escape, selecting an item, or interacting outside closes.
 
+`onOpenChange` reports every open and close, whether it came from the trigger, a selected item, Escape, or a write to a signal you passed in. Submenus take the same prop on `DropdownMenuSub`.
+
 ## Items
 
 `DropdownMenuItem` runs `onSelect` when clicked or activated with Enter or Space, then closes the menu — pass `closeOnSelect: false` to keep it open. `disabled` items are skipped by the keyboard and set `data-disabled`.

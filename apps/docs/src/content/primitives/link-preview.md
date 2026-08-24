@@ -75,6 +75,8 @@ Button({ onClick: () => open.set(false) }, "Close");
 LinkPreview({ disabled: isCompact }, LinkPreviewTrigger({ href: "/docs" }, "the docs") /* … */);
 ```
 
+`onOpenChange` reports every open and close, including the ones the delay timers drive.
+
 ## Selecting text in the panel
 
 Text inside the panel is selectable. While a selection is being dragged — and while one stands — the panel stays open even if the pointer wanders off it, so the selection doesn't vanish mid-drag. Clicking elsewhere clears the selection and dismisses the panel.

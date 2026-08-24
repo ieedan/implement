@@ -13,6 +13,7 @@ import {
 	type Signal,
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import { getId, type MaybeReadable } from "../../utils";
 import {
 	CalendarDate,
@@ -74,8 +75,12 @@ export type RangeCalendarRootProps = ComponentProps<typeof Div> &
 	CalendarBaseOptions & {
 		/** The selected range. Pass a signal to control it from outside. */
 		value?: Signal<DateRange> | DateRange;
+		/** Runs whenever the range changes, including while only one end is picked. */
+		onValueChange?: ChangeHandler<DateRange>;
 		/** The date the view starts on and keyboard focus follows. Pass a signal to control it. */
 		placeholder?: Signal<CalendarDate> | CalendarDate;
+		/** Runs whenever the view's date changes, by navigation or an outside write. */
+		onPlaceholderChange?: ChangeHandler<CalendarDate>;
 		disabled?: Signal<boolean> | boolean;
 		readonly?: Signal<boolean> | boolean;
 		/** The fewest days a range may span. Shorter picks restart the selection. */
@@ -295,7 +300,9 @@ export function RangeCalendar(
 	const {
 		id = getId(),
 		value,
+		onValueChange,
 		placeholder,
+		onPlaceholderChange,
 		disabled = false,
 		readonly: readonlyProp = false,
 		minDays,
@@ -351,6 +358,8 @@ export function RangeCalendar(
 	const invalid = state.isInvalid();
 
 	return CalendarBaseCtx.Provide(state).To(
+		...changeEffect(state.value, onValueChange),
+		...changeEffect(state.placeholder, onPlaceholderChange),
 		ImplementLifecycle(
 			{
 				onMount: () => state.ensureNonDisabledPlaceholder(),

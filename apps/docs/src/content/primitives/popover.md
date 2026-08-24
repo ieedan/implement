@@ -41,6 +41,8 @@ If it starts open (`open: true`, or a signal that's already true) the panel anch
 
 The page behind stays scrollable while the popover is open. Pass `preventScroll: true` to lock it.
 
+`onOpenChange` reports every open and close, whether it came from a trigger, Escape, a click outside, or a write to a signal you passed in.
+
 ## The trigger and the content
 
 `PopoverTrigger` renders a `Button`. Clicking it toggles the popover. `PopoverContent` is a `Div` that holds whatever you put in the panel: text, a form, another component.

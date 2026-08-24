@@ -18,6 +18,7 @@ import {
 import { getId, noop, type MaybeReadable } from "../../utils";
 import { focusFirst, trapFocus } from "../../focus";
 import { mergeProps } from "../../merge-props";
+import { changeEffect, type ChangeHandler } from "../../on-change";
 import {
 	DismissableLayer,
 	EscapeEvent,
@@ -32,6 +33,8 @@ export type { Side, Align };
 
 export type PopoverRootProps = {
 	open?: Signal<boolean> | boolean;
+	/** Runs whenever the open state changes. */
+	onOpenChange?: ChangeHandler<boolean>;
 	/** When true, the page behind cannot scroll while the popover is open. Defaults to false. */
 	preventScroll?: boolean;
 };
@@ -183,6 +186,7 @@ export const Popover = createComponent(function Popover(
 			),
 		},
 		ScrollLock({ open: state.open, enabled: state.opts.preventScroll === true }),
+		...changeEffect(state.open, state.opts.onOpenChange),
 		PopoverContext.Provide(state).To(
 			ImplementLifecycle(
 				{
