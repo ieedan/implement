@@ -16,24 +16,10 @@ import {
 	type RangeCalendarRootProps,
 } from "@implementjs/primitives";
 import { buttonVariants } from "./button";
-import { calendarRootClasses } from "./calendar";
 import { cn } from "@/lib/utils";
 import { createComponent } from "@implementjs/primitives";
 
 export type RangeCalendarProps = RangeCalendarRootProps;
-
-const rangeDayClasses = [
-	"inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-sm font-normal whitespace-nowrap select-none",
-	"outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
-	"data-today:not-data-selected:not-data-highlighted:bg-accent data-today:not-data-selected:not-data-highlighted:text-accent-foreground",
-	"data-highlighted:not-data-selection-start:not-data-selection-end:rounded-none data-highlighted:not-data-selection-start:not-data-selection-end:bg-accent data-highlighted:not-data-selection-start:not-data-selection-end:text-accent-foreground",
-	"data-range-middle:rounded-none data-range-middle:bg-accent data-range-middle:text-accent-foreground",
-	"data-selection-start:rounded-md data-selection-start:bg-primary data-selection-start:text-primary-foreground data-selection-start:hover:bg-primary",
-	"data-selection-end:rounded-md data-selection-end:bg-primary data-selection-end:text-primary-foreground data-selection-end:hover:bg-primary",
-	"data-outside-month:text-muted-foreground",
-	"data-disabled:pointer-events-none data-disabled:text-muted-foreground data-disabled:opacity-50",
-	"data-unavailable:text-muted-foreground data-unavailable:line-through",
-].join(" ");
 
 /** A fully assembled, styled range calendar. Forward any root prop from the primitive. */
 export const RangeCalendar = createComponent(function RangeCalendar({
@@ -41,7 +27,10 @@ export const RangeCalendar = createComponent(function RangeCalendar({
 	...props
 }: RangeCalendarProps) {
 	return RangeCalendarPrimitive(
-		{ ...props, class: cn(calendarRootClasses, className) },
+		{
+			...props,
+			class: cn("inline-block rounded-md border bg-background p-3 shadow-sm", className),
+		},
 		({ months, weekdays }) =>
 			Fragment(
 				RangeCalendarHeader(
@@ -95,7 +84,20 @@ export const RangeCalendar = createComponent(function RangeCalendar({
 													(date) =>
 														RangeCalendarCell(
 															{ date, month, class: "p-0" },
-															RangeCalendarDay({ class: rangeDayClasses }),
+															RangeCalendarDay({
+																class: cn(
+																	"inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-sm font-normal whitespace-nowrap select-none",
+																	"outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
+																	"data-today:not-data-selected:not-data-highlighted:bg-accent data-today:not-data-selected:not-data-highlighted:text-accent-foreground",
+																	"data-highlighted:not-data-selection-start:not-data-selection-end:rounded-none data-highlighted:not-data-selection-start:not-data-selection-end:bg-accent data-highlighted:not-data-selection-start:not-data-selection-end:text-accent-foreground",
+																	"data-range-middle:rounded-none data-range-middle:bg-accent data-range-middle:text-accent-foreground",
+																	"data-selection-start:rounded-md data-selection-start:bg-primary data-selection-start:text-primary-foreground data-selection-start:hover:bg-primary",
+																	"data-selection-end:rounded-md data-selection-end:bg-primary data-selection-end:text-primary-foreground data-selection-end:hover:bg-primary",
+																	"data-outside-month:text-muted-foreground",
+																	"data-disabled:pointer-events-none data-disabled:text-muted-foreground data-disabled:opacity-50",
+																	"data-unavailable:text-muted-foreground data-unavailable:line-through",
+																),
+															}),
 														),
 												),
 											),

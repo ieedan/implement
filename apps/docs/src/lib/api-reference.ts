@@ -3758,7 +3758,7 @@ const styledReference: Record<string, ApiPart[]> = {
 			{
 				name: "CalendarMonthGrid",
 				description:
-					"One month's grid, weekday header included: CalendarMonthGrid(month, weekdays, Cell?, Day?, dayClasses?). The trailing arguments are what the range calendar swaps out to get its own cells and day classes.",
+					"One month's grid, weekday header included: CalendarMonthGrid(month, weekdays, Cell?, Day?). The trailing arguments swap in cell and day parts of your own.",
 			},
 		],
 	}),
