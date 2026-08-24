@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Signal, signal, type Readable, type Writable } from "../src/signal";
+import { derived, ref, Signal, signal, type Readable, type Writable } from "../src/signal";
 
 describe("writable bind", () => {
 	it("returns a Signal whose helpers write through a path", () => {
@@ -140,6 +140,65 @@ describe("selector bind unwrapping", () => {
 		expect(doubled.get()).toBe(2);
 		count.set(3);
 		expect(doubled.get()).toBe(6);
+	});
+});
+
+describe("path binds through a missing value", () => {
+	type Issue = { title: string; author: { name: string } };
+	type Data = { issue?: Issue };
+
+	it("reads undefined instead of throwing", () => {
+		const data = signal<Data>({});
+
+		expect(data.bind("issue.title").get()).toBeUndefined();
+		expect(data.bind("issue").bind("title").get()).toBeUndefined();
+	});
+
+	it("reads undefined through a read-only source", () => {
+		const source = signal<Data>({});
+		const data: Readable<Data> = derived([source], (value) => value);
+
+		expect(data.bind("issue.title").get()).toBeUndefined();
+		expect(data.bind("issue").bind("title").get()).toBeUndefined();
+	});
+
+	it("binds a ref before its node mounts", () => {
+		const button = ref<HTMLButtonElement>();
+
+		expect(button.bind("disabled").get()).toBeUndefined();
+	});
+
+	it("notifies subscribers once the value arrives", () => {
+		const data = signal<Data>({});
+		const title = data.bind("issue").bind("title");
+		const seen: (string | undefined)[] = [];
+		title.subscribe((value) => seen.push(value));
+
+		data.set({ issue: { title: "Ship docs", author: { name: "Ada" } } });
+
+		expect(title.get()).toBe("Ship docs");
+		expect(seen).toEqual(["Ship docs"]);
+	});
+
+	it("writes through the chain once the value arrives", () => {
+		const data = signal<Data>({});
+		const title = data.bind("issue").bind("title");
+
+		data.set({ issue: { title: "Ship docs", author: { name: "Ada" } } });
+		title.set("Ship v2");
+
+		expect(data.get().issue).toEqual({ title: "Ship v2", author: { name: "Ada" } });
+	});
+
+	it("throws on a write with nowhere to land, naming the missing segment", () => {
+		const data = signal<Data>({});
+
+		expect(() => data.bind("issue.author.name").set("Ada")).toThrow(
+			'Cannot set "issue.author.name": "issue" is undefined',
+		);
+		expect(() => data.bind("issue").bind("title").set("Ship v2")).toThrow(
+			'Cannot set "title" on undefined',
+		);
 	});
 });
 
