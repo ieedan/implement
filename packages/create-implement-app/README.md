@@ -32,6 +32,8 @@ Both templates are TypeScript.
 
 Each addon changes the generated app: tailwind swaps the stylesheet and adds the Vite plugin, primitives wraps the starter page's links in a collapsible, ui swaps the stylesheet again for the design tokens the styled components read and puts a `Button` in the counter, icons swap the counter's button labels for Lucide icons, forms adds a validated sign up form under the counter, and mode-watcher gives the app a light and a dark palette with a toggle that switches between them.
 
+A tailwind app also gets a `.vscode/settings.json`, because the extension `.vscode/extensions.json` recommends does nothing in an implement component on its own: there is no JSX, so a class is an object property in a call (`Div({ class: "flex gap-2" }, ...)`) rather than an attribute the extension knows how to find. The settings name that shape, the `styles = { ... }` object the generated components keep their classes in, and — with the `ui` addon — the `cn()` and `tv()` those components pass classes through.
+
 `ui` turns on `tailwind` and `primitives` whatever the flags said — the styled components are Tailwind classes over the primitives, so an app without them would scaffold with a first component that doesn't render.
 
 ## Adders

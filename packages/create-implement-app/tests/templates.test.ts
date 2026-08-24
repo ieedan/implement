@@ -62,6 +62,54 @@ describe("templates", () => {
 		]);
 	});
 
+	it.each(TEMPLATES)("%s only writes editor settings for a tailwind app", (id) => {
+		expect(fileMap(id, ctx()).has(".vscode/settings.json")).toBe(false);
+		expect(fileMap(id, ctx({ addons: ["tailwind"] })).has(".vscode/settings.json")).toBe(true);
+	});
+
+	it.each(TEMPLATES)("%s points the tailwind extension at implement's class shapes", (id) => {
+		const settings = JSON.parse(
+			fileMap(id, ctx({ addons: ["tailwind"] })).get(".vscode/settings.json") as string,
+		) as {
+			"editor.quickSuggestions": { strings: string };
+			"tailwindCSS.classFunctions"?: string[];
+			"tailwindCSS.experimental.classRegex": string[][];
+		};
+
+		// classes live in string literals, where VS Code stays quiet unless asked
+		expect(settings["editor.quickSuggestions"].strings).toBe("on");
+		// cn() and tv() come with the ui addon, so there is nothing to name without it
+		expect(settings["tailwindCSS.classFunctions"]).toBeUndefined();
+
+		const [inline, styleObject] = settings["tailwindCSS.experimental.classRegex"] as [
+			[string],
+			[string, string],
+		];
+
+		// the inline form: `Div({ class: "flex gap-2" }, ...)`
+		expect(new RegExp(inline[0]).exec('Div({ class: "flex gap-2" }, "hi")')?.[1]).toBe(
+			"flex gap-2",
+		);
+		// and the object the generated components keep their classes in
+		const container = new RegExp(styleObject[0]).exec(
+			fileMap(id, ctx({ addons: ["tailwind"] })).get(
+				id === "kit" ? "src/lib/counter.ts" : "src/counter.ts",
+			) as string,
+		)?.[1];
+		expect(container).toBeDefined();
+		expect(
+			[...(container as string).matchAll(new RegExp(styleObject[1], "g"))].length,
+		).toBeGreaterThan(0);
+	});
+
+	it.each(TEMPLATES)("%s names cn and tv once the ui addon brings them", (id) => {
+		const settings = JSON.parse(
+			fileMap(id, ctx({ addons: ["tailwind", "ui"] })).get(".vscode/settings.json") as string,
+		) as { "tailwindCSS.classFunctions": string[] };
+
+		expect(settings["tailwindCSS.classFunctions"]).toEqual(["cn", "tv"]);
+	});
+
 	it.each(TEMPLATES)("%s names the package and titles the page", (id) => {
 		const files = fileMap(id, ctx({ name: "cool-app" }));
 
