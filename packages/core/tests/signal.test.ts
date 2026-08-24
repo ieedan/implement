@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { derived, ref, Signal, signal, type Readable, type Writable } from "../src/signal";
+import {
+	derived,
+	ReactiveMap,
+	ReactiveSet,
+	ref,
+	Signal,
+	signal,
+	type Readable,
+	type Writable,
+} from "../src/signal";
 
 describe("writable bind", () => {
 	it("returns a Signal whose helpers write through a path", () => {
@@ -225,5 +234,66 @@ describe("signal()", () => {
 
 		open = signal(true);
 		expect(signal(open)).toBe(open);
+	});
+});
+
+describe("bind(selector, update) on a read-only source", () => {
+	// The guard lives in createBinding, but for years nothing could reach it:
+	// the read-only `bind` implementations declared one parameter, so `update`
+	// was dropped and the binding came back read-only. Held through a
+	// `Signal`-typed prop that then wrote to it, the failure surfaced far away
+	// — as a signal whose value was the readable itself.
+	it("throws on a derived", () => {
+		const store = signal({ ids: [1] });
+		const view: Readable<{ ids: number[] }> = derived([store], (value) => value);
+		expect(() =>
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the mistake this guards is exactly a readable typed as writable
+			(view as Writable<{ ids: number[] }>).bind(
+				(value) => value.ids,
+				(prev, next) => ({ ...prev, ids: next }),
+			),
+		).toThrow("bind(selector, update) requires a writable source");
+	});
+
+	it("throws on a selector view", () => {
+		const store = signal({ issue: { labels: [{ id: 1 }] } });
+		const ids = store.bind((value) => value.issue.labels.map((label) => label.id));
+		expect(() =>
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see above
+			(ids as unknown as Writable<number[]>).bind(
+				(value) => value.map(String),
+				(_, next) => next.map(Number),
+			),
+		).toThrow("bind(selector, update) requires a writable source");
+	});
+
+	it("throws on a reactive set", () => {
+		const set = new ReactiveSet([1]);
+		expect(() =>
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see above
+			(set as unknown as Writable<ReadonlySet<number>>).bind(
+				(value) => value.size,
+				() => undefined,
+			),
+		).toThrow("bind(selector, update) requires a writable source");
+	});
+
+	it("throws on a reactive map", () => {
+		const map = new ReactiveMap([[1, "a"]]);
+		expect(() =>
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see above
+			(map as unknown as Writable<ReadonlyMap<number, string>>).bind(
+				(value) => value.size,
+				() => undefined,
+			),
+		).toThrow("bind(selector, update) requires a writable source");
+	});
+
+	it("leaves one-way binds on a read-only source working", () => {
+		const store = signal({ issue: { labels: [{ id: 1 }] } });
+		const labels = store.bind((value) => value.issue.labels);
+		expect(labels.bind((value) => value.length).get()).toBe(1);
+		expect(new ReactiveSet([1, 2]).bind("size").get()).toBe(2);
+		expect(new ReactiveMap([[1, "a"]]).bind("size").get()).toBe(1);
 	});
 });

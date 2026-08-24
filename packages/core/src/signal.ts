@@ -258,6 +258,17 @@ export function isWritable<T = unknown>(value: unknown): value is Writable<T> {
 }
 
 /**
+ * `bind(selector, update)` asks for a two-way view, and a read-only source has
+ * nowhere to write `next` back to. The types say so, but the mistake survives
+ * type-checking whenever a readable is held through a `Signal`-typed reference
+ * — a component prop typed `Signal<T>` that a page fills with route `data` or
+ * anything bound off it. Every read-only `bind` throws this rather than
+ * dropping `update`, so the failure lands on the call that was wrong instead
+ * of somewhere downstream that expected a writable.
+ */
+const READ_ONLY_BIND = "bind(selector, update) requires a writable source";
+
+/**
  * Subscriber storage shared by every readable in core. A signal in a mounted
  * tree almost always has exactly one subscriber — one DOM node watching one
  * value — so the single case is held in a field and a `Map` is only allocated
@@ -641,7 +652,11 @@ export class ReactiveSet<T> extends Set<T> implements Readable<ReadonlySet<T>> {
 
 	bind<P extends BindableKeys<ReadonlySet<T>>>(path: P): Readable<BindPathValue<ReadonlySet<T>, P>>;
 	bind<U>(selector: (value: ReadonlySet<T>) => U): Readable<Unwrapped<U>>;
-	bind(keyOrSelector: PropertyKey | ((value: ReadonlySet<T>) => unknown)): Readable<unknown> {
+	bind(
+		keyOrSelector: PropertyKey | ((value: ReadonlySet<T>) => unknown),
+		update?: unknown,
+	): Readable<unknown> {
+		if (update !== undefined) throw new Error(READ_ONLY_BIND);
 		if (typeof keyOrSelector === "function") {
 			return new SelectorView(this, keyOrSelector);
 		}
@@ -731,9 +746,13 @@ export class ReactiveMap<K, V> extends Map<K, V> implements Readable<ReadonlyMap
 		path: P,
 	): Readable<BindPathValue<ReadonlyMap<K, V>, P>>;
 	bind<U>(selector: (value: ReadonlyMap<K, V>) => U): Readable<Unwrapped<U>>;
-	bind(keyOrSelector: PropertyKey | ((value: ReadonlyMap<K, V>) => unknown)): Readable<unknown> {
+	bind(
+		keyOrSelector: PropertyKey | ((value: ReadonlyMap<K, V>) => unknown),
+		update?: unknown,
+	): Readable<unknown> {
 		// never route through createBinding: `set(key, value)` duck-types as
-		// Writable but is not `Writable.set`
+		// Writable but is not `Writable.set`, so the guard has to be here
+		if (update !== undefined) throw new Error(READ_ONLY_BIND);
 		if (typeof keyOrSelector === "function") {
 			return new SelectorView(this, keyOrSelector);
 		}
@@ -818,8 +837,15 @@ export abstract class LazyReadable<T> extends Notifier<T> implements Readable<T>
 
 	bind<P extends BindableKeys<T>>(path: P): Readable<BindPathValue<T, P>>;
 	bind<U>(selector: (value: T) => U): Readable<Unwrapped<U>>;
-	bind(keyOrSelector: PropertyKey | ((value: T) => unknown)): Readable<unknown> {
-		return createBinding(this, keyOrSelector);
+	// The overloads above are the whole public surface; the implementation
+	// still takes `update` so a call that got here through a `Signal`-typed
+	// reference reaches the {@link READ_ONLY_BIND} guard instead of silently
+	// losing its write-back.
+	bind(
+		keyOrSelector: PropertyKey | ((value: T) => unknown),
+		update?: BindUpdate<T, unknown>,
+	): Readable<unknown> {
+		return createBinding(this, keyOrSelector, update);
 	}
 
 	/** Stop watching sources and drop subscribers. Safe to call more than once. */
@@ -1158,9 +1184,7 @@ function createBinding<T>(
 ): Readable<unknown> | Signal<unknown> {
 	if (typeof keyOrSelector === "function") {
 		if (update) {
-			if (!isWritable<T>(source)) {
-				throw new Error("bind(selector, update) requires a writable source");
-			}
+			if (!isWritable<T>(source)) throw new Error(READ_ONLY_BIND);
 			return new BoundSelector(source, keyOrSelector, update);
 		}
 		return new SelectorView(source, keyOrSelector);

@@ -85,6 +85,15 @@ const amount = form.bind(
 Input({ value: amount });
 ```
 
+A two-way bind needs somewhere to write, so it throws on a read-only source. That is worth knowing because a readable can reach one through a prop the types call a `Signal` — a route's `data`, and anything bound off it, is read-only:
+
+```ts
+const issue = data.bind("issue"); // Readable, not Signal
+LabelPicker({ value: issue.bind((i) => i.labels.map((l) => l.id)) }); // still a Readable
+```
+
+Give the component a signal of its own and write the change back through an action instead.
+
 ## How updates propagate
 
 A binding subscribes to its **source** and only notifies when its own slice actually changed (compared deeply, like `set`). Sibling bindings don't disturb each other. Setting `todo.bind("title")` does not notify subscribers of `todo.bind("author.name")`.

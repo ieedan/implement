@@ -1,5 +1,11 @@
 # create-implement-app
 
+## 0.0.6
+
+### Patch Changes
+
+- [#68](https://github.com/ieedan/implement/pull/68) [`679c8f6`](https://github.com/ieedan/implement/commit/679c8f6808b1d6bdb7f0e9f88565d944ebd6023c) Thanks [@ieedan](https://github.com/ieedan)! - Write `.vscode/settings.json` for a tailwind app, so the recommended tailwind extension finds the classes an implement component actually holds — `class:` object properties, the `styles = { ... }` object the generated components keep their classes in, and `cn()`/`tv()` with the `ui` addon.
+
 ## 0.0.5
 
 ### Patch Changes
