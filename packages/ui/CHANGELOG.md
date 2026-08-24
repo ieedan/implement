@@ -1,5 +1,27 @@
 # @implementjs/ui
 
+## 0.0.3
+
+### Patch Changes
+
+- [#53](https://github.com/ieedan/implement/pull/53) [`a8ff85d`](https://github.com/ieedan/implement/commit/a8ff85d2dfa297ce0f567c67d738b8c7d15c523d) Thanks [@ieedan](https://github.com/ieedan)! - Add `drawer`, the styled `Drawer`. Reads `direction` off the root, so the panel,
+  its handle, and the scrim only have to be told which edge to live on once, and
+  fills its axis when the root is given snap points.
+
+- [#53](https://github.com/ieedan/implement/pull/53) [`00239de`](https://github.com/ieedan/implement/commit/00239de0e84fe27b2f8737e977d973b4d24c454e) Thanks [@ieedan](https://github.com/ieedan)! - Add `responsive-dialog`: one modal that is a centered dialog where there is room
+  for one and a drawer where a thumb is what is reaching for it. Both shapes share
+  an `open` signal, so crossing the breakpoint does not lose it.
+
+  `sidebar`'s off-canvas mobile panel is now a `drawer` rather than a `sheet`, so it
+  can be swiped shut, and its breakpoint is `mediaQuery` instead of a hand-rolled
+  `matchMedia` listener. `drawer`'s grab bar now sits on the edge the panel drags
+  out of, rather than the edge it is anchored to, and a `drawer` with a field in it
+  opens above the on-screen keyboard instead of under it.
+
+  `command`'s input is 16px below the `md` breakpoint, the way `input` and
+  `textarea` already were. Safari on iOS zooms the page in on a focused field with
+  smaller text than that, and a command palette is a field you focus on purpose.
+
 ## 0.0.2
 
 ### Patch Changes

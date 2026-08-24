@@ -1,7 +1,7 @@
 {
 	"name": "@implementjs/ui",
 	"private": true,
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "The version line and changelog for the @implementjs/ui jsrepo registry. The components themselves live in apps/docs.",
 	"license": "MIT",
 	"author": "Aidan Bleser",

@@ -1,5 +1,14 @@
 # @implementjs/core
 
+## 0.0.6
+
+### Patch Changes
+
+- [#53](https://github.com/ieedan/implement/pull/53) [`00239de`](https://github.com/ieedan/implement/commit/00239de0e84fe27b2f8737e977d973b4d24c454e) Thanks [@ieedan](https://github.com/ieedan)! - Add `mediaQuery(query, { fallback })`, a CSS media query as a `Readable<boolean>`.
+  It listens only while something is listening to it, and reports the fallback on
+  the server — and through hydration, so the pass matches the markup the server
+  produced instead of throwing it out and re-rendering.
+
 ## 0.0.5
 
 ### Patch Changes
