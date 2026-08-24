@@ -11,6 +11,7 @@ import {
 	packageJson,
 	pnpmWorkspace,
 	signUpFormComponent,
+	styles,
 	tsconfig,
 	UI_PATH,
 	UI_SCRIPT,
@@ -21,7 +22,10 @@ import {
 import { hasAddon, type Template, type TemplateContext } from "@/templates/types";
 import { dependencies, type Dependency } from "@/templates/versions";
 
-/** A client rendered single page app: Vite serves `index.html`, `src/index.ts` mounts the app. */
+/**
+ * A client rendered single page app: Vite serves `index.html`, `src/index.ts` mounts the router,
+ * and `@implementjs/router` matches the path against the table in `src/router.ts`.
+ */
 export const csr: Template = {
 	id: "csr",
 	label: "CSR with vite",
@@ -40,7 +44,11 @@ export const csr: Template = {
 		{ path: "src/index.html", contents: indexHtml(ctx, { title: ctx.name, entry: "/index.ts" }) },
 		{ path: "src/app.css", contents: appCss(ctx) },
 		{ path: "src/index.ts", contents: entry(ctx) },
+		{ path: "src/router.ts", contents: routerModule() },
+		{ path: "src/layout.ts", contents: layout(ctx) },
 		{ path: "src/counter.ts", contents: counter(ctx) },
+		{ path: "src/about.ts", contents: aboutPage(ctx) },
+		{ path: "src/not-found.ts", contents: notFoundPage(ctx) },
 		...(hasAddon(ctx, "modeWatcher") ? [{ path: "src/mode.ts", contents: modeModule(ctx) }] : []),
 		...(hasAddon(ctx, "forms")
 			? [{ path: "src/sign-up-form.ts", contents: signUpFormComponent(ctx) }]
@@ -56,7 +64,7 @@ export const csr: Template = {
 };
 
 function pkg(ctx: TemplateContext): string {
-	const deps: Dependency[] = ["@implementjs/core"];
+	const deps: Dependency[] = ["@implementjs/core", "@implementjs/router"];
 	if (hasAddon(ctx, "primitives")) deps.push("@implementjs/primitives");
 	if (hasAddon(ctx, "icons")) deps.push("@implementjs/lucide");
 	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
@@ -105,7 +113,7 @@ function entry(ctx: TemplateContext): string {
 	return (
 		dedent`
 		import { App } from "@implementjs/core";
-		import { Counter } from "./counter";
+		import { router } from "./router";
 		import "./app.css";
 
 		const app = App({ target: document.getElementById("root")! });
@@ -117,7 +125,8 @@ function entry(ctx: TemplateContext): string {
 			import.meta.hot.dispose(app.unmount);
 		}
 
-		app.render(Counter());
+		// the router is itself a mountable: it renders whichever route matches the current path
+		app.render(router);
 	` + "\n"
 	);
 }
@@ -131,8 +140,8 @@ function modeEntry(): string {
 		dedent`
 		import { App } from "@implementjs/core";
 		import { ModeWatcher } from "@implementjs/mode-watcher";
-		import { Counter } from "./counter";
 		import { mode } from "./mode";
+		import { router } from "./router";
 		import "./app.css";
 
 		const app = App({ target: document.getElementById("root")! });
@@ -144,14 +153,114 @@ function modeEntry(): string {
 			import.meta.hot.dispose(app.unmount);
 		}
 
-		app.render(ModeWatcher({ manager: mode }), Counter());
+		// the router is itself a mountable: it renders whichever route matches the current path
+		app.render(ModeWatcher({ manager: mode }), router);
 	` + "\n"
 	);
+}
+
+/**
+ * The route table. Keys are path segments, `"/"` renders a level, and `layout` wraps everything
+ * beneath it. `:param` segments, nested tables and catch-alls are all keys in the same object.
+ */
+function routerModule(): string {
+	return (
+		dedent`
+		import { Router } from "@implementjs/router";
+
+		import { About } from "./about";
+		import { Counter } from "./counter";
+		import { Layout } from "./layout";
+		import { NotFound } from "./not-found";
+
+		export const router = Router(
+			{
+				layout: (child) => Layout(child),
+				"/": () => Counter(),
+				"/about": () => About(),
+			},
+			{ fallback: (error) => NotFound(error) },
+		);
+	` + "\n"
+	);
+}
+
+/**
+ * The shell every route renders inside. It imports `router` from the module that imports it back,
+ * which is a cycle in both directions and wants care in both: ESM resolves it only because `router`
+ * is touched inside the function body rather than at the top level, where the binding is still
+ * uninitialized while `router.ts` evaluates — and TypeScript resolves it only because the return
+ * type is written out, since inferring it would mean inferring `router` from a table that renders
+ * this. Every view that links carries the same annotation for the same reason.
+ */
+function layout(ctx: TemplateContext): string {
+	const c = styles(ctx);
+
+	return `${[
+		`import { Div, Main, Nav, type Mountable } from "@implementjs/core";`,
+		`import { router } from "./router";`,
+		``,
+		`// the return type is annotated on purpose: this reads \`router\`, which is inferred from the`,
+		`// table that renders this, and TypeScript will not chase that circle on its own`,
+		`export function Layout(children: Mountable): Mountable {`,
+		`\treturn Div(`,
+		`\t\tNav(`,
+		`\t\t\t{ class: "${c.nav}" },`,
+		`\t\t\t// a Link follows the router instead of reloading the document, and marks itself`,
+		`\t\t\t// aria-current="page" while its path is the current one`,
+		`\t\t\trouter.Link({ class: "${c.navLink}", to: "/" }, "Home"),`,
+		`\t\t\trouter.Link({ class: "${c.navLink}", to: "/about" }, "About"),`,
+		`\t\t),`,
+		`\t\tMain({ class: "${c.main}" }, children),`,
+		`\t);`,
+		`}`,
+	].join("\n")}\n`;
+}
+
+function aboutPage(ctx: TemplateContext): string {
+	const c = styles(ctx);
+
+	return `${[
+		`import { A, Div, H1, P, type Mountable } from "@implementjs/core";`,
+		``,
+		`export function About(): Mountable {`,
+		`\treturn Div(`,
+		`\t\t{ class: "${c.page}" },`,
+		`\t\tH1({ class: "${c.title}" }, "About"),`,
+		`\t\tP(`,
+		`\t\t\t{ class: "${c.subtitle}" },`,
+		`\t\t\t"This page is ",`,
+		`\t\t\t"src/about.ts",`,
+		`\t\t\t" — add a route by adding a key to the table in src/router.ts.",`,
+		`\t\t),`,
+		`\t\tA({ class: "${c.link}", href: "${DOCS_URL}" }, "Read the docs"),`,
+		`\t);`,
+		`}`,
+	].join("\n")}\n`;
+}
+
+function notFoundPage(ctx: TemplateContext): string {
+	const c = styles(ctx);
+
+	return `${[
+		`import { Div, H1, P, type Mountable } from "@implementjs/core";`,
+		`import type { RouterError } from "@implementjs/router";`,
+		``,
+		`/** Renders when no route matches the path, or when a route throws while rendering. */`,
+		`export function NotFound(error: RouterError): Mountable {`,
+		`\treturn Div(`,
+		`\t\t{ class: "${c.page}" },`,
+		`\t\tH1({ class: "${c.title}" }, \`\${error.code}\`),`,
+		`\t\tP({ class: "${c.subtitle}" }, error.message),`,
+		`\t);`,
+		`}`,
+	].join("\n")}\n`;
 }
 
 function counter(ctx: TemplateContext): string {
 	const links = [
 		{ label: "Documentation", href: DOCS_URL },
+		{ label: "Routing", href: `${DOCS_URL}/tree/main/packages/router` },
 		{ label: "Vite", href: "https://vite.dev" },
 	];
 	if (hasAddon(ctx, "primitives")) {
@@ -211,13 +320,27 @@ function readme(ctx: TemplateContext): string {
 		${ctx.name}/
 		└ src/             the vite root
 		   ├ app.css       global styles
-		   ├ counter.ts    the component the page renders
+		   ├ about.ts      the /about route
+		   ├ counter.ts    the component / renders
 		   ├ index.html    the page vite serves
-		   └ index.ts      mounts the app into #root
+		   ├ index.ts      mounts the router into #root
+		   ├ layout.ts     the nav every route renders inside
+		   ├ not-found.ts  what renders when no route matches
+		   └ router.ts     the route table
 		\`\`\`
 
 		\`App({ target })\` creates the root and \`app.render(...)\` mounts children into it. Components are
 		plain functions that run once — [signals](${DOCS_URL}) update the DOM, there is no re-render.
+
+		## Routing
+
+		\`src/router.ts\` is the whole route table: keys are path segments, \`"/"\` renders a level, and
+		\`layout\` wraps everything beneath it. Add a route by adding a key. \`:param\` segments arrive as
+		signals, so navigating from \`/users/1\` to \`/users/2\` patches the param instead of remounting the
+		page.
+
+		The router uses history-mode URLs, which \`dev\` and \`preview\` already serve. A static host needs
+		telling the same thing: rewrite unknown paths to \`index.html\`, or \`/about\` is a 404 on reload.
 	` + "\n"
 	);
 }

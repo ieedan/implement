@@ -74,9 +74,9 @@ export const kit: Template = {
 };
 
 function pkg(ctx: TemplateContext): string {
-	// the router is a direct dependency because the generated `$implement/router`
-	// module imports it from inside the app, not from kit
-	const deps: Dependency[] = ["@implementjs/core", "@implementjs/router"];
+	// no `@implementjs/router` here: the generated `$implement/router` module imports it,
+	// but kit aliases the name at its own copy so the app never has to name a version
+	const deps: Dependency[] = ["@implementjs/core"];
 	if (hasAddon(ctx, "primitives")) deps.push("@implementjs/primitives");
 	if (hasAddon(ctx, "icons")) deps.push("@implementjs/lucide");
 	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");

@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import {
 	clientTypeReference,
@@ -107,6 +108,85 @@ function entryServer(hasErrorPage: boolean): string {
 
 /** Aliases every kit app gets; \`KitOptions.alias\` entries merge over them. */
 export const DEFAULT_ALIASES: Record<string, string> = { "@/lib": "src/lib" };
+
+/** The router package kit generates against. See {@link routerAliases}. */
+export const ROUTER_PACKAGE = "@implementjs/router";
+
+const requireFromKit = createRequire(import.meta.url);
+
+/**
+ * The alias pointing \`@implementjs/router\` at the copy kit generated against.
+ *
+ * Nothing an app writes imports the router — the generated \`$implement/router\`
+ * module does, and \`$implement-params.d.ts\` augments its \`ParamTypes\`. Both sit
+ * inside the app, which is not where the package is: kit depends on it, so a
+ * pnpm install leaves it under kit rather than anywhere the app resolves from.
+ *
+ * An app could depend on it too, and until now the scaffold did. But that is a
+ * version the app can drift off kit's, and drift here is quiet in both
+ * directions: a second copy in the graph is a second \`ParamTypes\` registry, and
+ * the \`href\` that reads the first one never sees what the app declared into the
+ * second. Resolving it here instead makes the app's router kit's router by
+ * construction, and takes the line out of the app's \`package.json\` entirely.
+ *
+ * The declaration entry is read off the package rather than guessed from the
+ * runtime one: they are the same \`src/index.ts\` in this workspace, and
+ * \`dist/index.mjs\` beside \`dist/index.d.mts\` in a published install.
+ *
+ * Empty when the package will not resolve — under Yarn PnP there is no tree to
+ * point at, and an app that installed the router itself needs no help anyway.
+ * The alias is what makes the dependency unnecessary, not what makes kit work.
+ */
+export function routerAliases(): {
+	vite: Record<string, string>;
+	tsconfig: Record<string, string>;
+} {
+	let runtime: string;
+	try {
+		runtime = requireFromKit.resolve(ROUTER_PACKAGE);
+	} catch {
+		return { vite: {}, tsconfig: {} };
+	}
+	return {
+		vite: { [ROUTER_PACKAGE]: runtime },
+		tsconfig: { [ROUTER_PACKAGE]: routerTypesEntry(runtime) ?? runtime },
+	};
+}
+
+/**
+ * The router's declaration entry, read off the \`package.json\` its runtime entry
+ * sits under. Walked up to rather than resolved: the package exports only
+ * \`"."\`, so \`require.resolve("@implementjs/router/package.json")\` is refused.
+ */
+function routerTypesEntry(runtime: string): string | null {
+	let dir = dirname(runtime);
+	for (;;) {
+		const manifest = join(dir, "package.json");
+		if (existsSync(manifest)) {
+			const types = readTypesCondition(manifest);
+			return types === null ? null : resolve(dir, types);
+		}
+		const parent = dirname(dir);
+		if (parent === dir) return null;
+		dir = parent;
+	}
+}
+
+/** \`exports["."].types\` from a manifest, or \`null\` if it does not declare one. */
+function readTypesCondition(manifest: string): string | null {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(readFileSync(manifest, "utf8"));
+	} catch {
+		return null;
+	}
+	if (typeof parsed !== "object" || parsed === null || !("exports" in parsed)) return null;
+	const exports = parsed.exports;
+	if (typeof exports !== "object" || exports === null || !("." in exports)) return null;
+	const root = exports["."];
+	if (typeof root !== "object" || root === null || !("types" in root)) return null;
+	return typeof root.types === "string" ? root.types : null;
+}
 
 /**
  * The tsconfig apps extend. rootDirs merges the app root with the generated
@@ -466,7 +546,7 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	writeIfChanged(join(outDir, "entry-server.ts"), entryServer(tree.error !== null));
 	writeIfChanged(
 		join(outDir, "tsconfig.json"),
-		generateTsconfig({ ...DEFAULT_ALIASES, ...options.alias }),
+		generateTsconfig({ ...DEFAULT_ALIASES, ...routerAliases().tsconfig, ...options.alias }),
 	);
 	writeIfChanged(
 		join(outDir, "client.ts"),
