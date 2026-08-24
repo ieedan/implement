@@ -60,7 +60,14 @@ import {
 	type RouteTree,
 	type RouteWarning,
 } from "./scan.ts";
-import { DEFAULT_ALIASES, DEFAULT_PARAMS_DIR, IMPLEMENT_DIR, writeGenerated } from "./typegen.ts";
+import {
+	DEFAULT_ALIASES,
+	DEFAULT_PARAMS_DIR,
+	IMPLEMENT_DIR,
+	routerAliases,
+	ROUTER_PACKAGE,
+	writeGenerated,
+} from "./typegen.ts";
 
 export type {
 	Adapter,
@@ -125,11 +132,7 @@ const NOT_FOUND_ROUTE = "/__implement__/not-found";
  * even for an app with no matchers yet: adding the first one would otherwise
  * be its own discovery, mid-session, with the dev server already running.
  */
-const OPTIMIZE_INCLUDE = [
-	"@implementjs/router",
-	"@implementjs/kit/runtime",
-	"@implementjs/kit/params",
-];
+const OPTIMIZE_INCLUDE = [ROUTER_PACKAGE, "@implementjs/kit/runtime", "@implementjs/kit/params"];
 
 /** Writes a file, creating its directory — the build's own small needs. */
 function write(file: string, contents: string): void {
@@ -366,7 +369,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	const routesGlob = routesBase.slice(1);
 	const paramsGlob = paramsBase.slice(1);
 	const hooksPath = (options.hooks ?? "src/hooks.server.ts").replaceAll("\\", "/");
-	const aliases = { ...DEFAULT_ALIASES, ...options.alias };
+	// the router alias goes under the app's own entries, not over them: an app
+	// that installed the router itself, or points the name somewhere on purpose,
+	// keeps what it asked for
+	const aliases = { ...DEFAULT_ALIASES, ...routerAliases().vite, ...options.alias };
 	const genOptions = {
 		routes,
 		params: paramsPath,

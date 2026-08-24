@@ -11,6 +11,8 @@ The router ships as its own package, built on the same public API your own nodes
 npm install @implementjs/router
 ```
 
+This page is about writing the table yourself, which is what a client-rendered app on plain Vite does. [kit](/kit) writes it from your `src/routes` directory instead: it brings the router along and resolves it for you, so a kit app neither installs this package nor calls `Router` — it gets the same `Link`, `href`, `navigate` and `searchParam` from `$implement/router`, and everything below about params, layouts and matchers describes what it does at runtime.
+
 It describes your whole app as one nested object. Keys are path segments, `"/"` renders a level, `layout` wraps everything beneath it, and `:param` segments surface as signals.
 
 ```ts
