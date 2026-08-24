@@ -48,11 +48,15 @@ function stationary(nodes: Node[], positionOf: (node: Node) => number): Set<Node
 }
 
 /**
- * Inserts `nodes` as siblings immediately before `before`. Nodes already in
- * the right place are left alone — "in the right place" meaning in the right
- * order relative to each other, not merely adjacent to their new neighbour,
- * so swapping two rows of a thousand moves two nodes instead of cascading
- * through every node between them.
+ * Arranges `nodes` as siblings ahead of `before`, in the order given. Nodes
+ * already in the right place are left alone — "in the right place" meaning
+ * ahead of `before` and in the right order relative to each other, not merely
+ * adjacent to their new neighbour, so swapping two rows of a thousand moves
+ * two nodes instead of cascading through every node between them.
+ *
+ * Order, not adjacency, is deliberate on both counts: a node here stands for
+ * a whole mountable, which may own siblings after it that this only sees
+ * through their neighbour.
  */
 export function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | null): void {
 	if (nodes.length === 0) return;
@@ -86,12 +90,18 @@ export function syncDomOrder(parent: HTMLElement, nodes: Node[], before: Node | 
 		return position === undefined || position > limit ? -1 : position;
 	};
 
-	const keep = nodes.length > 1 ? stationary(nodes, positionOf) : null;
+	// A lone node gets the same treatment as a thousand: standing before the
+	// insertion point in the right order is the whole requirement, so one that
+	// already does stays where it is. Dragging it down to sit flush against
+	// `before` would look like the same arrangement only when the node is all
+	// its owner has — a `ForEach` of three rows reported by its first would be
+	// pulled apart, the other two left behind.
+	const keep = stationary(nodes, positionOf);
 
 	cursor = before;
 	for (let i = nodes.length - 1; i >= 0; i--) {
 		const node = nodes[i]!;
-		if (keep?.has(node) !== true && node.nextSibling !== cursor) {
+		if (!keep.has(node) && node.nextSibling !== cursor) {
 			parent.insertBefore(node, cursor);
 		}
 		cursor = node;

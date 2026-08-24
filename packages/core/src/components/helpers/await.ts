@@ -1,8 +1,9 @@
-import { dom } from "../../dom";
+import { dom, withInsertionAnchor } from "../../dom";
 import { isReadable, Signal, subscribe, type Readable } from "../../signal";
 import { asParent, guarded, mountChild, isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";
-import { syncDomOrder, toError } from "../../utils";
+import { toError } from "../../utils";
+import { placeRegionEnd } from "./region";
 import { reconcileChildren } from "..";
 import type { Child, IMountable, Mountable } from "../types";
 
@@ -95,17 +96,18 @@ export function Await<T>(
 				showing = branch;
 
 				asParent(node, () => {
-					for (const child of reconcileChildren({}, ...children)) {
-						const instance = child();
-						mounted.push(instance);
-						mountChild(instance, parent!);
-					}
+					// Anchored to the end marker, so every node the branch mounts lands
+					// inside the region it bounds and leaves with it — see the insertion
+					// anchor in `dom` for what being appended past it costs.
+					withInsertionAnchor(endMarker, () => {
+						for (const child of reconcileChildren({}, ...children)) {
+							const instance = child();
+							mounted.push(instance);
+							mountChild(instance, parent!);
+						}
+					});
 				});
-				syncDomOrder(
-					parent,
-					mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
-					endMarker,
-				);
+				placeRegionEnd(parent, endMarker);
 			};
 
 			const resolve = (value: T) => {

@@ -1,8 +1,8 @@
-import { dom } from "../../dom";
+import { dom, withInsertionAnchor } from "../../dom";
 import { isReadable, subscribe, type Readable } from "../../signal";
 import { asParent, guarded, isDetaching, mountChild, reattached } from "../../tree";
 import type { Unsubscribe } from "../../types";
-import { syncDomOrder } from "../../utils";
+import { placeRegionEnd } from "./region";
 import { reconcileChildren } from "..";
 import type { Bindable } from "../props";
 import type { Child, IMountable, Mountable } from "../types";
@@ -87,18 +87,20 @@ export function Portal(propsOrChild?: PortalProps | Child, ...rest: Child[]): Po
 			const mountInto = (target: HTMLElement) => {
 				clear();
 				asParent(node, () => {
-					for (const child of reconcileChildren({}, ...children)) {
-						const instance = child();
-						mounted.push(instance);
-						mountChild(instance, target);
-					}
+					// Anchored to the end marker, which takes effect only when the target
+					// is the marker's own parent — a disabled portal rendering in place.
+					// The children then land inside the region it bounds rather than past
+					// it, where remounting elsewhere would not collect them.
+					withInsertionAnchor(endMarker, () => {
+						for (const child of reconcileChildren({}, ...children)) {
+							const instance = child();
+							mounted.push(instance);
+							mountChild(instance, target);
+						}
+					});
 				});
 				if (isDisabled() && parent) {
-					syncDomOrder(
-						parent,
-						mounted.map((child) => child.getFirstDomNode()).filter((n): n is Node => n !== null),
-						endMarker,
-					);
+					placeRegionEnd(parent, endMarker);
 				}
 			};
 

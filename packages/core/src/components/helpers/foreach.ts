@@ -11,6 +11,7 @@ import {
 import { asParent, beginDetach, endDetach, guarded, mountChild, isDetaching } from "../../tree";
 import type { Unsubscribe } from "../../types";
 import { precedes, removeRange, syncDomOrder } from "../../utils";
+import { placeRegionEnd } from "./region";
 import type { IMountable, Mountable } from "../types";
 
 function stackFrames(stack: string): string {
@@ -245,6 +246,11 @@ export function ForEach<T>(
 				}
 				if (bulkStart !== null) removeRange(bulkStart, endMarker);
 
+				// A replay claimed the rows where they stand, which is behind the
+				// marker the mount put in at the claim cursor. Moving the marker past
+				// them is what the pass below would otherwise do row by row — and it
+				// cannot do it at all for a row that owns more than its first node.
+				placeRegionEnd(parent!, endMarker);
 				syncDomOrder(
 					parent!,
 					ordered
