@@ -477,11 +477,6 @@ function calendarSharedRootProps(): ApiProp[] {
 				"The date the view starts on and keyboard focus follows. Pass a signal to control the view from outside.",
 		},
 		{
-			name: "onPlaceholderChange",
-			type: "(placeholder: CalendarDate) => void",
-			description: "Runs whenever the view's date changes, by navigation or an outside write.",
-		},
-		{
 			name: "minValue",
 			type: "CalendarDate",
 			description: "The earliest selectable date. Earlier dates are disabled.",

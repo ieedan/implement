@@ -78,8 +78,6 @@ export type CalendarRootProps<T extends "single" | "multiple" = "single"> = Comp
 	CalendarBaseOptions & {
 		/** The date the view starts on and keyboard focus follows. Pass a signal to control it. */
 		placeholder?: Signal<CalendarDate> | CalendarDate;
-		/** Runs whenever the view's date changes, by navigation or an outside write. */
-		onPlaceholderChange?: ChangeHandler<CalendarDate>;
 		disabled?: Signal<boolean> | boolean;
 		readonly?: Signal<boolean> | boolean;
 		/** Runs after a date is selected (not after a deselection). */
@@ -267,7 +265,6 @@ type CalendarAnyProps = ComponentProps<typeof Div> &
 		onValueChange?: ChangeHandler<CalendarDate | null> | ChangeHandler<CalendarDate[]>;
 		maxDays?: number;
 		placeholder?: Signal<CalendarDate> | CalendarDate;
-		onPlaceholderChange?: ChangeHandler<CalendarDate>;
 		disabled?: Signal<boolean> | boolean;
 		readonly?: Signal<boolean> | boolean;
 		onDateSelect?: () => void;
@@ -288,7 +285,6 @@ export function Calendar(
 		onValueChange,
 		maxDays,
 		placeholder,
-		onPlaceholderChange,
 		disabled = false,
 		readonly: readonlyProp = false,
 		onDateSelect,
@@ -359,7 +355,6 @@ export function Calendar(
 
 	return CalendarBaseCtx.Provide(state).To(
 		...valueChange,
-		...changeEffect(state.placeholder, onPlaceholderChange),
 		ImplementLifecycle(
 			{
 				onMount: () => state.ensureNonDisabledPlaceholder(),

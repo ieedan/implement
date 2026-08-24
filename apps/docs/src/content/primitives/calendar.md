@@ -100,8 +100,6 @@ Clicking a selected date clears it back to `null` unless `preventDeselect` is se
 
 The `placeholder` is the date the view starts on and keyboard focus follows; it is not a selection. Pass a signal to move the view programmatically — selecting a date, navigating, and arrowing across a month boundary all write it back.
 
-`onPlaceholderChange` reports every move of the view, whether it came from navigation, a selection, or a write from outside.
-
 ## Navigation
 
 `CalendarPrevButton` and `CalendarNextButton` page the view one month at a time — or by `numberOfMonths` when `pagedNavigation` is set — and disable themselves at `minValue`/`maxValue`. `CalendarMonthSelect` and `CalendarYearSelect` render native `select` elements that jump straight to a month or year:

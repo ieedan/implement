@@ -80,7 +80,7 @@ RangeCalendar({ value }, ({ months, weekdays }) => /* ... */);
 
 The first click sets `start`; while the end is undecided, hovering (or arrowing) highlights the prospective span with `data-highlighted`. The second click sets `end` — clicking before the start swaps the two so the range always runs forward, and a write of an inverted range from outside is reordered the same way. With a complete range, the next click starts a new one; clicking the end date again clears the selection (unless `preventDeselect` is set).
 
-`onValueChange` reports the range after every change — including the half-picked state, where `end` is still `null` — and `onPlaceholderChange` reports each move of the view. `onRangeSelect` is the narrower hook: it runs only once both ends are in.
+`onValueChange` reports the range after every change, including the half-picked state where `end` is still `null`. `onRangeSelect` is the narrower hook: it runs only once both ends are in.
 
 ## Constraints
 
