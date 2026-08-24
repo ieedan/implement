@@ -65,6 +65,15 @@ const HANDLE_PRESS_TIMEOUT = 250;
 /** ms the handle waits before cycling, so the second tap of a double tap lands. */
 const HANDLE_TAP_TIMEOUT = 120;
 
+/**
+ * How long the keyboard has to stay smaller before the panel believes it.
+ * Moving focus from one field to the next starts the keyboard dismissing and
+ * then brings it straight back, and tracking that dip reflows the whole panel
+ * for it. Long enough to swallow the handoff, short enough that a real
+ * dismissal is not left holding space that is no longer covered.
+ */
+const KEYBOARD_SETTLE = 250;
+
 const OFFSET_X_VAR = `--${LIB_PREFIX}-drawer-offset-x`;
 const OFFSET_Y_VAR = `--${LIB_PREFIX}-drawer-offset-y`;
 const PROGRESS_VAR = `--${LIB_PREFIX}-drawer-progress`;
@@ -206,6 +215,8 @@ export class DrawerState extends ModalState {
 	 * does not shrink, so without this a bottom drawer opens underneath it.
 	 */
 	keyboardInset = signal(0);
+	/** A shrink waiting out `KEYBOARD_SETTLE`, in case the keyboard is coming back. */
+	private keyboardShrink: ReturnType<typeof setTimeout> | null = null;
 
 	readonly snapOffsets: Readable<number[]>;
 	readonly activeIndex: Readable<number>;
@@ -332,7 +343,33 @@ export class DrawerState extends ModalState {
 		const inset = window.innerHeight - viewport.height - viewport.offsetTop;
 		// rounded because the viewport reports fractions mid-animation, and a
 		// panel that reflows on every hundredth of a pixel is a panel that jitters
-		this.keyboardInset.set(Math.max(0, Math.round(inset)));
+		this.setKeyboardInset(Math.max(0, Math.round(inset)));
+	}
+
+	/**
+	 * A keyboard that has grown is believed at once — the panel is covered until
+	 * it makes room. A keyboard that has shrunk is not, because that is also what
+	 * the first frames of a handoff between two fields look like, and the panel
+	 * that reflows for it has to reflow back a moment later. Holding the larger
+	 * value costs nothing while the keyboard is still there.
+	 */
+	private setKeyboardInset(next: number) {
+		this.clearKeyboardShrink();
+		if (next >= this.keyboardInset.get()) {
+			this.keyboardInset.set(next);
+			return;
+		}
+		this.keyboardShrink = setTimeout(() => {
+			this.keyboardShrink = null;
+			this.keyboardInset.set(next);
+		}, KEYBOARD_SETTLE);
+	}
+
+	/** Drops a pending shrink. The next measurement decides on its own. */
+	private clearKeyboardShrink() {
+		if (this.keyboardShrink === null) return;
+		clearTimeout(this.keyboardShrink);
+		this.keyboardShrink = null;
 	}
 
 	measurePanel() {
@@ -540,6 +577,8 @@ export class DrawerState extends ModalState {
 			stopKeyboard?.();
 			stopKeyboard = null;
 			if (!open) {
+				// not a shrink to wait out: the panel is going away with it
+				this.clearKeyboardShrink();
 				this.keyboardInset.set(0);
 				return;
 			}
@@ -552,6 +591,7 @@ export class DrawerState extends ModalState {
 			// bottom edge without changing its height
 			viewport.addEventListener("scroll", measure);
 			stopKeyboard = () => {
+				this.clearKeyboardShrink();
 				viewport.removeEventListener("resize", measure);
 				viewport.removeEventListener("scroll", measure);
 			};

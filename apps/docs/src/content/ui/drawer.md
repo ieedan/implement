@@ -115,6 +115,8 @@ Its height cap grows by the same inset, so the 85dvh it holds the panel to is th
 
 Put whatever must stay visible near the top of the panel, and give the part that can afford to shrink `min-h-0 flex-1 overflow-y-auto`.
 
+Moving between two fields does not reflow the panel. The keyboard dips as focus is handed over, and the [primitive](/primitives/docs/drawer#on-screen-keyboards) waits that out rather than laying the panel out again for it.
+
 ## Scaling the page behind
 
 `scaleBackground: true` marks the document while the drawer is open and leaves the transform to your stylesheet, so the page can shrink back the way it does on iOS. Put `data-drawer-wrapper` on the element that should shrink and add this to your CSS:

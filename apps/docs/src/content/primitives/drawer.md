@@ -117,6 +117,8 @@ This is for the edges the keyboard rises into. A panel hanging from the top of t
 
 The measurement is live for as long as the drawer is open, and it comes from `visualViewport` — the same reading Vaul takes for `repositionInputs`. What it does with it is the part that differs: Vaul resizes and repositions the panel, and this leaves the panel alone.
 
+It is not symmetric. A keyboard that has grown is published at once, because until the panel makes room the keyboard is sitting on top of it. A keyboard that has shrunk has to stay shrunk for a moment first. Moving focus from one field to the next starts the keyboard dismissing and then brings it straight back, and a panel that lays itself out again for those few frames moves every field in it down and back — which reads as the keyboard flickering, not as the panel doing anything. Holding the larger number through the handoff costs nothing, because the keyboard never actually left.
+
 Nothing reads it for you, so a drawer that never holds a field can ignore it. And because nothing moves, a wrong reading costs you a covered footer rather than a panel scrolled off the top.
 
 ## Snap points

@@ -39,6 +39,7 @@ async function mount(tree: Parameters<ReturnType<typeof App>["render"]>[0]) {
  * anyone can read.
  */
 function unmountAll() {
+	vi.useRealTimers();
 	for (const unmount of mounted.splice(0)) unmount();
 	document.body.removeAttribute("style");
 	document.documentElement.removeAttribute("data-drawer-open");
@@ -354,6 +355,7 @@ describe("drawer", () => {
 		const { target } = await mount(DrawerFixture({ open }));
 		const content = element(target, "[data-drawer-content]");
 		const inset = () => content.style.getPropertyValue("--ip-drawer-keyboard-inset");
+		vi.useFakeTimers();
 
 		expect(inset()).toBe("0px");
 
@@ -361,9 +363,13 @@ describe("drawer", () => {
 		viewport.listeners.get("resize")?.();
 		expect(inset()).toBe("336px");
 
-		// the visual viewport scrolls inside the layout one, moving the bottom edge
+		// the visual viewport scrolls inside the layout one, moving the bottom edge.
+		// a shrink is held back until it has stood for a moment — see the handoff
+		// test below for what that is protecting against
 		viewport.offsetTop = 40;
 		viewport.listeners.get("scroll")?.();
+		expect(inset()).toBe("336px");
+		await vi.advanceTimersByTimeAsync(250);
 		expect(inset()).toBe("296px");
 
 		// and it is only the drawer's business while the drawer is open
@@ -371,6 +377,64 @@ describe("drawer", () => {
 		expect(inset()).toBe("0px");
 		expect(viewport.listeners.size).toBe(0);
 
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	it("does not reflow for the keyboard handing off between two fields", async () => {
+		// moving focus from one field to the next starts the keyboard dismissing
+		// and then brings it straight back. Tracking that dip moves the spacer,
+		// and with it every field in the panel, down and back — which is what the
+		// reader sees as the keyboard flickering.
+		const layout = window.innerHeight;
+		const viewport = { height: layout, offsetTop: 0, listeners: new Map<string, () => void>() };
+		vi.stubGlobal("visualViewport", {
+			get height() {
+				return viewport.height;
+			},
+			get offsetTop() {
+				return viewport.offsetTop;
+			},
+			addEventListener: (type: string, fn: () => void) => viewport.listeners.set(type, fn),
+			removeEventListener: (type: string) => viewport.listeners.delete(type),
+		});
+
+		const open = signal(true);
+		const { target } = await mount(DrawerFixture({ open }));
+		const content = element(target, "[data-drawer-content]");
+		const inset = () => content.style.getPropertyValue("--ip-drawer-keyboard-inset");
+		vi.useFakeTimers();
+
+		const resize = (height: number) => {
+			viewport.height = height;
+			viewport.listeners.get("resize")?.();
+		};
+
+		resize(layout - 336);
+		expect(inset()).toBe("336px");
+
+		// the dip, frame by frame, and then the keyboard is back
+		resize(layout - 240);
+		expect(inset()).toBe("336px");
+		await vi.advanceTimersByTimeAsync(80);
+		resize(layout - 90);
+		expect(inset()).toBe("336px");
+		await vi.advanceTimersByTimeAsync(80);
+		resize(layout - 336);
+		expect(inset()).toBe("336px");
+
+		// and it stays there: the shrink that was waiting was dropped, not deferred
+		await vi.advanceTimersByTimeAsync(500);
+		expect(inset()).toBe("336px");
+
+		// a keyboard that really goes away still does, once it has stayed away
+		resize(layout);
+		expect(inset()).toBe("336px");
+		await vi.advanceTimersByTimeAsync(250);
+		expect(inset()).toBe("0px");
+
+		open.set(false);
+		vi.useRealTimers();
 		vi.unstubAllGlobals();
 	});
 
