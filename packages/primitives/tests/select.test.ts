@@ -34,6 +34,13 @@ async function mount(tree: Parameters<ReturnType<typeof App>["render"]>[0]) {
 	};
 }
 
+/** The `data-value` of the one item carrying `data-highlighted`, if any. */
+function highlightedValue(target: ParentNode): string | null {
+	return (
+		target.querySelector("[data-select-item][data-highlighted]")?.getAttribute("data-value") ?? null
+	);
+}
+
 function element(target: ParentNode, selector: string, index = 0): HTMLElement {
 	const el = target.querySelectorAll(selector)[index];
 	if (!(el instanceof HTMLElement)) throw new Error(`No ${selector} at ${index}`);
@@ -324,6 +331,93 @@ describe("select number values", () => {
 		);
 
 		expect(element(target, "[data-select-trigger]").textContent).toBe("7");
+		unmount();
+	});
+});
+
+describe("select highlight on open", () => {
+	const fruits = [
+		{ value: "apple", label: "Apple" },
+		{ value: "banana", label: "Banana" },
+		{ value: "blueberry", label: "Blueberry" },
+	];
+
+	function items() {
+		return fruits.map((fruit) => SelectItem({ value: fruit.value }, fruit.label));
+	}
+
+	async function openSingle(value: string | null) {
+		const { target, unmount } = await mount(
+			Select(
+				{ value: signal(value), items: fruits },
+				SelectTrigger({}, SelectValue({ placeholder: "Pick" })),
+				SelectContent({}, ...items()),
+			),
+		);
+		element(target, "[data-select-trigger]").click();
+		return { target, unmount };
+	}
+
+	it("lands on the selected value, not the first item", async () => {
+		const { target, unmount } = await openSingle("blueberry");
+		expect(highlightedValue(target)).toBe("blueberry");
+		unmount();
+	});
+
+	it("lands on the first item when nothing is selected", async () => {
+		const { target, unmount } = await openSingle(null);
+		expect(highlightedValue(target)).toBe("apple");
+		unmount();
+	});
+
+	it("lands on the first selected value of a multiple select", async () => {
+		const { target, unmount } = await mount(
+			Select(
+				{ type: "multiple", value: signal(["blueberry", "banana"]), items: fruits },
+				SelectTrigger({}, SelectValue({ placeholder: "Pick" })),
+				SelectContent({}, ...items()),
+			),
+		);
+
+		element(target, "[data-select-trigger]").click();
+		expect(highlightedValue(target)).toBe("banana");
+		unmount();
+	});
+
+	it("falls back to the first item when the selected one is disabled", async () => {
+		const { target, unmount } = await mount(
+			Select(
+				{ value: signal<string | null>("banana"), items: fruits },
+				SelectTrigger({}, SelectValue({ placeholder: "Pick" })),
+				SelectContent(
+					{},
+					SelectItem({ value: "apple" }, "Apple"),
+					SelectItem({ value: "banana", disabled: true }, "Banana"),
+				),
+			),
+		);
+
+		element(target, "[data-select-trigger]").click();
+		expect(highlightedValue(target)).toBe("apple");
+		unmount();
+	});
+
+	it("moves the arrow keys on from the selected value", async () => {
+		const { target, unmount } = await openSingle("banana");
+		element(target, "[data-select-trigger]").dispatchEvent(
+			new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+		);
+
+		expect(highlightedValue(target)).toBe("blueberry");
+		unmount();
+	});
+
+	it("re-opens on the value picked last time", async () => {
+		const { target, unmount } = await openSingle(null);
+		element(target, "[data-select-item]", 2).click();
+		element(target, "[data-select-trigger]").click();
+
+		expect(highlightedValue(target)).toBe("blueberry");
 		unmount();
 	});
 });

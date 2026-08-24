@@ -150,6 +150,9 @@ abstract class SelectState {
 
 	abstract isSelected(value: ItemValue): Readable<boolean>;
 
+	/** The values currently selected, empty while nothing is. */
+	abstract selectedValues(): readonly ItemValue[];
+
 	toggleOpen() {
 		if (this.open.get()) {
 			this.close();
@@ -173,7 +176,19 @@ abstract class SelectState {
 		});
 
 		const activeItems = this.getActiveItems();
-		this.highlight(activeItems, activeItems[0]);
+		// open on the value already chosen, not on whatever happens to be first
+		this.highlight(activeItems, this.selectedItem(activeItems) ?? activeItems[0], true);
+	}
+
+	/**
+	 * The rendered item standing for the current selection. Disabled items are
+	 * never highlighted, so a selection that has since been disabled has none.
+	 */
+	private selectedItem(items: readonly HTMLElement[]): HTMLElement | undefined {
+		const selected = this.selectedValues();
+		if (selected.length === 0) return undefined;
+		const attrs = new Set(selected.map(String));
+		return items.find((item) => attrs.has(item.getAttribute("data-value") ?? ""));
 	}
 
 	private getActiveItems(): HTMLElement[] {
@@ -221,7 +236,7 @@ abstract class SelectState {
 			if (!start) continue;
 
 			if (label.toLowerCase().startsWith(e.key.toLowerCase())) {
-				this.highlight(items, item);
+				this.highlight(items, item, true);
 				break;
 			}
 		}
@@ -252,7 +267,7 @@ abstract class SelectState {
 
 		const nextIndex = (currentIndex + direction + activeItems.length) % activeItems.length;
 
-		this.highlight(activeItems, activeItems[nextIndex]);
+		this.highlight(activeItems, activeItems[nextIndex], true);
 	}
 
 	setActiveItem(value: ItemValue) {
@@ -264,10 +279,22 @@ abstract class SelectState {
 		);
 	}
 
-	/** Move `data-highlighted` onto `active`, clearing it from the rest. */
-	private highlight(items: readonly HTMLElement[], active: HTMLElement | undefined) {
+	/**
+	 * Move `data-highlighted` onto `active`, clearing it from the rest. `scroll`
+	 * brings it into view, for the moves the pointer did not make: the list
+	 * opening, and the keyboard. Scrolling under the pointer would fight it.
+	 */
+	private highlight(
+		items: readonly HTMLElement[],
+		active: HTMLElement | undefined,
+		scroll = false,
+	) {
 		items.forEach((item) => item.removeAttribute("data-highlighted"));
-		active?.setAttribute("data-highlighted", "");
+		if (!active) return;
+		active.setAttribute("data-highlighted", "");
+		if (scroll && typeof active.scrollIntoView === "function") {
+			active.scrollIntoView({ block: "nearest" });
+		}
 	}
 
 	close() {
@@ -304,6 +331,11 @@ class SelectStateSingle extends SelectState {
 		return this.#value.bind((v) => v === value);
 	}
 
+	override selectedValues(): readonly ItemValue[] {
+		const current = this.#value.get();
+		return current === null ? [] : [current];
+	}
+
 	override value() {
 		return this.#value;
 	}
@@ -329,6 +361,10 @@ class SelectStateMultiple extends SelectState {
 
 	override isSelected(value: ItemValue) {
 		return this.#value.bind((v) => v.includes(value));
+	}
+
+	override selectedValues(): readonly ItemValue[] {
+		return this.#value.get();
 	}
 
 	override value() {
