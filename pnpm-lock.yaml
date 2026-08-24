@@ -54,22 +54,22 @@ importers:
         specifier: ^6.43.9
         version: 6.43.9
       '@implementjs/core':
-        specifier: workspace:*
+        specifier: workspace:~
         version: link:../../packages/core
       '@implementjs/formish':
-        specifier: workspace:*
+        specifier: workspace:~
         version: link:../../packages/formish
       '@implementjs/lucide':
-        specifier: workspace:*
+        specifier: workspace:~
         version: link:../../packages/lucide
       '@implementjs/mode-watcher':
-        specifier: workspace:*
+        specifier: workspace:~
         version: link:../../packages/mode-watcher
       '@implementjs/primitives':
-        specifier: workspace:*
+        specifier: workspace:~
         version: link:../../packages/primitives
       '@implementjs/router':
-        specifier: workspace:*
+        specifier: workspace:~
         version: link:../../packages/router
       '@lezer/highlight':
         specifier: ^1.2.3
@@ -99,6 +99,9 @@ importers:
       '@implementjs/kit':
         specifier: workspace:*
         version: link:../../packages/kit
+      '@jsrepo/pnpm':
+        specifier: ^3.0.1
+        version: 3.0.1(jsrepo@3.8.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3))
       '@shikijs/rehype':
         specifier: ^4.4.3
         version: 4.4.3
@@ -1286,6 +1289,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@jsrepo/pnpm@3.0.1':
+    resolution: {integrity: sha512-JDXMM+JOSt/OigAkYuJoGQBbPrUEIDyKAfWT1VZM3I9uii+B/vqaBRxmg2d+SM9v79hx2r6f/oD9bH9cAaOW0g==}
+    peerDependencies:
+      jsrepo: 3.8.1
 
   '@lezer/common@1.5.2':
     resolution: {integrity: sha512-sxQE460fPZyU3sdc8lafxiPwJHBzZRy/udNFynGQky1SePYBdhkBl1kOagA9uT3pxR8K09bOrmTUqA9wb/PjSQ==}
@@ -5462,6 +5470,13 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@jsrepo/pnpm@3.0.1(jsrepo@3.8.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3))':
+    dependencies:
+      fast-glob: 3.3.3
+      jsrepo: 3.8.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
+      pathe: 2.0.3
+      yaml: 2.9.0
 
   '@lezer/common@1.5.2': {}
 
