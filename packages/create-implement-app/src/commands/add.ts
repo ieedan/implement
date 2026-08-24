@@ -2,14 +2,9 @@ import { log, multiselect } from "@clack/prompts";
 import { type Command, Option } from "commander";
 import { err, ok, type Result } from "nevereverthrow";
 import pc from "picocolors";
-import { z } from "zod";
+import * as v from "valibot";
 import { adders, type AdderId, ADDERS, applyAdders, parseAdders } from "@/adders";
-import {
-	commonOptions,
-	defaultCommandOptionsSchema,
-	parseOptions,
-	tryCommand,
-} from "@/commands/utils";
+import { commonOptions, defaultCommandOptions, parseOptions, tryCommand } from "@/commands/utils";
 import type { CLIError } from "@/utils/errors";
 import { MissingPackageJsonError, NoAddersSelectedError } from "@/utils/errors";
 import { exists, readFileSync, writeFileSync } from "@/utils/fs";
@@ -25,17 +20,18 @@ import { joinAbsolute } from "@/utils/path";
 import { initLogging, intro, isTTY, outro, runCommands, unwrapPrompt } from "@/utils/prompts";
 import type { AbsolutePath } from "@/utils/types";
 
-export const schema = defaultCommandOptionsSchema.extend({
-	packageManager: z.enum(PACKAGE_MANAGERS).optional(),
-	link: z.string().optional(),
-	install: z.boolean(),
-	workspace: z.boolean(),
-	overwrite: z.boolean(),
-	yes: z.boolean(),
-	verbose: z.boolean(),
+export const schema = v.object({
+	...defaultCommandOptions,
+	packageManager: v.optional(v.picklist(PACKAGE_MANAGERS)),
+	link: v.optional(v.string()),
+	install: v.boolean(),
+	workspace: v.boolean(),
+	overwrite: v.boolean(),
+	yes: v.boolean(),
+	verbose: v.boolean(),
 });
 
-export type AddOptions = z.infer<typeof schema>;
+export type AddOptions = v.InferOutput<typeof schema>;
 
 export type AddCommandResult = {
 	/** The app the adders were applied to. */

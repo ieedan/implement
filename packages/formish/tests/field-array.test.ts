@@ -6,6 +6,7 @@ import {
 	createForm,
 	Field,
 	FieldArray,
+	focus,
 	Form,
 	getInput,
 	handleSubmit,
@@ -142,6 +143,25 @@ describe("field arrays", () => {
 		unmount();
 	});
 
+	it("keeps each row's element with the field it moved to", async () => {
+		const form = createForm({
+			schema: TodosSchema,
+			initialInput: { todos: [{ label: "one" }, { label: "two" }] },
+		});
+		const { target, unmount } = await mount(TodosForm(form));
+		const first = element<HTMLInputElement>(target, "input", 0);
+
+		// `ForEach` moves the node rather than rebuilding it, so the element has to
+		// follow its row to the field store the row now points at
+		move(form, { path: ["todos"], from: 0, to: 1 });
+		await tick();
+
+		focus(form, { path: ["todos", 1, "label"] });
+		expect(document.activeElement).toBe(first);
+		expect(first.value).toBe("one");
+		unmount();
+	});
+
 	it("grows and shrinks with a programmatic write", async () => {
 		const form = createForm({ schema: TodosSchema, initialInput: { todos: [] } });
 		const { target, unmount } = await mount(TodosForm(form));
@@ -171,6 +191,27 @@ describe("field arrays", () => {
 		reset(form);
 		await tick();
 		expect(values(target)).toEqual(["one"]);
+		expect(form.isDirty.get()).toBe(false);
+		unmount();
+	});
+
+	it("is undirty again after a reset that only put a row's value back", async () => {
+		const form = createForm({
+			schema: TodosSchema,
+			initialInput: { todos: [{ label: "one" }] },
+		});
+		const todos = useFieldArray(form, { path: ["todos"] });
+		const { target, unmount } = await mount(TodosForm(form));
+
+		await type(element<HTMLInputElement>(target, "input", 0), "edited");
+		expect(todos.isDirty.get()).toBe(true);
+
+		// the list itself never changed, so the array has to compare its ids by
+		// what they are rather than by which array holds them
+		reset(form);
+		await tick();
+		expect(values(target)).toEqual(["one"]);
+		expect(todos.isDirty.get()).toBe(false);
 		expect(form.isDirty.get()).toBe(false);
 		unmount();
 	});
@@ -222,9 +263,12 @@ describe("array methods out of range", () => {
 		expect(useFieldArray(todos, { path: ["todos"] }).items.get()).toHaveLength(2);
 	});
 
-	it("clamps an insert to the end of the list", () => {
+	it("ignores an insert past the end of the list, and appends without an index", () => {
 		const todos = form();
 		insert(todos, { path: ["todos"], at: 99, initialInput: { label: "three" } });
+		expect(getInput(todos, { path: ["todos"] })).toEqual([{ label: "one" }, { label: "two" }]);
+
+		insert(todos, { path: ["todos"], initialInput: { label: "three" } });
 		expect(getInput(todos, { path: ["todos"] })).toEqual([
 			{ label: "one" },
 			{ label: "two" },

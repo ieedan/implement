@@ -1,5 +1,6 @@
 import { derived, isReadable, signal, type Readable } from "@implementjs/core";
-import { INTERNAL, type FormStore } from "./form";
+import { fieldReadable, toPathReadable } from "./field";
+import { INTERNAL } from "./internal";
 import {
 	insert,
 	move,
@@ -12,23 +13,24 @@ import {
 	type ReplaceConfig,
 	type SwapConfig,
 } from "./methods";
-import { getAtPath, isDirtyInput, pathName, type Path } from "./path";
-import {
-	errorsAt,
-	hasErrorsUnder,
-	hasFlag,
-	itemsSignal,
-	markArrayField,
-	type InternalFormStore,
-} from "./store";
-import type { ArrayPath, FieldErrors, FormSchema, InferInput } from "./types";
+import { getFieldBool, pathName } from "./store";
+import type { FormStore } from "./form";
+import type {
+	ArrayPath,
+	FieldErrors,
+	FormSchema,
+	InferInput,
+	InternalFormStore,
+	MaybeReadable,
+	Path,
+} from "./types";
 
 export interface UseFieldArrayConfig<
 	TSchema extends FormSchema,
 	TPath extends ArrayPath<InferInput<TSchema>>,
 > {
 	/** Where the array lives, e.g. `["todos"]`. */
-	readonly path: TPath | Readable<TPath>;
+	readonly path: MaybeReadable<TPath>;
 }
 
 type ItemMethodConfig<TConfig> = Omit<TConfig, "path">;
@@ -88,16 +90,8 @@ export function useFieldArray<
 	config: UseFieldArrayConfig<TSchema, TPath>,
 ): FieldArrayStore<TSchema, TPath> {
 	const store: InternalFormStore = form[INTERNAL];
-	const path = (
-		isReadable<Path>(config.path) ? config.path : signal(config.path as Path)
-	) as Readable<Path>;
-	markArrayField(store, path.get());
-
-	const errors = derived([store.errors, path], (map, value) => errorsAt(map, value));
-
-	// `bind` follows the readable the selector returns, so the items of the
-	// array the path currently points at are what this reports
-	const items = path.bind((value) => itemsSignal(store, value));
+	const path = toPathReadable(config.path);
+	const errors = fieldReadable(store, path, (field) => field?.errors.get() ?? null);
 
 	/** The methods take the path the store points at right now. */
 	const at = <TConfig>(itemConfig: TConfig): TConfig & { path: Path } => ({
@@ -107,20 +101,26 @@ export function useFieldArray<
 
 	return {
 		path,
-		name: derived([path], (value) => pathName(value)),
-		items,
-		errors,
-		error: derived([errors], (value) => value?.[0] ?? null),
-		isTouched: derived([store.touched, path], (touched, value) => hasFlag(touched, value)),
-		isEdited: derived([store.edited, path], (edited, value) => hasFlag(edited, value)),
-		isDirty: derived([store.input, store.startInput, path], (input, start, value) =>
-			isDirtyInput(getAtPath(start, value), getAtPath(input, value)),
+		name: derived([path], (current) => pathName(current)),
+		items: fieldReadable(store, path, (field) =>
+			field?.kind === "array" ? field.items.get() : [],
 		),
-		isValid: derived([store.errors, path], (map, value) => !hasErrorsUnder(map, value)),
+		errors,
+		error: derived([errors], (current) => current?.[0] ?? null),
+		isTouched: fieldReadable(store, path, (field) =>
+			field ? getFieldBool(field, "isTouched") : false,
+		),
+		isEdited: fieldReadable(store, path, (field) =>
+			field ? getFieldBool(field, "isEdited") : false,
+		),
+		isDirty: fieldReadable(store, path, (field) =>
+			field ? getFieldBool(field, "isDirty") : false,
+		),
+		isValid: fieldReadable(store, path, (field) => !field || !getFieldBool(field, "errors")),
 		itemPath: (index, ...rest) =>
 			derived(
 				[path, isReadable<number>(index) ? index : signal(index)],
-				(value, current) => [...value, current, ...rest] as never,
+				(current, item) => [...current, item, ...rest] as never,
 			),
 		insert: (itemConfig = {}) => insert(form, at(itemConfig) as never),
 		remove: (itemConfig) => remove(form, at(itemConfig) as never),

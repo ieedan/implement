@@ -1,20 +1,28 @@
 import { derived, type Readable } from "@implementjs/core";
-import { isDirtyInput } from "./path";
-import { createFormStore, ROOT_NAME, type InternalFormStore } from "./store";
-import { validateInput } from "./validate";
-import type { FieldErrors, FormConfig, FormInput, FormSchema } from "./types";
+import { INTERNAL } from "./internal";
+import { createFormStore, getFieldBool, getFieldInput } from "./store";
+import { validateFormInput } from "./validate";
+import type {
+	BaseFormStore,
+	FieldErrors,
+	FormConfig,
+	FormSchema,
+	InferInput,
+	InternalFormStore,
+	PartialValues,
+} from "./types";
+import * as v from "valibot";
 
-/** The key the internal store hangs off a form store. */
-export const INTERNAL: unique symbol = Symbol("formish.internal");
-
-export interface FormStore<TSchema extends FormSchema = FormSchema> {
-	/** @internal */
-	readonly [INTERNAL]: InternalFormStore;
-	/** What the fields currently hold. */
-	readonly input: Readable<FormInput<TSchema>>;
+export interface FormStore<TSchema extends FormSchema = FormSchema> extends BaseFormStore<TSchema> {
+	/**
+	 * What the fields currently hold. Formisch reads this with `getInput`; a
+	 * readable is what the same thing looks like when it can be bound.
+	 */
+	readonly input: Readable<PartialValues<InferInput<TSchema>>>;
 	/**
 	 * The errors of the form itself — issues the schema reported without a
-	 * path, such as a check across two fields. Field errors live on the field.
+	 * path, such as a check across two fields. For everything below it, use
+	 * `getDeepErrors`.
 	 */
 	readonly errors: Readable<FieldErrors | null>;
 	readonly isSubmitting: Readable<boolean>;
@@ -46,25 +54,29 @@ export interface FormStore<TSchema extends FormSchema = FormSchema> {
 export function createForm<TSchema extends FormSchema>(
 	config: FormConfig<TSchema>,
 ): FormStore<TSchema> {
-	const store = createFormStore(config);
+	const store: InternalFormStore<TSchema> = createFormStore(config, (input) =>
+		v.safeParseAsync(config.schema, input),
+	);
 
 	// deferred so nothing is validated before the caller holds the store; what
 	// is validated does not depend on it, since the schema has already filled
 	// the fields in
 	if (store.validate === "initial") {
-		queueMicrotask(() => void validateInput(store));
+		queueMicrotask(() => void validateFormInput(store));
 	}
 
 	return {
 		[INTERNAL]: store,
-		input: store.input as unknown as Readable<FormInput<TSchema>>,
-		errors: derived([store.errors], (errors) => errors.get(ROOT_NAME) ?? null),
+		input: derived([store.revision], () => getFieldInput(store)) as Readable<
+			PartialValues<InferInput<TSchema>>
+		>,
+		errors: store.errors,
 		isSubmitting: store.isSubmitting,
 		isSubmitted: store.isSubmitted,
 		isValidating: store.isValidating,
-		isTouched: derived([store.touched], (touched) => touched.size > 0),
-		isEdited: derived([store.edited], (edited) => edited.size > 0),
-		isDirty: derived([store.input, store.startInput], (input, start) => isDirtyInput(start, input)),
-		isValid: derived([store.errors], (errors) => errors.size === 0),
+		isTouched: derived([store.revision], () => getFieldBool(store, "isTouched")),
+		isEdited: derived([store.revision], () => getFieldBool(store, "isEdited")),
+		isDirty: derived([store.revision], () => getFieldBool(store, "isDirty")),
+		isValid: derived([store.revision], () => !getFieldBool(store, "errors")),
 	};
 }

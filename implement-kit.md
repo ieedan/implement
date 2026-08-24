@@ -241,9 +241,9 @@ re-emitted as literals, so no schema library ever enters a bundle:
 ```ts
 // src/lib/env.public.ts
 import { defineEnv } from "@implementjs/kit";
-import { z } from "zod";
+import * as v from "valibot";
 
-export const env = defineEnv({ PUBLIC_DOCS_URL: z.url() });
+export const env = defineEnv({ PUBLIC_DOCS_URL: v.pipe(v.string(), v.url()) });
 ```
 
 `defineEnv` is a plain generic function over [Standard Schema](https://standardschema.dev),

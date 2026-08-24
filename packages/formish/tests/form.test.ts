@@ -181,7 +181,7 @@ describe("submitting", () => {
 describe("errors", () => {
 	it("takes errors from outside the schema", () => {
 		const form = createForm({ schema: LoginSchema });
-		setErrors(form, { path: ["email"], errors: "Already taken" });
+		setErrors(form, { path: ["email"], errors: ["Already taken"] });
 		expect(useField(form, { path: ["email"] }).error.get()).toBe("Already taken");
 		expect(form.isValid.get()).toBe(false);
 	});

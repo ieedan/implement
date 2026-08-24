@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as z from "zod";
+import * as v from "valibot";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	generateParamsModule,
@@ -49,7 +49,7 @@ describe("matcher", () => {
 	});
 
 	it("builds one from a standard schema, rejecting what the schema rejects", () => {
-		const uuid = matcher(z.uuid());
+		const uuid = matcher(v.pipe(v.string(), v.uuid()));
 		expect(uuid.match("0189c2e4-9b3d-7a2f-8c1e-2f0a5b6d7e8f")).toBe(
 			"0189c2e4-9b3d-7a2f-8c1e-2f0a5b6d7e8f",
 		);
@@ -57,13 +57,20 @@ describe("matcher", () => {
 	});
 
 	it("takes the schema's output, so a coercing schema parses the segment", () => {
-		const page = matcher(z.coerce.number().int().positive());
+		const page = matcher(
+			v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1)),
+		);
 		expect(page.match("3")).toBe(3);
 		expect(page.match("0")).toBe(mismatch);
 	});
 
 	it("refuses a schema that cannot answer synchronously", () => {
-		const async = matcher(z.string().refine(async () => true));
+		const async = matcher(
+			v.pipeAsync(
+				v.string(),
+				v.checkAsync(async () => true),
+			),
+		);
 		expect(() => async.match("x")).toThrow(/synchronously/);
 	});
 

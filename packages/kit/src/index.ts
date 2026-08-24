@@ -656,7 +656,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		 * — so even a total guard bypass leaks nothing.
 		 *
 		 * Every export is inlined, not just the `defineEnv(...)` call: narrowing the
-		 * replacement to the call expression would leave `import { z } from "zod"`
+		 * replacement to the call expression would leave `import * as v from "valibot"`
 		 * and the schema expressions in the module, and "probably tree-shakes"
 		 * undercuts the whole reason for evaluating these files up front.
 		 */

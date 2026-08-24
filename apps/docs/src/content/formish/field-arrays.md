@@ -53,6 +53,8 @@ items.swap({ at: 0, and: 1 });
 items.replace({ at: 1, initialInput: { label: "Tea" } });
 ```
 
+An index that is not in the list leaves the list alone — `insert` appends only when it is given no index at all.
+
 ```ts
 import { insert, remove } from "@implementjs/formish";
 
