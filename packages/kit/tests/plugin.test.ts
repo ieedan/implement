@@ -474,6 +474,13 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 					schema: { type: "string", enum: ["true", "false"], default: "false" },
 				},
 			]);
+			// a matcher gates which requests reach the route, which is no part of
+			// the URL — and the param is documented as what the matcher parses it to
+			expect(Object.keys(live.paths)).toContain("/orders/{id}");
+			expect(Object.keys(live.paths)).not.toContain("/orders/{id=integer}");
+			expect(live.paths["/orders/{id}"]?.["get"]?.parameters).toEqual([
+				{ name: "id", in: "path", required: true, schema: { type: "integer" } },
+			]);
 			// `output` lands under static/, so its URL answers in dev too — built
 			// from the routes as they are now, not from a file a build left behind
 			const fromOutput = await fetch(`${origin}/spec/api.json`);

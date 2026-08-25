@@ -537,11 +537,16 @@ export function generateEndpointsModule(
 		imports.unshift('import { openApiEndpoint } from "@implementjs/kit/openapi";');
 		const documented = keys.map(
 			(route, index) =>
-				`\t\t{ key: ${JSON.stringify(route.key)}, params: ${JSON.stringify(route.params.map((param) => param.name))}, file: ${JSON.stringify(route.file)}, module: endpoint_${index} }`,
+				`\t\t{ key: ${JSON.stringify(route.key)}, params: ${JSON.stringify(route.params)}, file: ${JSON.stringify(route.file)}, module: endpoint_${index} }`,
 		);
 		const list = documented.length === 0 ? "[]" : `[\n${documented.join(",\n")},\n\t]`;
+		// the matchers come along so a `[id=integer]` param is documented as what
+		// the matcher parses it to; they are the same table the router matches
+		// with, and an app with none passes nothing
+		const matchers = tree.matchers.length === 0 ? "" : ", matchers";
+		if (matchers !== "") imports.unshift('import { matchers } from "$implement/params";');
 		entries.push(
-			`\topenApiEndpoint({ path: ${JSON.stringify(openapi.path)}, options: ${JSON.stringify(openapi)}, endpoints: ${list} }),`,
+			`\topenApiEndpoint({ path: ${JSON.stringify(openapi.path)}, options: ${JSON.stringify(openapi)}, endpoints: ${list}${matchers} }),`,
 		);
 	}
 

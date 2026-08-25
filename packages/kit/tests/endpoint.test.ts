@@ -136,6 +136,16 @@ describe("handler()", () => {
 		expect((await get("/posts/abc")).status).toBe(400);
 	});
 
+	it("keeps the params a params schema says nothing about", async () => {
+		const GET = handler({
+			params: v.object({ number: v.pipe(v.string(), v.transform(Number), v.number()) }),
+			handle: ({ params }) => params,
+		});
+		const get = server([endpoint("/w/:slug/issues/:number", { GET })]);
+		// the schema names one param; the route's other one is not the schema's to drop
+		expect(await (await get("/w/kit/issues/42")).json()).toEqual({ slug: "kit", number: 42 });
+	});
+
 	it("parses and validates a JSON body", async () => {
 		const POST = handler({
 			body: v.pick(Post, ["title"]),

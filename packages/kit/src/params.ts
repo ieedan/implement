@@ -67,6 +67,17 @@ export type ParamMatcher<T = string> = {
 	readonly [MATCHER]: true;
 	/** The value this segment carries, or {@link mismatch} when the route does not serve it. */
 	readonly match: (value: string) => T | Mismatch;
+	/**
+	 * What the matcher makes of a segment, said in a schema rather than in
+	 * TypeScript — the one thing a `match` function cannot say about itself.
+	 * `matcher(schema)` fills it in; the pattern and function forms take it from
+	 * {@link MatcherOptions.schema}, and are `null` without one.
+	 *
+	 * Kit reads it where a runtime needs the param's type and has no types to
+	 * read it from: the OpenAPI document, whose path parameters would otherwise
+	 * describe a `[id=integer]` route's `id` as the string it arrived as.
+	 */
+	readonly schema: StandardSchemaV1 | null;
 };
 
 /** A matcher of any output type — what a table of them holds. */
@@ -84,6 +95,24 @@ export type ParamType<M> = M extends ParamMatcher<infer T> ? T : string;
 
 type Parse<T> = (value: string) => T | Mismatch;
 
+/** The second argument to {@link matcher} — what the matcher cannot work out for itself. */
+export type MatcherOptions = {
+	/**
+	 * What this matcher produces, as a schema. A matcher *built* from a schema
+	 * already says so; a pattern or a parse function says it in TypeScript, and
+	 * TypeScript is not there when kit writes the OpenAPI document — so a
+	 * parsing matcher that wants its type documented declares it here.
+	 *
+	 * ```ts
+	 * export default matcher(
+	 * 	(value) => (/^\d+$/.test(value) ? Number(value) : mismatch),
+	 * 	{ schema: v.pipe(v.number(), v.integer()) },
+	 * );
+	 * ```
+	 */
+	schema?: StandardSchemaV1;
+};
+
 /**
  * Builds a route param matcher from a pattern, a parse function, or a
  * [Standard Schema](https://standardschema.dev).
@@ -97,17 +126,24 @@ type Parse<T> = (value: string) => T | Mismatch;
  * A pattern has to match the whole segment — kit anchors it, so `/\d+/` means
  * "digits and nothing else" rather than "digits somewhere in there".
  */
-export function matcher(pattern: RegExp): ParamMatcher;
-export function matcher<T>(parse: Parse<T>): ParamMatcher<Exclude<T, Mismatch>>;
+export function matcher(pattern: RegExp, options?: MatcherOptions): ParamMatcher;
+export function matcher<T>(
+	parse: Parse<T>,
+	options?: MatcherOptions,
+): ParamMatcher<Exclude<T, Mismatch>>;
 export function matcher<S extends StandardSchemaV1>(
 	schema: S,
+	options?: MatcherOptions,
 ): ParamMatcher<StandardSchemaV1.InferOutput<S>>;
-export function matcher(source: RegExp | Parse<unknown> | StandardSchemaV1): AnyParamMatcher {
+export function matcher(
+	source: RegExp | Parse<unknown> | StandardSchemaV1,
+	options: MatcherOptions = {},
+): AnyParamMatcher {
 	if (source instanceof RegExp) {
 		const anchored = wholeSegment(source);
-		return define((value) => (anchored.test(value) ? value : mismatch));
+		return define((value) => (anchored.test(value) ? value : mismatch), options.schema ?? null);
 	}
-	if (typeof source === "function") return define(source);
+	if (typeof source === "function") return define(source, options.schema ?? null);
 	return define((value) => {
 		const result = source["~standard"].validate(value);
 		if (result instanceof Promise) {
@@ -116,11 +152,13 @@ export function matcher(source: RegExp | Parse<unknown> | StandardSchemaV1): Any
 			);
 		}
 		return result.issues === undefined ? result.value : mismatch;
-	});
+		// the schema the matcher was built from is also what it produces, so it
+		// describes itself without being told twice
+	}, options.schema ?? source);
 }
 
-function define<T>(match: Parse<T>): ParamMatcher<T> {
-	return { [MATCHER]: true, match };
+function define<T>(match: Parse<T>, schema: StandardSchemaV1 | null): ParamMatcher<T> {
+	return { [MATCHER]: true, match, schema };
 }
 
 /**

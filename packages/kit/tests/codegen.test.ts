@@ -392,6 +392,49 @@ describe("generatePagesModule", () => {
 	});
 });
 
+describe("generateEndpointsModule with a live OpenAPI route", () => {
+	const openapi = { info: { title: "Docs API", version: "1.0.0" }, path: "/openapi.json" };
+	const matched: RouteTree = {
+		root: node({
+			children: [
+				node({
+					dir: "items",
+					segment: { kind: "static", value: "items" },
+					children: [
+						node({
+							dir: "items/[number=integer]",
+							segment: { kind: "param", name: "number", matcher: "integer" },
+							params: [{ name: "number", matcher: "integer" }],
+							endpoint: "items/[number=integer]/server.ts",
+						}),
+					],
+				}),
+			],
+		}),
+		error: null,
+		warnings: [],
+		matchers: ["integer"],
+	};
+
+	it("hands the document builder each param with the matcher gating it", () => {
+		const code = generateEndpointsModule(matched, "/src/routes", openapi);
+		expect(code).toContain('key: "/items/[number=integer]"');
+		expect(code).toContain('params: [{"name":"number","matcher":"integer"}]');
+	});
+
+	it("passes the app's matchers, so a matched param documents what it parses to", () => {
+		const code = generateEndpointsModule(matched, "/src/routes", openapi);
+		expect(code).toContain('import { matchers } from "$implement/params";');
+		expect(code).toContain("], matchers })");
+	});
+
+	it("leaves the matcher table out of an app that has none", () => {
+		const code = generateEndpointsModule(loaded, "/src/routes", openapi);
+		expect(code).toContain("openApiEndpoint({");
+		expect(code).not.toContain("$implement/params");
+	});
+});
+
 describe("generateEndpointsModule", () => {
 	const code = generateEndpointsModule(loaded, "/src/routes");
 

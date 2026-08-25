@@ -6,6 +6,7 @@
  * assertion would.
  */
 
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { Operations, TypedClient } from "./client.ts";
 import { json, type HandlerBuilder } from "./endpoint.ts";
 import { matcher, mismatch, type ParamType } from "./params.ts";
@@ -50,6 +51,33 @@ handler({
 handler({
 	// @ts-expect-error the matcher already parsed it; there is no string here
 	handle: ({ params }) => ({ shout: params.id.toUpperCase() }),
+});
+
+// --- what a `params` schema does to the route's other params ---------------
+
+/** What a `[slug]/issues/[number]/[tab]` route's generated `./$types` exports. */
+declare const wide: HandlerBuilder<{ slug: string; number: string; tab: string }>;
+
+/** A schema for one of those three params, the way an app would coerce `[number]`. */
+declare const numeric: StandardSchemaV1<{ number: string }, { number: number }>;
+
+wide({
+	params: numeric,
+	// the schema's param is the schema's; the two it says nothing about are still
+	// the strings the route bound
+	handle: ({ params }) => `${params.slug}#${params.number + 1}${params.tab.toUpperCase()}`,
+});
+
+wide({
+	params: numeric,
+	// @ts-expect-error the schema declared it, so `number` is not a string here
+	handle: ({ params }) => params.number.toUpperCase(),
+});
+
+wide({
+	params: numeric,
+	// @ts-expect-error merging the two does not invent a param the route never bound
+	handle: ({ params }) => params.missing,
 });
 
 // --- what the generated client asks a caller for ---------------------------

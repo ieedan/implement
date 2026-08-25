@@ -49,6 +49,7 @@ import {
 } from "./guard.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
 import { buildOpenApiDocument, type OpenApiEndpoint, type OpenApiOptions } from "./openapi.ts";
+import { matcherTable, type ParamMatchers } from "./params.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
 import type { KitPluginApi } from "./sync.ts";
@@ -90,6 +91,7 @@ export {
 	matcher,
 	mismatch,
 	type AnyParamMatcher,
+	type MatcherOptions,
 	type ParamMatcher,
 	type ParamMatchers,
 	type ParamType,
@@ -510,11 +512,32 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	): Promise<OpenApiEndpoint[]> => {
 		const routes = apiRoutes(tree ?? scan());
 		const modules = await Promise.all(routes.map((route) => load(`${routesBase}/${route.file}`)));
-		return routes.map((route, index) => ({
-			...route,
-			params: route.params.map((param) => param.name),
-			module: modules[index]!,
-		}));
+		return routes.map((route, index) => ({ ...route, module: modules[index]! }));
+	};
+
+	/**
+	 * The matchers the documented routes name, evaluated the same way — a
+	 * `[id=integer]` param is documented as whatever the matcher parses it to,
+	 * and the only place that type exists outside TypeScript is the matcher
+	 * itself. Only the matchers those routes actually use are loaded.
+	 */
+	const openApiMatchers = async (
+		load: (id: string) => Promise<Record<string, unknown>>,
+		endpoints: OpenApiEndpoint[],
+	): Promise<ParamMatchers> => {
+		const named = new Set(
+			endpoints.flatMap((endpoint) =>
+				endpoint.params
+					.map((param) => param.matcher)
+					.filter((name): name is string => name !== null && name !== undefined),
+			),
+		);
+		const names = [...named];
+		const modules = await Promise.all(names.map((name) => load(`${paramsBase}/${name}.ts`)));
+		return matcherTable(
+			Object.fromEntries(names.map((name, index) => [name, modules[index]!["default"]])),
+			paramsGlob,
+		);
 	};
 
 	/** The document as a file, with every warning reported against the route it came from. */
@@ -522,9 +545,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		load: (id: string) => Promise<Record<string, unknown>>,
 		warn: (message: string) => void,
 	): Promise<string> => {
+		const endpoints = await openApiEndpoints(load);
 		const { document, warnings } = await buildOpenApiDocument(
-			await openApiEndpoints(load),
+			endpoints,
 			openapi!,
+			await openApiMatchers(load, endpoints),
 		);
 		for (const warning of warnings) warn(`openapi — ${warning}`);
 		return `${JSON.stringify(document, null, "\t")}\n`;

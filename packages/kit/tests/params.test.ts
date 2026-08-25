@@ -78,6 +78,26 @@ describe("matcher", () => {
 		expect(() => async.match("x")).toThrow(/synchronously/);
 	});
 
+	it("keeps the schema it was built from, since that is what it produces", () => {
+		const schema = v.pipe(v.string(), v.transform(Number), v.number());
+		expect(matcher(schema).schema).toBe(schema);
+		// a pattern and a parse function say what they produce in TypeScript, and
+		// the OpenAPI document is written where TypeScript is not
+		expect(word.schema).toBeNull();
+		expect(integer.schema).toBeNull();
+	});
+
+	it("takes a schema for a parse function that wants its type documented", () => {
+		const schema = v.pipe(v.number(), v.integer());
+		const declared = matcher((value) => (/^\d+$/.test(value) ? Number(value) : mismatch), {
+			schema,
+		});
+		expect(declared.schema).toBe(schema);
+		// declaring it changes nothing about matching: the function still decides
+		expect(declared.match("42")).toBe(42);
+		expect(declared.match("4.5")).toBe(mismatch);
+	});
+
 	it("recognizes its own", () => {
 		expect(isParamMatcher(integer)).toBe(true);
 		expect(isParamMatcher({ match: () => "x" })).toBe(false);

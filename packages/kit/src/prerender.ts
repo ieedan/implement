@@ -22,6 +22,7 @@
 
 import { pageDataChains, type ServerRoute } from "./codegen.ts";
 import { comparePatterns, matchRoutePattern, normalizeRoutePath } from "./match.ts";
+import { OPENAPI_FILE } from "./openapi.ts";
 import type { RouteTree } from "./scan.ts";
 
 /**
@@ -65,9 +66,8 @@ export function prerenderPolicy(options: {
 	const flagOf = (file: string): Promise<boolean | undefined> => {
 		let flag = flags.get(file);
 		if (flag === undefined) {
-			// a synthetic endpoint (the OpenAPI route) has no file to read a flag
-			// from, and a route that cannot be loaded is the build's problem to
-			// report, not this policy's
+			// a route that cannot be loaded is the build's problem to report, not
+			// this policy's
 			flag = load(`${routesBase}/${file}`).then(declaredFlag, () => undefined);
 			flags.set(file, flag);
 		}
@@ -94,7 +94,12 @@ export function prerenderPolicy(options: {
 			return fallback === "auto" ? files.length === 0 : fallback;
 		},
 		async endpoint(route) {
-			const flag = await flagOf(route.file);
+			// the OpenAPI route is generated rather than scanned: there is no file
+			// under the routes dir to read a `prerender` export from, and asking
+			// the module runner for one makes every build log a missing module
+			// that the app never wrote. It follows the default instead — a static
+			// build writes the document out, a build with a server serves it live.
+			const flag = route.file === OPENAPI_FILE ? undefined : await flagOf(route.file);
 			if (flag !== undefined) return flag;
 			return fallback === "auto" ? false : fallback;
 		},

@@ -170,6 +170,16 @@ export default matcher(
 
 A schema has to validate synchronously; matching a route can't wait on a database. Reach for a schema when you want its parsing (a `v.transform(Number)` pipe, `v.isoDate()`), a pattern when a regex says it, and a function when neither does.
 
+A parse function says what it produces in TypeScript, and TypeScript isn't there when kit writes the [OpenAPI document](/kit/api-routes) — a `[id=integer]` param is documented as the string it arrived as unless the matcher can say otherwise. Declare a `schema` for the value it parses to and the document says that instead:
+
+```ts
+export default matcher((value) => (/^\d+$/.test(value) ? Number(value) : mismatch), {
+	schema: v.pipe(v.number(), v.integer()), // → "type": "integer" in the document
+});
+```
+
+It changes nothing about matching — the function still decides — and a matcher built from a schema already describes itself.
+
 ### What matching does with them
 
 - A matched param **outranks a plain one** at the same position, the way a static segment outranks both. So `[id=integer]` and `[slug]` can sit side by side: `/users/42` goes to the first, `/users/ada` to the second.

@@ -10,6 +10,7 @@ import {
 	operationId,
 	type OpenApiEndpoint,
 } from "../src/openapi.ts";
+import { matcher, mismatch, type AnyParamMatcher } from "../src/params.ts";
 
 const INFO = { title: "Docs API", version: "1.0.0" };
 
@@ -17,7 +18,7 @@ const Post = v.object({ id: v.number(), title: v.string() });
 
 const posts: OpenApiEndpoint = {
 	key: "/api/posts/[id]",
-	params: ["id"],
+	params: [{ name: "id", matcher: null }],
 	file: "api/posts/[id]/server.ts",
 	module: {
 		GET: handler({
@@ -53,6 +54,13 @@ describe("openApiPath", () => {
 		expect(openApiPath("/api/posts/[id]")).toBe("/api/posts/{id}");
 		expect(openApiPath("/docs/[...slug].md")).toBe("/docs/{slug}.md");
 	});
+
+	it("leaves a param matcher out of the template", () => {
+		// the template names a parameter, and the parameter is named `number` —
+		// `{number=integer}` is one no document declares
+		expect(openApiPath("/api/items/[number=integer]")).toBe("/api/items/{number}");
+		expect(openApiPath("/docs/[...slug=path].md")).toBe("/docs/{slug}.md");
+	});
 });
 
 describe("operationId", () => {
@@ -60,6 +68,10 @@ describe("operationId", () => {
 		expect(operationId("GET", "/api/posts/[id]")).toBe("getApiPostsById");
 		expect(operationId("GET", "/search.json")).toBe("getSearchJson");
 		expect(operationId("GET", "/")).toBe("get");
+	});
+
+	it("names it after the param, not after the matcher gating it", () => {
+		expect(operationId("GET", "/api/items/[number=integer]")).toBe("getApiItemsByNumber");
 	});
 });
 
@@ -213,6 +225,88 @@ describe("buildOpenApiDocument", () => {
 			requestBody: { content: Record<string, { schema: unknown }> };
 		};
 		expect(patch.requestBody.content["application/json"]!.schema).toEqual({ "x-io": "input" });
+	});
+});
+
+/** The matcher from the issue: it parses the segment rather than only accepting it. */
+function parses(value: string) {
+	return /^\d+$/.test(value) ? Number(value) : mismatch;
+}
+
+/** The `[number=integer]` route, over whatever module it serves with. */
+function items(module: Record<string, unknown>): OpenApiEndpoint {
+	return {
+		key: "/api/items/[number=integer]",
+		params: [{ name: "number", matcher: "integer" }],
+		file: "api/items/[number=integer]/server.ts",
+		module,
+	};
+}
+
+describe("a param matcher's parameter", () => {
+	/** The path parameters of the `GET` this endpoint documents, matchers in hand. */
+	async function pathParams(endpoint: OpenApiEndpoint, integer: AnyParamMatcher) {
+		const { document, warnings } = await buildOpenApiDocument(
+			[endpoint],
+			{ info: INFO },
+			{
+				integer,
+			},
+		);
+		expect(warnings).toEqual([]);
+		// the template is the fixed one: `{number=integer}` names a parameter that
+		// is not there
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Reading back the document this test just built.
+		const get = document.paths["/api/items/{number}"]?.["get"] as Record<string, unknown>;
+		return get["parameters"];
+	}
+
+	it("documents what the matcher declares it produces", async () => {
+		const integer = matcher(parses, { schema: v.pipe(v.number(), v.integer()) });
+		expect(await pathParams(items({ GET: handler({ handle: () => [] }) }), integer)).toEqual([
+			{ name: "number", in: "path", required: true, schema: { type: "integer" } },
+		]);
+	});
+
+	it("reads a matcher built from a schema without it being declared twice", async () => {
+		const integer = matcher(v.pipe(v.string(), v.transform(Number), v.number()));
+		expect(await pathParams(items({ GET: handler({ handle: () => [] }) }), integer)).toEqual([
+			{ name: "number", in: "path", required: true, schema: { type: "number" } },
+		]);
+	});
+
+	it("leaves a matcher with nothing to say the string it arrived as", async () => {
+		expect(await pathParams(items({ GET: handler({ handle: () => [] }) }), matcher(/\d+/))).toEqual(
+			[{ name: "number", in: "path", required: true, schema: { type: "string" } }],
+		);
+	});
+
+	it("lets the handler's own params schema win", async () => {
+		const integer = matcher(parses, { schema: v.pipe(v.number(), v.integer()) });
+		const GET = handler({ params: v.object({ number: v.string() }), handle: () => [] });
+		expect(await pathParams(items({ GET }), integer)).toEqual([
+			{ name: "number", in: "path", required: true, schema: { type: "string" } },
+		]);
+	});
+
+	it("warns when two routes reach one path template", async () => {
+		const module = { GET: handler({ handle: () => [] }) };
+		const { document, warnings } = await buildOpenApiDocument(
+			[
+				items(module),
+				{
+					key: "/api/items/[number=uuid]",
+					params: [{ name: "number", matcher: "uuid" }],
+					file: "api/items/[number=uuid]/server.ts",
+					module,
+				},
+			],
+			{ info: INFO },
+		);
+		expect(Object.keys(document.paths)).toEqual(["/api/items/{number}"]);
+		expect(warnings).toHaveLength(1);
+		expect(warnings[0]).toContain("api/items/[number=uuid]/server.ts");
+		expect(warnings[0]).toContain("already documented");
 	});
 });
 

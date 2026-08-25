@@ -1,0 +1,11 @@
+---
+"@implementjs/kit": patch
+---
+
+Keep a param matcher out of the OpenAPI path template, and document what the matcher parses the segment to. A route directory named `[number=integer]` emitted the path key `/api/items/{number=integer}` while its parameter object was named `number`, so the document was invalid for that route: a generated client or a Swagger UI looked for a parameter that was not there. The matcher gates which requests reach a route, which is the app's business and not the URL's, so it now comes off the template and out of the operation id along with it. Two routes binding one name behind different matchers reach the same template, and the document warns rather than quietly documenting one of them.
+
+The same parameter was documented as a `string` even where the matcher parsed it to a `number` and kit's own types said so everywhere else. A matcher now carries the schema it produces — `matcher(schema)` fills it in, and the pattern and function forms take one from `matcher(parse, { schema })` — and the document converts it through the same per-vendor path a handler's `params` schema goes through. A handler's own `params` schema still wins, and a matcher with nothing to say leaves the param the string it arrived as.
+
+A handler's `params` schema now **merges** with the route's params instead of replacing them. Declaring a schema for one param dropped every other param the route bound, so a four-param route had to redeclare three params it never meant to touch — and the docs' single-param example is a route where replacing and narrowing look identical. What the schema declares wins; what it says nothing about comes through as the route bound it, at runtime and in the type.
+
+Stop `api.openapi.path` making every build log `[vite] (ssr) Error when evaluating SSR module /src/routes/(openapi)`. The prerender policy read each endpoint's `prerender` export off its file, and the OpenAPI route is generated rather than scanned — there is no file under the routes dir to read, so every build reported a missing module that looked exactly like a broken import and pointed at a path the app never wrote. The synthetic route now takes the build's default: a static build writes the document out, a build with a server behind it serves it live.
