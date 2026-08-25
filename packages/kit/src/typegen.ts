@@ -285,6 +285,15 @@ export { json } from "@implementjs/kit/endpoint";
 const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/endpoint";
 `;
 
+/**
+ * The load chain feeding a directory's own load — everything above it, its own
+ * file dropped. That file is always last in the chain it belongs to, so what is
+ * left is exactly what its `parent()` resolves to.
+ */
+function parentFiles(files: string[], own: string | null): string[] {
+	return own === null ? files : files.slice(0, -1);
+}
+
 /** The \`./$types\` module for one route directory. */
 export function generateRouteTypes(node: RouteNode, chain: DataChain, paths: GenPaths): string {
 	const params = paramsSpecifier(paths, node.dir);
@@ -301,11 +310,14 @@ type LoadData<T> = T extends (...args: never) => infer R
 `;
 	return `import type { Mountable, Readable, RouterLocation } from "@implementjs/core";
 import type { RouterError } from "@implementjs/router";
-${node.endpoint === null ? "" : HANDLER_IMPORT}import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
+${node.endpoint === null ? "" : HANDLER_IMPORT}import type { LoadEvent as KitLoadEvent, RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 ${helpers}
 export type RouteParams = ${paramsType(node.params, params)};
 export type ServerParams = ${serverParamsType(node.params, params)};
-export type LoadEvent = KitRequestEvent<ServerParams>;
+export type LayoutParentData = ${dataType(node.dir, parentFiles(chain.layoutFiles, node.layoutServer))};
+export type PageParentData = ${dataType(node.dir, parentFiles(chain.pageFiles, node.pageServer))};
+export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;
+export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;
 export type RequestEvent = KitRequestEvent<ServerParams>;
 export type LayoutData = ${dataType(node.dir, chain.layoutFiles)};
 export type PageData = ${dataType(node.dir, chain.pageFiles)};
@@ -369,6 +381,10 @@ declare module "$implement/params" {
 
 	/** The app's \`${paths.params}/*.ts\` matchers, keyed by filename. */
 	export const matchers: ParamMatchers;
+}
+
+declare module "$implement/navigation" {
+	export { invalidate, invalidateAll } from "@implementjs/kit/runtime";
 }
 
 declare module "$implement/pages" {

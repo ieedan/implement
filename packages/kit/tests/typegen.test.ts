@@ -54,7 +54,7 @@ describe("generateRouteTypes", () => {
 		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] }, PATHS);
 		expect(types).toContain('export type RouteParams = { "slug": Readable<string> };');
 		expect(types).toContain('export type ServerParams = { "slug": string };');
-		expect(types).toContain("export type LoadEvent = KitRequestEvent<ServerParams>;");
+		expect(types).toContain("export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;");
 		expect(types).toContain("export type RequestEvent = KitRequestEvent<ServerParams>;");
 		expect(types).toContain("export type PageProps = { params: RouteParams;");
 		expect(types).toContain("data: Readable<PageData>");
@@ -75,6 +75,36 @@ describe("generateRouteTypes", () => {
 		);
 		expect(types).toContain(
 			'export type PageData = Merge<Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>, LoadData<typeof import("../../docs/[...slug]/page.server.ts").default>>;',
+		);
+	});
+
+	it("types parent() as the chain above the load, its own file dropped", () => {
+		const types = generateRouteTypes(
+			{
+				...slugNode,
+				layoutServer: "docs/[...slug]/layout.server.ts",
+				pageServer: "docs/[...slug]/page.server.ts",
+			},
+			{
+				layoutFiles: ["layout.server.ts", "docs/[...slug]/layout.server.ts"],
+				pageFiles: [
+					"layout.server.ts",
+					"docs/[...slug]/layout.server.ts",
+					"docs/[...slug]/page.server.ts",
+				],
+			},
+			PATHS,
+		);
+		// the page's parent is both layouts above it
+		expect(types).toContain(
+			'export type PageParentData = Merge<Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>, LoadData<typeof import("../../docs/[...slug]/layout.server.ts").default>>;',
+		);
+		// this directory's own layout load is not its own parent
+		expect(types).toContain(
+			'export type LayoutParentData = Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>;',
+		);
+		expect(types).toContain(
+			"export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;",
 		);
 	});
 });
@@ -118,6 +148,14 @@ describe("generateRouterDeclaration", () => {
 		);
 		expect(declaration).toContain('declare module "$implement/pages"');
 		expect(declaration).toContain('declare module "$implement/hooks"');
+	});
+
+	it("declares $implement/navigation, so invalidate() type-checks in an app", () => {
+		const declaration = generateRouterDeclaration([{ pattern: "/", params: [] }], false, PATHS);
+		expect(declaration).toContain('declare module "$implement/navigation"');
+		expect(declaration).toContain(
+			'export { invalidate, invalidateAll } from "@implementjs/kit/runtime";',
+		);
 	});
 
 	it("declares the error page export only for an app that has one", () => {

@@ -111,6 +111,122 @@ describe("the request pipeline", () => {
 	});
 });
 
+describe("the load chain", () => {
+	/** A server over one page at `/section/:slug/page`, fed by the chain given. */
+	const chained = (files: PageRoute["files"]) =>
+		createKitServer({
+			hooks: {},
+			pages: [page("/section/:slug/page", files)],
+			endpoints: [],
+			renderPage: () => ({ html: "", head: "" }),
+		});
+
+	const chainData = async (files: PageRoute["files"]) =>
+		await (await get(chained(files), "/section/acme/page/__data.json")).json();
+
+	it("gives a load what the loads above it returned, merged root first", async () => {
+		/** How many times the section's authorization decision was made. */
+		let memberships = 0;
+		const data = await chainData([
+			{ id: "layout.server.ts", load: () => ({ user: "ada" }) },
+			{
+				id: "section/[slug]/layout.server.ts",
+				load: async ({ parent, params }) => {
+					memberships++;
+					const { user } = (await parent()) as { user: string };
+					return { workspace: `${user}/${params.slug}` };
+				},
+			},
+			{
+				id: "section/[slug]/page/page.server.ts",
+				load: async ({ parent }) => ({ above: await parent() }),
+			},
+		]);
+		expect(data).toEqual({
+			"layout.server.ts": { user: "ada" },
+			"section/[slug]/layout.server.ts": { workspace: "ada/acme" },
+			// two layouts deep, merged the way the component's `data` is
+			"section/[slug]/page/page.server.ts": {
+				above: { user: "ada", workspace: "ada/acme" },
+			},
+		});
+		// the decision the layout made is the one the page read, not a second one
+		expect(memberships).toBe(1);
+	});
+
+	it("resolves the root load's parent() to nothing, rather than waiting on itself", async () => {
+		const data = await chainData([
+			{ id: "layout.server.ts", load: async ({ parent }) => ({ above: await parent() }) },
+		]);
+		expect(data).toEqual({ "layout.server.ts": { above: {} } });
+	});
+
+	it("lets a later load win a key its parent already set", async () => {
+		const data = await chainData([
+			{ id: "layout.server.ts", load: () => ({ title: "section" }) },
+			{ id: "page.server.ts", load: async ({ parent }) => await parent() },
+		]);
+		expect(data).toEqual({
+			"layout.server.ts": { title: "section" },
+			"page.server.ts": { title: "section" },
+		});
+	});
+
+	it("starts every load at once, so one that waits on nothing waits for nothing", async () => {
+		let releaseLayout!: () => void;
+		const layoutHeld = new Promise<void>((release) => {
+			releaseLayout = release;
+		});
+		let pageRan!: () => void;
+		const pageStarted = new Promise<void>((ran) => {
+			pageRan = ran;
+		});
+		const kit = chained([
+			{
+				id: "layout.server.ts",
+				load: async () => {
+					await layoutHeld;
+					return { slow: true };
+				},
+			},
+			{
+				id: "page.server.ts",
+				load: () => {
+					pageRan();
+					return { fast: true };
+				},
+			},
+		]);
+		const pending = get(kit, "/section/acme/page/__data.json");
+		// the page's load never calls parent(), so nothing about the layout above
+		// it is in its way — were the chain still a waterfall this would hang
+		await pageStarted;
+		releaseLayout();
+		expect(await (await pending).json()).toEqual({
+			"layout.server.ts": { slow: true },
+			"page.server.ts": { fast: true },
+		});
+	});
+
+	it("answers with the root-most failure when more than one load throws", async () => {
+		const kit = chained([
+			{
+				id: "layout.server.ts",
+				load: async () => {
+					// fails second, and is still the one the request is about: a page
+					// under a layout that turned the request down has no answer to give
+					await Promise.resolve();
+					error(403, "not a member");
+				},
+			},
+			{ id: "page.server.ts", load: () => error(404, "no such issue") },
+		]);
+		const response = await get(kit, "/section/acme/page/__data.json");
+		expect(response.status).toBe(403);
+		expect(await response.json()).toEqual({ message: "not a member" });
+	});
+});
+
 describe("the handle hook", () => {
 	it("passes locals from the hook into loads and endpoints", async () => {
 		const hooks: ServerHooks = {

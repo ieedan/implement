@@ -181,9 +181,35 @@ export type RequestEvent<Params extends Record<string, unknown> = Record<string,
 	getClientAddress: () => string;
 };
 
-/** What a `*.server.ts` load receives — the request event, `params` as plain strings. */
-export type LoadEvent<Params extends Record<string, unknown> = Record<string, string>> =
-	RequestEvent<Params>;
+/**
+ * What a `*.server.ts` load receives — the request event with `params` as
+ * plain strings, plus `parent()`.
+ */
+export type LoadEvent<
+	Params extends Record<string, unknown> = Record<string, string>,
+	ParentData = Record<string, unknown>,
+> = RequestEvent<Params> & {
+	/**
+	 * What the loads above this one in the chain returned, merged root first —
+	 * the same merge the component's `data` is, minus this load's own
+	 * contribution. A layout resolves the workspace once and the pages under it
+	 * read it rather than resolving it again:
+	 *
+	 * ```ts
+	 * export default async function load({ parent }: LoadEvent) {
+	 * 	const { workspace } = await parent();
+	 * 	return { issues: await listIssues(workspace.id) };
+	 * }
+	 * ```
+	 *
+	 * Only ever waits on the loads *above* this one, so awaiting it cannot
+	 * deadlock; a load that never calls it never waits for anything.
+	 *
+	 * Typed through the route's generated `./$types` — `LoadEvent` there is the
+	 * page's parent chain, `LayoutLoadEvent` its layout's.
+	 */
+	parent: () => Promise<ParentData>;
+};
 
 export type ServerLoad = (event: LoadEvent) => unknown;
 
@@ -216,22 +242,51 @@ export function matchPage(
 }
 
 /**
- * Runs a route's load chain — every layout load down to the page's own, root
- * first — and returns the results keyed by server file. `null` when the route
- * has no loads, which is also what a page with nothing to load serves for its
+ * Runs a route's load chain — every layout load down to the page's own — and
+ * returns the results keyed by server file. `null` when the route has no
+ * loads, which is also what a page with nothing to load serves for its
  * `__data.json`.
+ *
+ * Every load is *started* in one pass, root first, so a chain of four loads
+ * that need nothing from each other costs one round of work rather than four
+ * in a row. Sequencing is opt-in and per load: `parent()` waits on the loads
+ * above the one calling it, and on nothing else — which is why a page load
+ * awaiting its layout's data cannot deadlock, and why the sibling page load
+ * that does not care carries none of that wait.
  */
-export async function runLoads(route: PageRoute, event: LoadEvent): Promise<RouteData | null> {
+export async function runLoads(route: PageRoute, event: RequestEvent): Promise<RouteData | null> {
 	if (route.files.length === 0) return null;
-	const data: RouteData = {};
+	/** Each load's result, chain order, filled as the loop starts them. */
+	const running: Promise<unknown>[] = [];
 	for (const { id, load } of route.files) {
-		try {
-			data[id] = (await load(event)) ?? {};
-		} catch (thrown) {
-			// which load of the chain was running is the one thing the trace
-			// cannot say once the failure is a few awaits deep in a helper
-			throw markErrorSource(thrown, { kind: "load", file: id });
-		}
+		// taken before this load starts, so it holds exactly the chain above it:
+		// `parent()` can wait on no load that is waiting on this one
+		const above = [...running];
+		const parent = async (): Promise<RouteData> => {
+			const merged: RouteData = {};
+			for (const value of await Promise.all(above)) Object.assign(merged, value);
+			return merged;
+		};
+		const result = (async () => {
+			try {
+				return (await load({ ...event, parent })) ?? {};
+			} catch (thrown) {
+				// which load of the chain was running is the one thing the trace
+				// cannot say once the failure is a few awaits deep in a helper
+				throw markErrorSource(thrown, { kind: "load", file: id });
+			}
+		})();
+		// the chain runs concurrently, so a load below may fail while one above it
+		// is still going — the loop below reaches it eventually, but not before
+		// the runtime has already called the rejection unhandled
+		result.catch(() => {});
+		running.push(result);
+	}
+	const data: RouteData = {};
+	// awaited root first, so a failing layout is what the request reports even
+	// when a load under it failed sooner — the order the chain used to run in
+	for (const [index, { id }] of route.files.entries()) {
+		data[id] = await running[index]!;
 	}
 	return data;
 }

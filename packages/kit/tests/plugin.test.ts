@@ -138,6 +138,43 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		});
 	});
 
+	it("gives a load its parent layouts' data, two levels up", async () => {
+		const result = await render("/parent-chain/deep");
+		expect(result.data).toEqual({
+			"parent-chain/layout.server.ts": { workspace: "acme", member: true },
+			"parent-chain/deep/layout.server.ts": { section: "acme/deep" },
+			"parent-chain/deep/page.server.ts": { title: "acme/deep in acme" },
+		});
+		expect(result.html).toContain("<p>acme/deep in acme</p>");
+	});
+
+	it("writes a $types typing parent() as the chain above the load", () => {
+		const types = readFileSync(
+			join(fixture, ".implement/types/src/routes/parent-chain/deep/$types.d.ts"),
+			"utf8",
+		);
+		expect(types).toContain("export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;");
+		expect(types).toContain(
+			"export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;",
+		);
+		// the layout's own load is not its own parent; the page's is both layouts
+		expect(types).toContain(
+			'export type LayoutParentData = Merge<{}, LoadData<typeof import("../../parent-chain/layout.server.ts").default>>;',
+		);
+		expect(types).toContain(
+			'export type PageParentData = Merge<Merge<{}, LoadData<typeof import("../../parent-chain/layout.server.ts").default>>, LoadData<typeof import("../../parent-chain/deep/layout.server.ts").default>>;',
+		);
+	});
+
+	it("resolves $implement/navigation to the invalidation helpers", async () => {
+		const navigation = (await server.ssrLoadModule("$implement/navigation")) as {
+			invalidate: unknown;
+			invalidateAll: unknown;
+		};
+		expect(typeof navigation.invalidate).toBe("function");
+		expect(typeof navigation.invalidateAll).toBe("function");
+	});
+
 	it("returns no data for routes without loads", async () => {
 		expect((await render("/docs")).data).toBeUndefined();
 	});

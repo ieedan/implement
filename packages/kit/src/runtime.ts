@@ -53,9 +53,11 @@ export {
 /**
  * The browser- and server-render half of kit's server data: a store of what
  * each `*.server.ts` load returned, the `data` readables pages and layouts
- * receive, and the client-side navigation hook that fetches a route's data
- * before it renders. The generated `$implement/router` module and
- * `.implement/` entries wire it up — apps normally never import it directly.
+ * receive, the client-side navigation hook that fetches a route's data before
+ * it renders, and `invalidate` / `invalidateAll`, which run that same fetch on
+ * demand. The generated `$implement/router` module and `.implement/` entries
+ * wire it up — apps reach the invalidation half through
+ * `$implement/navigation` and never import this directly.
  */
 
 const store = new Map<string, Signal<unknown>>();
@@ -95,17 +97,110 @@ export function registerRoutes(routes: ClientRoute[]): void {
 	clientRoutes = routes;
 }
 
-/** Fetch and seed the destination's `__data.json`; no-op for a route with no loads. */
-async function fetchRouteData(path: string): Promise<void> {
+/**
+ * Run a path's loads on the server and hand back what they returned, or `null`
+ * for a route with no loads. This is the `__data.json` endpoint — the same one
+ * a navigation goes through, and the same `runLoads` behind it — which is why
+ * invalidating reuses it rather than having a path of its own.
+ *
+ * The query string comes along: the pipeline rebuilds `event.url` from it, so
+ * a load reading `url.searchParams` sees what the page it is rendering for
+ * was asked with.
+ */
+async function loadRouteData(path: string, search: string): Promise<RouteData | null> {
 	const matchers = appMatchers();
 	const route = clientRoutes.find(
 		(entry) => matchRoutePattern(entry.pattern, path, matchers) !== null,
 	);
-	if (route === undefined) return;
-	const response = await fetch(dataPath(path));
+	if (route === undefined) return null;
+	const response = await fetch(`${dataPath(path)}${search}`);
 	if (!response.ok) throw new Error(`fetching route data failed: ${response.status}`);
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Route data JSON matches the generated load module shape.
-	seedData((await response.json()) as RouteData);
+	return (await response.json()) as RouteData;
+}
+
+/** Fetch and seed the destination's `__data.json`; no-op for a route with no loads. */
+async function fetchRouteData(path: string, search: string): Promise<void> {
+	const data = await loadRouteData(path, search);
+	if (data !== null) seedData(data);
+}
+
+/**
+ * Which invalidation is the newest. Two of them in flight at once is a mutation
+ * answered twice, and the older answer is the stale one however the network
+ * ordered them — so it is dropped rather than seeded over the newer one.
+ */
+let invalidation = 0;
+
+/**
+ * Whether `route` names a route that feeds the page at `path`: the page itself,
+ * or a layout above it. Both are patterns — `/app/:slug/inbox` — and a concrete
+ * path is a pattern that binds nothing, so either form works.
+ *
+ * A layout is named by its own route, and it is reached by walking `path` up:
+ * `/app/:slug` covers `/app/acme/issue/12`, which is what lets a page say the
+ * unread count in the shell around it has gone stale.
+ */
+function routeCovers(route: string, path: string): boolean {
+	const matchers = appMatchers();
+	const pattern = normalizeRoutePath(route);
+	for (let candidate = path; ; candidate = parentPath(candidate)) {
+		if (matchRoutePattern(pattern, candidate, matchers) !== null) return true;
+		if (candidate === "/") return false;
+	}
+}
+
+function parentPath(path: string): string {
+	const cut = path.lastIndexOf("/");
+	return cut <= 0 ? "/" : path.slice(0, cut);
+}
+
+/**
+ * Re-run the loads feeding the page on screen and reseed `data` with what they
+ * return — kit's answer to "that data is stale now".
+ *
+ * ```ts
+ * await api.PATCH("/api/issues/[id]", { params: { id }, body: { done: true } });
+ * await invalidate();
+ * ```
+ *
+ * The data goes back into the same per-file store a navigation seeds, so a
+ * component holding `data` — or anything derived from it — sees the new value
+ * where it stands. Nothing remounts and nothing is patched by hand.
+ *
+ * With a `route` argument, the loads only re-run when that route is part of
+ * what is rendered: the current page's own route, or a layout above it. That
+ * is how a page invalidates the shell around it (`invalidate("/app/:slug")`)
+ * without every mutation anywhere re-running every load in the app.
+ *
+ * Resolves once the new data is seeded. A no-op on the server, where the loads
+ * have only just run for the render in progress.
+ */
+export async function invalidate(route?: string): Promise<void> {
+	if (typeof window === "undefined") return;
+	const path = normalizeRoutePath(window.location.pathname);
+	if (route !== undefined && !routeCovers(route, path)) return;
+	const token = ++invalidation;
+	const data = await loadRouteData(path, window.location.search);
+	// a newer invalidation, or a navigation onto another route, has already
+	// answered for this page — seeding now would put back what it replaced
+	if (data === null || token !== invalidation) return;
+	if (normalizeRoutePath(window.location.pathname) !== path) return;
+	seedData(data);
+}
+
+/**
+ * Re-run every load feeding the page on screen — {@link invalidate} with
+ * nothing to narrow it.
+ *
+ * Kit keys load data by the server file that produced it, and one route's
+ * chain is live at a time, so "all of them" and "the current route's" are the
+ * same set. The two names exist because the distinction is worth keeping at
+ * the call site: `invalidate("/app/:slug")` says which data went stale, and
+ * `invalidateAll()` says you would rather not think about it.
+ */
+export function invalidateAll(): Promise<void> {
+	return invalidate();
 }
 
 /**
@@ -131,7 +226,7 @@ export function initClientData(): void {
 			// concurrently: the code and the data are independent fetches, and
 			// sequencing them would put two round trips in front of every
 			// navigation instead of one
-			await Promise.all([preloadRoute(to.path), fetchRouteData(to.path)]);
+			await Promise.all([preloadRoute(to.path), fetchRouteData(to.path, to.search)]);
 		} catch (error) {
 			// a data fetch that failed, or a route chunk that is gone because
 			// the site was redeployed under this tab — either way the app

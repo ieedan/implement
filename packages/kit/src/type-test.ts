@@ -9,6 +9,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { Operations, TypedClient } from "./client.ts";
 import { json, type HandlerBuilder } from "./endpoint.ts";
+import type { LoadEvent, RequestEvent } from "./match.ts";
 import { matcher, mismatch, type ParamType } from "./params.ts";
 
 const integer = matcher((value) => {
@@ -94,6 +95,35 @@ declare const api: TypedClient<Api>;
 void api.GET("/orders/[id=integer]", { params: { id: 7 } });
 // @ts-expect-error the key binds a number, so a string is not a param for it
 void api.GET("/orders/[id=integer]", { params: { id: "7" } });
+
+// --- what a load's parent() hands it ---------------------------------------
+
+type Workspace = { id: string; name: string };
+
+/** What a `[slug]/issues` page's generated `./$types` binds `LoadEvent` to. */
+declare const pageLoad: LoadEvent<{ slug: string }, { workspace: Workspace }>;
+
+/** A load at the root of its chain: nothing above it to read. */
+declare const rootLoad: LoadEvent;
+
+async function parentTypes() {
+	const { workspace } = await pageLoad.parent();
+	// what the layout returned, at the type the layout returned it
+	const id: string = workspace.id;
+	// @ts-expect-error the layout above this page returned a workspace, not a user
+	void (await pageLoad.parent()).user;
+	// an unbound chain says only that it is a record, not what is in it
+	const anything: unknown = (await rootLoad.parent())["whatever"];
+	return [id, anything];
+}
+
+void parentTypes;
+
+/** An endpoint has no load chain above it, so nothing to await. */
+declare const handlerEvent: RequestEvent;
+
+// @ts-expect-error `parent` is a load's, not every request event's
+void handlerEvent.parent;
 
 // --- what `handle`'s return says `data` is ---------------------------------
 

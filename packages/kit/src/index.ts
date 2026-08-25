@@ -103,6 +103,13 @@ export { sync, type KitPluginApi } from "./sync.ts";
 const ROUTER_ID = "$implement/router";
 /** The app's param matchers. Needed in both graphs — a matcher runs on both sides of a navigation. */
 const PARAMS_ID = "$implement/params";
+/**
+ * `invalidate` / `invalidateAll`, the app-facing half of the client data
+ * runtime. Nothing about it is generated — it is a virtual module so an app
+ * reaches it through the same `$implement/*` namespace as its router and its
+ * client, rather than importing kit's runtime entry by name.
+ */
+const NAVIGATION_ID = "$implement/navigation";
 /** The generated client, aliased to the real `.implement/client.ts` file. */
 const CLIENT_ID = "$implement/client";
 /**
@@ -114,6 +121,8 @@ const TYPES_ID = "\0$implement/route-types";
 const TYPES_MODULE = 'export { handler, json } from "@implementjs/kit/endpoint";\n';
 const RESOLVED_ROUTER_ID = "\0$implement/router";
 const RESOLVED_PARAMS_ID = `\0${PARAMS_ID}`;
+const RESOLVED_NAVIGATION_ID = `\0${NAVIGATION_ID}`;
+const NAVIGATION_MODULE = 'export { invalidate, invalidateAll } from "@implementjs/kit/runtime";\n';
 const RESOLVED_PAGES_ID = `\0${PAGES_ID}`;
 const RESOLVED_ENDPOINTS_ID = `\0${ENDPOINTS_ID}`;
 const RESOLVED_HOOKS_ID = `\0${HOOKS_ID}`;
@@ -742,6 +751,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		resolveId(id) {
 			if (id === ROUTER_ID) return RESOLVED_ROUTER_ID;
 			if (id === PARAMS_ID) return RESOLVED_PARAMS_ID;
+			if (id === NAVIGATION_ID) return RESOLVED_NAVIGATION_ID;
 			if (id === PAGES_ID) return RESOLVED_PAGES_ID;
 			if (id === ENDPOINTS_ID) return RESOLVED_ENDPOINTS_ID;
 			if (id === HOOKS_ID) return RESOLVED_HOOKS_ID;
@@ -756,6 +766,9 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			if (id === RESOLVED_PARAMS_ID) {
 				return generateParamsModule(tree ?? scan(), paramsBase);
 			}
+			// a function of nothing, so it never goes stale and the route watcher
+			// has no reason to invalidate it
+			if (id === RESOLVED_NAVIGATION_ID) return NAVIGATION_MODULE;
 			if (SERVER_IDS.includes(id)) {
 				// server files must never reach the browser bundle
 				if (loadOptions?.ssr !== true) {
