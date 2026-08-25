@@ -21,7 +21,7 @@ Anything that accepts children accepts the `Child` type:
 
 - **Mountables** are the result of element factories, helpers, and your own components.
 - **Text primitives** are `string` and `number`. `null`, `undefined`, and `false` render nothing, which is what makes `cond && Div(...)` work inline.
-- **Readables** (signals, which you'll meet in the next part) become live text nodes.
+- **Readables** (signals, which you'll meet in the next part) become live text nodes. A readable holding a _node_ is a different thing and needs [`Dynamic`](/docs/dynamic) around it.
 
 ```ts
 Div(

@@ -61,6 +61,46 @@ function toText(value: PrimitiveChild): string {
 }
 
 /**
+ * Readable children already reported as holding a node, so one mistake is one
+ * console entry however many updates the signal behind it goes on to drive.
+ */
+const reportedNodeChildren = new WeakSet<object>();
+
+/**
+ * A readable child *is* the text-node shape, so a readable that holds a node
+ * stringifies it — `[object Object]` where the icon was supposed to be — rather
+ * than mounting it. `Dynamic` is the helper that does that job, and nothing in
+ * the failure says so: the type error from trying to force it points at the
+ * `Child` union, and the rendered output points nowhere at all. So the value
+ * itself has to, at the one place it is in hand.
+ */
+function warnNodeInReadableChild(value: unknown): void {
+	if (value === null || (typeof value !== "object" && typeof value !== "function")) return;
+	// Deliberately narrow: a mountable factory, a mounted instance, or a raw DOM
+	// node. Anything else that happens to be an object — a `Date`, a value with a
+	// `toString` worth reading — is text somebody may well have meant, and none of
+	// this check's business.
+	const isNode =
+		typeof value === "function" ||
+		("mount" in value && typeof value.mount === "function") ||
+		("nodeType" in value && typeof value.nodeType === "number");
+	if (!isNode || reportedNodeChildren.has(value)) return;
+	reportedNodeChildren.add(value);
+	// The value rides along as an argument so the entry is inspectable, not just
+	// readable — the same shape the hydration mismatch warning takes.
+	console.warn(
+		"[implement] a readable child resolved to a node, and a readable child renders as text, so this stringifies the node instead of mounting it.\nWrap it in `Dynamic`, which mounts whatever node its source is holding:\n\n  Span({}, Dynamic(node))\n  Span({}, Dynamic([priority], (p) => render(p)))",
+		value,
+	);
+}
+
+/** `toText`, plus the dev-only check that only a readable's value needs. */
+function readableToText(value: PrimitiveChild): string {
+	if (import.meta.env.DEV) warnNodeInReadableChild(value);
+	return toText(value);
+}
+
+/**
  * A static text node. A class rather than an object literal of closures
  * because a row of this app carries four text children and a ten-thousand-row
  * list therefore forty thousand of them — one object against one object plus
@@ -106,13 +146,13 @@ class LiveText extends Binding<PrimitiveChild> implements IMountable {
 	}
 
 	mount(parent: HTMLElement): void {
-		this.#node = dom.createTextNode(toText(this.#content.get()));
+		this.#node = dom.createTextNode(readableToText(this.#content.get()));
 		dom.attach(parent, this.#node);
 		this.start(this.#content);
 	}
 
 	protected apply(value: PrimitiveChild): void {
-		if (this.#node) this.#node.data = toText(value);
+		if (this.#node) this.#node.data = readableToText(value);
 	}
 
 	unmount(): void {
@@ -220,7 +260,7 @@ class TextBinding extends Binding<PrimitiveChild> {
 	}
 
 	protected apply(value: PrimitiveChild): void {
-		this.node.data = toText(value);
+		this.node.data = readableToText(value);
 	}
 }
 
@@ -266,7 +306,7 @@ class Component<T extends keyof HTMLElementTagNameMap> implements IMountable {
 			// pass claims the serialized text node in place rather than hunting for
 			// it under this element's own parent.
 			withMountParent(host, () => {
-				const node = dom.createTextNode(toText(content.get()));
+				const node = dom.createTextNode(readableToText(content.get()));
 				this.#textNode = node;
 				dom.attach(host, node);
 			});

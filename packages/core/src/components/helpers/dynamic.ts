@@ -34,6 +34,11 @@ import type { Child, IMountable, Mountable } from "../types";
  * `null` and `undefined` render nothing. A value that is not a mountable is
  * the child it would be anywhere else: a string becomes text, a readable
  * becomes text that follows it.
+ *
+ * This is also what a `Readable<Mountable>` needs to become a child at all. A
+ * readable passed straight to an element — `Span({}, icon)` — is the text-node
+ * shape, so it stringifies the node rather than mounting it; wrapping it here
+ * is how you say you meant the node.
  */
 export function Dynamic(source: ReadableSource<Child>): Mountable;
 export function Dynamic<Signals extends readonly Readable<any>[]>(
