@@ -1,5 +1,18 @@
 # @implementjs/kit
 
+## 0.0.12
+
+### Patch Changes
+
+- [#73](https://github.com/ieedan/implement/pull/73) [`090e305`](https://github.com/ieedan/implement/commit/090e305ad38d9c299ea20b99ff2a77bba0754cd3) Thanks [@ieedan](https://github.com/ieedan)! - Hot updates re-render one level of the route instead of remounting the app.
+
+  Every `page.ts` and `layout.ts` now accepts its own updates in dev, and the generated client entry no longer accepts anything. An edit stops at the route file that renders it: kit swaps the component behind that route's module handle and asks the router to rebuild from that file's position in the layout chain, so the layouts above it stay mounted with their DOM, their subscriptions, their state, and the reader's scroll position. A file that is not itself a route lands on the route files that import it; anything that reaches no route file reloads the page, which is also what a `server.ts`, `page.server.ts`, `layout.server.ts` or `hooks.server.ts` edit now does rather than leaving the page on data the edit replaced.
+
+  `@implementjs/router` gains `refreshRouters(depthFor)`, the seam kit drives for this. A route module's handle is also now declared once per module id rather than replaced on every re-declaration: the generated router module re-evaluates whenever anything it imports does — a view importing `router` for a `Link` puts it back in the chain of its own update — and a second handle stranded the route table the mounted router was built from.
+
+- Updated dependencies [[`090e305`](https://github.com/ieedan/implement/commit/090e305ad38d9c299ea20b99ff2a77bba0754cd3)]:
+  - @implementjs/router@0.0.10
+
 ## 0.0.11
 
 ### Patch Changes
