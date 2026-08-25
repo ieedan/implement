@@ -213,4 +213,16 @@ A typo'd path or a missing param is a compile error, the declaration for the mod
 
 ## While you work
 
-The dev server watches the routes directory. Add or delete a route file and kit rescans, regenerates the types, and reloads the page. Editing the inside of a page is just normal Vite HMR.
+The dev server watches the routes directory. Add or delete a route file and kit rescans, regenerates the types, and reloads the page.
+
+Editing the inside of one is hot module replacement, scoped to the route. Every `page.ts` and `layout.ts` accepts its own updates in dev, so an edit stops at the route file that renders it: kit swaps the component behind the route and asks the router to rebuild from that file's position in the chain. A page re-renders inside layouts that never unmounted — their DOM, their subscriptions, and their state stay exactly as they were, scroll position included. Edit a layout and everything above it survives instead.
+
+A file that is not itself a route — a component, a helper, a store — has no boundary of its own, so its update climbs to the route files that import it, and those re-render. Only the route on screen actually rebuilds; the rest just take the new code for the next time you navigate to them.
+
+Three things still reload the page, because nothing on the client can answer them:
+
+- **A route appearing or disappearing.** The route tree the router was built from is no longer the one on disk.
+- **A `server.ts`, `page.server.ts`, `layout.server.ts` or `hooks.server.ts` edit.** The browser is holding the output of a load, not the load; a reload re-renders against the new one.
+- **An edit that reaches no route file**, such as a param matcher under `src/params/`. Vite runs out of importers and says so.
+
+State inside the subtree that rebuilds does not survive — the same trade every framework without a compiler makes. Put what you want to keep across an edit of its own page in a module-scope signal: modules outside the update's import chain are never re-executed.

@@ -1,3 +1,4 @@
+import { refreshRouters } from "@implementjs/router";
 import { comparePatterns, matchRoutePattern, normalizeRoutePath } from "./match.ts";
 import { appMatchers } from "./params.ts";
 
@@ -22,6 +23,18 @@ export type ModuleHandle<T> = {
 	load(): Promise<void>;
 	/** The module's default export. Throws unless {@link load} has resolved. */
 	get(): T;
+	/**
+	 * Swap what {@link get} hands back, without importing anything. The dev
+	 * server's seam — see {@link hotReplaceRoute} — for a module Vite has
+	 * already re-evaluated and handed over.
+	 */
+	replace(value: T): void;
+	/**
+	 * Point the handle at a newer import of the same module, for a route not
+	 * loaded yet. What is already loaded stays loaded: only {@link replace}
+	 * moves that. See {@link lazyModule} for who calls this and why.
+	 */
+	rebind(importer: () => Promise<{ default: T }>): void;
 };
 
 /** Every handle the generated router module declared, by module id. */
@@ -37,13 +50,30 @@ export function lazyModule<T>(
 	id: string,
 	importer: () => Promise<{ default: T }>,
 ): ModuleHandle<T> {
+	// One handle per module id, for the life of the page. The generated router
+	// module re-evaluates whenever anything it imports does — a view that
+	// imports `router` for a `Link` puts the router module back in the chain of
+	// its own hot update — and a second handle would strand the first: the
+	// mounted router closed over it when it built its route table, so a hot
+	// replace against the newcomer swaps a component nothing is rendering,
+	// and the page keeps showing the code you just edited away.
+	const existing = handles.get(id);
+	if (existing !== undefined) {
+		// the map is keyed by module id, and a module has one default export;
+		// the handle for this id is this id's handle whatever T the caller names
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- One handle per module id, so its T is this call's T.
+		const typed = existing as ModuleHandle<T>;
+		typed.rebind(importer);
+		return typed;
+	}
 	// boxed, so a module whose default export is nullish still counts as loaded
 	let resolved: { value: T } | null = null;
 	let loading: Promise<void> | null = null;
+	let load = importer;
 	const handle: ModuleHandle<T> = {
 		load() {
 			if (resolved !== null) return Promise.resolve();
-			loading ??= importer().then(
+			loading ??= load().then(
 				(module) => {
 					resolved = { value: module.default };
 					loading = null;
@@ -58,6 +88,17 @@ export function lazyModule<T>(
 			);
 			return loading;
 		},
+		replace(value: T) {
+			resolved = { value };
+			// an import still in flight would overwrite the replacement when it
+			// lands, putting the pre-edit module back
+			loading = null;
+		},
+		rebind(next: () => Promise<{ default: T }>) {
+			// only the not-yet-loaded case can use it, and only the not-yet-loaded
+			// case should: a fresh importer carries the newest URL for the chunk
+			if (resolved === null && loading === null) load = next;
+		},
 		get() {
 			if (resolved === null) {
 				throw new Error(
@@ -67,7 +108,6 @@ export function lazyModule<T>(
 			return resolved.value;
 		},
 	};
-	// the router module re-declares its handles on an HMR reload; newest wins
 	handles.set(id, handle);
 	return handle;
 }
@@ -115,4 +155,39 @@ function handleFor(id: string): ModuleHandle<unknown> {
 		throw new Error(`no route module declared for "${id}"`);
 	}
 	return handle;
+}
+
+/**
+ * Hot-replaces one page or layout with the module Vite just re-evaluated, and
+ * re-renders the routers showing it.
+ *
+ * Every page and layout accepts its own updates in dev — the plugin appends
+ * the `import.meta.hot.accept` that calls this — so a route module is where an
+ * edit stops climbing the import graph. The handle behind it swaps in place,
+ * which is what makes the re-render possible at all: the generated router
+ * module's route table closed over these handles when it ran, and it is not
+ * running again.
+ *
+ * The re-render starts at the module's own position in the route's chain
+ * (`layouts…, page`, the order {@link registerRouteModules} records), so
+ * everything above it stays mounted with its state: an edited page re-renders
+ * inside layouts that never blinked, and an edited layout keeps its ancestors.
+ * A module that is not part of the route on screen updates its handle and
+ * renders nothing — the next navigation into it gets the new code.
+ *
+ * Returns `false` only when no handle is declared for `id`, which means the
+ * route tree moved under the running router; the caller reloads.
+ */
+export function hotReplaceRoute(id: string, value: unknown): boolean {
+	const handle = handles.get(id);
+	if (handle === undefined) return false;
+	handle.replace(value);
+	const matchers = appMatchers();
+	refreshRouters((path) => {
+		const route = moduleRoutes.find(
+			(entry) => matchRoutePattern(entry.pattern, path, matchers) !== null,
+		);
+		return route === undefined ? -1 : route.modules.indexOf(id);
+	});
+	return true;
 }

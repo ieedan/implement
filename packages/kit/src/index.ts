@@ -12,6 +12,7 @@ import {
 	generatePagesModule,
 	generateParamsModule,
 	generateRouterModule,
+	routeModuleId,
 	serverRoutes,
 	staticRoutePaths,
 	type ClientStyle,
@@ -52,8 +53,12 @@ import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
 import type { KitPluginApi } from "./sync.ts";
 import {
+	ENDPOINT_FILE,
 	formatRouteWarning,
 	isRouteFileName,
+	LAYOUT_SERVER_FILE,
+	PAGE_SERVER_FILE,
+	parseRouteFileName,
 	routeFileSuggestion,
 	scanRoutes,
 	type RouteNode,
@@ -289,6 +294,37 @@ function normalizeFile(file: string): string {
 	return file.replaceAll("\\", "/");
 }
 
+/**
+ * The `import.meta.hot` block appended to every page and layout in dev.
+ *
+ * Making the route files the app's hot-update boundaries is the whole point:
+ * without one, an edit anywhere under `src/` climbs the import graph to the
+ * client entry, and re-running that entry rebuilds the app from nothing. The
+ * accept below stops the climb one module short of the router, hands the new
+ * component to the handle the route table already closed over, and re-renders
+ * only that level of the chain.
+ *
+ * The import goes last on purpose: appending leaves every line above it where
+ * it was, so the module's sourcemap still lines up and the transform can
+ * report `map: null`. ESM hoists it, so it is loaded before the module body
+ * either way.
+ */
+function routeHotFooter(id: string): string {
+	return `
+if (import.meta.hot) {
+	import.meta.hot.accept((module) => {
+		// no module means the update failed to evaluate; a handle that does not
+		// exist means the route tree moved out from under the running router.
+		// Either way this file has no boundary to offer, so hand it back to Vite.
+		if (module === undefined || !__implementHotReplaceRoute(${JSON.stringify(id)}, module.default)) {
+			import.meta.hot.invalidate();
+		}
+	});
+}
+import { hotReplaceRoute as __implementHotReplaceRoute } from "@implementjs/kit/runtime";
+`;
+}
+
 /** Whether a specifier is worth resolving to find out whether it is server-only. */
 function looksServerOnly(source: string): boolean {
 	return isServerSpecifier(source) || isEndpointSpecifier(source);
@@ -405,6 +441,15 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		if (isServerModule(id)) return "server";
 		return isEndpointModule(id, routesDir) ? "endpoint" : null;
 	};
+	/**
+	 * A page or layout — the files that render, and so the only ones a hot
+	 * update can swap into a mounted route. `server.ts` and `*.server.ts` never
+	 * reach the browser, and `error.ts` is a static import of the router module
+	 * rather than a handle, so neither is a boundary.
+	 */
+	const isRouteComponent = (file: string): boolean =>
+		file.startsWith(`${normalizeFile(routesDir)}/`) && parseRouteFileName(basename(file)) !== null;
+
 	let envFiles: EnvFile[] = [];
 	let envValues: Record<string, string | undefined> = {};
 	let aliasTargets: Record<string, string> = {};
@@ -728,6 +773,14 @@ export function kit(options: KitOptions = {}): Plugin[] {
 					map: null,
 				};
 			}
+			// Dev only, and only the copy the browser runs: pages and layouts become
+			// the app's hot-update boundaries (see `routeHotFooter`). The build has no
+			// `import.meta.hot`, and a server graph has nothing to re-render.
+			if (devServer !== null && client && isRouteComponent(file)) {
+				const id = routeModuleId(routesBase, normalizeFile(relative(routesDir, file)));
+				// appended, so nothing above it moves and the existing map still holds
+				return { code: `${code}\n${routeHotFooter(id)}`, map: null };
+			}
 			return null;
 		},
 		/**
@@ -789,12 +842,28 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				server.ws.send({ type: "full-reload" });
 			};
 
+			/**
+			 * A load or an endpoint that changed. Nothing in the client graph
+			 * imports these — the browser holds the *output* of one — so Vite finds
+			 * no module to update and sends nothing at all, leaving the page on data
+			 * the edit already replaced. It has invalidated the server graph by the
+			 * time this runs, so a reload re-renders against the new code.
+			 */
+			const onServerFile = (file: string) => {
+				const name = basename(file);
+				const serverRouteFile =
+					name === ENDPOINT_FILE || name === PAGE_SERVER_FILE || name === LAYOUT_SERVER_FILE;
+				if (file !== hooksFile && !(file.startsWith(routesDir + sep) && serverRouteFile)) return;
+				server.ws.send({ type: "full-reload" });
+			};
+
 			server.watcher.on("add", onFile);
 			server.watcher.on("unlink", onFile);
 			server.watcher.on("unlinkDir", onDir);
 			server.watcher.on("add", onEnvFile);
 			server.watcher.on("change", onEnvFile);
 			server.watcher.on("unlink", onEnvFile);
+			server.watcher.on("change", onServerFile);
 
 			// a returned hook runs after Vite's own middlewares are installed, so
 			// assets, source modules, and `static/` are served before the app's

@@ -469,6 +469,51 @@ function buildHref(path: string, params: Record<string, unknown> = {}): string {
 
 const FALLBACK = Symbol("router.fallback");
 
+/**
+ * A mounted router, as the hot-update seam below sees it: the path it is
+ * currently showing, and a re-render of that match from a position in its
+ * layout chain.
+ */
+type MountedRouter = {
+	/** The path the router last matched, or `null` before its first match. */
+	path: () => string | null;
+	/**
+	 * Re-render the current match from chain position `depth` (0 = outermost
+	 * layout). `false` when there is no match to put back — the router is
+	 * showing the fallback for a path its table has no route for.
+	 */
+	refresh: (depth: number) => boolean;
+};
+
+/** Every router currently mounted, so a hot update can find the live ones. */
+const mountedRouters = new Set<MountedRouter>();
+
+/**
+ * Re-renders every mounted router at whatever depth `depthFor` picks for the
+ * path that router is showing; `-1` leaves that router alone. Returns whether
+ * any of them re-rendered.
+ *
+ * The seam a dev server drives when a route module is hot-replaced —
+ * `@implementjs/kit` calls it from the `import.meta.hot.accept` it gives every
+ * page and layout. Rebuilding from `depth` leaves everything above it mounted:
+ * an edited page re-renders inside layouts that keep their DOM, their
+ * subscriptions, and their state. Nothing outside HMR should need it.
+ */
+export function refreshRouters(depthFor: (path: string) => number): boolean {
+	let refreshed = false;
+	// a copy: a refresh that throws its way into the fallback can unmount a
+	// router, and mutating the set mid-iteration would skip its neighbour
+	const live = Array.from(mountedRouters);
+	for (const router of live) {
+		const path = router.path();
+		if (path === null) continue;
+		const depth = depthFor(path);
+		if (depth < 0) continue;
+		refreshed = router.refresh(depth) || refreshed;
+	}
+	return refreshed;
+}
+
 const NOT_FOUND: RouterError = { code: 404, message: "Not Found" };
 
 /** A thrown `{ code, message }` passes through; anything else is a 500. */
@@ -560,6 +605,9 @@ export function Router<T extends Routes<T>>(
 		};
 
 		let shownError: RouterError | null = null;
+		/** The match on screen, and the path it was matched from. */
+		let current: LeafRoute | null = null;
+		let currentPath: string | null = null;
 
 		const showFallback = (error: RouterError) => {
 			if (
@@ -580,6 +628,10 @@ export function Router<T extends Routes<T>>(
 		const onLocation = ({ path }: RouterLocation) => {
 			const match = matchRoute(compiled, path, matchers);
 			if (!match) {
+				// nothing is on screen but the fallback, and no edit to a route
+				// module can change that: `refresh` has nothing to put back
+				current = null;
+				currentPath = path;
 				showFallback(NOT_FOUND);
 				return;
 			}
@@ -595,6 +647,11 @@ export function Router<T extends Routes<T>>(
 			for (const name of paramSignals.keys()) {
 				if (!(name in match.params)) paramSignals.delete(name);
 			}
+
+			// recorded before the divergence check: a param-only change renders
+			// nothing new, but it is still the path the router is showing
+			current = match.route;
+			currentPath = path;
 
 			const next: unknown[] = [...match.route.layouts, match.route];
 			let diverged = 0;
@@ -618,14 +675,59 @@ export function Router<T extends Routes<T>>(
 			}
 		};
 
+		/**
+		 * Re-render the current match from chain position `depth`. The hot-update
+		 * seam: `build` walks down from there, so the layouts above stay mounted
+		 * and only what changed is torn down and rebuilt.
+		 */
+		const refresh = (depth: number): boolean => {
+			const route = current;
+			if (route === null || chain.length === 0) return false;
+			// The fallback is not the match's chain, so it has no level to rebuild.
+			// An edit landing while a render error is on screen is very likely the
+			// fix for it, so the whole match goes back up and gets another try —
+			// otherwise the error would sit there until the page was reloaded.
+			const recovering = chain[0] === FALLBACK;
+			const next: unknown[] = recovering ? [...route.layouts, route] : chain;
+			const from = recovering ? 0 : Math.min(Math.max(depth, 0), next.length - 1);
+			// the subtree leaves the document before its replacement enters, which
+			// collapses the page height and clamps the scroll position with it — a
+			// hot edit must not move the reader
+			const { scrollX, scrollY } = window;
+			try {
+				const content = build(route, from);
+				chain = next;
+				shownError = null;
+				outlets[from]!.set(content);
+				outlets.length = next.length;
+			} catch (thrown) {
+				(options.onError ?? console.error)(thrown);
+				showFallback(toRouterError(thrown));
+				return true;
+			}
+			window.scrollTo(scrollX, scrollY);
+			return true;
+		};
+
+		const handle: MountedRouter = { path: () => currentPath, refresh };
+
 		// The whole router, in public parts: an effect that follows the location
 		// for as long as the router is mounted, and the outlet the match renders
 		// into. The effect mounts first, so the first match is already `set` by
 		// the time the outlet puts it in the document.
 		return ImplementLifecycle(
 			{
+				// registered from the document, not from construction: a mountable
+				// built and never mounted must not sit in the set holding outlets
+				// that no `set` can reach
+				onMount() {
+					mountedRouters.add(handle);
+					return () => mountedRouters.delete(handle);
+				},
 				onUnmount() {
 					chain = [];
+					current = null;
+					currentPath = null;
 					outlets.length = 1;
 					paramSignals.clear();
 				},

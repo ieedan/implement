@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { lazyModule, preloadRoute, registerRouteModules } from "../src/lazy.ts";
+import * as router from "@implementjs/router";
+import { hotReplaceRoute, lazyModule, preloadRoute, registerRouteModules } from "../src/lazy.ts";
 
 describe("lazyModule", () => {
 	it("names the route file when a component renders before its chunk loaded", () => {
@@ -71,5 +72,87 @@ describe("preloadRoute", () => {
 	it("leaves a path matching no route alone, for embedded routers to handle", async () => {
 		registerRouteModules([{ pattern: "/docs", modules: ["missing/module.ts"] }]);
 		await expect(preloadRoute("/tutorial-preview/step-2")).resolves.toBeUndefined();
+	});
+});
+
+describe("lazyModule declared twice", () => {
+	it("keeps the first handle, so what closed over it sees the hot replacement", () => {
+		const first = lazyModule("stable.ts", () => Promise.resolve({ default: "one" }));
+		const second = lazyModule("stable.ts", () => Promise.resolve({ default: "two" }));
+		// the generated router module re-evaluates whenever anything it imports
+		// does; a second handle would strand the route table built on the first
+		expect(second).toBe(first);
+	});
+
+	it("takes the newest importer for a route not loaded yet", async () => {
+		const stale = vi.fn(() => Promise.resolve({ default: "stale" }));
+		const fresh = vi.fn(() => Promise.resolve({ default: "fresh" }));
+		const handle = lazyModule("rebound.ts", stale);
+		lazyModule("rebound.ts", fresh);
+
+		await handle.load();
+		expect(handle.get()).toBe("fresh");
+		expect(stale).not.toHaveBeenCalled();
+	});
+
+	it("keeps what is already loaded rather than re-importing it", async () => {
+		const handle = lazyModule("settled.ts", () => Promise.resolve({ default: "loaded" }));
+		await handle.load();
+		const later = vi.fn(() => Promise.resolve({ default: "later" }));
+		lazyModule("settled.ts", later);
+
+		await handle.load();
+		expect(handle.get()).toBe("loaded");
+		expect(later).not.toHaveBeenCalled();
+	});
+});
+
+describe("hotReplaceRoute", () => {
+	it("swaps the component and re-renders the route showing it, at its own depth", async () => {
+		const handle = lazyModule("routes/docs/page.ts", () => Promise.resolve({ default: "old" }));
+		lazyModule("routes/layout.ts", () => Promise.resolve({ default: "layout" }));
+		await handle.load();
+		registerRouteModules([
+			{ pattern: "/docs", modules: ["routes/layout.ts", "routes/docs/page.ts"] },
+		]);
+
+		const depths: number[] = [];
+		const spy = vi.spyOn(router, "refreshRouters").mockImplementation((depthFor) => {
+			depths.push(depthFor("/docs"));
+			return true;
+		});
+
+		expect(hotReplaceRoute("routes/docs/page.ts", "new")).toBe(true);
+		expect(handle.get()).toBe("new");
+		// the page is last in the chain the manifest records, which is the
+		// position the router rebuilds from
+		expect(depths).toEqual([1]);
+
+		expect(hotReplaceRoute("routes/layout.ts", "layout2")).toBe(true);
+		expect(depths).toEqual([1, 0]);
+
+		spy.mockRestore();
+	});
+
+	it("renders nothing for a module the route on screen does not use", () => {
+		lazyModule("routes/other/page.ts", () => Promise.resolve({ default: "other" }));
+		registerRouteModules([{ pattern: "/docs", modules: ["routes/docs/page.ts"] }]);
+
+		const depths: number[] = [];
+		const spy = vi.spyOn(router, "refreshRouters").mockImplementation((depthFor) => {
+			depths.push(depthFor("/docs"));
+			return false;
+		});
+
+		// still true: the handle took the new component, so navigating there
+		// later renders it — there is just nothing on screen to rebuild now
+		expect(hotReplaceRoute("routes/other/page.ts", "fresh")).toBe(true);
+		expect(depths).toEqual([-1]);
+
+		spy.mockRestore();
+	});
+
+	it("reports a module no handle was declared for, so the caller can reload", () => {
+		expect(hotReplaceRoute("routes/never-declared/page.ts", "x")).toBe(false);
 	});
 });
