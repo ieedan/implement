@@ -58,6 +58,9 @@ export {
 	type RouteData,
 	type ServerLoad,
 } from "./match.ts";
+// `RequestEvent.cookies` is typed by these, so they belong on the same entry —
+// otherwise a hand-built event cannot name the field it has to fill in.
+export type { CookieOptions, Cookies, CookieScope } from "./cookies.ts";
 
 /**
  * The browser- and server-render half of kit's server data: a store of what

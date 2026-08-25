@@ -22,6 +22,7 @@ import {
 	matchPage,
 	routeId,
 	runLoads,
+	type Cookies,
 	type EndpointRoute,
 	type PageRoute,
 	type RequestEvent,
@@ -98,6 +99,34 @@ function RawResponse(text: Readable<string | null>): Mountable {
 /** Where the preview's virtual requests come from — nothing serves it, but a `Request` needs an origin. */
 const PREVIEW_ORIGIN = "http://preview.local";
 
+/**
+ * `event.cookies` for a preview. Reads come from the request the lesson was
+ * given, writes stay in this map — nothing serves the preview, so there is no
+ * response to hang a `Set-Cookie` on, but a lesson that sets a cookie and reads
+ * it back should see it.
+ */
+function previewCookies(request: Request): Cookies {
+	const jar = new Map<string, string>();
+	for (const pair of request.headers.get("cookie")?.split(";") ?? []) {
+		const equals = pair.indexOf("=");
+		if (equals === -1) continue;
+		const name = pair.slice(0, equals).trim();
+		if (name !== "" && !jar.has(name))
+			jar.set(name, decodeURIComponent(pair.slice(equals + 1).trim()));
+	}
+
+	return {
+		get: (name) => jar.get(name),
+		getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+		set: (name, value) => {
+			jar.set(name, value);
+		},
+		delete: (name) => {
+			jar.delete(name);
+		},
+	};
+}
+
 /** Stand-in request event for kit lesson previews (no hooks.server.ts). */
 function previewEvent(
 	url: URL,
@@ -123,6 +152,7 @@ function previewEvent(
 		api: createClient<App.Api>({ fetch, baseUrl: PREVIEW_ORIGIN }),
 		isDataRequest: false,
 		platform: undefined,
+		cookies: previewCookies(request),
 		setHeaders: () => {},
 		getClientAddress: () => "127.0.0.1",
 	};
