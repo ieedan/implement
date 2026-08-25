@@ -22,6 +22,7 @@ function node(partial: Partial<RouteNode>): RouteNode {
 		pageServer: null,
 		layoutServer: null,
 		endpoint: null,
+		error: null,
 		extensions: [],
 		children: [],
 		...partial,
@@ -32,6 +33,7 @@ const tree: RouteTree = {
 	root: node({
 		page: "page.ts",
 		layout: "layout.ts",
+		error: "error.ts",
 		children: [
 			node({
 				dir: "docs",
@@ -98,18 +100,64 @@ describe("generateRouterModule", () => {
 		expect(code).not.toContain("registerRoutes");
 	});
 
-	it("wires the root error page as the fallback, passing the error", () => {
-		expect(code).toContain("fallback: (error) =>");
-		expect(code).toContain("({ error, url: router.location })");
-		// statically imported: it renders unmatched paths, so no route match
-		// can be what pulls it in
+	it("wires the error boundaries as the fallback, resolved from the path", () => {
+		expect(code).toContain(
+			"fallback: (error) => renderErrorPage(error, router.location.get().path),",
+		);
+		expect(code).toContain("registerErrorRoutes(errorBoundaries);");
+		expect(code).toContain('pattern: "/",');
+		expect(code).toContain("page: (error) => ErrorPage_4({ error, url: router.location }),");
+		// statically imported: it renders paths no route matched, so no route
+		// match can be what pulls it in
 		expect(code).toContain('import ErrorPage_4 from "/src/routes/error.ts";');
 		expect(code).not.toContain('lazyModule("src/routes/error.ts"');
 	});
 
-	it("omits the fallback without an error page", () => {
-		const withoutError = generateRouterModule({ ...tree, error: null }, "/src/routes");
+	it("wraps a nested error page in the layouts around its own directory", () => {
+		const nested: RouteTree = {
+			...tree,
+			root: node({
+				layout: "layout.ts",
+				error: "error.ts",
+				children: [
+					node({
+						dir: "app",
+						segment: { kind: "static", value: "app" },
+						children: [
+							node({
+								dir: "app/[slug]",
+								segment: { kind: "param", name: "slug", matcher: null },
+								params: [{ name: "slug", matcher: null }],
+								layout: "app/[slug]/layout.ts",
+								layoutServer: "app/[slug]/layout.server.ts",
+								error: "app/[slug]/error.ts",
+								page: "app/[slug]/page.ts",
+							}),
+						],
+					}),
+				],
+			}),
+		};
+		const code = generateRouterModule(nested, "/src/routes");
+		const boundary = /\{\n\t\tpattern: "\/app\/:slug",[\s\S]*?\n\t\},/.exec(code)![0];
+		// the section's own shell wraps its error page, and the root's wraps that
+		expect(boundary).toContain(
+			'modules: ["src/routes/layout.ts", "src/routes/app/[slug]/layout.ts"]',
+		);
+		expect(boundary).toContain("layouts: [(children, params) => Layout_0.get()");
+		expect(boundary).toContain('data: routeData(["app/[slug]/layout.server.ts"]) })]');
+		expect(boundary).toContain("page: (error) => ErrorPage_4({ error, url: router.location })");
+		// and the root boundary is still there, with only the root layout in it
+		expect(code).toContain('pattern: "/",\n\t\tmodules: ["src/routes/layout.ts"],');
+	});
+
+	it("emits no boundaries, and no fallback, for an app with no error.ts", () => {
+		const withoutError = generateRouterModule(
+			{ ...tree, root: { ...tree.root, error: null }, error: null },
+			"/src/routes",
+		);
 		expect(withoutError).not.toContain("fallback");
+		expect(withoutError).not.toContain("errorBoundaries");
 	});
 
 	it("emits (group) directories as pathless group keys", () => {

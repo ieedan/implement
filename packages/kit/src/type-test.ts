@@ -125,6 +125,23 @@ declare const handlerEvent: RequestEvent;
 // @ts-expect-error `parent` is a load's, not every request event's
 void handlerEvent.parent;
 
+// --- what `event.cookies` accepts and hands back ---------------------------
+
+/** A cookie the request may not carry is a value the caller has to check. */
+const session: string | undefined = handlerEvent.cookies.get("session");
+// @ts-expect-error a cookie that may not be there is not a string
+const alwaysThere: string = handlerEvent.cookies.get("session");
+
+handlerEvent.cookies.set("theme", "dark", { maxAge: 60, sameSite: "strict" });
+// @ts-expect-error `sameSite` is the three the header allows, not any string
+handlerEvent.cookies.set("theme", "dark", { sameSite: "loose" });
+// a delete takes only what identifies the cookie — the rest would change nothing
+handlerEvent.cookies.delete("theme", { path: "/app", domain: "example.com" });
+// @ts-expect-error `httpOnly` says nothing about which cookie is being deleted
+handlerEvent.cookies.delete("theme", { httpOnly: true });
+
+void [session, alwaysThere];
+
 // --- what `handle`'s return says `data` is ---------------------------------
 
 type Issue = { id: string; title: string };

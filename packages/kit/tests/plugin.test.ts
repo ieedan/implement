@@ -74,8 +74,35 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect((await render("/users/42")).html).toContain("<p>user 42</p>");
 	});
 
-	it("renders the error page for unmatched paths", async () => {
-		expect((await render("/nope/nope")).html).toContain("<p>not found</p>");
+	it("renders the error page for unmatched paths, inside the layouts above it", async () => {
+		const { html } = await render("/nope/nope");
+		expect(html).toContain("<p>not found</p>");
+		// the root error page renders in the root layout, the way a root page does
+		expect(html).toContain('<main class="shell">');
+	});
+
+	it("renders a section's own error page inside that section's shell", async () => {
+		const { html } = await render("/section/acme/issue/9999");
+		// the nearest error.ts wins over the root's
+		expect(html).toContain("<p>section says 404</p>");
+		expect(html).not.toContain("<p>not found</p>");
+		// and it renders inside the section's layout, with what the section's
+		// layout load returned — the sidebar and the workspace switcher survive
+		expect(html).toContain('<div class="workspace">');
+		expect(html).toContain("<p>acme</p>");
+		// which is itself inside the root layout
+		expect(html.indexOf('<main class="shell">')).toBeLessThan(
+			html.indexOf('<div class="workspace">'),
+		);
+	});
+
+	it("falls back to the root error page for a section that declares none", async () => {
+		// `/shop` has layouts of its own but no error.ts, so the root boundary is
+		// the nearest one and its chain is the root layout alone
+		const { html } = await render("/shop/42/nope");
+		expect(html).toContain("<p>not found</p>");
+		expect(html).toContain('<main class="shell">');
+		expect(html).not.toContain('<div class="product">');
 	});
 
 	it("renders (group) routes without the group in the path", async () => {

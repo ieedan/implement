@@ -44,6 +44,11 @@ export type RouteNode = {
 	/** Relative path of this directory's `server.ts` endpoint, when present. */
 	endpoint: string | null;
 	/**
+	 * Relative path of this directory's `error.ts`, when present — the error
+	 * page for everything routed at or below it.
+	 */
+	error: string | null;
+	/**
 	 * Extension endpoints from `.<ext>` child directories holding a
 	 * `server.ts` — `.md/server.ts` serves this directory's path + `.md`.
 	 */
@@ -72,7 +77,11 @@ export type RouteWarning = {
 
 export type RouteTree = {
 	root: RouteNode;
-	/** Relative path of the root `error.ts`, when present. */
+	/**
+	 * Relative path of the root `error.ts`, when present — the boundary every
+	 * path falls inside, and the one the prerendered `404.html` renders. Every
+	 * other `error.ts` hangs off the node whose subtree it covers.
+	 */
 	error: string | null;
 	/** Near-miss file names found anywhere in the tree, in scan order. */
 	warnings: RouteWarning[];
@@ -203,7 +212,7 @@ export function scanMatchers(paramsDir: string | null): string[] {
  * Scans a routes directory into a tree of pages and layouts. Only `page.ts`,
  * `layout.ts`, their `@` layout-reset variants, the server files
  * (`page.server.ts` / `layout.server.ts` loads and `server.ts` endpoints),
- * and a root `error.ts` are routing files — anything else is colocated code
+ * and `error.ts` are routing files — anything else is colocated code
  * and ignored. Dot-directories are skipped, except `.<ext>` directories
  * holding a `server.ts`, which serve the parent path with the extension
  * appended. `(group)` directories scope layouts without contributing a URL
@@ -220,19 +229,8 @@ export function scanRoutes(routesDir: string, paramsDir: string | null = null): 
 	// reported from a directory the scan drops for having no routes in it —
 	// which is exactly the directory holding nothing but a misnamed file
 	const warnings: RouteWarning[] = [];
-	const tree: RouteTree = {
-		root: scanDirectory(routesDir, "", null, [], warnings),
-		error: null,
-		warnings,
-		matchers,
-	};
-	if (
-		readdirSync(routesDir, { withFileTypes: true }).some(
-			(entry) => entry.isFile() && entry.name === ERROR_FILE,
-		)
-	) {
-		tree.error = ERROR_FILE;
-	}
+	const root = scanDirectory(routesDir, "", null, [], warnings);
+	const tree: RouteTree = { root, error: root.error, warnings, matchers };
 	assertUniquePatterns(tree.root);
 	assertMatchersExist(tree.root, matchers);
 	return tree;
@@ -256,6 +254,7 @@ function scanDirectory(
 		pageServer: null,
 		layoutServer: null,
 		endpoint: null,
+		error: null,
 		extensions: [],
 		children: [],
 	};
@@ -268,9 +267,7 @@ function scanDirectory(
 		const relative = dir === "" ? entry.name : `${dir}/${entry.name}`;
 		if (entry.isFile()) {
 			if (entry.name === ERROR_FILE) {
-				if (dir !== "") {
-					throw new Error(`"${relative}" — error.ts is only supported at the routes root`);
-				}
+				node.error = relative;
 				continue;
 			}
 			if (entry.name === ENDPOINT_FILE) {
@@ -389,11 +386,12 @@ function segmentIsRest(
 	return segment !== null && segment.kind === "rest";
 }
 
-/** Whether the subtree contributes any routing (a page, layout, load, or endpoint somewhere). */
+/** Whether the subtree contributes any routing (a page, layout, load, endpoint, or error page somewhere). */
 export function hasRouteFiles(node: RouteNode): boolean {
 	return (
 		node.page !== null ||
 		node.layout !== null ||
+		node.error !== null ||
 		node.layoutServer !== null ||
 		node.endpoint !== null ||
 		node.extensions.length > 0 ||

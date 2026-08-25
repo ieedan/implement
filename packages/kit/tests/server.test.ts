@@ -1,6 +1,6 @@
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Reading back JSON bodies and stubbing globals requires intentional narrowing. */
 import { describe, expect, it, vi } from "vitest";
-import type { EndpointRoute, PageRoute, RequestEvent } from "../src/match.ts";
+import type { EndpointRoute, PageRoute, RequestEvent, RouteData } from "../src/match.ts";
 import {
 	createKitServer,
 	error,
@@ -728,5 +728,226 @@ describe("event.fetch", () => {
 		}).eventFor();
 		expect(seen.baseUrl).toBe("http://localhost");
 		expect(seen.fetch).toBe(event.fetch);
+	});
+});
+
+describe("event.cookies", () => {
+	/** A server whose page load and endpoint do whatever a test hands them. */
+	function cookieServer(
+		load: PageRoute["files"][number]["load"] = () => ({}),
+		hooks: ServerHooks = {},
+	) {
+		return createKitServer({
+			hooks,
+			pages: [page("/app", [{ id: "app/page.server.ts", load }])],
+			endpoints: [
+				endpoint("/api", {
+					GET: (event: RequestEvent) => {
+						event.cookies.set("from", "endpoint");
+						return Response.json({ session: event.cookies.get("session") ?? null });
+					},
+				}),
+			],
+			renderPage: () => ({ html: "<p>app</p>", head: "" }),
+		});
+	}
+
+	it("reads the cookies the request arrived with", async () => {
+		const kit = cookieServer();
+		const response = await get(kit, "/api", { headers: { cookie: "session=abc" } });
+		expect(await response.json()).toEqual({ session: "abc" });
+	});
+
+	it("sends a cookie a load set on the page render and on __data.json alike", async () => {
+		const kit = cookieServer((event) => {
+			event.cookies.set("workspace", "acme");
+			return { ok: true };
+		});
+		const expected = ["workspace=acme; Path=/; HttpOnly; SameSite=Lax"];
+		// the document request, and the one a client navigation makes instead. A
+		// cookie set on the second and dropped is a silent bug: the load ran, the
+		// page rendered, and nothing says the cookie never reached the browser
+		expect((await get(kit, "/app")).headers.getSetCookie()).toEqual(expected);
+		expect((await get(kit, "/app/__data.json")).headers.getSetCookie()).toEqual(expected);
+	});
+
+	it("sends one Set-Cookie per cookie rather than folding them together", async () => {
+		const kit = cookieServer((event) => {
+			event.cookies.set("a", "1");
+			event.cookies.set("b", "2");
+			return {};
+		});
+		const cookies = (await get(kit, "/app")).headers.getSetCookie();
+		expect(cookies).toHaveLength(2);
+		expect(cookies[0]).toContain("a=1");
+		expect(cookies[1]).toContain("b=2");
+	});
+
+	it("deletes a cookie with an expiry the browser has already passed", async () => {
+		const kit = cookieServer((event) => {
+			event.cookies.delete("session");
+			return {};
+		});
+		expect((await get(kit, "/app")).headers.getSetCookie()).toEqual([
+			"session=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax",
+		]);
+	});
+
+	it("keeps a Set-Cookie the route wrote itself", async () => {
+		const kit = createKitServer({
+			hooks: {},
+			pages: [],
+			endpoints: [
+				endpoint("/api", {
+					GET: (event: RequestEvent) => {
+						event.cookies.set("kit", "1");
+						return new Response(null, { headers: { "set-cookie": "raw=1; Path=/" } });
+					},
+				}),
+			],
+			renderPage: () => null,
+		});
+		expect((await get(kit, "/api")).headers.getSetCookie()).toEqual([
+			"raw=1; Path=/",
+			"kit=1; Path=/; HttpOnly; SameSite=Lax",
+		]);
+	});
+
+	it("sends a cookie a handle hook set without ever calling resolve", async () => {
+		const kit = cookieServer(() => ({}), {
+			handle: ({ event }) => {
+				event.cookies.delete("session");
+				return new Response(null, { status: 302, headers: { location: "/login" } });
+			},
+		});
+		const response = await get(kit, "/app");
+		expect(response.status).toBe(302);
+		expect(response.headers.getSetCookie()[0]).toContain("session=; Path=/; Max-Age=0");
+	});
+
+	it("shows a load what the hook above it set, and forwards it through event.fetch", async () => {
+		const seen: (string | undefined)[] = [];
+		const kit = cookieServer(
+			async (event) => {
+				seen.push(event.cookies.get("session"));
+				const response = await event.fetch("/api");
+				return (await response.json()) as Record<string, unknown>;
+			},
+			{
+				handle: ({ event, resolve }) => {
+					event.cookies.set("session", "issued now");
+					return resolve(event);
+				},
+			},
+		);
+		const data = await get(kit, "/app/__data.json", { headers: { cookie: "session=stale" } });
+		expect(seen).toEqual(["issued now"]);
+		// the endpoint the load reached in-process saw the new session too
+		expect(await data.json()).toEqual({ "app/page.server.ts": { session: "issued now" } });
+		// and the cookie the endpoint set on the way back is the nested response's,
+		// not this one's
+		expect(data.headers.getSetCookie()).toEqual([
+			"session=issued%20now; Path=/; HttpOnly; SameSite=Lax",
+		]);
+	});
+});
+
+describe("error boundaries", () => {
+	/** What the renderer was handed for a request — the error, and the data around it. */
+	type Render = { error: { code: number; message: string } | null; data: RouteData | null };
+
+	const shell = "app/[slug]/layout.server.ts";
+
+	/**
+	 * A server over `/app/:slug/issues`, with an `error.ts` on the section and
+	 * one at the root — the tree a 404 inside an app shell falls through.
+	 */
+	function boundaryServer(overrides: Partial<KitServerOptions> = {}) {
+		const renders: Render[] = [];
+		const kit = createKitServer({
+			hooks: {},
+			pages: [page("/app/:slug/issues")],
+			endpoints: [],
+			errors: [
+				{ pattern: "/", id: "/", files: [] },
+				{
+					pattern: "/app/:slug",
+					id: "/app/[slug]",
+					files: [{ id: shell, load: ({ params }) => ({ workspace: params.slug }) }],
+				},
+			],
+			renderPage: ({ error, data }) => {
+				renders.push({ error, data });
+				return { html: "<p>error page</p>", head: "" };
+			},
+			...overrides,
+		});
+		return { kit, renders };
+	}
+
+	it("runs the loads feeding the layouts around the nearest error.ts", async () => {
+		const { kit, renders } = boundaryServer();
+		// nothing serves this path, so the section's error page is what renders —
+		// inside the section's shell, which is only a shell with its load's data
+		const response = await get(kit, "/app/acme/issue/9999");
+		expect(response.status).toBe(404);
+		expect(renders).toEqual([{ error: null, data: { [shell]: { workspace: "acme" } } }]);
+	});
+
+	it("does the same for a thrown error, which renders the error page outright", async () => {
+		const { kit, renders } = boundaryServer({
+			pages: [
+				page("/app/:slug/issues", [
+					{
+						id: "app/[slug]/issues/page.server.ts",
+						load: () => {
+							throw error(403, "Forbidden");
+						},
+					},
+				]),
+			],
+		});
+		const response = await get(kit, "/app/acme/issues");
+		expect(response.status).toBe(403);
+		expect(renders.at(-1)).toEqual({
+			error: { code: 403, message: "Forbidden" },
+			data: { [shell]: { workspace: "acme" } },
+		});
+	});
+
+	it("renders the error page with no data rather than failing twice", async () => {
+		const reports: ServerErrorReport[] = [];
+		const { kit, renders } = boundaryServer({
+			errors: [
+				{
+					pattern: "/app/:slug",
+					id: "/app/[slug]",
+					files: [
+						{
+							id: shell,
+							load: () => {
+								throw new Error("the shell load is broken too");
+							},
+						},
+					],
+				},
+			],
+		});
+		const response = await kit.respond(new Request("http://localhost/app/acme/nope"), {
+			onError: (report) => reports.push(report),
+		});
+		expect(response.status).toBe(404);
+		expect(renders.at(-1)?.data).toBeNull();
+		// the second failure is reported, not raised: it would replace the one
+		// the request is already answering with
+		expect(reports.map((report) => (report.error as Error).message)).toEqual([
+			"the shell load is broken too",
+		]);
+	});
+
+	it("passes no data when no error.ts covers the path", async () => {
+		const { kit, renders } = boundaryServer({ errors: [] });
+		expect((await get(kit, "/nope")).status).toBe(404);
+		expect(renders.at(-1)?.data).toBeNull();
 	});
 });

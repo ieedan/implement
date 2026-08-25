@@ -165,15 +165,36 @@ export function routeModuleId(routesBase: string, file: string): string {
 	return `${routesBase}/${file}`.replace(/^\//, "");
 }
 
-/** Every page node with its full path pattern. `(group)` segments contribute nothing. */
-function pagePatterns(tree: RouteTree): Map<RouteNode, string> {
+/** Every node with its full path pattern. `(group)` segments contribute nothing. */
+function nodePatterns(tree: RouteTree): Map<RouteNode, string> {
 	const patterns = new Map<RouteNode, string>();
 	const walk = (node: RouteNode, prefix: string) => {
-		if (node.page !== null) patterns.set(node, prefix === "" ? "/" : prefix);
+		patterns.set(node, prefix === "" ? "/" : prefix);
 		for (const child of node.children) walk(child, `${prefix}${segmentKey(child.segment!)}`);
 	};
 	walk(tree.root, "");
 	return patterns;
+}
+
+/** Every page node with its full path pattern. */
+function pagePatterns(tree: RouteTree): Map<RouteNode, string> {
+	const patterns = new Map<RouteNode, string>();
+	for (const [node, pattern] of nodePatterns(tree)) {
+		if (node.page !== null) patterns.set(node, pattern);
+	}
+	return patterns;
+}
+
+/**
+ * Every `error.ts` in the tree with the pattern of the directory it covers —
+ * the error boundaries, root first. A path is served by the deepest one whose
+ * directory it falls inside, so `app/[slug]/error.ts` answers for everything
+ * under `/app/:slug` and the root's answers for the rest.
+ */
+export function errorPatterns(tree: RouteTree): { node: RouteNode; pattern: string }[] {
+	return [...nodePatterns(tree).entries()]
+		.filter(([node]) => node.error !== null)
+		.map(([node, pattern]) => ({ node, pattern }));
 }
 
 /**
@@ -227,21 +248,27 @@ export function generateParamsModule(tree: RouteTree, paramsBase: string): strin
 /**
  * The source of the `$implement/router` virtual module: declares a lazy handle
  * per page and layout, adapts them onto `@implementjs/router`'s `Router` tree,
- * and exports the router. Pages render as `Page.get()({ params, url, data })`,
- * layouts as `Layout.get()({ children, params, url, data })`, and a root
- * `error.ts` becomes the router fallback, rendered as
- * `ErrorPage({ error, url })`. `data` is a readable merging what the route's
- * `*.server.ts` loads returned (empty when the route has none); routes with
- * loads are also registered with the client runtime so navigation fetches
- * their data before committing.
+ * and exports the router. Pages render as `Page.get()({ params, url, data })`
+ * and layouts as `Layout.get()({ children, params, url, data })`. `data` is a
+ * readable merging what the route's `*.server.ts` loads returned (empty when
+ * the route has none); routes with loads are also registered with the client
+ * runtime so navigation fetches their data before committing.
+ *
+ * Every `error.ts` becomes an entry in `errorBoundaries`: the pattern of the
+ * directory it covers, the layouts that wrap it, and `ErrorPage({ error, url })`.
+ * The runtime picks the deepest boundary a path falls inside and renders the
+ * error page inside those layouts, so a 404 in a section keeps the section's
+ * shell and the root `error.ts` stays the fallback for everything else.
  *
  * Every page and layout is behind a `lazyModule` handle so Rollup splits the
  * app by route: nothing but the entry route's chunks loads up front. The
  * handles are declared, never awaited here — the route factories stay
  * synchronous, and `registerRouteModules` tells the runtime which handles each
- * route needs so the render paths can preload them (see `./lazy.ts`). The root
- * `error.ts` stays a static import: it renders unmatched paths, so it cannot
- * sit behind a route match, and it is small.
+ * route needs so the render paths can preload them (see `./lazy.ts`). An
+ * `error.ts` stays a static import: it renders paths no route matched, so it
+ * cannot sit behind a route match, and it is small. The layouts around it are
+ * still handles, which `registerErrorRoutes` is what lets the render paths
+ * preload.
  *
  * `@` layout resets are realized by hoisting: a reset page (or a subtree whose
  * layout resets) is emitted at its target ancestor under the full key from
@@ -279,7 +306,7 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 		return name;
 	};
 
-	/** The error fallback, which no route match gates and so cannot be lazy. */
+	/** An error page, which no route match gates and so cannot be lazy. */
 	const importFor = (file: string, kind: string): string => {
 		let name = names.get(file);
 		if (name === undefined) {
@@ -337,15 +364,18 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 		return `(params) => ${name}.get()({ params, url: router.location, data: ${data} })`;
 	};
 
+	/** A layout, in the `(children, params)` form the router calls one with. */
+	const layoutExpr = (node: RouteNode): string => {
+		const name = lazyFor(node.layout!, "Layout");
+		const data = routeDataExpr(chains.get(node)!.layoutFiles);
+		return `(children, params) => ${name}.get()({ children, params, url: router.location, data: ${data} })`;
+	};
+
 	const nodeExpr = (node: RouteNode, indent: string): string => {
 		const inner = `${indent}\t`;
 		const entries: string[] = [];
 		if (node.layout !== null) {
-			const name = lazyFor(node.layout, "Layout");
-			const data = routeDataExpr(chains.get(node)!.layoutFiles);
-			entries.push(
-				`${inner}layout: (children, params) => ${name}.get()({ children, params, url: router.location, data: ${data} }),`,
-			);
+			entries.push(`${inner}layout: ${layoutExpr(node)},`);
 		}
 		if (node.page !== null && !hoistedPages.has(node)) {
 			entries.push(`${inner}"/": ${pageExpr(node)},`);
@@ -366,12 +396,29 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 	};
 
 	const routes = nodeExpr(tree.root, "");
-	const errorName = tree.error === null ? null : importFor(tree.error, "ErrorPage");
+
+	// the error boundaries, each with the layouts that wrap its `error.ts` — the
+	// chain its own directory's page would render in, so a section's error page
+	// keeps the section's shell
+	const layoutChains = nodeChains(tree);
+	const boundaries = errorPatterns(tree).map(({ node, pattern }) => {
+		const layouts = layoutChains.get(node)!.layout.filter((entry) => entry.layout !== null);
+		const page = importFor(node.error!, "ErrorPage");
+		return [
+			"\t{",
+			`\t\tpattern: ${JSON.stringify(pattern)},`,
+			`\t\tmodules: [${layouts.map((entry) => JSON.stringify(routeModuleId(routesBase, entry.layout!))).join(", ")}],`,
+			`\t\tlayouts: [${layouts.map(layoutExpr).join(", ")}],`,
+			`\t\tpage: (error) => ${page}({ error, url: router.location }),`,
+			"\t},",
+		].join("\n");
+	});
+
 	const routerOptions = [
 		...(hasMatchers ? ["\tmatchers,"] : []),
-		...(errorName === null
+		...(boundaries.length === 0
 			? []
-			: [`\tfallback: (error) => ${errorName}({ error, url: router.location }),`]),
+			: ["\tfallback: (error) => renderErrorPage(error, router.location.get().path),"]),
 	];
 	const fallback = routerOptions.length === 0 ? "" : `, {\n${routerOptions.join("\n")}\n}`;
 
@@ -379,9 +426,11 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 	// emits an import list that type-checks and tree-shakes cleanly
 	const runtimeImports = [
 		...(declarations.length > 0 ? ["lazyModule"] : []),
+		...(boundaries.length > 0 ? ["registerErrorRoutes"] : []),
 		...(hasMatchers ? ["registerMatchers"] : []),
 		...(modules.length > 0 ? ["registerRouteModules"] : []),
 		...(manifest.length > 0 ? ["registerRoutes"] : []),
+		...(boundaries.length > 0 ? ["renderErrorPage"] : []),
 		"routeData",
 	];
 	imports.splice(1, 0, `import { ${runtimeImports.join(", ")} } from "@implementjs/kit/runtime";`);
@@ -389,13 +438,8 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 	const blocks = [
 		imports.join("\n"),
 		...(declarations.length > 0 ? [declarations.join("\n")] : []),
+		...(boundaries.length === 0 ? [] : [`const errorBoundaries = [\n${boundaries.join("\n")}\n];`]),
 		`export const router = Router(${routes}${fallback});`,
-		// the server renders the error page on its own for a 404 or a thrown
-		// error, where there is no router match to fall back through. It stays a
-		// static import for the same reason the fallback does.
-		...(errorName === null
-			? []
-			: [`export const errorPage = (error) => ${errorName}({ error, url: router.location });`]),
 		// before the route tables: the preloader and the data fetch resolve a path
 		// through them, and both consult the matchers to do it
 		...(hasMatchers ? ["registerMatchers(matchers);"] : []),
@@ -403,6 +447,11 @@ export function generateRouterModule(tree: RouteTree, routesBase: string): strin
 			? [`registerRouteModules(${JSON.stringify(modules, null, "\t")});`]
 			: []),
 		...(manifest.length > 0 ? [`registerRoutes(${JSON.stringify(manifest, null, "\t")});`] : []),
+		// the boundaries go to the runtime as well as to the fallback: the server
+		// renders an error page on its own for a thrown error, where there is no
+		// router match to fall back through, and both paths preload the layouts
+		// around the boundary through the same registry
+		...(boundaries.length === 0 ? [] : ["registerErrorRoutes(errorBoundaries);"]),
 	];
 	return `${blocks.join("\n\n")}\n`;
 }
@@ -474,11 +523,16 @@ export function serverRoutes(tree: RouteTree): ServerRoute[] {
 /**
  * The source of the `$implement/pages` virtual module (server-only): every
  * page in the app with its route id and its load chain — the manifest the
- * request pipeline matches against and runs loads from.
+ * request pipeline matches against and runs loads from — and, beside it, the
+ * error boundaries with the loads feeding the layouts *they* render inside.
+ *
+ * The pipeline runs a boundary's chain when it is about to render an error
+ * page: the layouts around a section's `error.ts` are the section's own, and a
+ * shell rendered without the data its load returns is a shell with no
+ * workspace in the switcher and no counts in the sidebar.
  */
 export function generatePagesModule(tree: RouteTree, routesBase: string): string {
 	const chains = dataChains(tree);
-	const patterns = pagePatterns(tree);
 	const imports: string[] = [];
 	const names = new Map<string, string>();
 	const importFor = (file: string): string => {
@@ -491,18 +545,25 @@ export function generatePagesModule(tree: RouteTree, routesBase: string): string
 		return name;
 	};
 
-	const entries: string[] = [];
-	for (const [node, pattern] of patterns) {
-		const files = chains.get(node)!.pageFiles;
+	const entry = (pattern: string, files: string[]): string => {
 		const parts = files.map((file) => `{ id: ${JSON.stringify(file)}, load: ${importFor(file)} }`);
-		entries.push(
-			`\t{ pattern: ${JSON.stringify(pattern)}, id: ${JSON.stringify(routeId(pattern))}, files: [${parts.join(", ")}] },`,
-		);
-	}
+		return `\t{ pattern: ${JSON.stringify(pattern)}, id: ${JSON.stringify(routeId(pattern))}, files: [${parts.join(", ")}] },`;
+	};
+
+	const pages = [...pagePatterns(tree).entries()].map(([node, pattern]) =>
+		entry(pattern, chains.get(node)!.pageFiles),
+	);
+	const errors = errorPatterns(tree).map(({ node, pattern }) =>
+		entry(pattern, chains.get(node)!.layoutFiles),
+	);
 
 	const header = imports.length === 0 ? "" : `${imports.join("\n")}\n\n`;
-	const body = entries.length === 0 ? "[]" : `[\n${entries.join("\n")}\n]`;
-	return `${header}export const pages = ${body};\n`;
+	return `${header}export const pages = ${routeList(pages)};\n\nexport const errors = ${routeList(errors)};\n`;
+}
+
+/** The manifest entries as an array literal, or `[]` when there are none. */
+function routeList(entries: string[]): string {
+	return entries.length === 0 ? "[]" : `[\n${entries.join("\n")}\n]`;
 }
 
 /**

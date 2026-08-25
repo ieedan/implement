@@ -45,6 +45,7 @@ const slugNode = {
 	pageServer: null,
 	layoutServer: null,
 	endpoint: null,
+	error: null,
 	extensions: [],
 	children: [],
 };
@@ -138,7 +139,6 @@ describe("generateRouterDeclaration", () => {
 				{ pattern: "/", params: [] },
 				{ pattern: "/docs/:...slug", params: [{ name: "slug", matcher: null }] },
 			],
-			false,
 			PATHS,
 		);
 		expect(declaration).toContain('declare module "$implement/router"');
@@ -151,19 +151,19 @@ describe("generateRouterDeclaration", () => {
 	});
 
 	it("declares $implement/navigation, so invalidate() type-checks in an app", () => {
-		const declaration = generateRouterDeclaration([{ pattern: "/", params: [] }], false, PATHS);
+		const declaration = generateRouterDeclaration([{ pattern: "/", params: [] }], PATHS);
 		expect(declaration).toContain('declare module "$implement/navigation"');
 		expect(declaration).toContain(
 			'export { invalidate, invalidateAll } from "@implementjs/kit/runtime";',
 		);
 	});
 
-	it("declares the error page export only for an app that has one", () => {
-		const routes = [{ pattern: "/", params: [] }];
-		expect(generateRouterDeclaration(routes, false, PATHS)).not.toContain("errorPage");
-		expect(generateRouterDeclaration(routes, true, PATHS)).toContain(
-			"export function errorPage(error: RouterError): Child;",
+	it("declares the error boundaries beside the pages, since the pipeline runs their loads", () => {
+		const declaration = generateRouterDeclaration([{ pattern: "/", params: [] }], PATHS);
+		expect(declaration).toContain(
+			'import type { ErrorRoute, PageRoute } from "@implementjs/kit/server";',
 		);
+		expect(declaration).toContain("export const errors: ErrorRoute[];");
 	});
 });
 
@@ -171,7 +171,7 @@ describe("App.Api", () => {
 	const routes = [{ pattern: "/", params: [] }];
 
 	it("merges the generated client in, keyed off the app's own route table", () => {
-		const declaration = generateRouterDeclaration(routes, false, PATHS);
+		const declaration = generateRouterDeclaration(routes, PATHS);
 		expect(declaration).toContain("declare namespace App {");
 		expect(declaration).toContain(
 			'type GeneratedApi = import("@implementjs/kit/client").TypedClient<import("../client.ts").Api>;',
@@ -179,7 +179,7 @@ describe("App.Api", () => {
 	});
 
 	it("names the client before extending it, since an interface may only extend a name", () => {
-		const declaration = generateRouterDeclaration(routes, false, PATHS);
+		const declaration = generateRouterDeclaration(routes, PATHS);
 		// `interface Api extends import("…").Client<…> {}` is TS2499, which
 		// `skipLibCheck` hides — leaving `App.Api` empty and `event.api` useless
 		expect(declaration).toContain("interface Api extends GeneratedApi {}");
@@ -187,11 +187,11 @@ describe("App.Api", () => {
 	});
 
 	it("follows the app's chosen error style", () => {
-		expect(generateRouterDeclaration(routes, false, PATHS, { errors: "neverthrow" })).toContain(
+		expect(generateRouterDeclaration(routes, PATHS, { errors: "neverthrow" })).toContain(
 			'import("@implementjs/kit/client/neverthrow").ResultClient<import("../client.ts").Api>',
 		);
 		expect(
-			generateRouterDeclaration(routes, false, PATHS, { errors: "throw", style: "nested" }),
+			generateRouterDeclaration(routes, PATHS, { errors: "throw", style: "nested" }),
 		).toContain(
 			'import("@implementjs/kit/client").NestedClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
 		);

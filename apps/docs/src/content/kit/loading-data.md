@@ -126,7 +126,23 @@ export default async function load({ api }: LoadEvent) {
 }
 ```
 
-`event.fetch` also resolves relative URLs against `event.url` and forwards the request's `cookie` and `authorization` headers on same-origin calls, so an endpoint behind a session sees the same session the page does.
+`event.fetch` also resolves relative URLs against `event.url` and forwards the request's `cookie` and `authorization` headers on same-origin calls, so an endpoint behind a session sees the same session the page does — the session as it now stands, including a cookie this request has just set.
+
+## Setting a cookie from a load
+
+A load has no access to the response, so `event.cookies` is how it answers with one:
+
+```ts
+// src/routes/app/[slug]/layout.server.ts
+import type { LayoutLoadEvent } from "./$types";
+
+export default function load({ params, cookies }: LayoutLoadEvent) {
+	cookies.set("last-workspace", params.slug, { maxAge: 60 * 60 * 24 * 30 });
+	return { workspace: params.slug };
+}
+```
+
+It goes out on the rendered document and on the `__data.json` a client navigation fetched alike, so the cookie reaches the browser whichever way the page was reached. See [cookies](/kit/hooks#cookies) for the whole API and the defaults kit fills in.
 
 ## Re-running a load after a mutation
 

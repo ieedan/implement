@@ -59,54 +59,54 @@ preloadRoute(window.location.pathname).then(
  * prerenderer calls; `respond` is what the dev server calls. Both run the
  * app's `src/hooks.server.ts` around the page, endpoint, or route-data
  * response.
+ *
+ * It is the same file for every app — an app with no `error.ts` anywhere has
+ * no boundary for `renderErrorPage` to find, and answers `null`, which the
+ * pipeline turns into a plain-text response.
  */
-function entryServer(hasErrorPage: boolean): string {
-	const renderPage = hasErrorPage
-		? [
-				"		return renderToString(error === null ? router : errorPage(error), {",
-				"			location: url.pathname + url.search,",
-				"		});",
-			]
-		: [
-				"		// without a root error.ts there is no error page to render",
-				"		if (error !== null) return null;",
-				"		return renderToString(router, { location: url.pathname + url.search });",
-			];
-	return `${[
-		'import { renderToString } from "@implementjs/core/server";',
-		'import { preloadRoute, seedData } from "@implementjs/kit/runtime";',
-		'import { createKitServer } from "@implementjs/kit/server";',
-		'import * as hooks from "$implement/hooks";',
-		'import { createClient } from "$implement/client";',
-		'import { endpoints } from "$implement/endpoints";',
-		'import { matchers } from "$implement/params";',
-		'import { pages } from "$implement/pages";',
-		`import { ${hasErrorPage ? "errorPage, router" : "router"} } from "$implement/router";`,
-		"",
-		'export type { RenderResult } from "@implementjs/kit/server";',
-		"",
-		"const server = createKitServer({",
-		"	hooks,",
-		"	pages,",
-		"	endpoints,",
-		"	// so a `[param=<name>]` route only serves what its matcher accepts",
-		"	matchers,",
-		"	// so `event.api` is this app's own client, bound to `event.fetch`",
-		"	createApiClient: createClient,",
-		"	renderPage: async ({ url, data, error }) => {",
-		"		if (data !== null) seedData(data);",
-		"		// renderToString walks the tree synchronously, so the route's own",
-		"		// chunks have to be loaded first. The error page is not split, so",
-		"		// an error render has nothing to wait for.",
-		"		if (error === null) await preloadRoute(url.pathname);",
-		...renderPage,
-		"	},",
-		"});",
-		"",
-		"export const render = server.render;",
-		"export const respond = server.respond;",
-	].join("\n")}\n`;
-}
+const ENTRY_SERVER = `import { renderToString } from "@implementjs/core/server";
+import { preloadErrorRoute, preloadRoute, renderErrorPage, seedData } from "@implementjs/kit/runtime";
+import { createKitServer } from "@implementjs/kit/server";
+import * as hooks from "$implement/hooks";
+import { createClient } from "$implement/client";
+import { endpoints } from "$implement/endpoints";
+import { matchers } from "$implement/params";
+import { errors, pages } from "$implement/pages";
+import { router } from "$implement/router";
+
+export type { RenderResult } from "@implementjs/kit/server";
+
+const server = createKitServer({
+	hooks,
+	pages,
+	endpoints,
+	// so an error page renders in the layouts around its own error.ts, with what
+	// their loads returned
+	errors,
+	// so a \`[param=<name>]\` route only serves what its matcher accepts
+	matchers,
+	// so \`event.api\` is this app's own client, bound to \`event.fetch\`
+	createApiClient: createClient,
+	renderPage: async ({ url, data, error }) => {
+		if (data !== null) seedData(data);
+		// renderToString walks the tree synchronously, so whatever renders has to
+		// be in memory first: the route's own chunks, or the layouts around the
+		// nearest error.ts — which is also what a path no route matches renders in.
+		if (error === null) {
+			await preloadRoute(url.pathname);
+			return renderToString(router, { location: url.pathname + url.search });
+		}
+		await preloadErrorRoute(url.pathname);
+		const page = renderErrorPage(error, url.pathname);
+		// no error.ts covers this path, so there is no error page to render
+		if (page === null) return null;
+		return renderToString(page, { location: url.pathname + url.search });
+	},
+});
+
+export const render = server.render;
+export const respond = server.respond;
+`;
 
 /** Aliases every kit app gets; \`KitOptions.alias\` entries merge over them. */
 export const DEFAULT_ALIASES: Record<string, string> = { "@/lib": "src/lib" };
@@ -353,7 +353,6 @@ ${HANDLER_EXPORT}`;
  */
 export function generateRouterDeclaration(
 	routes: PageRoute[],
-	hasErrorPage: boolean,
 	paths: GenPaths,
 	client: ClientStyle = {},
 ): string {
@@ -364,16 +363,13 @@ export function generateRouterDeclaration(
 				`\t\t${JSON.stringify(route.pattern)}: (params: ${paramsType(route.params, params)}) => Child;`,
 		)
 		.join("\n");
-	const errorPage = hasErrorPage
-		? `\n\n\texport function errorPage(error: RouterError): Child;`
-		: "";
 	return `declare module "$implement/router" {
 	import type { Child, Readable } from "@implementjs/core";
-	import type { RouterError, RouterHelper } from "@implementjs/router";
+	import type { RouterHelper } from "@implementjs/router";
 
 	export const router: RouterHelper<{
 ${entries}
-	}>;${errorPage}
+	}>;
 }
 
 declare module "$implement/params" {
@@ -388,9 +384,12 @@ declare module "$implement/navigation" {
 }
 
 declare module "$implement/pages" {
-	import type { PageRoute } from "@implementjs/kit/server";
+	import type { ErrorRoute, PageRoute } from "@implementjs/kit/server";
 
 	export const pages: PageRoute[];
+
+	/** Every \`error.ts\`, with the loads feeding the layouts it renders inside. */
+	export const errors: ErrorRoute[];
 }
 
 declare module "$implement/endpoints" {
@@ -561,7 +560,7 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 
 	writeIfChanged(join(outDir, ".gitignore"), "*\n");
 	writeIfChanged(join(outDir, "entry-client.ts"), ENTRY_CLIENT);
-	writeIfChanged(join(outDir, "entry-server.ts"), entryServer(tree.error !== null));
+	writeIfChanged(join(outDir, "entry-server.ts"), ENTRY_SERVER);
 	writeIfChanged(
 		join(outDir, "tsconfig.json"),
 		generateTsconfig({ ...DEFAULT_ALIASES, ...routerAliases().tsconfig, ...options.alias }),
@@ -572,7 +571,7 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	);
 	writeIfChanged(
 		join(typesDir, "$implement.d.ts"),
-		generateRouterDeclaration(pageRoutes(tree), tree.error !== null, paths, options.client ?? {}),
+		generateRouterDeclaration(pageRoutes(tree), paths, options.client ?? {}),
 	);
 	// its own file because it is a module and `$implement.d.ts` is a script — and
 	// removed rather than emptied, since what is left of it once the last matcher
@@ -594,7 +593,10 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 			node.page !== null ||
 			node.layout !== null ||
 			node.layoutServer !== null ||
-			node.endpoint !== null
+			node.endpoint !== null ||
+			// an `error.ts` imports `./$types` for its `ErrorProps`, so a directory
+			// holding nothing else still gets one
+			node.error !== null
 		) {
 			write(
 				join(typesDir, routesDir, node.dir, "$types.d.ts"),
@@ -610,13 +612,6 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 		for (const child of node.children) emit(child);
 	};
 	emit(tree.root);
-	// error.ts imports the root ./$types too
-	if (tree.error !== null && !expected.has(join(typesDir, routesDir, "$types.d.ts"))) {
-		write(
-			join(typesDir, routesDir, "$types.d.ts"),
-			generateRouteTypes(tree.root, chains.get(tree.root)!, paths),
-		);
-	}
 	pruneStaleTypes(join(typesDir, routesDir), expected);
 }
 

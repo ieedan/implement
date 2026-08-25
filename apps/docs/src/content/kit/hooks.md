@@ -12,7 +12,7 @@ Some work belongs in front of every route: reading a session cookie, timing a re
 import type { Handle } from "@implementjs/kit/server";
 
 export const handle: Handle = async ({ event, resolve }) => {
-	event.locals.user = await getUser(event.request.headers.get("cookie"));
+	event.locals.user = await getUser(event.cookies.get("session"));
 	return await resolve(event);
 };
 ```
@@ -34,16 +34,17 @@ The file is server-only, like `*.server.ts` — it never reaches the browser bun
 
 `event` is the `RequestEvent` your endpoints and loads receive too:
 
-| Property           | What it is                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------------- |
-| `request`          | The web-standard `Request`, headers and body included.                                   |
-| `url`              | Its `URL`. For a `__data.json` request this is the **page's** URL, not the data path.    |
-| `params`           | The matched route's params, as plain strings.                                            |
-| `route.id`         | The matched route in directory form (`/docs/[...slug]`), or `null` when nothing matched. |
-| `locals`           | Yours to fill in — see below.                                                            |
-| `isDataRequest`    | `true` for the `__data.json` fetch behind a client navigation.                           |
-| `setHeaders`       | Adds headers to the response `resolve` produces. One value per header, and no cookies.   |
-| `getClientAddress` | The requesting address.                                                                  |
+| Property           | What it is                                                                                                 |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `request`          | The web-standard `Request`, headers and body included.                                                     |
+| `url`              | Its `URL`. For a `__data.json` request this is the **page's** URL, not the data path.                      |
+| `params`           | The matched route's params, as plain strings.                                                              |
+| `route.id`         | The matched route in directory form (`/docs/[...slug]`), or `null` when nothing matched.                   |
+| `locals`           | Yours to fill in — see below.                                                                              |
+| `cookies`          | The request's cookies, and the response's — see below.                                                     |
+| `isDataRequest`    | `true` for the `__data.json` fetch behind a client navigation.                                             |
+| `setHeaders`       | Adds headers to the response `resolve` produces. One value per header; cookies go through `event.cookies`. |
+| `getClientAddress` | The requesting address.                                                                                    |
 
 ## Locals
 
@@ -85,6 +86,55 @@ export {};
 ```
 
 `App` is a global namespace kit declares and your file merges into — the same pattern SvelteKit uses. `App.Error` is the other member: the shape `handleError` returns and your [error page](/kit/routing#the-error-page) renders. It is `{ message: string }` unless you widen it.
+
+## Cookies
+
+`event.cookies` reads the cookies the request arrived with and sets the ones it answers with, from anywhere the event reaches — a hook, a [load](/kit/loading-data), an endpoint:
+
+```ts
+export const handle: Handle = async ({ event, resolve }) => {
+	const session = event.cookies.get("session");
+	event.locals.user = session === undefined ? null : await getUser(session);
+	return await resolve(event);
+};
+```
+
+| Method                       | What it does                                                                  |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `get(name)`                  | The cookie's value, decoded, or `undefined`.                                  |
+| `getAll()`                   | Every cookie in play for this request.                                        |
+| `set(name, value, options?)` | Sets a cookie on the response.                                                |
+| `delete(name, options?)`     | Expires one, `path`/`domain` included so the browser matches the same cookie. |
+
+A load is the case that was impossible before: it has no access to the response, so remembering the last workspace or a dismissed banner meant hand-building a `Set-Cookie` somewhere else.
+
+```ts
+// src/routes/app/[slug]/layout.server.ts
+import type { LayoutLoadEvent } from "./$types";
+
+export default function load({ params, cookies }: LayoutLoadEvent) {
+	cookies.set("last-workspace", params.slug, { maxAge: 60 * 60 * 24 * 30 });
+	return { workspace: params.slug };
+}
+```
+
+The cookie goes out on whatever the request answers with — the rendered document, or the `__data.json` a client navigation fetched. Both of them, because a cookie set during a navigation that never reaches the browser is a bug nothing would ever say out loud.
+
+Kit fills in the attributes that decide where a cookie goes, so the only one you usually pass is how long it should live:
+
+| Attribute  | Default                                   | Why                                                                                                                                |
+| ---------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `path`     | `"/"`                                     | The browser's own default is the _current directory_, which makes a cookie set from a deep route invisible to the rest of the app. |
+| `httpOnly` | `true`                                    | A cookie the server sets is the server's; opting out is a decision worth writing down.                                             |
+| `secure`   | whether _this_ request arrived over https | Blanket `Secure` breaks dev over `http://localhost` by having the browser drop the cookie silently.                                |
+| `sameSite` | `"lax"`                                   | Sent on top-level navigations, so a session survives a link into the app, and not on cross-site subrequests.                       |
+| lifetime   | the browser session                       | Pass `maxAge` (seconds) or `expires` (a `Date`) to outlive it.                                                                     |
+
+`domain` is the remaining one, and it has no default: without it the cookie is this host's exactly, subdomains excluded.
+
+Reads see this request's own writes, so a load reads back the session the hook above it just issued rather than the one the browser sent — and [`event.fetch`](/kit/loading-data#calling-your-own-api-from-a-load) forwards the same thing, so an endpoint called from a load sees it too.
+
+`Set-Cookie` is the one header that is legitimately repeated, which is why it lives here rather than in `setHeaders`: two cookies are two headers, and `setHeaders` is one value per header by design.
 
 ## Redirects and errors
 

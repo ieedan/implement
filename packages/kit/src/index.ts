@@ -357,7 +357,8 @@ const treeHasLoads = (node: RouteNode): boolean =>
  * directories bind params, `(group)` directories scope a layout without
  * adding a URL segment, `page@<segment>.ts` / `layout@<segment>.ts` reset
  * the layout chain to an ancestor segment (`page@.ts` resets to the root),
- * and a root `error.ts` renders unmatched paths and render errors —
+ * and an `error.ts` renders unmatched paths and render errors for its own
+ * subtree —
  * and serves the app through `@implementjs/vite`'s SSR dev server and
  * prerenderer. The router itself is exposed as the `$implement/router`
  * virtual module; generated entries, `./$types` declarations, and the
@@ -455,8 +456,8 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	/**
 	 * A page or layout — the files that render, and so the only ones a hot
 	 * update can swap into a mounted route. `server.ts` and `*.server.ts` never
-	 * reach the browser, and `error.ts` is a static import of the router module
-	 * rather than a handle, so neither is a boundary.
+	 * reach the browser, and an `error.ts` is a static import of the router
+	 * module rather than a handle, so neither is a boundary.
 	 */
 	const isRouteComponent = (file: string): boolean =>
 		file.startsWith(`${normalizeFile(routesDir)}/`) && parseRouteFileName(basename(file)) !== null;

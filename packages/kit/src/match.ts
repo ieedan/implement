@@ -6,6 +6,7 @@
  * half runs inside `vite.config.ts` under plain node.
  */
 
+import type { Cookies } from "./cookies.ts";
 import { markErrorSource } from "./errors.ts";
 import { mismatch, type ParamMatchers } from "./params.ts";
 
@@ -148,6 +149,21 @@ export type RequestEvent<Params extends Record<string, unknown> = Record<string,
 	/** Per-request state set by `src/hooks.server.ts`, typed through `App.Locals`. */
 	locals: App.Locals;
 	/**
+	 * The request's cookies, and the response's: `get` / `getAll` read what the
+	 * browser sent, `set` / `delete` write `Set-Cookie` onto whatever this
+	 * request answers with — a page, an endpoint, or a client navigation's
+	 * `__data.json`.
+	 *
+	 * ```ts
+	 * export default function load({ cookies }: LoadEvent) {
+	 * 	const workspace = cookies.get("workspace") ?? "personal";
+	 * 	cookies.set("last-seen", new Date().toISOString());
+	 * 	return { workspace };
+	 * }
+	 * ```
+	 */
+	cookies: Cookies;
+	/**
 	 * `fetch`, bound to this request. Relative URLs resolve against
 	 * `event.url`, `cookie` and `authorization` are forwarded on same-origin
 	 * requests, and a same-origin request is dispatched **in-process** — back
@@ -176,7 +192,11 @@ export type RequestEvent<Params extends Record<string, unknown> = Record<string,
 	 * `App.Platform`.
 	 */
 	platform: Readonly<App.Platform> | undefined;
-	/** Adds headers to the response `resolve` produces. Each header may only be set once. */
+	/**
+	 * Adds headers to the response `resolve` produces. Each header may only be
+	 * set once, and `Set-Cookie` — the one header that is legitimately repeated
+	 * — is {@link RequestEvent.cookies}'s rather than this one's.
+	 */
 	setHeaders: (headers: Record<string, string>) => void;
 	getClientAddress: () => string;
 };
@@ -236,6 +256,63 @@ export function matchPage(
 	const sorted = [...pages].toSorted((a, b) => comparePatterns(a.pattern, b.pattern));
 	for (const route of sorted) {
 		const params = matchRoutePattern(route.pattern, path, matchers);
+		if (params !== null) return { route, params };
+	}
+	return null;
+}
+
+/**
+ * An `error.ts` and the loads feeding the layouts it renders inside — the same
+ * shape a page route has, because it is the same chain with an error page
+ * where the page would be. `pattern` is the boundary's *directory*: a path
+ * routed anywhere below it falls inside it.
+ */
+export type ErrorRoute = PageRoute;
+
+/** How many segments a pattern spends, `(group)` directories already dropped. */
+function patternDepth(pattern: string): number {
+	return pattern.split("/").filter(Boolean).length;
+}
+
+/**
+ * The params a pattern binds on the *start* of a path — what matching a route
+ * directory against a path routed below it means. `null` when the path does
+ * not fall inside that directory.
+ */
+function matchRoutePrefix(
+	pattern: string,
+	path: string,
+	matchers: MatcherMode,
+): Record<string, unknown> | null {
+	const segments = parsePattern(pattern);
+	const parts = path.split("/").filter(Boolean);
+	if (parts.length < segments.length) return null;
+	const last = segments[segments.length - 1];
+	// a catch-all directory owns everything under it, so its own segment takes
+	// the whole remainder rather than one part of it
+	const prefix =
+		last !== undefined && last.param && last.rest ? parts : parts.slice(0, segments.length);
+	return matchRoutePattern(pattern, `/${prefix.join("/")}`, matchers);
+}
+
+/**
+ * The nearest `error.ts` above a path: the deepest boundary whose directory
+ * the path falls inside, which is what makes a section's error page the one a
+ * 404 deep in that section renders — and the root's the one everything else
+ * falls back to. `null` when no boundary covers the path, which is an app with
+ * no root `error.ts` and nothing on the way down.
+ */
+export function matchErrorRoute<T extends { pattern: string }>(
+	errors: T[],
+	path: string,
+	matchers: MatcherMode,
+): { route: T; params: Record<string, unknown> } | null {
+	const sorted = [...errors].toSorted(
+		(a, b) =>
+			patternDepth(b.pattern) - patternDepth(a.pattern) || comparePatterns(a.pattern, b.pattern),
+	);
+	for (const route of sorted) {
+		const params = matchRoutePrefix(route.pattern, path, matchers);
 		if (params !== null) return { route, params };
 	}
 	return null;

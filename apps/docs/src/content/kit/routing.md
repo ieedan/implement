@@ -9,7 +9,7 @@ Routes are directories under `src/routes`. A handful of file names mean somethin
 
 - `page.ts` is a page. It renders when the URL matches its directory.
 - `layout.ts` wraps every page beneath it (including its own directory's page).
-- `error.ts` at the routes root renders when nothing matches or a render throws.
+- `error.ts` renders when nothing matches or a render throws, for its own directory and everything under it.
 - `page.server.ts` and `layout.server.ts` are [load functions](/kit/loading-data), and `server.ts` is a [server route](/kit/server-routes) — they run only on the server.
 
 So a routes directory like this:
@@ -18,7 +18,7 @@ So a routes directory like this:
 src/routes
 	page.ts           → /
 	layout.ts         → wraps everything
-	error.ts          → the 404 page
+	error.ts          → the error page for everything below
 	docs
 		page.ts         → /docs
 		layout.ts       → wraps /docs and /docs/*
@@ -192,7 +192,7 @@ Naming a matcher the app doesn't have is a scan error, not a route that quietly 
 
 ## The error page
 
-A root `error.ts` renders whenever no route matches, or a page or layout throws while rendering. It receives the `error`, just like SvelteKit:
+An `error.ts` renders whenever no route matches, or a page or layout throws while rendering. It receives the `error`, just like SvelteKit:
 
 ```ts
 // src/routes/error.ts
@@ -206,7 +206,28 @@ export default function ErrorPage({ error }: ErrorProps) {
 
 `error.code` is an HTTP-style status — `404` when no route matched, `500` when a render threw — and `error.message` describes it. Throw a `{ code, message }` object from a page to surface a custom status: `throw { code: 403, message: "Forbidden" }`.
 
-It's root-only for now, kit will refuse an `error.ts` anywhere deeper. When it exists, the build also writes a `404.html` so static hosts serve it for unknown URLs.
+### Error pages nest
+
+An `error.ts` may sit in any route directory, and it covers that directory and everything under it. The nearest one up the tree wins, so a section can answer for itself and the root one stays the fallback:
+
+```
+src/routes
+	error.ts              → everything else
+	app
+		[slug]
+			layout.ts         → the app shell
+			layout.server.ts
+			error.ts          → anything under /app/:slug
+			issue
+				[id]
+					page.ts
+```
+
+A 404 at `/app/acme/issue/9999` renders `app/[slug]/error.ts` **inside the layouts around it** — the app shell, and the root layout around that — the same chain the page it replaced would have rendered in. The sidebar, the workspace switcher, and the way back stay on screen; only the page is gone. A 404 at `/pricing/nope` has no section boundary above it, so it falls through to the root `error.ts`, which renders in the root layout.
+
+Those layouts get their `data` too: kit runs the load chain of the boundary's directory before it renders the error page, so a shell that reads `data` from its `layout.server.ts` is a real shell rather than an empty one. The boundary's own params come with it, so `/app/:slug` still knows which workspace the 404 was in.
+
+An app with no `error.ts` at all answers in plain text with the status and the message — there is no page to render. When a **root** one exists, the build also writes a `404.html` so static hosts serve it for unknown URLs; a section boundary cannot answer for a path a static host has never heard of.
 
 ## $implement/router
 

@@ -308,6 +308,7 @@ describe("the types a matched param gets", () => {
 		pageServer: null,
 		layoutServer: null,
 		endpoint: "posts/[id=integer]/server.ts",
+		error: null,
 		extensions: [],
 		children: [],
 	};
@@ -351,7 +352,6 @@ describe("the types a matched param gets", () => {
 	it("keeps the ParamTypes augmentation out of the script that declares $implement/*", () => {
 		const declaration = generateRouterDeclaration(
 			[{ pattern: "/posts/:id=integer", params: [{ name: "id", matcher: "integer" }] }],
-			false,
 			PATHS,
 		);
 		expect(declaration).toContain('declare module "$implement/params"');
