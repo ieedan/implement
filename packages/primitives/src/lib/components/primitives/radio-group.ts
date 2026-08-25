@@ -7,13 +7,14 @@ import {
 	signal,
 	type Bindable,
 	type Child,
+	type Readable,
 	type Ref,
 	type Signal,
 } from "@implementjs/core";
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
 
@@ -21,7 +22,7 @@ export type RadioGroupRootProps = RenderableProps<typeof Div> & {
 	value?: Signal<string | null> | string | null;
 	/** Runs whenever the selected item changes. `null` while nothing is selected. */
 	onValueChange?: ChangeHandler<string | null>;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 	required?: Bindable<boolean>;
 	/** Whether arrow keys wrap from the last item back to the first. */
 	loop?: boolean;
@@ -32,17 +33,17 @@ const RadioGroupCtx = context<RadioGroupState>("RadioGroupCtx");
 
 class RadioGroupState {
 	value: Signal<string | null>;
-	disabled: Signal<boolean>;
+	disabled: Readable<boolean>;
 	/** The one item reachable with Tab; arrow keys move between the rest. */
 	tabStop = signal<string | null>(null);
 	constructor(
 		readonly opts: Required<Pick<RadioGroupRootProps, "loop" | "orientation">>,
 		readonly ref: Ref<HTMLDivElement>,
 		value: RadioGroupRootProps["value"],
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 	) {
 		this.value = signal(value ?? null);
-		this.disabled = signal(disabled);
+		this.disabled = toReadable(disabled);
 		const initial = this.value.get();
 		if (initial !== null) this.tabStop.set(initial);
 	}
@@ -109,7 +110,7 @@ export const RadioGroup = createComponent(function RadioGroup(
 export type RadioGroupItemProps = Omit<RenderableProps<typeof Button>, "disabled" | "value"> & {
 	/** Identifies the item. Must be unique within the group. */
 	value: string;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 export const RadioGroupItem = createComponent(function RadioGroupItem(
@@ -118,8 +119,8 @@ export const RadioGroupItem = createComponent(function RadioGroupItem(
 ) {
 	return RadioGroupCtx.Use((root) => {
 		root.register(value);
-		const disabledSignal = signal(disabled);
-		const isDisabled = derived([disabledSignal, root.disabled], (own, group) => own || group);
+		const ownDisabled = toReadable(disabled);
+		const isDisabled = derived([ownDisabled, root.disabled], (own, group) => own || group);
 		const checked = root.value.bind((current) => current === value);
 
 		return render(

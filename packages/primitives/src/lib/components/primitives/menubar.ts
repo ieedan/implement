@@ -7,13 +7,14 @@ import {
 	signal,
 	type Child,
 	type PortalProps,
+	type Readable,
 	type Ref,
 	type Signal,
 } from "@implementjs/core";
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import {
 	MenuCheckboxGroup,
 	MenuCheckboxItem,
@@ -178,7 +179,7 @@ export const MenubarMenu = createComponent(function MenubarMenu(
 });
 
 export type MenubarTriggerProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 export const MenubarTrigger = createComponent(function MenubarTrigger(
@@ -186,7 +187,7 @@ export const MenubarTrigger = createComponent(function MenubarTrigger(
 	...children: Child[]
 ) {
 	return MenubarMenuCtx.Use(({ value, menu, menubar }) => {
-		const disabledSignal = signal(disabled);
+		const isDisabled = toReadable(disabled);
 		const highlighted = signal(false);
 
 		return render(
@@ -196,17 +197,17 @@ export const MenubarTrigger = createComponent(function MenubarTrigger(
 					type: "button",
 					// within the bar, each trigger is a menu item of the menubar itself
 					role: "menuitem",
-					...menuTriggerProps(menu, { disabled: disabledSignal }),
+					...menuTriggerProps(menu, { disabled: isDisabled }),
 					"data-highlighted": highlighted.bind((h) => (h ? "" : undefined)),
 					tabIndex: menubar.tabStop.bind((tabStop) => (tabStop === value ? 0 : -1)),
 					onPointerdown: (e: PointerEvent) => {
-						if (disabledSignal.get() || e.button !== 0 || e.ctrlKey) return;
+						if (isDisabled.get() || e.button !== 0 || e.ctrlKey) return;
 						// keep the browser from focusing the trigger over the opening content
 						if (!menu.open.get()) e.preventDefault();
 						menu.toggleOpen(false);
 					},
 					onPointerenter: () => {
-						if (disabledSignal.get()) return;
+						if (isDisabled.get()) return;
 						// while a menu is open, hovering another trigger switches to it
 						if (menubar.value.get() !== null && !menu.open.get()) {
 							menu.openMenu(false);
@@ -214,7 +215,7 @@ export const MenubarTrigger = createComponent(function MenubarTrigger(
 						}
 					},
 					onKeydown: (e: KeyboardEvent) => {
-						if (disabledSignal.get()) return;
+						if (isDisabled.get()) return;
 						if (e.key === "Enter" || e.key === " ") {
 							e.preventDefault();
 							menu.toggleOpen(true);
@@ -228,7 +229,7 @@ export const MenubarTrigger = createComponent(function MenubarTrigger(
 						menubar.onTriggerKeydown(e);
 					},
 					onFocus: () => {
-						if (disabledSignal.get()) return;
+						if (isDisabled.get()) return;
 						highlighted.set(true);
 						menubar.tabStop.set(value);
 					},

@@ -1,4 +1,4 @@
-import { isReadable, type Bindable, type Readable, type Signal } from "@implementjs/core";
+import { isReadable, signal, type Bindable, type Readable, type Signal } from "@implementjs/core";
 
 export type MaybeReadable<T> = T | Readable<T>;
 
@@ -7,6 +7,17 @@ export function getReadableValue<T>(value: MaybeReadable<T>): T {
 		return value.get();
 	}
 	return value;
+}
+
+/**
+ * Hold a prop the component only ever reads. `signal()` is the wrong tool for
+ * that job: it passes writables through but wraps everything else, so a
+ * `derived` or a `.bind()` would end up buried inside a signal rather than
+ * being the signal. Anything already readable is kept as it is, and a plain
+ * value gets a signal to sit in.
+ */
+export function toReadable<T>(value: MaybeReadable<T>): Readable<T> {
+	return isReadable(value) ? value : signal(value);
 }
 
 /**

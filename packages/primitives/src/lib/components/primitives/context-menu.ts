@@ -2,14 +2,13 @@ import {
 	Div,
 	ImplementLifecycle,
 	Portal,
-	signal,
 	type Child,
 	type PortalProps,
-	type Signal,
+	type Readable,
 } from "@implementjs/core";
 import type { VirtualAnchor } from "../helpers/floating-ui";
 import { mergeProps } from "../../merge-props";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import {
 	MenuCheckboxGroup,
 	MenuCheckboxItem,
@@ -83,7 +82,7 @@ export const ContextMenu = createComponent(function ContextMenu(
 });
 
 export type ContextMenuTriggerProps = RenderableProps<typeof Div> & {
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 export const ContextMenuTrigger = createComponent(function ContextMenuTrigger(
@@ -95,7 +94,7 @@ export const ContextMenuTrigger = createComponent(function ContextMenuTrigger(
 			throw new Error("ContextMenuTrigger must be placed inside ContextMenu");
 		}
 		const contextState = state;
-		const disabledSignal = signal(disabled);
+		const isDisabled = toReadable(disabled);
 		let longPressTimer: ReturnType<typeof setTimeout> | null = null;
 
 		const clearLongPressTimer = () => {
@@ -114,16 +113,16 @@ export const ContextMenuTrigger = createComponent(function ContextMenuTrigger(
 						tabIndex: -1,
 						[state.attr("trigger")]: "",
 						"data-state": state.state,
-						"data-disabled": disabledSignal.bind((disabled) => (disabled ? "" : undefined)),
+						"data-disabled": isDisabled.bind((disabled) => (disabled ? "" : undefined)),
 						onContextmenu: (e: MouseEvent) => {
-							if (disabledSignal.get()) return;
+							if (isDisabled.get()) return;
 							e.preventDefault();
 							clearLongPressTimer();
 							contextState.openAt(e.clientX, e.clientY);
 						},
 						// long-press opens on touch, where there is no right click
 						onPointerdown: (e: PointerEvent) => {
-							if (disabledSignal.get() || e.pointerType === "mouse") return;
+							if (isDisabled.get() || e.pointerType === "mouse") return;
 							clearLongPressTimer();
 							longPressTimer = setTimeout(
 								() => contextState.openAt(e.clientX, e.clientY),

@@ -1,14 +1,14 @@
-import { derived, Div, signal, type Child, type Signal } from "@implementjs/core";
+import { derived, Div, type Child, type Readable } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
 
 export type ProgressProps = RenderableProps<typeof Div> & {
 	/** The current value. Pass `null` for an indeterminate progress bar. */
-	value?: Signal<number | null> | number | null;
-	min?: Signal<number> | number;
-	max?: Signal<number> | number;
+	value?: Readable<number | null> | number | null;
+	min?: Readable<number> | number;
+	max?: Readable<number> | number;
 };
 
 /**
@@ -22,11 +22,11 @@ export const Progress = createComponent(function Progress(
 	{ id = getId(), value = 0, min = 0, max = 100, render = Div, ...restProps }: ProgressProps,
 	...children: Child[]
 ) {
-	const valueSignal = signal(value);
-	const minSignal = signal(min);
-	const maxSignal = signal(max);
+	const currentValue = toReadable(value);
+	const minValue = toReadable(min);
+	const maxValue = toReadable(max);
 
-	const state = derived([valueSignal, maxSignal], (value, max) => {
+	const state = derived([currentValue, maxValue], (value, max) => {
 		if (value === null) return "indeterminate";
 		return value === max ? "loaded" : "loading";
 	});
@@ -36,15 +36,15 @@ export const Progress = createComponent(function Progress(
 			{
 				id,
 				role: "progressbar",
-				"aria-valuemin": minSignal,
-				"aria-valuemax": maxSignal,
-				"aria-valuenow": valueSignal.bind((value) => value ?? undefined),
+				"aria-valuemin": minValue,
+				"aria-valuemax": maxValue,
+				"aria-valuenow": currentValue.bind((value) => value ?? undefined),
 				"data-progress-root": "",
 				"data-state": state,
-				"data-value": valueSignal.bind((value) => value ?? undefined),
-				"data-min": minSignal,
-				"data-max": maxSignal,
-				"data-indeterminate": valueSignal.bind((value) => (value === null ? "" : undefined)),
+				"data-value": currentValue.bind((value) => value ?? undefined),
+				"data-min": minValue,
+				"data-max": maxValue,
+				"data-indeterminate": currentValue.bind((value) => (value === null ? "" : undefined)),
 			},
 			restProps,
 		),

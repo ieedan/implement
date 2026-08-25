@@ -23,7 +23,7 @@ import {
 	type Styles,
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import {
 	CalendarDate,
 	createMonths,
@@ -150,8 +150,8 @@ export abstract class CalendarBaseState {
 	readonly opts: ResolvedBaseOptions;
 	readonly placeholder: Signal<CalendarDate>;
 	readonly months: Signal<Month[]>;
-	readonly disabled: Signal<boolean>;
-	readonly readonly: Signal<boolean>;
+	readonly disabled: Readable<boolean>;
+	readonly readonly: Readable<boolean>;
 	readonly root: Ref<HTMLDivElement> = ref();
 	readonly headingId = getId();
 	readonly initialPlaceholder: CalendarDate;
@@ -166,16 +166,16 @@ export abstract class CalendarBaseState {
 		readonly variant: CalendarVariant,
 		opts: CalendarBaseOptions,
 		placeholder: Signal<CalendarDate> | CalendarDate | undefined,
-		disabled: Signal<boolean> | boolean,
-		readonly_: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
+		readonly_: Readable<boolean> | boolean,
 	) {
 		this.opts = resolveBaseOptions(opts);
 		this.placeholder = signal(
 			placeholder ?? defaultPlaceholder(this.opts.minValue, this.opts.maxValue),
 		);
 		this.initialPlaceholder = this.placeholder.get();
-		this.disabled = signal(disabled);
-		this.readonly = signal(readonly_);
+		this.disabled = toReadable(disabled);
+		this.readonly = toReadable(readonly_);
 		this.months = signal(this.createMonths(this.placeholder.get()));
 
 		// re-derive the grid when navigation or an external write moves the
@@ -668,7 +668,7 @@ export type CalendarMonthSelectProps = Omit<ComponentProps<typeof SelectElement>
 	months?: number[];
 	/** How the option labels are formatted. Defaults to the root's `monthFormat`. */
 	monthFormat?: MonthFormat;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 const ALL_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -681,7 +681,7 @@ export const CalendarMonthSelect = createComponent(function CalendarMonthSelect(
 	...restProps
 }: CalendarMonthSelectProps) {
 	return CalendarBaseCtx.Use((state) => {
-		const ownDisabled = signal(disabled);
+		const ownDisabled = toReadable(disabled);
 		const isDisabled = derived([ownDisabled, state.disabled], (own, root) => own || root);
 		const format = (month: number): string => {
 			if (typeof monthFormat === "function") return monthFormat(month);
@@ -778,7 +778,7 @@ export type CalendarYearSelectProps = Omit<ComponentProps<typeof SelectElement>,
 	years?: number[];
 	/** How the option labels are formatted. Defaults to the root's `yearFormat`. */
 	yearFormat?: YearFormat;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 export const CalendarYearSelect = createComponent(function CalendarYearSelect({
@@ -789,7 +789,7 @@ export const CalendarYearSelect = createComponent(function CalendarYearSelect({
 	...restProps
 }: CalendarYearSelectProps) {
 	return CalendarBaseCtx.Use((state) => {
-		const ownDisabled = signal(disabled);
+		const ownDisabled = toReadable(disabled);
 		const isDisabled = derived([ownDisabled, state.disabled], (own, root) => own || root);
 		const resolvedYears =
 			years && years.length

@@ -78,8 +78,8 @@ export type CalendarRootProps<T extends "single" | "multiple" = "single"> = Comp
 	CalendarBaseOptions & {
 		/** The date the view starts on and keyboard focus follows. Pass a signal to control it. */
 		placeholder?: Signal<CalendarDate> | CalendarDate;
-		disabled?: Signal<boolean> | boolean;
-		readonly?: Signal<boolean> | boolean;
+		disabled?: Readable<boolean> | boolean;
+		readonly?: Readable<boolean> | boolean;
 		/** Runs after a date is selected (not after a deselection). */
 		onDateSelect?: () => void;
 	} & (T extends "multiple"
@@ -104,8 +104,8 @@ abstract class CalendarState extends CalendarBaseState {
 	constructor(
 		opts: CalendarBaseOptions,
 		placeholder: Signal<CalendarDate> | CalendarDate | undefined,
-		disabled: Signal<boolean> | boolean,
-		readonly_: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
+		readonly_: Readable<boolean> | boolean,
 		readonly onDateSelect: (() => void) | undefined,
 	) {
 		super("calendar", opts, placeholder, disabled, readonly_);
@@ -130,8 +130,8 @@ class CalendarStateSingle extends CalendarState {
 		opts: CalendarBaseOptions,
 		value: Signal<CalendarDate | null> | CalendarDate | null | undefined,
 		placeholder: Signal<CalendarDate> | CalendarDate | undefined,
-		disabled: Signal<boolean> | boolean,
-		readonly_: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
+		readonly_: Readable<boolean> | boolean,
 		onDateSelect: (() => void) | undefined,
 	) {
 		super(
@@ -197,8 +197,8 @@ class CalendarStateMultiple extends CalendarState {
 		value: Signal<CalendarDate[]> | undefined,
 		readonly maxDays: number | undefined,
 		placeholder: Signal<CalendarDate> | CalendarDate | undefined,
-		disabled: Signal<boolean> | boolean,
-		readonly_: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
+		readonly_: Readable<boolean> | boolean,
 		onDateSelect: (() => void) | undefined,
 	) {
 		super(
@@ -265,8 +265,8 @@ type CalendarAnyProps = ComponentProps<typeof Div> &
 		onValueChange?: ChangeHandler<CalendarDate | null> | ChangeHandler<CalendarDate[]>;
 		maxDays?: number;
 		placeholder?: Signal<CalendarDate> | CalendarDate;
-		disabled?: Signal<boolean> | boolean;
-		readonly?: Signal<boolean> | boolean;
+		disabled?: Readable<boolean> | boolean;
+		readonly?: Readable<boolean> | boolean;
 		onDateSelect?: () => void;
 	};
 

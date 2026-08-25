@@ -1,13 +1,13 @@
-import { Div, signal, type Child, type Signal } from "@implementjs/core";
+import { Div, type Child, type Readable } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
 
 export type MeterProps = RenderableProps<typeof Div> & {
-	value?: Signal<number> | number;
-	min?: Signal<number> | number;
-	max?: Signal<number> | number;
+	value?: Readable<number> | number;
+	min?: Readable<number> | number;
+	max?: Readable<number> | number;
 };
 
 /**
@@ -20,22 +20,22 @@ export const Meter = createComponent(function Meter(
 	{ id = getId(), value = 0, min = 0, max = 100, render = Div, ...restProps }: MeterProps,
 	...children: Child[]
 ) {
-	const valueSignal = signal(value);
-	const minSignal = signal(min);
-	const maxSignal = signal(max);
+	const currentValue = toReadable(value);
+	const minValue = toReadable(min);
+	const maxValue = toReadable(max);
 
 	return render(
 		mergeProps(
 			{
 				id,
 				role: "meter",
-				"aria-valuemin": minSignal,
-				"aria-valuemax": maxSignal,
-				"aria-valuenow": valueSignal,
+				"aria-valuemin": minValue,
+				"aria-valuemax": maxValue,
+				"aria-valuenow": currentValue,
 				"data-meter-root": "",
-				"data-value": valueSignal,
-				"data-min": minSignal,
-				"data-max": maxSignal,
+				"data-value": currentValue,
+				"data-min": minValue,
+				"data-max": maxValue,
 			},
 			restProps,
 		),

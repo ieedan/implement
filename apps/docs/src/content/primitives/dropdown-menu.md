@@ -37,6 +37,14 @@ Each part accepts optional props and children — pass a props object when you n
 
 `DropdownMenuItem` runs `onSelect` when clicked or activated with Enter or Space, then closes the menu — pass `closeOnSelect: false` to keep it open. `disabled` items are skipped by the keyboard and set `data-disabled`.
 
+`disabled` — on the trigger, on an item, on a sub trigger — is only ever read, so it takes anything readable, not just a signal you own. A [`derived`](/docs/signals) off loaded data disables the menu without a second copy of the state:
+
+```ts
+const board = derived([workspace], (value) => value.board);
+
+DropdownMenuTrigger({ disabled: board.bind((value) => value !== "public") }, "Visibility");
+```
+
 Beyond the plain item there are stateful ones:
 
 - `DropdownMenuCheckboxItem` holds a `checked` boolean (`role="menuitemcheckbox"`); selecting toggles it.

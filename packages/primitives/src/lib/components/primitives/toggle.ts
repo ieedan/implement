@@ -1,13 +1,13 @@
-import { Button, signal, type Child, type Signal } from "@implementjs/core";
+import { Button, signal, type Child, type Readable, type Signal } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { withChangeEffect, type ChangeHandler } from "../../on-change";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
 
 export type ToggleProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
 	pressed?: Signal<boolean> | boolean;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 	/** Runs whenever the pressed state changes. */
 	onPressedChange?: ChangeHandler<boolean>;
 };
@@ -30,7 +30,7 @@ export const Toggle = createComponent(function Toggle(
 	...children: Child[]
 ) {
 	const pressedSignal = signal(pressed);
-	const disabledSignal = signal(disabled);
+	const isDisabled = toReadable(disabled);
 
 	return withChangeEffect(
 		render(
@@ -41,10 +41,10 @@ export const Toggle = createComponent(function Toggle(
 					"aria-pressed": pressedSignal,
 					"data-toggle-root": "",
 					"data-state": pressedSignal.bind((pressed) => (pressed ? "on" : "off")),
-					"data-disabled": disabledSignal.bind((disabled) => (disabled ? "" : undefined)),
-					disabled: disabledSignal,
+					"data-disabled": isDisabled.bind((disabled) => (disabled ? "" : undefined)),
+					disabled: isDisabled,
 					onClick: () => {
-						if (disabledSignal.get()) return;
+						if (isDisabled.get()) return;
 						pressedSignal.toggle();
 					},
 				},

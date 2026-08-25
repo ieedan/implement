@@ -7,6 +7,7 @@ import {
 	signal,
 	type Bindable,
 	type Child,
+	type Readable,
 	type Ref,
 	type Signal,
 } from "@implementjs/core";
@@ -26,6 +27,7 @@ import {
 	getId,
 	getReadableValue,
 	noop,
+	toReadable,
 	type ItemValue,
 	type ItemValuesSignal,
 	type ItemValueSignal,
@@ -425,7 +427,7 @@ export const MenuContent = createComponent(function MenuContent(
 type MenuItemOptions = {
 	/** Runs when the item is activated with a click, Enter, or Space. */
 	onSelect?: () => void;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 	closeOnSelect?: boolean;
 };
 
@@ -439,7 +441,7 @@ function menuItemProps(
 	state: MenuState,
 	opts: Required<Pick<MenuItemOptions, "closeOnSelect">> & {
 		id: Bindable<string>;
-		disabled: Signal<boolean>;
+		disabled: Readable<boolean>;
 		select: () => void;
 	},
 ) {
@@ -509,7 +511,7 @@ export const MenuItem = createComponent(function MenuItem(
 			mergeProps(
 				menuItemProps(state, {
 					id,
-					disabled: signal(disabled),
+					disabled: toReadable(disabled),
 					closeOnSelect,
 					select: onSelect,
 				}),
@@ -656,7 +658,7 @@ export const MenuCheckboxItem = createComponent(function MenuCheckboxItem(
 					mergeProps(
 						menuItemProps(state, {
 							id,
-							disabled: signal(disabled),
+							disabled: toReadable(disabled),
 							closeOnSelect,
 							select: () => {
 								if (membership === null) {
@@ -732,7 +734,7 @@ export type MenuRadioItemProps = RenderableProps<typeof Div> & {
 	/** Identifies the item. Must be unique within the radio group. */
 	value: ItemValue;
 	onSelect?: () => void;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 	closeOnSelect?: boolean;
 };
 
@@ -755,7 +757,7 @@ export const MenuRadioItem = createComponent(function MenuRadioItem(
 				mergeProps(
 					menuItemProps(state, {
 						id,
-						disabled: signal(disabled),
+						disabled: toReadable(disabled),
 						closeOnSelect,
 						select: () => {
 							group.value.set(value);
@@ -896,7 +898,7 @@ export const MenuSub = createComponent(function MenuSub(props: MenuSubProps, ...
 });
 
 export type MenuSubTriggerProps = RenderableProps<typeof Div> & {
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 	/** How long the pointer must rest on the trigger before the submenu opens, in milliseconds. */
 	openDelay?: number;
 };
@@ -913,7 +915,7 @@ export const MenuSubTrigger = createComponent(function MenuSubTrigger(
 ) {
 	return MenuCtx.Use((root) => {
 		return MenuSubCtx.Use((sub) => {
-			const disabledSignal = signal(disabled);
+			const isDisabled = toReadable(disabled);
 			let hoverTimer: ReturnType<typeof setTimeout> | null = null;
 
 			const clearHoverTimer = () => {
@@ -928,7 +930,7 @@ export const MenuSubTrigger = createComponent(function MenuSubTrigger(
 					mergeProps(
 						menuItemProps(root, {
 							id,
-							disabled: disabledSignal,
+							disabled: isDisabled,
 							// a sub trigger is not a leaf: activating it opens, never closes
 							closeOnSelect: false,
 							select: () => sub.openMenu(true),
@@ -941,7 +943,7 @@ export const MenuSubTrigger = createComponent(function MenuSubTrigger(
 							[root.attr("sub-trigger")]: "",
 							"data-state": sub.state,
 							onPointermove: (e: PointerEvent) => {
-								if (e.pointerType !== "mouse" || disabledSignal.get()) return;
+								if (e.pointerType !== "mouse" || isDisabled.get()) return;
 								if (sub.open.get() || hoverTimer !== null) return;
 								hoverTimer = setTimeout(() => {
 									hoverTimer = null;
@@ -955,7 +957,7 @@ export const MenuSubTrigger = createComponent(function MenuSubTrigger(
 								if (sub.open.get()) sub.setGraceArea(e.clientX, e.clientY);
 							},
 							onKeydown: (e: KeyboardEvent) => {
-								if (e.key !== "ArrowRight" || disabledSignal.get()) return;
+								if (e.key !== "ArrowRight" || isDisabled.get()) return;
 								e.preventDefault();
 								// ours, not the parent's navigation (or the menubar's switching)
 								e.stopPropagation();
@@ -1049,7 +1051,7 @@ export const MenuSubContent = createComponent(function MenuSubContent(
 });
 
 /** The trigger attributes every flavor's button-like trigger shares. */
-export function menuTriggerProps(state: MenuState, opts: { disabled: Signal<boolean> }) {
+export function menuTriggerProps(state: MenuState, opts: { disabled: Readable<boolean> }) {
 	return {
 		this: state.trigger,
 		"aria-haspopup": "menu",

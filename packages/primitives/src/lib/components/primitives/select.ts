@@ -20,6 +20,7 @@ import {
 	getId,
 	getReadableValue,
 	noop,
+	toReadable,
 	type ItemValue,
 	type ItemValuesSignal,
 	type ItemValueSignal,
@@ -559,16 +560,16 @@ export const SelectContent = createComponent(function SelectContent(
 export type SelectItemsProps = ComponentProps<typeof Div> & {
 	value: ItemValue;
 	label?: string;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 class SelectItemState {
-	disabled: Signal<boolean>;
+	disabled: Readable<boolean>;
 	constructor(
 		readonly rootState: SelectState,
 		readonly opts: Pick<SelectItemsProps, "value" | "disabled">,
 	) {
-		this.disabled = signal(this.opts.disabled ?? false);
+		this.disabled = toReadable(this.opts.disabled ?? false);
 	}
 
 	get selected() {

@@ -12,10 +12,11 @@ import {
 	Span,
 	type Child,
 	type ComponentProps,
+	type Readable,
 	type Signal,
 	type Styles,
 } from "@implementjs/core";
-import { getId, getReadableValue, type MaybeReadable } from "../../utils";
+import { getId, getReadableValue, toReadable, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
 import { computeCommandScore } from "../helpers/command-score";
@@ -1102,7 +1103,7 @@ type CommandItemOptions = {
 	value?: string;
 	/** Extra terms the filter also scores. */
 	keywords?: string[];
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 	/** Runs when the item is chosen, by click or by Enter. */
 	onSelect?: () => void;
 	/** Keep the item mounted and visible regardless of the search. */
@@ -1131,7 +1132,7 @@ function commandItem(
 	return CommandCtx.Use((state) =>
 		CommandGroupCtx.UseOr((group) => {
 			const itemRef = ref<HTMLElement>();
-			const disabledSignal = signal(disabled);
+			const isDisabled = toReadable(disabled);
 			const itemValue = signal(value ?? textChild(children) ?? "");
 			let registered = false;
 
@@ -1180,18 +1181,18 @@ function commandItem(
 							"data-command-item": "",
 							"data-value": itemValue,
 							"data-group": group?.value,
-							"aria-disabled": disabledSignal,
+							"aria-disabled": isDisabled,
 							"aria-selected": selected,
 							"data-selected": selected.bind(presence),
-							"data-disabled": disabledSignal.bind(presence),
+							"data-disabled": isDisabled.bind(presence),
 							hidden: visible === null ? undefined : visible.bind((v) => (v ? undefined : true)),
 							onClick: () => {
-								if (disabledSignal.get()) return;
+								if (isDisabled.get()) return;
 								state.setValue(itemValue.get(), true);
 								onSelect?.();
 							},
 							onPointermove: () => {
-								if (disabledSignal.get() || state.opts.disablePointerSelection === true) return;
+								if (isDisabled.get() || state.opts.disablePointerSelection === true) return;
 								state.setValue(itemValue.get(), true);
 							},
 						},

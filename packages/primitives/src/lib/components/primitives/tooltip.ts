@@ -14,9 +14,10 @@ import {
 	type Child,
 	type ComponentProps,
 	type PortalProps,
+	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
+import { getId, getReadableValue, noop, toReadable, type MaybeReadable } from "../../utils";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
 import {
@@ -431,7 +432,7 @@ export const Tooltip = createComponent(function Tooltip(
 
 export type TooltipTriggerProps = Omit<ComponentProps<typeof Button>, "id" | "disabled"> & {
 	id?: string;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 class TooltipTriggerState {
@@ -443,7 +444,7 @@ class TooltipTriggerState {
 		readonly opts: {
 			id: string;
 			ref: Ref<HTMLButtonElement>;
-			disabled: Signal<boolean>;
+			disabled: Readable<boolean>;
 		},
 	) {
 		this.rootState.registerTrigger(opts.id, this);
@@ -581,11 +582,11 @@ export const TooltipTrigger = createComponent(function TooltipTrigger(
 ) {
 	return TooltipContext.Use((rootState) => {
 		const triggerRef = ref<HTMLButtonElement>();
-		const disabledSignal = signal(disabled);
+		const isDisabled = toReadable(disabled);
 		const triggerState = new TooltipTriggerState(rootState, {
 			id,
 			ref: triggerRef,
-			disabled: disabledSignal,
+			disabled: isDisabled,
 		});
 
 		return ImplementLifecycle(
@@ -596,10 +597,10 @@ export const TooltipTrigger = createComponent(function TooltipTrigger(
 						id,
 						this: triggerRef,
 						type: "button",
-						disabled: disabledSignal,
+						disabled: isDisabled,
 						"data-tooltip-trigger": "",
 						"data-state": triggerState.state,
-						"data-disabled": disabledSignal.bind((d) => (d ? "" : undefined)),
+						"data-disabled": isDisabled.bind((d) => (d ? "" : undefined)),
 						"data-delay-duration": `${rootState.delayDuration}`,
 						"aria-describedby": derived(
 							[rootState.open, rootState.currentTriggerId, rootState.content],

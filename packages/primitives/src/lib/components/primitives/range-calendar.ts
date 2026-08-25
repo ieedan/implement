@@ -3,7 +3,6 @@ import {
 	derived,
 	Div,
 	ImplementLifecycle,
-	isReadable,
 	signal,
 	Td,
 	watch,
@@ -14,7 +13,7 @@ import {
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
-import { getId, type MaybeReadable } from "../../utils";
+import { getId, toReadable, type MaybeReadable } from "../../utils";
 import {
 	CalendarDate,
 	formatDate,
@@ -79,8 +78,8 @@ export type RangeCalendarRootProps = ComponentProps<typeof Div> &
 		onValueChange?: ChangeHandler<DateRange>;
 		/** The date the view starts on and keyboard focus follows. Pass a signal to control it. */
 		placeholder?: Signal<CalendarDate> | CalendarDate;
-		disabled?: Signal<boolean> | boolean;
-		readonly?: Signal<boolean> | boolean;
+		disabled?: Readable<boolean> | boolean;
+		readonly?: Readable<boolean> | boolean;
 		/** The fewest days a range may span. Shorter picks restart the selection. */
 		minDays?: number;
 		/** The most days a range may span. Longer picks restart the selection. */
@@ -102,8 +101,8 @@ class RangeCalendarState extends CalendarBaseState {
 		opts: CalendarBaseOptions,
 		value: Signal<DateRange> | DateRange | undefined,
 		placeholder: Signal<CalendarDate> | CalendarDate | undefined,
-		disabled: Signal<boolean> | boolean,
-		readonly_: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
+		readonly_: Readable<boolean> | boolean,
 		readonly minDays: number | undefined,
 		readonly maxDays: number | undefined,
 		readonly excludeDisabled: boolean,
@@ -399,10 +398,6 @@ type RangeCalendarCellState = {
 };
 
 const RangeCalendarCellCtx = context<RangeCalendarCellState>("RangeCalendarCellCtx");
-
-function toReadable<T>(value: MaybeReadable<T>): Readable<T> {
-	return isReadable(value) ? value : signal(value);
-}
 
 export type RangeCalendarCellProps = ComponentProps<typeof Td> & {
 	/** The date this cell renders. */
