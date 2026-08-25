@@ -101,7 +101,7 @@ That matters most for decisions rather than data. A membership check that lives 
 `./$types` exports two flavours, because a directory's own layout is a parent of its page but not of itself:
 
 - `LoadEvent` — for `page.server.ts`. `parent()` is every layout above the page, this directory's own included.
-- `LayoutLoadEvent` — for `layout.server.ts`. `parent()` is the layouts above *it*.
+- `LayoutLoadEvent` — for `layout.server.ts`. `parent()` is the layouts above _it_.
 
 ### Loads run concurrently
 
@@ -130,7 +130,7 @@ export default async function load({ api }: LoadEvent) {
 
 ## Re-running a load after a mutation
 
-A load runs when a page is rendered or navigated to. When the user then *changes* something, the data that load returned is stale — and that's what `invalidate()` is for:
+A load runs when a page is rendered or navigated to. When the user then _changes_ something, the data that load returned is stale — and that's what `invalidate()` is for:
 
 ```ts
 import { invalidate, invalidateAll } from "$implement/navigation";
