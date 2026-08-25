@@ -1,7 +1,7 @@
 import rule from "../src/rules/no-redundant-roles.ts";
 import { ruleTester } from "./rule-tester.ts";
 
-const core = 'import { Button, Div, Input, Nav, Ul } from "@implementjs/core";\n';
+const core = 'import { Button, Div, Input, Nav, Ul, component } from "@implementjs/core";\n';
 
 ruleTester.run("no-redundant-roles", rule, {
 	valid: [
@@ -20,6 +20,11 @@ ruleTester.run("no-redundant-roles", rule, {
 		'function Button(props) { return props; }\nButton({ role: "button" });',
 		// Decided at runtime.
 		`${core}Button({ role: currentRole });`,
+		// Away from an element there is no tag to compare an implicit role
+		// against, whatever the key is called.
+		`${core}db.insert(workspaceMember).values({ role: "navigation" });`,
+		// `component()` with a tag it cannot read names no element either.
+		`${core}component(tag, { role: "navigation" });`,
 	],
 
 	invalid: [
@@ -44,6 +49,11 @@ ruleTester.run("no-redundant-roles", rule, {
 			// Aliasing on import does not hide which element it is.
 			code: 'import { Button as ButtonElement } from "@implementjs/core";\nButtonElement({ role: "button" });',
 			errors: [{ messageId: "redundant", data: { element: "<button>", role: "button" } }],
+		},
+		{
+			// `component()` names the tag first and its props after it.
+			code: `${core}component("nav", { role: "navigation" });`,
+			errors: [{ messageId: "redundant", data: { element: "<nav>", role: "navigation" } }],
 		},
 	],
 });

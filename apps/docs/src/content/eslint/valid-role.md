@@ -23,6 +23,8 @@ Div({ role: "widget" });
 
 As with `valid-aria`, only string literals are checked, and `role` bound to a signal is left alone.
 
+Unlike `valid-aria`, the key is not enough on its own. `role` is an ordinary word, so the rule only reads it [in element-props position](/eslint/how-rules-work) — a `{ id, userId, role: "admin" }` going into a database is not making an accessibility claim and is left alone.
+
 ## Options
 
 ```ts
