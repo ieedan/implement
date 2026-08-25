@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adders, applyAdders, parseAdders } from "@/adders";
+import { LINT_ES_RULES } from "@/adders/oxlint";
 import { ADDERS, type AdderContext } from "@/adders/types";
 import { VERSIONS } from "@/templates/versions";
 import { unwrap, unwrapErr } from "./utils";
@@ -51,6 +52,16 @@ describe("applyAdders", () => {
 
 		expect(changes.files.map((file) => file.path)).toEqual(["oxlint.config.ts", "oxfmt.config.ts"]);
 		expect(changes.files[0]?.contents).toContain(`jsPlugins: ["@implementjs/eslint"]`);
+	});
+
+	it("enables the plugin whose fixes set the ES version the templates compile against", () => {
+		const changes = unwrap(applyAdders(["oxlint"], ctx(), packageJson()));
+		const config = changes.files.find((file) => file.path === "oxlint.config.ts")?.contents ?? "";
+
+		// the rules behind LINT_ES_VERSION are only on because the plugin is; nothing in the config
+		// names them, so dropping the plugin is what would quietly make the constant a lie
+		expect(new Set(LINT_ES_RULES.map((rule) => rule.split("/")[0]))).toEqual(new Set(["unicorn"]));
+		expect(config).toContain(`"unicorn"`);
 	});
 
 	it("adds the scripts and dependencies to the package.json", () => {

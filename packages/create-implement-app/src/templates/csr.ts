@@ -21,6 +21,7 @@ import {
 } from "@/templates/shared";
 import { hasAddon, type Template, type TemplateContext } from "@/templates/types";
 import { dependencies, type Dependency } from "@/templates/versions";
+import { call, object } from "@/utils/format";
 
 /**
  * A client rendered single page app: Vite serves `index.html`, `src/index.ts` mounts the router,
@@ -205,13 +206,13 @@ function layout(ctx: TemplateContext): string {
 		`export function Layout(children: Mountable): Mountable {`,
 		`\treturn Div(`,
 		`\t\tNav(`,
-		`\t\t\t{ class: "${c.nav}" },`,
+		...object([`class: "${c.nav}"`], 3),
 		`\t\t\t// a Link follows the router instead of reloading the document, and marks itself`,
 		`\t\t\t// aria-current="page" while its path is the current one`,
-		`\t\t\trouter.Link({ class: "${c.navLink}", to: "/" }, "Home"),`,
-		`\t\t\trouter.Link({ class: "${c.navLink}", to: "/about" }, "About"),`,
+		...call("router.Link", [`class: "${c.navLink}"`, `to: "/"`], [`"Home"`], 3),
+		...call("router.Link", [`class: "${c.navLink}"`, `to: "/about"`], [`"About"`], 3),
 		`\t\t),`,
-		`\t\tMain({ class: "${c.main}" }, children),`,
+		...call("Main", [`class: "${c.main}"`], ["children"], 2),
 		`\t);`,
 		`}`,
 	].join("\n")}\n`;
@@ -233,7 +234,7 @@ function aboutPage(ctx: TemplateContext): string {
 		`\t\t\t"src/about.ts",`,
 		`\t\t\t" — add a route by adding a key to the table in src/router.ts.",`,
 		`\t\t),`,
-		`\t\tA({ class: "${c.link}", href: "${DOCS_URL}" }, "Read the docs"),`,
+		...call("A", [`class: "${c.link}"`, `href: "${DOCS_URL}"`], [`"Read the docs"`], 2),
 		`\t);`,
 		`}`,
 	].join("\n")}\n`;
@@ -307,12 +308,12 @@ function readme(ctx: TemplateContext): string {
 
 		## Scripts
 
-		| Script    | What it does                          |
-		| --------- | ------------------------------------- |
-		| \`dev\`     | Start the dev server with HMR         |
-		| \`build\`   | Build the static site into \`dist/\`    |
-		| \`preview\` | Serve the build locally               |
-		| \`check\`   | Typecheck the app                     |
+		| Script    | What it does                       |
+		| --------- | ---------------------------------- |
+		| \`dev\`     | Start the dev server with HMR      |
+		| \`build\`   | Build the static site into \`dist/\` |
+		| \`preview\` | Serve the build locally            |
+		| \`check\`   | Typecheck the app                  |
 
 		## Structure
 

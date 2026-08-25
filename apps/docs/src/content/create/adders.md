@@ -49,9 +49,11 @@ export default defineConfig({
 });
 ```
 
-`oxfmt` is set to tabs at 100 columns, which is what the templates write. Scaffolding with `--oxlint --install` runs `format` once on the way out — the generated files are written by a generator, not a formatter, so this is what makes `format:check` pass on an app nobody has edited yet.
+`oxfmt` is set to tabs at 100 columns, which is what the templates write — down to where a long class list wraps and which arrays stay on one line, so a new app's first `format` has nothing to rewrite and `format:check` passes on an app nobody has edited yet.
 
 Both configs stay out of `dist/` and, for the kit template, out of the generated `.implement/`.
+
+The rules the linter turns on are part of what the templates target: `unicorn/no-array-sort` fixes an `array.sort(...)` to `Array#toSorted()`, which is ES2023, so both templates emit a `tsconfig.json` on `"target": "ES2023"` and lib it. On anything lower `lint` asks for a method `check` says does not exist.
 
 ## Adding one later
 
