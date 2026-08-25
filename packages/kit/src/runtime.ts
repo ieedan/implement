@@ -9,7 +9,13 @@ import { preloadRoute } from "./lazy.ts";
 import { dataPath, matchRoutePattern, normalizeRoutePath, type RouteData } from "./match.ts";
 import { appMatchers, registerMatchers } from "./params.ts";
 
-export { lazyModule, preloadRoute, registerRouteModules, type ModuleHandle } from "./lazy.ts";
+export {
+	hotReplaceRoute,
+	lazyModule,
+	preloadRoute,
+	registerRouteModules,
+	type ModuleHandle,
+} from "./lazy.ts";
 
 export { registerMatchers };
 

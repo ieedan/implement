@@ -29,6 +29,8 @@ The app tracks every root it renders and `app.unmount` tears them all down (`ren
 
 In production builds `import.meta.hot` is statically `false`, so the block compiles away.
 
+This is the recipe for an app that owns its own entry. [`@implementjs/kit`](/kit) writes the entry for you and does better than a whole-app remount: it makes every `page.ts` and `layout.ts` a boundary of its own, so an edit re-renders one level of the route instead of the tree — see [while you work](/kit/routing#while-you-work).
+
 ## Entrypoints
 
 Everything is exported from the package root, and the bigger subsystems are also importable on their own:

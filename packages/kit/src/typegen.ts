@@ -32,10 +32,12 @@ initClientData();
 
 const app = App({ target: document.body });
 
-if (import.meta.hot) {
-	import.meta.hot.accept();
-	import.meta.hot.dispose(app.unmount);
-}
+// Deliberately not an HMR boundary. Every page and layout accepts its own
+// updates in dev, so an edit stops at the route module that renders it and
+// re-renders that level of the chain, leaving the layouts above it — and
+// their state — mounted. Accepting here too would swallow everything that
+// got past a route module and rebuild the whole app from scratch; a full
+// reload says what happened instead.
 
 // The landing route's page and layouts are in chunks of their own, and the
 // router renders them synchronously, so they have to be in memory first.

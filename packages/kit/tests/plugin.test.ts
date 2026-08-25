@@ -485,6 +485,36 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		}
 	});
 
+	it("makes every page and layout a hot-update boundary in the browser copy", async () => {
+		const page = await server.environments.client.transformRequest("/src/routes/docs/page.ts");
+		expect(page?.code).toContain("import.meta.hot.accept(");
+		expect(page?.code).toContain('"src/routes/docs/page.ts"');
+		expect(page?.code).toContain("hotReplaceRoute as __implementHotReplaceRoute");
+
+		const layout = await server.environments.client.transformRequest("/src/routes/layout.ts");
+		expect(layout?.code).toContain("import.meta.hot.accept(");
+		expect(layout?.code).toContain('"src/routes/layout.ts"');
+	});
+
+	it("leaves the server graph, colocated code and the error page without one", async () => {
+		// the server render has no `import.meta.hot`, and swapping a component
+		// into a tree that is a string by the time it is returned means nothing
+		const ssr = await server.environments.ssr.transformRequest("/src/routes/docs/page.ts");
+		expect(ssr?.code).not.toContain("import.meta.hot");
+
+		// only the files that render are handles the router asks for by id
+		const colocated = await server.environments.client.transformRequest("/src/lib/greeting.ts");
+		expect(colocated?.code).not.toContain("__implementHotReplaceRoute");
+
+		const errorPage = await server.environments.client.transformRequest("/src/routes/error.ts");
+		expect(errorPage?.code).not.toContain("__implementHotReplaceRoute");
+	});
+
+	it("leaves the generated client entry without one, so a miss reloads", async () => {
+		const entry = await server.environments.client.transformRequest("/.implement/entry-client.ts");
+		expect(entry?.code).not.toContain("import.meta.hot.accept");
+	});
+
 	it("leaves a user-configured publicDir alone", async () => {
 		const custom = await createServer({
 			root: fixture,

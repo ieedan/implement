@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
 import { join, sep } from "node:path";
 import { build } from "velite";
 import type { Plugin } from "vite";
@@ -7,6 +9,15 @@ const CONTENT_DIR = "src/content";
 const CONFIG_FILE = "velite.config.ts";
 /** Long enough to collapse a multi-file save into one rebuild. */
 const DEBOUNCE_MS = 50;
+
+/** A generated file's contents, hashed; `null` when it is not there to read. */
+function digest(file: string): string | null {
+	try {
+		return createHash("sha1").update(readFileSync(file)).digest("hex");
+	} catch {
+		return null;
+	}
+}
 
 /**
  * Runs Velite from inside the dev server instead of as a `--watch` process
@@ -32,6 +43,8 @@ export function velite(): Plugin {
 	let configFile = "";
 	/** Tail of the rebuild queue — Velite is never running twice at once. */
 	let queue: Promise<void> = Promise.resolve();
+	/** What each generated file held after the last build, so a rebuild can tell what moved. */
+	const digests = new Map<string, string>();
 
 	return {
 		name: "velite",
@@ -42,7 +55,46 @@ export function velite(): Plugin {
 			configFile = join(config.root, CONFIG_FILE);
 		},
 		configureServer(server) {
-			const reload = () => server.ws.send({ type: "full-reload" });
+			// `pnpm generate` wrote the output before Vite booted, so seed the
+			// digests from what is on disk: without it the session's first content
+			// save looks like every collection changed at once
+			try {
+				for (const name of readdirSync(outputDir)) {
+					if (!name.endsWith(".json") && name !== "index.js") continue;
+					const file = join(outputDir, name);
+					const hash = digest(file);
+					if (hash !== null) digests.set(file, hash);
+				}
+			} catch {
+				// no output yet: the first rebuild seeds it instead
+			}
+
+			/**
+			 * Hand the rebuilt output to Vite as if its own watcher had seen it.
+			 *
+			 * Invalidating the modules by hand is only half the job: it drops the
+			 * cached transform, but it produces no update for the browser, so the
+			 * page has to be reloaded to notice — and a reload on every markdown
+			 * save is the thing this app edits most. Emitting the event Vite
+			 * listens for runs its normal HMR pass instead, which walks the
+			 * importers up to the route module that renders the content and stops
+			 * at the boundary kit gives every page and layout. Content edits patch
+			 * the route in place; a change that finds no boundary still reloads,
+			 * because that is what Vite does when it runs out of importers.
+			 *
+			 * Only the files whose bytes actually moved go out. Velite rewrites
+			 * every collection on every build, and one event per file is one HMR
+			 * pass per file — a markdown save re-rendering the route ten times
+			 * over, nine of them for collections it did not touch.
+			 */
+			const publish = (files: string[]) => {
+				for (const file of files) {
+					const hash = digest(file);
+					if (hash === null || digests.get(file) === hash) continue;
+					digests.set(file, hash);
+					server.watcher.emit("change", file);
+				}
+			};
 
 			const rebuild = () => {
 				queue = queue.then(async () => {
@@ -58,18 +110,10 @@ export function velite(): Plugin {
 					}
 					// the watcher is ignoring this directory, so nothing else will
 					// pick the new content up
-					const files = [
+					publish([
 						join(outputDir, "index.js"),
 						...Object.keys(collections).map((name) => join(outputDir, `${name}.json`)),
-					];
-					for (const environment of Object.values(server.environments)) {
-						for (const file of files) {
-							for (const mod of environment.moduleGraph.getModulesByFile(file) ?? []) {
-								environment.moduleGraph.invalidateModule(mod);
-							}
-						}
-					}
-					reload();
+					]);
 					server.config.logger.info(`velite rebuilt content in ${Date.now() - started}ms`);
 				});
 			};
@@ -83,10 +127,10 @@ export function velite(): Plugin {
 				stale ||= file.endsWith(".md") || file === configFile;
 				clearTimeout(pending);
 				pending = setTimeout(() => {
-					if (!stale) {
-						reload();
-						return;
-					}
+					// a non-markdown file under src/content is a plain module — a
+					// lesson's source, read through `?raw` — and Vite is watching it
+					// like any other, so its own pass has already handled it
+					if (!stale) return;
 					stale = false;
 					rebuild();
 				}, DEBOUNCE_MS);
