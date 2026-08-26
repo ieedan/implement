@@ -9,6 +9,7 @@ import {
 } from "../signal";
 import { isDiscarding } from "../tree";
 import type { Unsubscribe } from "../types";
+import { resolveEventName, type ResolvedEvent } from "./event-name";
 import type { Child } from "./types";
 
 /**
@@ -104,8 +105,17 @@ type TypedEvent<E extends keyof HTMLElementEventMap, El extends HTMLElement> = O
 	readonly currentTarget: El;
 };
 
+/**
+ * Every element event in both phases: `onKeydown` for the bubble phase and
+ * `onKeydownCapture` for the capture phase, matching `ImplementDocument` and
+ * `ImplementWindow`.
+ */
 type EventHandlers<El extends HTMLElement> = {
 	[K in keyof HTMLElementEventMap as `on${Capitalize<K>}`]?: Bindable<
+		(this: El, ev: TypedEvent<K, El>) => void
+	>;
+} & {
+	[K in keyof HTMLElementEventMap as `on${Capitalize<K>}Capture`]?: Bindable<
 		(this: El, ev: TypedEvent<K, El>) => void
 	>;
 };
@@ -807,6 +817,10 @@ type SvgEventHandlers = {
 	[K in keyof SVGElementEventMap as `on${Capitalize<K>}`]?: Bindable<
 		(this: SVGSVGElement, ev: SvgTypedEvent<K>) => void
 	>;
+} & {
+	[K in keyof SVGElementEventMap as `on${Capitalize<K>}Capture`]?: Bindable<
+		(this: SVGSVGElement, ev: SvgTypedEvent<K>) => void
+	>;
 };
 
 /**
@@ -872,24 +886,15 @@ const ATTR_ALIASES: Record<string, string> = {
 	allowfullscreen: "allowFullscreen",
 };
 
-function resolveEventName(key: string): string | null {
-	if (key.length < 3 || !key.startsWith("on")) return null;
-	const third = key[2];
-	if (third === undefined || third !== third.toUpperCase() || third === third.toLowerCase()) {
-		return null;
-	}
-	return key.slice(2).toLowerCase();
-}
-
 /**
  * Prop names repeat across every element of every row, and the answer never
  * changes for a given name — so it is worked out once instead of lower-casing a
  * fresh string per element. Bounded by the number of distinct prop names an app
  * uses, which is small.
  */
-const eventNames = new Map<string, string | null>();
+const eventNames = new Map<string, ResolvedEvent | null>();
 
-function eventName(key: string): string | null {
+function eventName(key: string): ResolvedEvent | null {
 	const cached = eventNames.get(key);
 	// `null` is a cached answer; only `undefined` means "not looked up yet".
 	if (cached !== undefined) return cached;
@@ -1048,23 +1053,32 @@ class EventBinding {
 		private readonly el: Element,
 		private readonly event: string,
 		private readonly listener: EventListener,
+		// The boolean overload rather than an options object: removal has to
+		// match on capture, and this keeps that a field instead of an allocation
+		// per handler per element.
+		private readonly capture: boolean,
 	) {
-		el.addEventListener(event, listener);
+		el.addEventListener(event, listener, capture);
 	}
 
 	stop(): void {
 		// A listener on a node being discarded dies with it. This runs once per
 		// handler per element, which is tens of thousands of calls to tear down
 		// a list, and every one of them is on a node nothing can reach again.
-		if (!isDiscarding()) this.el.removeEventListener(this.event, this.listener);
+		if (!isDiscarding()) this.el.removeEventListener(this.event, this.listener, this.capture);
 	}
 }
 
-function attachEvent(el: Element, event: string, handler: unknown): EventBinding | null {
+function attachEvent(
+	el: Element,
+	event: string,
+	handler: unknown,
+	capture: boolean,
+): EventBinding | null {
 	if (typeof handler !== "function") return null;
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Event props accept any listener after a function check.
 	const listener = handler as EventListener;
-	return new EventBinding(el, event, listener);
+	return new EventBinding(el, event, listener, capture);
 }
 
 /** A handler that can be swapped out, for the rare case of a reactive one. */
@@ -1074,6 +1088,7 @@ class LiveEventBinding extends Binding<unknown> {
 	constructor(
 		private readonly el: Element,
 		private readonly event: string,
+		private readonly capture: boolean,
 		source: ReadableSource,
 	) {
 		super();
@@ -1082,7 +1097,7 @@ class LiveEventBinding extends Binding<unknown> {
 
 	protected apply(handler: unknown): void {
 		this.attached?.stop();
-		this.attached = attachEvent(this.el, this.event, handler);
+		this.attached = attachEvent(this.el, this.event, handler, this.capture);
 	}
 
 	override stop(): void {
@@ -1092,9 +1107,10 @@ class LiveEventBinding extends Binding<unknown> {
 	}
 }
 
-function bindEvent(el: Element, event: string, value: unknown): Teardown {
-	if (isReadable(value)) return new LiveEventBinding(el, event, value);
-	return attachEvent(el, event, value) ?? noop;
+function bindEvent(el: Element, resolved: ResolvedEvent, value: unknown): Teardown {
+	const { event, capture } = resolved;
+	if (isReadable(value)) return new LiveEventBinding(el, event, capture, value);
+	return attachEvent(el, event, value, capture) ?? noop;
 }
 
 function resolveClassValue(value: unknown, found: Set<Readable<unknown>>, out: string[]) {
