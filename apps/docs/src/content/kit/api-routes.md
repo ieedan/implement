@@ -249,7 +249,7 @@ The parameter's type comes from the matcher's schema — which is the object tha
 
 ```ts
 // src/params/integer.ts
-export default matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), v.integer()));
+export default matcher(v.pipe(v.string(), v.digits(), v.transform(Number), v.integer()));
 ```
 
 ```jsonc
