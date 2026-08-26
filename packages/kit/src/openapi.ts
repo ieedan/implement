@@ -350,6 +350,24 @@ async function loadModule(name: string): Promise<Record<string, unknown>> {
 	return (await import(/* @vite-ignore */ name)) as Record<string, unknown>;
 }
 
+/**
+ * One schema converted outside the document builder — what the MCP route uses
+ * to build a tool's `inputSchema` from the same declarations the endpoints
+ * carry. `null` when the vendor is not one kit knows or its converter failed;
+ * the caller decides what an unconstrained schema looks like in its document.
+ */
+export async function convertStandardSchema(
+	schema: StandardSchemaV1,
+	io: SchemaIo,
+): Promise<JsonSchema | null> {
+	try {
+		const convert = await vendorConverter(schema["~standard"].vendor);
+		return convert === null ? null : await convert(schema, io);
+	} catch {
+		return null;
+	}
+}
+
 /** The JSON-Schema converter for a Standard Schema vendor, or `null` for one kit does not know. */
 async function vendorConverter(vendor: string): Promise<ToJsonSchema | null> {
 	if (vendor === KIT_VENDOR) {
