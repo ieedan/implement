@@ -1,5 +1,6 @@
 import { isReadable, subscribe } from "../../signal";
 import type { Unsubscribe } from "../../types";
+import { resolveEventName } from "../event-name";
 import type { Bindable } from "../props";
 import type { Mountable } from "../types";
 
@@ -18,22 +19,6 @@ export type DocumentProps = EventHandlers<DocumentEventMap, Document>;
 
 /** `onResize`, `onHashchange`, … typed against `WindowEventMap`. */
 export type WindowProps = EventHandlers<WindowEventMap, Window>;
-
-function parseEventProp(key: string): { event: string; capture: boolean } | null {
-	if (key.length < 3 || !key.startsWith("on")) return null;
-	const third = key[2];
-	if (third === undefined || third !== third.toUpperCase() || third === third.toLowerCase()) {
-		return null;
-	}
-
-	let name = key.slice(2);
-	let capture = false;
-	if (name.endsWith("Capture") && name.length > "Capture".length) {
-		capture = true;
-		name = name.slice(0, -"Capture".length);
-	}
-	return { event: name.toLowerCase(), capture };
-}
 
 function noop() {}
 
@@ -88,7 +73,7 @@ export function globalEvents(
 				if (!target) return;
 				for (const [key, value] of Object.entries(props)) {
 					if (value === undefined) continue;
-					const parsed = parseEventProp(key);
+					const parsed = resolveEventName(key);
 					if (!parsed) continue;
 					detachers.push(bindListener(target, parsed.event, value, parsed.capture));
 				}

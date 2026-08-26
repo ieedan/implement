@@ -101,6 +101,52 @@ describe("browser mounting", () => {
 		target.remove();
 	});
 
+	it("binds `on*Capture` to the capture phase of the underlying event", () => {
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const app = App({ target });
+		const phases: string[] = [];
+
+		const unmount = app.render(
+			Div(
+				{
+					onClickCapture: () => phases.push("outer capture"),
+					onClick: () => phases.push("outer bubble"),
+				},
+				Button({ onClick: () => phases.push("inner") }, "go"),
+			),
+		);
+
+		target.querySelector("button")!.click();
+		// the capture handler runs on the way down, before the target's own
+		expect(phases).toEqual(["outer capture", "inner", "outer bubble"]);
+
+		unmount();
+		target.remove();
+	});
+
+	// `removeEventListener` only matches a listener registered with the same
+	// capture flag, so a mismatched detach would leave the old handler firing
+	// alongside the new one.
+	it("swaps a reactive `on*Capture` handler without losing the capture phase", () => {
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const app = App({ target });
+		const phases: string[] = [];
+		const handler = signal(() => phases.push("first capture"));
+
+		const unmount = app.render(
+			Div({ onClickCapture: handler }, Button({ onClick: () => phases.push("inner") }, "go")),
+		);
+
+		handler.set(() => phases.push("second capture"));
+		target.querySelector("button")!.click();
+		expect(phases).toEqual(["second capture", "inner"]);
+
+		unmount();
+		target.remove();
+	});
+
 	it("keeps a parent's `this` ref readable while its children unmount", () => {
 		const target = document.createElement("div");
 		document.body.appendChild(target);

@@ -72,6 +72,18 @@ Input({
 });
 ```
 
+Append `Capture` to listen in the capture phase instead, like `onClickCapture` or `onKeydownCapture`. The handler runs on the way down the tree, before anything inside the element sees the event.
+
+```ts
+Div(
+	{
+		// runs before the button's own onClick
+		onClickCapture: () => console.log("capture"),
+	},
+	Button({ onClick: () => console.log("bubble") }, "Click me"),
+);
+```
+
 For `window` and `document` listeners there are dedicated helpers we'll cover later in [Window & Document](/docs/global-events).
 
 ## textContent
