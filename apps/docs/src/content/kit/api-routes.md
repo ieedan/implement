@@ -43,22 +43,35 @@ Note what is not there: no `await request.json()`, no cast, no manual `Response.
 
 Every field is optional. Declare one and kit validates that part of the request; leave it out and it comes through as-is.
 
-|          | What `handle` receives | Without a schema                                                     |
-| -------- | ---------------------- | -------------------------------------------------------------------- |
-| `params` | the schema's output    | the route's params, as strings                                       |
-| `query`  | the schema's output    | `url.searchParams`, one value per key (an array where a key repeats) |
-| `body`   | the schema's output    | `undefined` — an undeclared body is never read                       |
+|          | What `handle` receives                      | Without a schema                                                     |
+| -------- | ------------------------------------------- | -------------------------------------------------------------------- |
+| `params` | the schema's output over the route's params | the route's params, as strings                                       |
+| `query`  | the schema's output                         | `url.searchParams`, one value per key (an array where a key repeats) |
+| `body`   | the schema's output                         | `undefined` — an undeclared body is never read                       |
 
 Schemas are anything implementing [Standard Schema](https://standardschema.dev). These docs use [valibot](https://valibot.dev), but arktype, zod or anything else implementing the spec works the same. Kit does not bundle one; you bring the library you already use, exactly as with [`defineEnv`](/kit/environment-variables).
 
 ```ts
 export const PATCH = handler({
-	params: v.object({ id: v.pipe(v.string(), v.transform(Number), v.number()) }), // overrides the route's string
+	params: v.object({ id: v.pipe(v.string(), v.transform(Number), v.number()) }), // narrows the route's string
 	body: v.partial(v.pick(Post, ["title"])),
 	response: Post,
 	handle: ({ params, body }) => db.update(params.id, body),
 });
 ```
+
+A `params` schema **narrows the params it names**, and only those. Kit merges the schema's output over what the route bound — at runtime and in the type — so a param the schema says nothing about is still there, still typed from the route:
+
+```ts
+// src/routes/api/workspaces/[slug]/issues/[number]/server.ts
+export const GET = handler({
+	params: v.object({ number: v.pipe(v.string(), v.transform(Number), v.number()) }),
+	handle: ({ params }) => db.issue(params.slug, params.number),
+	//                                     ^? string        ^? number
+});
+```
+
+A `[number=integer]` [matcher](/kit/routing) does the same thing a directory at a time, for every route that names it — and without a schema per handler.
 
 A body is parsed by content type: `application/json` is parsed as JSON, form content types are parsed as `FormData` and flattened to an object (one value per field, an array where a field repeats).
 
@@ -229,5 +242,25 @@ With `api.openapi` absent — the default — no document is produced, no file i
 `output` writes the document as a file. Point it inside `static/` and it ships as a plain static asset the host serves; kit answers the same URL in dev, built from the routes as they are right now rather than from whatever the last build left behind.
 
 `path` additionally mounts a live route that builds the document per server. That is the one option with a cost: generating the document needs the schema _objects_, so it pulls your schema library and its JSON-Schema converter into the production server bundle. `output` alone does the work in Node at build time, and neither ever reaches what you deploy.
+
+A route's path parameters come from the route itself. `/api/items/[number=integer]` is documented as the template `/api/items/{number}` — a [matcher](/kit/routing) decides which requests reach the route, which is the app's business and not the URL's.
+
+The parameter's type comes from the matcher's schema — which is the object that gates the segment, so the document describes exactly what the route accepts and cannot drift from it:
+
+```ts
+// src/params/integer.ts
+export default matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
+```
+
+```jsonc
+{
+	"name": "number",
+	"in": "path",
+	"required": true,
+	"schema": { "type": "integer", "pattern": "^\\d+$" },
+}
+```
+
+A handler's own `params` schema wins over the matcher where it declares one.
 
 Standard Schema has no JSON-Schema introspection of its own, so conversion is per-vendor. Kit detects it from the schema's vendor tag — arktype's `.toJsonSchema()`, zod's `z.toJSONSchema`, valibot's `@valibot/to-json-schema` — each imported lazily, in Node only. Anything else is documented as an unconstrained schema with a build warning naming the route, or you can pass `toJsonSchema` yourself. An operation with no schemas is still listed, as a path and a method with an undocumented body.

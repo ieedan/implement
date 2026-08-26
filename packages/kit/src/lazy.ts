@@ -1,5 +1,11 @@
-import { refreshRouters } from "@implementjs/router";
-import { comparePatterns, matchRoutePattern, normalizeRoutePath } from "./match.ts";
+import type { Child, Mountable, Readable } from "@implementjs/core";
+import { refreshRouters, type RouterError } from "@implementjs/router";
+import {
+	comparePatterns,
+	matchErrorRoute,
+	matchRoutePattern,
+	normalizeRoutePath,
+} from "./match.ts";
 import { appMatchers } from "./params.ts";
 
 /**
@@ -128,14 +134,15 @@ export function registerRouteModules(routes: ModuleRoute[]): void {
  * Loads the modules the route serving `url` renders through: its page and the
  * layouts that actually wrap it. Rejects if a chunk fails to load.
  *
- * No-ops for a path matching no registered route. The navigation resolver this
- * runs from is a process-wide singleton, so it also sees the paths of embedded
- * routers driven through `withLocationSignal` — those have nothing to do with
- * the app's own route tree and must pass through untouched. The data resolver
- * already behaves this way.
+ * For a path no route serves, that is the layouts around the nearest
+ * `error.ts` instead — what renders a 404 there. No-ops when neither covers
+ * it. The navigation resolver this runs from is a process-wide singleton, so it
+ * also sees the paths of embedded routers driven through `withLocationSignal`
+ * — those have nothing to do with the app's own route tree and must pass
+ * through untouched. The data resolver already behaves this way.
  */
 export async function preloadRoute(url: string): Promise<void> {
-	const path = normalizeRoutePath(new URL(url, "http://implement.internal").pathname);
+	const path = pathOf(url);
 	// the real matchers, not `"structure"`: preloading the chunks of a route a
 	// matcher would turn down leaves the route that does serve the path without
 	// its modules, and the render is synchronous
@@ -143,8 +150,58 @@ export async function preloadRoute(url: string): Promise<void> {
 	const route = moduleRoutes.find(
 		(entry) => matchRoutePattern(entry.pattern, path, matchers) !== null,
 	);
-	if (route === undefined) return;
+	// nothing serves this path, so what renders it is the nearest error page.
+	// Handled here rather than at the call sites, so every render path that
+	// preloads a destination already preloads what a 404 there would need
+	if (route === undefined) return await preloadErrorRoute(path);
 	await Promise.all(route.modules.map((id) => handleFor(id).load()));
+}
+
+function pathOf(url: string): string {
+	return normalizeRoutePath(new URL(url, "http://implement.internal").pathname);
+}
+
+/**
+ * An `error.ts` and what renders around it, as the generated router module
+ * declares it: the pattern of the directory the boundary covers, the layouts
+ * wrapping it (outermost first, in the `(children, params)` form the router
+ * calls a layout with), and the error page itself.
+ */
+export type ErrorBoundary = {
+	pattern: string;
+	/** Module ids of those layouts — what a render path has to have in memory first. */
+	modules: string[];
+	layouts: ((children: Mountable, params: Record<string, Readable<unknown>>) => Child)[];
+	page: (error: RouterError) => Child;
+};
+
+let errorBoundaries: ErrorBoundary[] = [];
+
+/** Called by the generated router module with every `error.ts` in the app. */
+export function registerErrorRoutes(boundaries: ErrorBoundary[]): void {
+	errorBoundaries = boundaries;
+}
+
+/**
+ * The nearest `error.ts` above a path, with the params its directory binds —
+ * the deepest boundary the path falls inside, and `null` when the app declares
+ * none that covers it.
+ */
+export function errorBoundaryFor(
+	path: string,
+): { route: ErrorBoundary; params: Record<string, unknown> } | null {
+	return matchErrorRoute(errorBoundaries, normalizeRoutePath(path), appMatchers());
+}
+
+/**
+ * Loads the layouts wrapping the nearest `error.ts` above a path — what an
+ * error page renders inside, and so what has to be in memory before one
+ * renders. No-ops when no boundary covers the path.
+ */
+export async function preloadErrorRoute(url: string): Promise<void> {
+	const match = errorBoundaryFor(pathOf(url));
+	if (match === null) return;
+	await Promise.all(match.route.modules.map((id) => handleFor(id).load()));
 }
 
 function handleFor(id: string): ModuleHandle<unknown> {

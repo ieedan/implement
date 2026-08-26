@@ -6,6 +6,7 @@
  * half runs inside `vite.config.ts` under plain node.
  */
 
+import type { Cookies } from "./cookies.ts";
 import { markErrorSource } from "./errors.ts";
 import { mismatch, type ParamMatchers } from "./params.ts";
 
@@ -148,6 +149,21 @@ export type RequestEvent<Params extends Record<string, unknown> = Record<string,
 	/** Per-request state set by `src/hooks.server.ts`, typed through `App.Locals`. */
 	locals: App.Locals;
 	/**
+	 * The request's cookies, and the response's: `get` / `getAll` read what the
+	 * browser sent, `set` / `delete` write `Set-Cookie` onto whatever this
+	 * request answers with — a page, an endpoint, or a client navigation's
+	 * `__data.json`.
+	 *
+	 * ```ts
+	 * export default function load({ cookies }: LoadEvent) {
+	 * 	const workspace = cookies.get("workspace") ?? "personal";
+	 * 	cookies.set("last-seen", new Date().toISOString());
+	 * 	return { workspace };
+	 * }
+	 * ```
+	 */
+	cookies: Cookies;
+	/**
 	 * `fetch`, bound to this request. Relative URLs resolve against
 	 * `event.url`, `cookie` and `authorization` are forwarded on same-origin
 	 * requests, and a same-origin request is dispatched **in-process** — back
@@ -176,14 +192,44 @@ export type RequestEvent<Params extends Record<string, unknown> = Record<string,
 	 * `App.Platform`.
 	 */
 	platform: Readonly<App.Platform> | undefined;
-	/** Adds headers to the response `resolve` produces. Each header may only be set once. */
+	/**
+	 * Adds headers to the response `resolve` produces. Each header may only be
+	 * set once, and `Set-Cookie` — the one header that is legitimately repeated
+	 * — is {@link RequestEvent.cookies}'s rather than this one's.
+	 */
 	setHeaders: (headers: Record<string, string>) => void;
 	getClientAddress: () => string;
 };
 
-/** What a `*.server.ts` load receives — the request event, `params` as plain strings. */
-export type LoadEvent<Params extends Record<string, unknown> = Record<string, string>> =
-	RequestEvent<Params>;
+/**
+ * What a `*.server.ts` load receives — the request event with `params` as
+ * plain strings, plus `parent()`.
+ */
+export type LoadEvent<
+	Params extends Record<string, unknown> = Record<string, string>,
+	ParentData = Record<string, unknown>,
+> = RequestEvent<Params> & {
+	/**
+	 * What the loads above this one in the chain returned, merged root first —
+	 * the same merge the component's `data` is, minus this load's own
+	 * contribution. A layout resolves the workspace once and the pages under it
+	 * read it rather than resolving it again:
+	 *
+	 * ```ts
+	 * export default async function load({ parent }: LoadEvent) {
+	 * 	const { workspace } = await parent();
+	 * 	return { issues: await listIssues(workspace.id) };
+	 * }
+	 * ```
+	 *
+	 * Only ever waits on the loads *above* this one, so awaiting it cannot
+	 * deadlock; a load that never calls it never waits for anything.
+	 *
+	 * Typed through the route's generated `./$types` — `LoadEvent` there is the
+	 * page's parent chain, `LayoutLoadEvent` its layout's.
+	 */
+	parent: () => Promise<ParentData>;
+};
 
 export type ServerLoad = (event: LoadEvent) => unknown;
 
@@ -216,22 +262,108 @@ export function matchPage(
 }
 
 /**
- * Runs a route's load chain — every layout load down to the page's own, root
- * first — and returns the results keyed by server file. `null` when the route
- * has no loads, which is also what a page with nothing to load serves for its
- * `__data.json`.
+ * An `error.ts` and the loads feeding the layouts it renders inside — the same
+ * shape a page route has, because it is the same chain with an error page
+ * where the page would be. `pattern` is the boundary's *directory*: a path
+ * routed anywhere below it falls inside it.
  */
-export async function runLoads(route: PageRoute, event: LoadEvent): Promise<RouteData | null> {
+export type ErrorRoute = PageRoute;
+
+/** How many segments a pattern spends, `(group)` directories already dropped. */
+function patternDepth(pattern: string): number {
+	return pattern.split("/").filter(Boolean).length;
+}
+
+/**
+ * The params a pattern binds on the *start* of a path — what matching a route
+ * directory against a path routed below it means. `null` when the path does
+ * not fall inside that directory.
+ */
+function matchRoutePrefix(
+	pattern: string,
+	path: string,
+	matchers: MatcherMode,
+): Record<string, unknown> | null {
+	const segments = parsePattern(pattern);
+	const parts = path.split("/").filter(Boolean);
+	if (parts.length < segments.length) return null;
+	const last = segments[segments.length - 1];
+	// a catch-all directory owns everything under it, so its own segment takes
+	// the whole remainder rather than one part of it
+	const prefix =
+		last !== undefined && last.param && last.rest ? parts : parts.slice(0, segments.length);
+	return matchRoutePattern(pattern, `/${prefix.join("/")}`, matchers);
+}
+
+/**
+ * The nearest `error.ts` above a path: the deepest boundary whose directory
+ * the path falls inside, which is what makes a section's error page the one a
+ * 404 deep in that section renders — and the root's the one everything else
+ * falls back to. `null` when no boundary covers the path, which is an app with
+ * no root `error.ts` and nothing on the way down.
+ */
+export function matchErrorRoute<T extends { pattern: string }>(
+	errors: T[],
+	path: string,
+	matchers: MatcherMode,
+): { route: T; params: Record<string, unknown> } | null {
+	const sorted = [...errors].toSorted(
+		(a, b) =>
+			patternDepth(b.pattern) - patternDepth(a.pattern) || comparePatterns(a.pattern, b.pattern),
+	);
+	for (const route of sorted) {
+		const params = matchRoutePrefix(route.pattern, path, matchers);
+		if (params !== null) return { route, params };
+	}
+	return null;
+}
+
+/**
+ * Runs a route's load chain — every layout load down to the page's own — and
+ * returns the results keyed by server file. `null` when the route has no
+ * loads, which is also what a page with nothing to load serves for its
+ * `__data.json`.
+ *
+ * Every load is *started* in one pass, root first, so a chain of four loads
+ * that need nothing from each other costs one round of work rather than four
+ * in a row. Sequencing is opt-in and per load: `parent()` waits on the loads
+ * above the one calling it, and on nothing else — which is why a page load
+ * awaiting its layout's data cannot deadlock, and why the sibling page load
+ * that does not care carries none of that wait.
+ */
+export async function runLoads(route: PageRoute, event: RequestEvent): Promise<RouteData | null> {
 	if (route.files.length === 0) return null;
-	const data: RouteData = {};
+	/** Each load's result, chain order, filled as the loop starts them. */
+	const running: Promise<unknown>[] = [];
 	for (const { id, load } of route.files) {
-		try {
-			data[id] = (await load(event)) ?? {};
-		} catch (thrown) {
-			// which load of the chain was running is the one thing the trace
-			// cannot say once the failure is a few awaits deep in a helper
-			throw markErrorSource(thrown, { kind: "load", file: id });
-		}
+		// taken before this load starts, so it holds exactly the chain above it:
+		// `parent()` can wait on no load that is waiting on this one
+		const above = [...running];
+		const parent = async (): Promise<RouteData> => {
+			const merged: RouteData = {};
+			for (const value of await Promise.all(above)) Object.assign(merged, value);
+			return merged;
+		};
+		const result = (async () => {
+			try {
+				return (await load({ ...event, parent })) ?? {};
+			} catch (thrown) {
+				// which load of the chain was running is the one thing the trace
+				// cannot say once the failure is a few awaits deep in a helper
+				throw markErrorSource(thrown, { kind: "load", file: id });
+			}
+		})();
+		// the chain runs concurrently, so a load below may fail while one above it
+		// is still going — the loop below reaches it eventually, but not before
+		// the runtime has already called the rejection unhandled
+		result.catch(() => {});
+		running.push(result);
+	}
+	const data: RouteData = {};
+	// awaited root first, so a failing layout is what the request reports even
+	// when a load under it failed sooner — the order the chain used to run in
+	for (const [index, { id }] of route.files.entries()) {
+		data[id] = await running[index]!;
 	}
 	return data;
 }

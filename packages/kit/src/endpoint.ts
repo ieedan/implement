@@ -110,7 +110,7 @@ export type FormRecord = Record<string, FormDataEntryValue | FormDataEntryValue[
  * the module.
  */
 export type EndpointSpec = {
-	/** What `handle` sees as `event.params` — what the route bound, or the `params` schema's output. */
+	/** What `handle` sees as `event.params` — what the route bound, under the `params` schema's output. */
 	params: unknown;
 	/** What a caller may send as `query`, or `undefined` when nothing declares it. */
 	query: unknown;
@@ -144,8 +144,8 @@ export type Handler<S extends EndpointSpec = EndpointSpec> = ((
 export type HandlerEvent<Params, Query, Body> = Omit<RequestEvent, "params"> & {
 	/**
 	 * The route's params: what the route bound — strings, or whatever a
-	 * `[id=<name>]` matcher parsed them into — or the `params` schema's output
-	 * when the handler declares one.
+	 * `[id=<name>]` matcher parsed them into — with the `params` schema's output
+	 * over them where the handler declares one.
 	 */
 	params: Params;
 	/** `url.searchParams`, or the `query` schema's output when one is declared. */
@@ -172,8 +172,22 @@ export type HandlerDefinition = {
 
 type Schema = StandardSchemaV1;
 
-/** `event.params`: the `params` schema's output, or the route's own strings. */
-type ParamsOf<PS, Fallback> = PS extends Schema ? StandardSchemaV1.InferOutput<PS> : Fallback;
+/** `event.params`: the route's own params, with the `params` schema's output over them. */
+type ParamsOf<PS, Fallback> = PS extends Schema
+	? MergeParams<Fallback, StandardSchemaV1.InferOutput<PS>>
+	: Fallback;
+
+/**
+ * The route's params under the schema's: a param the schema declares is the
+ * schema's, and one it says nothing about stays what the route bound. A schema
+ * narrows the param it names rather than standing in for every param the route
+ * has — declaring `id` on a four-param route is not a reason to redeclare the
+ * other three.
+ */
+type MergeParams<P, O> = Simplify<Omit<P, keyof O> & O>;
+
+/** An intersection, flattened — so a hover and an error message read as one object. */
+type Simplify<T> = { [K in keyof T]: T[K] };
 
 /** `event.query`: the `query` schema's output, or the raw parsed record. */
 type QueryOf<QS> = QS extends Schema ? StandardSchemaV1.InferOutput<QS> : QueryRecord;
@@ -218,8 +232,10 @@ type BodyInputOf<BS> = BS extends Schema ? StandardSchemaV1.InferInput<BS> : und
 /** The parts of a definition that do not depend on whether a `response` schema is present. */
 type Parts<PS, QS, BS> = {
 	/**
-	 * Overrides what the route bound — coerce an `[id]` to a number here. A
-	 * `[id=integer]` matcher already did that, and for every route naming it.
+	 * Narrows what the route bound — coerce an `[id]` to a number here. What the
+	 * schema declares wins; every other param the route binds comes through
+	 * untouched, so a route with four of them only names the one it is changing.
+	 * A `[id=integer]` matcher does the same thing for every route naming it.
 	 */
 	params?: PS;
 	/** Validates `url.searchParams`, flattened to one value (or an array) per key. */
@@ -309,7 +325,7 @@ function buildHandler(definition: HandlerDefinition): Handler {
 		const params =
 			definition.params === undefined
 				? event.params
-				: await validate(definition.params, event.params, "params");
+				: mergeParams(event.params, await validate(definition.params, event.params, "params"));
 		const query =
 			definition.query === undefined
 				? parseQuery(event.url)
@@ -332,6 +348,21 @@ function buildHandler(definition: HandlerDefinition): Handler {
 	Object.defineProperty(run, DEFINITION, { value: definition, enumerable: false });
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SPEC is a type-only phantom key; the runtime object carries only DEFINITION.
 	return run as Handler;
+}
+
+/**
+ * The route's params with the schema's output over them. An object schema
+ * drops the keys it was not told about, so validating `event.params` against a
+ * schema for one param would otherwise take the route's other params with it —
+ * and a schema that says nothing about `slug` is not a schema that means to
+ * remove it. Anything but an object stands in for the params entirely: there
+ * is nothing to merge a string or an array into.
+ */
+function mergeParams(params: Record<string, string>, validated: unknown): unknown {
+	if (typeof validated !== "object" || validated === null || Array.isArray(validated)) {
+		return validated;
+	}
+	return { ...params, ...validated };
 }
 
 /** The definition behind a handler, or `null` for a plain unwrapped one. */

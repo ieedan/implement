@@ -33,6 +33,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { handlerDefinition, type HandlerDefinition, type Method } from "./endpoint.ts";
 import type { EndpointRoute, RequestHandler } from "./match.ts";
+import { JSON_SCHEMA, KIT_VENDOR, type ParamMatchers } from "./params.ts";
 
 const METHODS: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"];
 
@@ -72,12 +73,19 @@ export type OpenApiOptions = {
 	toJsonSchema?: ToJsonSchema;
 };
 
+/** One param a route key binds, with the matcher gating it. */
+export type OpenApiParam = {
+	name: string;
+	/** The matcher a `[id=integer]` segment names, or `null` for a plain `[id]`. */
+	matcher?: string | null;
+};
+
 /** One endpoint as the document builder sees it: its key, its params, and its evaluated module. */
 export type OpenApiEndpoint = {
-	/** The route key — `/api/posts/[id]`, `/docs/[...slug].md`. */
+	/** The route key — `/api/posts/[id]`, `/posts/[id=integer]`, `/docs/[...slug].md`. */
 	key: string;
-	/** Param names the key binds, root first. */
-	params: string[];
+	/** The params the key binds, root first. */
+	params: OpenApiParam[];
 	/** Relative path of the `server.ts`, for warnings. */
 	file: string;
 	/** The evaluated module namespace. */
@@ -106,25 +114,39 @@ export type OpenApiResult = {
 export async function buildOpenApiDocument(
 	endpoints: OpenApiEndpoint[],
 	options: OpenApiOptions,
+	matchers: ParamMatchers = {},
 ): Promise<OpenApiResult> {
 	const warnings: string[] = [];
 	const convert = converter(options.toJsonSchema, warnings);
 	const paths: Record<string, Record<string, unknown>> = {};
+	/** Which route each path template's operations came from, for the collision warning. */
+	const documented = new Map<string, string>();
 
 	for (const endpoint of endpoints) {
 		if (endpoint.module["openapi"] === false) continue;
 		const path = openApiPath(endpoint.key);
+		const previous = documented.get(path);
 		for (const method of METHODS) {
 			const value = endpoint.module[method];
 			if (typeof value !== "function") continue;
+			// a path template has no room for a matcher, so `[id=integer]` and
+			// `[id=uuid]` — two routes as far as the app is concerned — are one
+			// path here, and the second one through wins
+			if (previous !== undefined && paths[path]?.[method.toLowerCase()] !== undefined) {
+				warnings.push(
+					`${method} ${endpoint.file}: "${path}" is already documented by "${previous}" — two routes reach the same path template, so only one of them can be.`,
+				);
+			}
 			const operation = await describeOperation({
 				endpoint,
 				method,
 				definition: handlerDefinition(value),
 				convert,
+				matchers,
 			});
 			paths[path] = { ...paths[path], [method.toLowerCase()]: operation };
 		}
+		documented.set(path, endpoint.file);
 	}
 
 	const document: OpenApiDocument = {
@@ -136,16 +158,26 @@ export async function buildOpenApiDocument(
 	return { document, warnings };
 }
 
-/** `/api/posts/[id]` → `/api/posts/{id}`; `/docs/[...slug].md` → `/docs/{slug}.md`. */
+/**
+ * The route key as a path template: `/api/posts/[id]` → `/api/posts/{id}`,
+ * `/docs/[...slug].md` → `/docs/{slug}.md`.
+ *
+ * A `[id=integer]` matcher comes off with the brackets. It gates which route a
+ * request reaches, which is the app's business and not the URL's — and a
+ * template naming `{id=integer}` names a parameter no document declares, so a
+ * generated client or a Swagger UI has nothing to fill it with.
+ */
 export function openApiPath(key: string): string {
-	return key.replaceAll(/\[(?:\.\.\.)?([^\]]+)\]/g, "{$1}");
+	return key.replaceAll(PARAM_SEGMENT, "{$1}");
 }
+
+/** `[id]`, `[...slug]`, `[id=integer]` — capturing the name, dropping the matcher. */
+const PARAM_SEGMENT = /\[(?:\.\.\.)?([^\]=]+)(?:=[^\]]+)?\]/g;
 
 /** `GET /api/posts/[id]` → `getApiPostsById` — stable, and unique per method and route. */
 export function operationId(method: string, key: string): string {
 	const parts = key
-		.replaceAll(/\[\.\.\.([^\]]+)\]/g, "by-$1")
-		.replaceAll(/\[([^\]]+)\]/g, "by-$1")
+		.replaceAll(PARAM_SEGMENT, "by-$1")
 		.split(/[^A-Za-z0-9]+/)
 		.filter(Boolean);
 	return [
@@ -165,12 +197,13 @@ async function describeOperation(input: {
 	method: Method;
 	definition: HandlerDefinition | null;
 	convert: Converter;
+	matchers: ParamMatchers;
 }): Promise<Record<string, unknown>> {
-	const { endpoint, method, definition, convert } = input;
+	const { endpoint, method, definition, convert, matchers } = input;
 	const where = `${method} ${endpoint.file}`;
 	const operation: Record<string, unknown> = {
 		operationId: operationId(method, endpoint.key),
-		parameters: await parameters(endpoint, definition, convert, where),
+		parameters: await parameters(endpoint, definition, convert, where, matchers),
 	};
 
 	if (definition?.body !== undefined) {
@@ -212,19 +245,22 @@ async function parameters(
 	definition: HandlerDefinition | null,
 	convert: Converter,
 	where: string,
+	matchers: ParamMatchers,
 ): Promise<Record<string, unknown>[]> {
 	const list: Record<string, unknown>[] = [];
 	const pathSchemas =
 		definition?.params === undefined
 			? {}
 			: properties(await convert(definition.params, "input", `${where} params`));
-	for (const name of endpoint.params) {
+	for (const param of endpoint.params) {
 		list.push({
-			name,
+			name: param.name,
 			in: "path",
 			required: true,
-			// a path param is a string on the wire whatever the schema coerces it to
-			schema: pathSchemas[name] ?? { type: "string" },
+			// what the handler declares, else what the matcher makes of the
+			// segment, else the string it arrived as
+			schema: pathSchemas[param.name] ??
+				(await matcherSchema(param, matchers, convert, where)) ?? { type: "string" },
 		});
 	}
 
@@ -235,6 +271,31 @@ async function parameters(
 		list.push({ name, in: "query", required: required.has(name), schema });
 	}
 	return list;
+}
+
+/**
+ * What a `[id=integer]` param carries, converted from the matcher's own schema
+ * — the same conversion a handler's `params` schema goes through, so the
+ * document says `integer` exactly where kit's types say `number`. A matcher
+ * built from a pattern or a bare function has no schema to convert and leaves
+ * the param the string it arrived as.
+ */
+async function matcherSchema(
+	param: OpenApiParam,
+	matchers: ParamMatchers,
+	convert: Converter,
+	where: string,
+): Promise<JsonSchema | null> {
+	if (param.matcher === undefined || param.matcher === null) return null;
+	const schema = matchers[param.matcher]?.schema;
+	if (schema === undefined || schema === null) return null;
+	const converted = await convert(schema, "output", `${where} [${param.name}=${param.matcher}]`);
+	if (converted === null) return null;
+	// the converters stamp a `$schema` on what they hand back, which belongs to a
+	// document rather than to one parameter of one inside it
+	const fragment = { ...converted };
+	delete fragment["$schema"];
+	return fragment;
 }
 
 function properties(schema: JsonSchema | null): Record<string, unknown> {
@@ -291,6 +352,15 @@ async function loadModule(name: string): Promise<Record<string, unknown>> {
 
 /** The JSON-Schema converter for a Standard Schema vendor, or `null` for one kit does not know. */
 async function vendorConverter(vendor: string): Promise<ToJsonSchema | null> {
+	if (vendor === KIT_VENDOR) {
+		// kit's own built-in matchers, which have no vendor package to convert
+		// them — they carry their JSON Schema instead, so `[id=integer]` is
+		// documented as an integer rather than as an unconstrained schema with a
+		// warning, which would make the matchers most apps reach for the worst
+		// documented ones
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The symbol is kit's own, on a schema kit built.
+		return (schema) => (schema as { [JSON_SCHEMA]?: JsonSchema })[JSON_SCHEMA] ?? {};
+	}
 	if (vendor === "zod") {
 		const zod = await loadModule("zod");
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- zod's own converter, reached through a dynamic import.
@@ -337,13 +407,17 @@ export function openApiEndpoint(input: {
 	path: string;
 	options: OpenApiRouteOptions;
 	endpoints: OpenApiEndpoint[];
+	/** The app's matchers, so a `[id=integer]` param documents what the matcher parses it to. */
+	matchers?: ParamMatchers;
 }): EndpointRoute {
 	let document: Promise<string> | undefined;
 	const GET: RequestHandler = async () => {
-		document ??= buildOpenApiDocument(input.endpoints, input.options).then((result) => {
-			for (const warning of result.warnings) console.warn(`[implement] openapi — ${warning}`);
-			return JSON.stringify(result.document);
-		});
+		document ??= buildOpenApiDocument(input.endpoints, input.options, input.matchers).then(
+			(result) => {
+				for (const warning of result.warnings) console.warn(`[implement] openapi — ${warning}`);
+				return JSON.stringify(result.document);
+			},
+		);
 		return new Response(await document, {
 			headers: { "content-type": "application/json; charset=utf-8" },
 		});

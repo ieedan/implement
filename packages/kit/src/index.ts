@@ -52,6 +52,7 @@ import {
 } from "./guard.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
 import { buildOpenApiDocument, type OpenApiEndpoint, type OpenApiOptions } from "./openapi.ts";
+import { builtinMatchers, matcherTable, type ParamMatchers } from "./params.ts";
 import type { PreloadOptions } from "./preload-kinds.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
@@ -106,6 +107,13 @@ export { sync, type KitPluginApi } from "./sync.ts";
 const ROUTER_ID = "$implement/router";
 /** The app's param matchers. Needed in both graphs — a matcher runs on both sides of a navigation. */
 const PARAMS_ID = "$implement/params";
+/**
+ * `invalidate` / `invalidateAll`, the app-facing half of the client data
+ * runtime. Nothing about it is generated — it is a virtual module so an app
+ * reaches it through the same `$implement/*` namespace as its router and its
+ * client, rather than importing kit's runtime entry by name.
+ */
+const NAVIGATION_ID = "$implement/navigation";
 /** The generated client, aliased to the real `.implement/client.ts` file. */
 const CLIENT_ID = "$implement/client";
 /**
@@ -117,6 +125,8 @@ const TYPES_ID = "\0$implement/route-types";
 const TYPES_MODULE = 'export { handler, json } from "@implementjs/kit/endpoint";\n';
 const RESOLVED_ROUTER_ID = "\0$implement/router";
 const RESOLVED_PARAMS_ID = `\0${PARAMS_ID}`;
+const RESOLVED_NAVIGATION_ID = `\0${NAVIGATION_ID}`;
+const NAVIGATION_MODULE = 'export { invalidate, invalidateAll } from "@implementjs/kit/runtime";\n';
 const RESOLVED_PAGES_ID = `\0${PAGES_ID}`;
 const RESOLVED_ENDPOINTS_ID = `\0${ENDPOINTS_ID}`;
 const RESOLVED_HOOKS_ID = `\0${HOOKS_ID}`;
@@ -431,7 +441,8 @@ const treeHasLoads = (node: RouteNode): boolean =>
  * directories bind params, `(group)` directories scope a layout without
  * adding a URL segment, `page@<segment>.ts` / `layout@<segment>.ts` reset
  * the layout chain to an ancestor segment (`page@.ts` resets to the root),
- * and a root `error.ts` renders unmatched paths and render errors —
+ * and an `error.ts` renders unmatched paths and render errors for its own
+ * subtree —
  * and serves the app through `@implementjs/vite`'s SSR dev server and
  * prerenderer. The router itself is exposed as the `$implement/router`
  * virtual module; generated entries, `./$types` declarations, and the
@@ -531,8 +542,8 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	/**
 	 * A page or layout — the files that render, and so the only ones a hot
 	 * update can swap into a mounted route. `server.ts` and `*.server.ts` never
-	 * reach the browser, and `error.ts` is a static import of the router module
-	 * rather than a handle, so neither is a boundary.
+	 * reach the browser, and an `error.ts` is a static import of the router
+	 * module rather than a handle, so neither is a boundary.
 	 */
 	const isRouteComponent = (file: string): boolean =>
 		file.startsWith(`${normalizeFile(routesDir)}/`) && parseRouteFileName(basename(file)) !== null;
@@ -601,11 +612,36 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	): Promise<OpenApiEndpoint[]> => {
 		const routes = apiRoutes(tree ?? scan());
 		const modules = await Promise.all(routes.map((route) => load(`${routesBase}/${route.file}`)));
-		return routes.map((route, index) => ({
-			...route,
-			params: route.params.map((param) => param.name),
-			module: modules[index]!,
-		}));
+		return routes.map((route, index) => ({ ...route, module: modules[index]! }));
+	};
+
+	/**
+	 * The matchers the documented routes name, evaluated the same way — a
+	 * `[id=integer]` param is documented as whatever the matcher parses it to,
+	 * and the only place that type exists outside TypeScript is the matcher
+	 * itself. Only the matchers those routes actually use are loaded.
+	 */
+	const openApiMatchers = async (
+		load: (id: string) => Promise<Record<string, unknown>>,
+		endpoints: OpenApiEndpoint[],
+	): Promise<ParamMatchers> => {
+		const named = new Set(
+			endpoints.flatMap((endpoint) =>
+				endpoint.params
+					.map((param) => param.matcher)
+					.filter((name): name is string => name !== null && name !== undefined),
+			),
+		);
+		// a built-in has no module to load, and the app's own file shadows one
+		const names = [...named].filter((name) => (tree ?? scan()).matchers.includes(name));
+		const modules = await Promise.all(names.map((name) => load(`${paramsBase}/${name}.ts`)));
+		return {
+			...builtinMatchers,
+			...matcherTable(
+				Object.fromEntries(names.map((name, index) => [name, modules[index]!["default"]])),
+				paramsGlob,
+			),
+		};
 	};
 
 	/** The document as a file, with every warning reported against the route it came from. */
@@ -613,9 +649,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		load: (id: string) => Promise<Record<string, unknown>>,
 		warn: (message: string) => void,
 	): Promise<string> => {
+		const endpoints = await openApiEndpoints(load);
 		const { document, warnings } = await buildOpenApiDocument(
-			await openApiEndpoints(load),
+			endpoints,
 			openapi!,
+			await openApiMatchers(load, endpoints),
 		);
 		for (const warning of warnings) warn(`openapi — ${warning}`);
 		return `${JSON.stringify(document, null, "\t")}\n`;
@@ -830,6 +868,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		resolveId(id) {
 			if (id === ROUTER_ID) return RESOLVED_ROUTER_ID;
 			if (id === PARAMS_ID) return RESOLVED_PARAMS_ID;
+			if (id === NAVIGATION_ID) return RESOLVED_NAVIGATION_ID;
 			if (id === PAGES_ID) return RESOLVED_PAGES_ID;
 			if (id === ENDPOINTS_ID) return RESOLVED_ENDPOINTS_ID;
 			if (id === HOOKS_ID) return RESOLVED_HOOKS_ID;
@@ -844,6 +883,9 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			if (id === RESOLVED_PARAMS_ID) {
 				return generateParamsModule(tree ?? scan(), paramsBase);
 			}
+			// a function of nothing, so it never goes stale and the route watcher
+			// has no reason to invalidate it
+			if (id === RESOLVED_NAVIGATION_ID) return NAVIGATION_MODULE;
 			if (SERVER_IDS.includes(id)) {
 				// server files must never reach the browser bundle
 				if (loadOptions?.ssr !== true) {

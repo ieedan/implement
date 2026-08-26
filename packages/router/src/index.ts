@@ -125,13 +125,11 @@ type PathParamValues<Path extends string> = {
 /**
  * What a caller fills a `:param` with. A matched param's own type is offered
  * first, and `string | number` stays allowed — building a URL only ever needs
- * something to stringify, and the matcher runs on the way back in.
+ * something to stringify, and the matcher runs on the way back in. A signal is
+ * allowed everywhere too: `Link` tracks it, and `href`/`navigate` read it at
+ * call time, so moving a param between the two is never a `.get()` edit.
  */
-type HrefParams<P extends string> = {
-	[K in keyof PathParamValues<P>]: PathParamValues<P>[K] | string | number;
-};
-
-type LinkParams<P extends string> = {
+type RouteParams<P extends string> = {
 	[K in keyof PathParamValues<P>]:
 		| PathParamValues<P>[K]
 		| string
@@ -141,11 +139,24 @@ type LinkParams<P extends string> = {
 
 type HrefArgs<P extends string> = [PathParamNames<P>] extends [never]
 	? []
-	: [params: HrefParams<P>];
+	: [params: RouteParams<P>];
+
+/** `href`'s params under the same `params` key `Link` and `navigate` use. */
+type HrefOptionsArgs<P extends string> = [PathParamNames<P>] extends [never]
+	? [options?: { params?: undefined }]
+	: [options: { params: RouteParams<P> }];
 
 type NavigateArgs<P extends string> = [PathParamNames<P>] extends [never]
 	? [options?: NavigateOptions]
-	: [params: HrefParams<P>, options?: NavigateOptions];
+	: [options: NavigateOptions & { params: RouteParams<P> }];
+
+/**
+ * `navigate`'s original shape, params positional. Only ever callable for a
+ * path that has params — a path without them has no second shape to pick.
+ */
+type LegacyNavigateArgs<P extends string> = [PathParamNames<P>] extends [never]
+	? never
+	: [params: RouteParams<P>, options?: NavigateOptions];
 
 export type LinkProps<P extends string> = Omit<ElementProps<"a">, "href"> & {
 	to: P;
@@ -156,7 +167,7 @@ export type LinkProps<P extends string> = Omit<ElementProps<"a">, "href"> & {
 	 * {@link NavigateOptions.noScroll}.
 	 */
 	noScroll?: boolean;
-} & ([PathParamNames<P>] extends [never] ? { params?: undefined } : { params: LinkParams<P> });
+} & ([PathParamNames<P>] extends [never] ? { params?: undefined } : { params: RouteParams<P> });
 
 /**
  * Marks an `<a>` the router follows itself, rather than letting the browser
@@ -200,10 +211,31 @@ export type RouterOptions = {
 export type RouterHelper<T> = Mountable & {
 	/** Reactive current location, shared by every router. */
 	location: Readable<RouterLocation>;
-	/** Build a URL for a route, filling `:param` segments. */
+	/**
+	 * Build a URL for a route, filling `:param` segments. Params go under a
+	 * `params` key, as they do on `Link` and `navigate`; a signal among them
+	 * is read now, since a string cannot go on tracking one.
+	 */
+	href<P extends RoutePaths<T> & string>(path: P, ...args: HrefOptionsArgs<P>): string;
+	/** Build a URL for a route, with the params positional. */
 	href<P extends RoutePaths<T> & string>(path: P, ...args: HrefArgs<P>): string;
-	/** Navigate programmatically. */
+	/**
+	 * Navigate programmatically. Params go under a `params` key alongside the
+	 * navigation options, so the object a `Link` was given carries over to an
+	 * `onSelect: () => navigate(...)` unchanged — signals included, read at
+	 * call time.
+	 *
+	 * ```ts
+	 * router.navigate("/issues/:id", { params: { id }, replace: true });
+	 * ```
+	 */
 	navigate<P extends RoutePaths<T> & string>(path: P, ...args: NavigateArgs<P>): void;
+	/**
+	 * @deprecated Pass the params under `params` instead —
+	 * `navigate(path, { params, ...options })` — which is the shape `Link`
+	 * and `href` take. The positional form keeps working.
+	 */
+	navigate<P extends RoutePaths<T> & string>(path: P, ...args: LegacyNavigateArgs<P>): void;
 	/**
 	 * An `A` that navigates through the router. Modifier keys, non-left
 	 * clicks, and `target` are respected. Sets `aria-current="page"` while
@@ -467,7 +499,10 @@ function buildHref(path: string, params: Record<string, unknown> = {}): string {
 			// `:id=integer` names the matcher gating the segment, not the param
 			const equals = body.indexOf("=");
 			const name = equals === -1 ? body : body.slice(0, equals);
-			const value = params[name];
+			// a param may arrive as a signal — read it here, so every caller
+			// gets that for free and a `derived` over one recomputes the href
+			const given = params[name];
+			const value = isReadable(given) ? given.get() : given;
 			if (value === undefined) {
 				throw new Error(`Missing param "${name}" building href for "${path}"`);
 			}
@@ -478,6 +513,23 @@ function buildHref(path: string, params: Record<string, unknown> = {}): string {
 		})
 		.join("/");
 	return built === "" ? "/" : built;
+}
+
+/**
+ * The params out of `href`/`navigate`'s second argument, which is either the
+ * params themselves or the `{ params }` object `Link` takes.
+ *
+ * A `params` key is the tell, and it stays unambiguous even for a route with a
+ * param of that name: the nested form always holds a record there, while a
+ * param value is a string, number, `Date`, or a signal of one.
+ */
+function paramsOf(arg: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+	if (arg === undefined) return undefined;
+	const nested = arg.params;
+	if (typeof nested !== "object" || nested === null) return arg;
+	if (isReadable(nested) || nested instanceof Date) return arg;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- A nested `params` object is the record the caller filled.
+	return nested as Record<string, unknown>;
 }
 
 const FALLBACK = Symbol("router.fallback");
@@ -750,13 +802,20 @@ export function Router<T extends Routes<T>>(
 		)();
 	};
 
-	const href = (path: string, params?: Record<string, unknown>) => buildHref(path, params);
+	const href = (path: string, arg?: Record<string, unknown>) => buildHref(path, paramsOf(arg));
 
 	const navigate = (path: string, ...rest: unknown[]) => {
-		const takesParams = path.includes(":");
-		/* oxlint-disable typescript/no-unsafe-type-assertion -- Overloaded navigate rest args depend on whether the path has params. */
-		const params = takesParams ? (rest[0] as Record<string, unknown>) : undefined;
-		const navOptions = (takesParams ? rest[1] : rest[0]) as NavigateOptions | undefined;
+		/* oxlint-disable typescript/no-unsafe-type-assertion -- Overloaded navigate rest args depend on whether the path has params and which shape the caller picked. */
+		const first = rest[0] as Record<string, unknown> | undefined;
+		// a path with nothing to fill in never had a params argument to skip
+		if (!path.includes(":")) {
+			navigateTo(buildHref(path), first);
+			return;
+		}
+		const params = paramsOf(first);
+		// `{ params, ...options }` carries both in one object; positionally the
+		// options are the argument after the params
+		const navOptions = (params === first ? rest[1] : first) as NavigateOptions | undefined;
 		/* oxlint-enable typescript/no-unsafe-type-assertion */
 		navigateTo(buildHref(path, params), navOptions);
 	};
@@ -765,18 +824,15 @@ export function Router<T extends Routes<T>>(
 		const { to, params, replace, noScroll, onClick, ...rest } = props;
 
 		const record: Record<string, unknown> = params ?? {};
-		const entries = Object.entries(record);
-		const reactive = entries
-			.map(([, value]) => value)
-			.filter((value): value is Readable<unknown> => isReadable(value));
-		const resolveParams = (): Record<string, unknown> =>
-			Object.fromEntries(
-				entries.map(([name, value]) => [name, isReadable(value) ? value.get() : value]),
-			);
+		const reactive = Object.values(record).filter((value): value is Readable<unknown> =>
+			isReadable(value),
+		);
+		// `buildHref` reads the signals itself, so the href only has to be
+		// rebuilt when one of them changes
 		const linkHref: string | Readable<string> =
 			reactive.length === 0
-				? buildHref(to, resolveParams())
-				: derived(reactive, () => buildHref(to, resolveParams()));
+				? buildHref(to, record)
+				: derived(reactive, () => buildHref(to, record));
 
 		const currentHref = () => (typeof linkHref === "string" ? linkHref : linkHref.get());
 		const hrefSignals = typeof linkHref === "string" ? [] : [linkHref];

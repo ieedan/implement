@@ -20,36 +20,38 @@ import {
 	generateRouterDeclaration,
 } from "../src/typegen.ts";
 
-const integer = matcher((value) => {
-	const parsed = Number(value);
-	return Number.isInteger(parsed) && value.trim() !== "" ? parsed : mismatch;
-});
+const integer = matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), v.integer()));
 
-const word = matcher(/[a-z]+/);
+const word = matcher(v.pipe(v.string(), v.regex(/^[a-z]+$/)));
 
 const matchers = { integer, word };
+
+/** The same names as files on disk, which is what a generator is told. */
+const APP_MATCHERS = ["integer", "word"];
 
 // ---------------------------------------------------------------------------
 // The matcher primitive
 // ---------------------------------------------------------------------------
 
 describe("matcher", () => {
-	it("builds one from a pattern, anchored to the whole segment", () => {
+	it("turns down what the schema turns down", () => {
 		expect(word.match("hello")).toBe("hello");
 		expect(word.match("hello1")).toBe(mismatch);
 		expect(word.match("a/b")).toBe(mismatch);
 	});
 
-	it("does not carry lastIndex between calls on a global pattern", () => {
-		const digits = matcher(/\d+/g);
-		expect(digits.match("12")).toBe("12");
-		expect(digits.match("12")).toBe("12");
-	});
-
-	it("builds one from a parse function, and the value is what it returned", () => {
+	it("carries what the schema parsed the segment to", () => {
 		expect(integer.match("42")).toBe(42);
 		expect(integer.match("4.5")).toBe(mismatch);
 		expect(integer.match("nope")).toBe(mismatch);
+	});
+
+	it("leaves a pattern unanchored, since the regex is the schema's own", () => {
+		// kit rewrote a bare `/\d+/` into `^(?:\d+)$` when it took patterns; a
+		// schema's regex belongs to the schema, so this one really does allow a
+		// suffix and it is the author's `^…$` that stops it
+		expect(matcher(v.pipe(v.string(), v.regex(/\d+/))).match("12abc")).toBe("12abc");
+		expect(matcher(v.pipe(v.string(), v.regex(/^\d+$/))).match("12abc")).toBe(mismatch);
 	});
 
 	it("builds one from a standard schema, rejecting what the schema rejects", () => {
@@ -68,6 +70,49 @@ describe("matcher", () => {
 		expect(page.match("0")).toBe(mismatch);
 	});
 
+	it("parses as permissively as `Number` does, checking the value it got", () => {
+		// a check after the transform runs against the number, so the matcher
+		// reads a segment the way `Number` does rather than policing its spelling
+		const integer = matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
+		expect(integer.match("42")).toBe(42);
+		expect(integer.match("007")).toBe(7);
+		expect(integer.match("0x10")).toBe(16);
+		expect(integer.match("-5")).toBe(-5);
+		// `Number` answers rather than failing for both of these, and the check
+		// after the transform is what turns them down
+		expect(integer.match("oops")).toBe(mismatch);
+		expect(integer.match("9".repeat(400))).toBe(mismatch);
+	});
+
+	it("constrains the segment itself when an action sits before the transform", () => {
+		// the other half of the choice — note it turns down negatives too, so it
+		// is a narrower thing than "an integer"
+		const digits = matcher(v.pipe(v.string(), v.digits(), v.transform(Number), v.integer()));
+		expect(digits.match("42")).toBe(42);
+		for (const segment of ["0x10", "1e3", " 12 ", "-5"]) {
+			expect(digits.match(segment)).toBe(mismatch);
+		}
+		// and it still does not make the URL canonical: `007` is `7` either way
+		expect(digits.match("007")).toBe(7);
+	});
+
+	it("takes a hand-rolled Standard Schema, since the contract is not a library", () => {
+		// what an app with no schema library writes — the interface is small
+		// enough to implement inline, so schema-only never forces a dependency
+		const even = matcher({
+			"~standard": {
+				version: 1,
+				vendor: "test",
+				validate: (value: unknown) =>
+					typeof value === "string" && Number(value) % 2 === 0
+						? { value: Number(value) }
+						: { issues: [{ message: "not even" }] },
+			},
+		} as const);
+		expect(even.match("4")).toBe(4);
+		expect(even.match("5")).toBe(mismatch);
+	});
+
 	it("refuses a schema that cannot answer synchronously", () => {
 		const async = matcher(
 			v.pipeAsync(
@@ -76,6 +121,16 @@ describe("matcher", () => {
 			),
 		);
 		expect(() => async.match("x")).toThrow(/synchronously/);
+	});
+
+	it("keeps the schema it was built from, since that is what gates the segment", () => {
+		const schema = v.pipe(v.string(), v.transform(Number), v.number());
+		const built = matcher(schema);
+		// the object kit documents the param from is the object that just decided
+		// whether the route matches — there is no second declaration to drift
+		expect(built.schema).toBe(schema);
+		expect(word.schema).not.toBeNull();
+		expect(integer.schema).not.toBeNull();
 	});
 
 	it("recognizes its own", () => {
@@ -205,16 +260,30 @@ describe("scanRoutes with matchers", () => {
 		expect(serverRoutes(tree)[0]!.params).toEqual([{ name: "slug", matcher: null }]);
 	});
 
-	it("rejects a route naming a matcher the app does not have", () => {
-		const app = makeApp(["posts/[id=integer]/page.ts"], ["word"]);
+	it("rejects a route naming a matcher that is neither the app's nor built in", () => {
+		const app = makeApp(["posts/[id=uuid]/page.ts"], ["word"]);
 		expect(() => scanRoutes(app.routes, app.params)).toThrow(
-			/names the param matcher "integer".*the ones it declares are word/s,
+			/names the param matcher "uuid".*the ones it declares are word.*built-in ones are integer, number/s,
 		);
 	});
 
-	it("says the app has none when the params directory is missing", () => {
-		const app = makeApp(["posts/[id=integer]/page.ts"]);
-		expect(() => scanRoutes(app.routes, app.params)).toThrow(/declares no param matchers/);
+	it("says what is built in when the params directory is missing", () => {
+		const app = makeApp(["posts/[id=uuid]/page.ts"]);
+		expect(() => scanRoutes(app.routes, app.params)).toThrow(
+			/declares no param matchers, and the built-in ones are integer, number/,
+		);
+	});
+
+	it("accepts a built-in with no file for it, and an app file that shadows one", () => {
+		// the whole point: `[id=integer]` needs nothing in src/params
+		const bare = makeApp(["posts/[id=integer]/page.ts", "prices/[at=number]/page.ts"]);
+		expect(() => scanRoutes(bare.routes, bare.params)).not.toThrow();
+		expect(scanRoutes(bare.routes, bare.params).matchers).toEqual([]);
+
+		const shadowed = makeApp(["posts/[id=integer]/page.ts"], ["integer"]);
+		expect(() => scanRoutes(shadowed.routes, shadowed.params)).not.toThrow();
+		// `matchers` stays the app's own files — what it declares, not what exists
+		expect(scanRoutes(shadowed.routes, shadowed.params).matchers).toEqual(["integer"]);
 	});
 
 	it("lets two siblings bind the same name behind different matchers", () => {
@@ -240,14 +309,21 @@ describe("generateParamsModule", () => {
 		expect(code).toContain('import matcher_0 from "/src/params/integer.ts";');
 		expect(code).toContain('import matcher_1 from "/src/params/word.ts";');
 		expect(code).toContain('"integer": matcher_0,');
-		expect(code).toContain('}, "src/params");');
+		expect(code).toContain('}, "src/params")');
 	});
 
-	it("is an empty table for an app with no matchers", () => {
+	it("still carries the built-ins for an app with no matchers of its own", () => {
 		const app = makeApp(["page.ts"]);
-		expect(generateParamsModule(scanRoutes(app.routes, app.params), "/src/params")).toBe(
-			"export const matchers = {};\n",
-		);
+		const code = generateParamsModule(scanRoutes(app.routes, app.params), "/src/params");
+		expect(code).toContain("...builtinMatchers,");
+		expect(code).not.toContain("import matcher_0");
+	});
+
+	it("spreads the app's over the built-ins, so its own file wins", () => {
+		const app = makeApp(["posts/[id=integer]/page.ts"], ["integer"]);
+		const code = generateParamsModule(scanRoutes(app.routes, app.params), "/src/params");
+		expect(code.indexOf("...builtinMatchers,")).toBeLessThan(code.indexOf("...matcherTable("));
+		expect(code).toContain('import matcher_0 from "/src/params/integer.ts";');
 	});
 });
 
@@ -274,7 +350,7 @@ describe("generateRouterModule with matchers", () => {
 // The generated types — the point of the whole thing
 // ---------------------------------------------------------------------------
 
-const PATHS = { routes: "src/routes", params: "src/params" };
+const PATHS = { routes: "src/routes", params: "src/params", appMatchers: APP_MATCHERS };
 
 describe("the types a matched param gets", () => {
 	const node = {
@@ -288,6 +364,7 @@ describe("the types a matched param gets", () => {
 		pageServer: null,
 		layoutServer: null,
 		endpoint: "posts/[id=integer]/server.ts",
+		error: null,
 		extensions: [],
 		children: [],
 	};
@@ -331,7 +408,6 @@ describe("the types a matched param gets", () => {
 	it("keeps the ParamTypes augmentation out of the script that declares $implement/*", () => {
 		const declaration = generateRouterDeclaration(
 			[{ pattern: "/posts/:id=integer", params: [{ name: "id", matcher: "integer" }] }],
-			false,
 			PATHS,
 		);
 		expect(declaration).toContain('declare module "$implement/params"');

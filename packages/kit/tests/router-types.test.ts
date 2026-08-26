@@ -82,9 +82,10 @@ function makeApp(): string {
 	writeFileSync(
 		join(dir, "src/params/issue-id.ts"),
 		[
-			'import { matcher, mismatch } from "@implementjs/kit/params";',
+			'import { matcher } from "@implementjs/kit/params";',
+			'import * as v from "valibot";',
 			"",
-			"export default matcher((value) => (/^\\d+$/.test(value) ? Number(value) : mismatch));",
+			"export default matcher(v.pipe(v.string(), v.regex(/^\\d+$/), v.transform(Number)));",
 			"",
 		].join("\n"),
 	);

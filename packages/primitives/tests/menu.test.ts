@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and DOM stubs require intentional narrowing. */
 import { describe, expect, it } from "vitest";
-import { App, signal } from "@implementjs/core";
+import { App, derived, signal } from "@implementjs/core";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxGroup,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuGroupHeading,
+	DropdownMenuItem,
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
@@ -182,6 +183,36 @@ describe("menu number values", () => {
 		radios[1]!.click();
 		expect(size.get()).toBe(14);
 		expect(radios.map((item) => item.getAttribute("data-state"))).toEqual(["unchecked", "checked"]);
+
+		unmount();
+	});
+});
+
+describe("menu trigger disabled", () => {
+	it("follows a derived value, not just a signal of its own", async () => {
+		const board = signal<"private" | "public">("private");
+		const isPublic = derived([board], (value) => value === "public");
+		const { target, unmount } = await mount(
+			DropdownMenu(
+				DropdownMenuTrigger({ disabled: isPublic.bind((value) => !value) }, "Visibility"),
+				DropdownMenuContent(DropdownMenuItem({}, "Anyone with the link")),
+			),
+		);
+
+		const trigger = target.querySelector<HTMLButtonElement>("[data-dropdown-menu-trigger]")!;
+		expect(trigger.disabled).toBe(true);
+		expect(trigger.getAttribute("data-disabled")).toBe("");
+
+		trigger.click();
+		expect(trigger.getAttribute("data-state")).toBe("closed");
+
+		// the value the trigger reads is two derivations away from what changed
+		board.set("public");
+		expect(trigger.disabled).toBe(false);
+		expect(trigger.getAttribute("data-disabled")).toBe(null);
+
+		trigger.click();
+		expect(trigger.getAttribute("data-state")).toBe("open");
 
 		unmount();
 	});

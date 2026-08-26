@@ -30,6 +30,19 @@ const IMPLEMENT_RULES: Record<string, "error" | "warn"> = {
 };
 
 /**
+ * The newest ES version the enabled rules assume, as a year.
+ *
+ * The `unicorn` plugin's `suspicious` rules include two that fix to an ES2023 array method —
+ * `no-array-sort` to `Array#toSorted()` and `no-array-reverse` to `Array#toReversed()` — so an app
+ * whose `tsconfig` libs anything older cannot satisfy `lint` and `check` at the same time. The
+ * templates' `TARGET` is held at or above this.
+ */
+export const LINT_ES_VERSION = 2023;
+
+/** The rules that ask for it, so a bump here has something to check itself against. */
+export const LINT_ES_RULES = ["unicorn/no-array-sort", "unicorn/no-array-reverse"];
+
+/**
  * What both configs stay out of: the build output, and the `.implement/` kit regenerates on every
  * sync. Neither is written by hand, and linting `.implement/` would report on generated code.
  */
@@ -42,9 +55,9 @@ export const oxlint: Adder = {
 	hint: "Lint and format with oxc, and the @implementjs/eslint rules",
 	devDependencies: ["@implementjs/eslint", "oxfmt", "oxlint"],
 	scripts: { ...OXLINT_SCRIPTS },
-	// the templates write what reads well in the generator — a long class list on one line, a
-	// `lib: []` per line — which is not always what oxfmt would write. Formatting once on the way
-	// out is what makes `format:check` pass on an app nobody has touched yet.
+	// the templates already write what this config would have written, so over them this is a
+	// no-op — it is here for the files a run pulls in from somewhere else, like the `ui` addon's
+	// components, which arrive formatted however the registry keeps them.
 	postInstallScript: "format",
 	files: () => [
 		{ path: "oxlint.config.ts", contents: oxlintConfig() },

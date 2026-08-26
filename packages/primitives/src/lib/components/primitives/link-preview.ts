@@ -13,9 +13,10 @@ import {
 	type Child,
 	type ComponentProps,
 	type PortalProps,
+	type Readable,
 	type Signal,
 } from "@implementjs/core";
-import { getId, getReadableValue, noop, type MaybeReadable } from "../../utils";
+import { getId, getReadableValue, noop, toReadable, type MaybeReadable } from "../../utils";
 import { tabbable } from "../../focus";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
@@ -35,7 +36,7 @@ export type LinkPreviewRootProps = {
 	/** Runs whenever the open state changes. */
 	onOpenChange?: ChangeHandler<boolean>;
 	/** When disabled the preview never opens; the link still works. */
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 	/** When true, the page behind cannot scroll while the preview is open. Defaults to true. */
 	preventScroll?: boolean;
 	/** How long the pointer must rest on the link before the preview opens, in milliseconds. */
@@ -46,7 +47,7 @@ export type LinkPreviewRootProps = {
 
 class LinkPreviewState {
 	open: Signal<boolean>;
-	disabled: Signal<boolean>;
+	disabled: Readable<boolean>;
 	trigger = ref<HTMLAnchorElement>();
 	content = signal<LinkPreviewContentState | null>(null);
 	autoUpdateDispose: (() => void) | null = null;
@@ -66,7 +67,7 @@ class LinkPreviewState {
 
 	constructor(readonly opts: LinkPreviewRootProps) {
 		this.open = signal(opts.open ?? false);
-		this.disabled = signal(opts.disabled ?? false);
+		this.disabled = toReadable(opts.disabled ?? false);
 		this.openDelay = opts.openDelay ?? 700;
 		this.closeDelay = opts.closeDelay ?? 300;
 	}

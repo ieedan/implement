@@ -21,6 +21,7 @@ import {
 } from "@/templates/shared";
 import { hasAddon, type Template, type TemplateContext } from "@/templates/types";
 import { dependencies, type Dependency } from "@/templates/versions";
+import { call, object } from "@/utils/format";
 
 /** A full stack app on `@implementjs/kit`: file based routing, SSR in dev, prerendered on build. */
 export const kit: Template = {
@@ -167,11 +168,11 @@ function layout(ctx: TemplateContext): string {
 				]
 			: []),
 		`\t\tNav(`,
-		`\t\t\t{ class: "${c.nav}" },`,
-		`\t\t\trouter.Link({ class: "${c.navLink}", to: "/" }, "Home"),`,
-		`\t\t\trouter.Link({ class: "${c.navLink}", to: "/about" }, "About"),`,
+		...object([`class: "${c.nav}"`], 3),
+		...call("router.Link", [`class: "${c.navLink}"`, `to: "/"`], [`"Home"`], 3),
+		...call("router.Link", [`class: "${c.navLink}"`, `to: "/about"`], [`"About"`], 3),
 		`\t\t),`,
-		`\t\tMain({ class: "${c.main}" }, children),`,
+		...call("Main", [`class: "${c.main}"`], ["children"], 2),
 		`\t);`,
 		`}`,
 	].join("\n")}\n`;
@@ -206,7 +207,7 @@ function aboutPage(ctx: TemplateContext): string {
 		`\t\t\t"src/routes/about/page.ts",`,
 		`\t\t\t" — every directory under src/routes with a page.ts is a route.",`,
 		`\t\t),`,
-		`\t\tA({ class: "${c.link}", href: "${DOCS_URL}" }, "Read the docs"),`,
+		...call("A", [`class: "${c.link}"`, `href: "${DOCS_URL}"`], [`"Read the docs"`], 2),
 		`\t);`,
 		`}`,
 	].join("\n")}\n`;
@@ -303,13 +304,13 @@ function readme(ctx: TemplateContext): string {
 
 		## Scripts
 
-		| Script    | What it does                                   |
-		| --------- | ---------------------------------------------- |
-		| \`dev\`     | Start the dev server (server rendered, HMR)    |
-		| \`build\`   | Prerender the site into \`dist/\`                |
-		| \`preview\` | Serve the build locally                        |
-		| \`sync\`    | Regenerate \`.implement/\` without running vite  |
-		| \`check\`   | Sync, then typecheck the app                   |
+		| Script    | What it does                                  |
+		| --------- | --------------------------------------------- |
+		| \`dev\`     | Start the dev server (server rendered, HMR)   |
+		| \`build\`   | Prerender the site into \`dist/\`               |
+		| \`preview\` | Serve the build locally                       |
+		| \`sync\`    | Regenerate \`.implement/\` without running vite |
+		| \`check\`   | Sync, then typecheck the app                  |
 
 		## Structure
 

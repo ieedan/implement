@@ -32,7 +32,9 @@ afterEach(() => {
 	root = null;
 });
 
-const PATHS = { routes: "src/routes", params: "src/params" };
+const APP_MATCHERS = ["integer", "word"];
+
+const PATHS = { routes: "src/routes", params: "src/params", appMatchers: APP_MATCHERS };
 
 const slugNode = {
 	dir: "docs/[...slug]",
@@ -45,6 +47,7 @@ const slugNode = {
 	pageServer: null,
 	layoutServer: null,
 	endpoint: null,
+	error: null,
 	extensions: [],
 	children: [],
 };
@@ -54,7 +57,7 @@ describe("generateRouteTypes", () => {
 		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] }, PATHS);
 		expect(types).toContain('export type RouteParams = { "slug": Readable<string> };');
 		expect(types).toContain('export type ServerParams = { "slug": string };');
-		expect(types).toContain("export type LoadEvent = KitRequestEvent<ServerParams>;");
+		expect(types).toContain("export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;");
 		expect(types).toContain("export type RequestEvent = KitRequestEvent<ServerParams>;");
 		expect(types).toContain("export type PageProps = { params: RouteParams;");
 		expect(types).toContain("data: Readable<PageData>");
@@ -75,6 +78,36 @@ describe("generateRouteTypes", () => {
 		);
 		expect(types).toContain(
 			'export type PageData = Merge<Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>, LoadData<typeof import("../../docs/[...slug]/page.server.ts").default>>;',
+		);
+	});
+
+	it("types parent() as the chain above the load, its own file dropped", () => {
+		const types = generateRouteTypes(
+			{
+				...slugNode,
+				layoutServer: "docs/[...slug]/layout.server.ts",
+				pageServer: "docs/[...slug]/page.server.ts",
+			},
+			{
+				layoutFiles: ["layout.server.ts", "docs/[...slug]/layout.server.ts"],
+				pageFiles: [
+					"layout.server.ts",
+					"docs/[...slug]/layout.server.ts",
+					"docs/[...slug]/page.server.ts",
+				],
+			},
+			PATHS,
+		);
+		// the page's parent is both layouts above it
+		expect(types).toContain(
+			'export type PageParentData = Merge<Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>, LoadData<typeof import("../../docs/[...slug]/layout.server.ts").default>>;',
+		);
+		// this directory's own layout load is not its own parent
+		expect(types).toContain(
+			'export type LayoutParentData = Merge<{}, LoadData<typeof import("../../layout.server.ts").default>>;',
+		);
+		expect(types).toContain(
+			"export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;",
 		);
 	});
 });
@@ -108,7 +141,6 @@ describe("generateRouterDeclaration", () => {
 				{ pattern: "/", params: [] },
 				{ pattern: "/docs/:...slug", params: [{ name: "slug", matcher: null }] },
 			],
-			false,
 			PATHS,
 		);
 		expect(declaration).toContain('declare module "$implement/router"');
@@ -120,12 +152,20 @@ describe("generateRouterDeclaration", () => {
 		expect(declaration).toContain('declare module "$implement/hooks"');
 	});
 
-	it("declares the error page export only for an app that has one", () => {
-		const routes = [{ pattern: "/", params: [] }];
-		expect(generateRouterDeclaration(routes, false, PATHS)).not.toContain("errorPage");
-		expect(generateRouterDeclaration(routes, true, PATHS)).toContain(
-			"export function errorPage(error: RouterError): Child;",
+	it("declares $implement/navigation, so invalidate() type-checks in an app", () => {
+		const declaration = generateRouterDeclaration([{ pattern: "/", params: [] }], PATHS);
+		expect(declaration).toContain('declare module "$implement/navigation"');
+		expect(declaration).toContain(
+			'export { invalidate, invalidateAll } from "@implementjs/kit/runtime";',
 		);
+	});
+
+	it("declares the error boundaries beside the pages, since the pipeline runs their loads", () => {
+		const declaration = generateRouterDeclaration([{ pattern: "/", params: [] }], PATHS);
+		expect(declaration).toContain(
+			'import type { ErrorRoute, PageRoute } from "@implementjs/kit/server";',
+		);
+		expect(declaration).toContain("export const errors: ErrorRoute[];");
 	});
 });
 
@@ -133,7 +173,7 @@ describe("App.Api", () => {
 	const routes = [{ pattern: "/", params: [] }];
 
 	it("merges the generated client in, keyed off the app's own route table", () => {
-		const declaration = generateRouterDeclaration(routes, false, PATHS);
+		const declaration = generateRouterDeclaration(routes, PATHS);
 		expect(declaration).toContain("declare namespace App {");
 		expect(declaration).toContain(
 			'type GeneratedApi = import("@implementjs/kit/client").TypedClient<import("../client.ts").Api>;',
@@ -141,7 +181,7 @@ describe("App.Api", () => {
 	});
 
 	it("names the client before extending it, since an interface may only extend a name", () => {
-		const declaration = generateRouterDeclaration(routes, false, PATHS);
+		const declaration = generateRouterDeclaration(routes, PATHS);
 		// `interface Api extends import("…").Client<…> {}` is TS2499, which
 		// `skipLibCheck` hides — leaving `App.Api` empty and `event.api` useless
 		expect(declaration).toContain("interface Api extends GeneratedApi {}");
@@ -149,11 +189,11 @@ describe("App.Api", () => {
 	});
 
 	it("follows the app's chosen error style", () => {
-		expect(generateRouterDeclaration(routes, false, PATHS, { errors: "neverthrow" })).toContain(
+		expect(generateRouterDeclaration(routes, PATHS, { errors: "neverthrow" })).toContain(
 			'import("@implementjs/kit/client/neverthrow").ResultClient<import("../client.ts").Api>',
 		);
 		expect(
-			generateRouterDeclaration(routes, false, PATHS, { errors: "throw", style: "nested" }),
+			generateRouterDeclaration(routes, PATHS, { errors: "throw", style: "nested" }),
 		).toContain(
 			'import("@implementjs/kit/client").NestedClient<import("../client.ts").Api, import("@implementjs/kit/client").ThrowWrapper>',
 		);
@@ -294,7 +334,7 @@ describe("writeGenerated", () => {
 		);
 	});
 
-	it("writes the ParamTypes augmentation only while the app has matchers", () => {
+	it("stops pointing ParamTypes at a matcher module the app has deleted", () => {
 		const app = makeApp(["page.ts", "posts/[id=integer]/page.ts"]);
 		const routesDir = join(app, "src/routes");
 		const paramsDir = join(app, "src/params");
@@ -303,13 +343,39 @@ describe("writeGenerated", () => {
 		const augmentation = join(app, ".implement/types/$implement-params.d.ts");
 
 		writeGenerated(app, scanRoutes(routesDir, paramsDir));
-		expect(readFileSync(augmentation, "utf8")).toContain('declare module "@implementjs/router"');
+		expect(readFileSync(augmentation, "utf8")).toContain("src/params/integer.ts");
 
-		// left behind, it augments the registry with a matcher module that is gone
+		// the app's own `integer` goes; the built-in of that name is what is left,
+		// so the augmentation stays but must not name a module that is gone
 		rmSync(join(routesDir, "posts"), { recursive: true });
 		rmSync(paramsDir, { recursive: true });
 		writeGenerated(app, scanRoutes(routesDir, paramsDir));
-		expect(existsSync(augmentation)).toBe(false);
+		const after = readFileSync(augmentation, "utf8");
+		expect(after).not.toContain("src/params/integer.ts");
+		expect(after).toContain("builtinMatchers");
+	});
+
+	it("types a built-in from kit, and lets the app's own file shadow it", () => {
+		const app = makeApp(["posts/[id=integer]/page.ts", "prices/[at=number]/page.ts"]);
+		const routesDir = join(app, "src/routes");
+		const paramsDir = join(app, "src/params");
+		mkdirSync(paramsDir, { recursive: true });
+		writeFileSync(join(paramsDir, "integer.ts"), "export default null;\n");
+		writeGenerated(app, scanRoutes(routesDir, paramsDir));
+
+		// `number` has no file, so it types from kit
+		const prices = readFileSync(
+			join(app, ".implement/types/src/routes/prices/[at=number]/$types.d.ts"),
+			"utf8",
+		);
+		expect(prices).toContain("builtinMatchers");
+		// `integer` does, so the app's wins over the built-in of that name
+		const posts = readFileSync(
+			join(app, ".implement/types/src/routes/posts/[id=integer]/$types.d.ts"),
+			"utf8",
+		);
+		expect(posts).toContain("params/integer.ts");
+		expect(posts).not.toContain("builtinMatchers");
 	});
 
 	it("prunes $types for removed routes", () => {

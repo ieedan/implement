@@ -1,3 +1,4 @@
+import { createCookieJar } from "./cookies.ts";
 import {
 	errorSource,
 	isHttpError,
@@ -8,11 +9,13 @@ import {
 import { PUBLIC_ENV_ROUTE, publicEnvBootModule, publicEnvSnapshot } from "./env-runtime.ts";
 import {
 	matchEndpoint,
+	matchErrorRoute,
 	matchPage,
 	normalizeRoutePath,
 	runLoads,
 	type EndpointMatch,
 	type EndpointRoute,
+	type ErrorRoute,
 	type PageMatch,
 	type PageRoute,
 	type RequestEvent,
@@ -76,6 +79,9 @@ declare global {
 export type { ErrorSource, ServerErrorReport } from "./errors.ts";
 export { formatServerError } from "./errors.ts";
 
+// what `event.cookies` is, for a hooks file or an endpoint naming the type
+export type { CookieOptions, Cookies, CookieScope } from "./cookies.ts";
+
 // the wrapper routes reach through their `./$types`, re-exported so a
 // `server.ts` that would rather name the package can
 export { handler, json, type JsonResponse } from "./endpoint.ts";
@@ -89,6 +95,7 @@ export type {
 
 export type {
 	EndpointRoute,
+	ErrorRoute,
 	LoadEvent,
 	MatcherMode,
 	PageRoute,
@@ -329,6 +336,14 @@ export type KitServerOptions = {
 	/** Every `server.ts` endpoint in the app. */
 	endpoints: EndpointRoute[];
 	/**
+	 * Every `error.ts` in the app, with the loads feeding the layouts it renders
+	 * inside. The pipeline runs the nearest boundary's chain before it renders an
+	 * error page, so the section shell around a 404 has the data its layout load
+	 * returns. Without them an error page renders in layouts whose `data` is
+	 * empty — which is what an app with no `layout.server.ts` has anyway.
+	 */
+	errors?: ErrorRoute[];
+	/**
 	 * The app's param matchers, keyed by the name a `[param=<name>]` directory
 	 * uses — the generated `$implement/params` module. A route whose pattern
 	 * names one only serves a path its matcher accepts, and the value it
@@ -372,6 +387,7 @@ export type KitServer = {
  */
 export function createKitServer(options: KitServerOptions): KitServer {
 	const { hooks, pages, endpoints, renderPage, createApiClient, publicEnv } = options;
+	const errors = options.errors ?? [];
 	const matchers = options.matchers ?? {};
 	let started: Promise<void> | undefined;
 	const serveEnv = publicEnv === undefined ? null : publicEnvRoute(publicEnv);
@@ -405,6 +421,8 @@ export function createKitServer(options: KitServerOptions): KitServer {
 		const endpoint = isDataRequest ? null : matchEndpoint(endpoints, routePath, matchers);
 		const page = endpoint === null ? matchPage(pages, routePath, matchers) : null;
 
+		const jar = createCookieJar(request, url);
+
 		const depth = respondOptions.depth ?? 0;
 		/**
 		 * `fetch` for this request. A cross-origin call goes out over the network
@@ -427,7 +445,10 @@ export function createKitServer(options: KitServerOptions): KitServer {
 				init?.headers ?? (input instanceof Request ? input.headers : undefined),
 			);
 			for (const name of FORWARDED_HEADERS) {
-				const value = request.headers.get(name);
+				// cookies come from the jar rather than the incoming headers, so a
+				// route reached through `event.fetch` sees the session the hook
+				// above it just issued instead of the one the browser sent
+				const value = name === "cookie" ? jar.header() : request.headers.get(name);
 				if (value !== null && !headers.has(name)) headers.set(name, value);
 			}
 			const nested =
@@ -453,6 +474,7 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			params: (endpoint?.params ?? page?.params ?? {}) as Record<string, string>,
 			route: { id: endpoint?.route.id ?? page?.route.id ?? null },
 			locals: {},
+			cookies: jar.cookies,
 			isDataRequest,
 			platform: respondOptions.platform,
 			setHeaders: (values) => {
@@ -486,6 +508,31 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			return await renderPageResponse(current, transform, page, page === null ? 404 : 200, null);
 		};
 
+		/**
+		 * The loads feeding the layouts around the nearest `error.ts` — what a
+		 * page render falls back to when no route matched, or when the render is
+		 * the error page itself.
+		 *
+		 * A failing boundary load is swallowed rather than raised: this already
+		 * *is* the failure path, and the second error would replace the one the
+		 * request is answering with. The error page renders in a shell with empty
+		 * data instead, which is the shell an app with no `layout.server.ts` has.
+		 */
+		const errorData = async (current: RequestEvent, status: number): Promise<RouteData | null> => {
+			const match = matchErrorRoute(errors, routePath, matchers);
+			if (match === null) return null;
+			try {
+				// the boundary's directory binds params of its own — `/app/:slug`
+				// still knows which workspace the 404 was inside
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Matched params are typed per route through `./$types`.
+				const params = match.params as Record<string, string>;
+				return await runLoads(match.route, { ...current, params });
+			} catch (thrown) {
+				report(thrown, current, status);
+				return null;
+			}
+		};
+
 		const renderPageResponse = async (
 			current: RequestEvent,
 			transform: PageTransform,
@@ -493,7 +540,11 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			status: number,
 			pageError: { code: number; message: string } | null,
 		): Promise<Response> => {
-			const data = match === null ? null : await runLoads(match.route, current);
+			// no page match means the error page is what renders — either the
+			// router falling through to it for an unmatched path, or `failed`
+			// rendering it outright — and it renders inside its own layouts
+			const data =
+				match === null ? await errorData(current, status) : await runLoads(match.route, current);
 			let rendered: PageRender | null;
 			try {
 				rendered = await renderPage({ url: current.url, data, error: pageError });
@@ -570,14 +621,19 @@ export function createKitServer(options: KitServerOptions): KitServer {
 
 		const resolve: Resolve = async (resolveEvent, resolveOptions) => {
 			const response = await produce(resolveEvent, pageTransform(resolveOptions));
-			return withHeaders(response, headers);
+			return withHeaders(response, headers, jar.flush());
 		};
 
 		try {
 			await started;
-			return await (hooks.handle ?? defaultHandle)({ event, resolve });
+			// the hook's response, not `resolve`'s: a `handle` that answers with a
+			// redirect of its own never called `resolve`, and the cookie it set on
+			// the way to that decision — a cleared session, a returning `?next=` —
+			// has nowhere else to go. Flushed cookies never go out twice.
+			const response = await (hooks.handle ?? defaultHandle)({ event, resolve });
+			return withHeaders(response, headers, jar.flush());
 		} catch (thrown) {
-			return withHeaders(await failed(thrown, event), headers);
+			return withHeaders(await failed(thrown, event), headers, jar.flush());
 		}
 	}
 
@@ -615,14 +671,24 @@ function pageTransform(options: ResolveOptions | undefined): PageTransform {
 	return async (html) => (await transformPageChunk({ html, done: true })) ?? "";
 }
 
-/** Applies `event.setHeaders` to a response, leaving headers it already carries alone. */
-function withHeaders(response: Response, headers: Map<string, string>): Response {
-	if (headers.size === 0) return response;
+/**
+ * Applies `event.setHeaders` and `event.cookies` to a response, leaving
+ * headers it already carries alone. Cookies are *appended*: `Set-Cookie` is
+ * legitimately repeated, so two cookies are two headers — and a route that
+ * returned a `Set-Cookie` of its own keeps it.
+ */
+function withHeaders(
+	response: Response,
+	headers: Map<string, string>,
+	cookies: string[],
+): Response {
+	if (headers.size === 0 && cookies.length === 0) return response;
 	// a response may have immutable headers (`Response.redirect()`), so copy
 	const next = new Response(response.body, response);
 	for (const [name, value] of headers) {
 		if (!next.headers.has(name)) next.headers.set(name, value);
 	}
+	for (const cookie of cookies) next.headers.append("set-cookie", cookie);
 	return next;
 }
 

@@ -7,6 +7,7 @@ import {
 	ref,
 	signal,
 	type Child,
+	type Readable,
 	type ReactiveMap,
 	type Ref,
 	type Signal,
@@ -14,7 +15,7 @@ import {
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
 
@@ -33,14 +34,14 @@ export type TabsRootProps = RenderableProps<typeof Div> & {
 	/** Whether arrow keys wrap from the last trigger back to the first. */
 	loop?: boolean;
 	activationMode?: TabsActivationMode;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 const TabsCtx = context<TabsState>("TabsCtx");
 
 class TabsState {
 	value: Signal<string>;
-	disabled: Signal<boolean>;
+	disabled: Readable<boolean>;
 	/** Trigger ids by tab value, so each panel can point back at its trigger. */
 	triggerIds: ReactiveMap<string, string> = ImplementMap<string, string>();
 	/** Content ids by tab value, so each trigger can point at its panel. */
@@ -50,10 +51,10 @@ class TabsState {
 		readonly opts: Required<Pick<TabsRootProps, "loop" | "orientation" | "activationMode">>,
 		readonly ref: Ref<HTMLDivElement>,
 		value: TabsRootProps["value"],
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 	) {
 		this.value = signal(value ?? "");
-		this.disabled = signal(disabled);
+		this.disabled = toReadable(disabled);
 	}
 
 	select(tabValue: string) {
@@ -140,7 +141,7 @@ export type TabsTriggerProps = Omit<RenderableProps<typeof Button>, "disabled" |
 	value: string;
 	/** Plain string: the panel points back at it with `aria-labelledby`. */
 	id?: string;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 export const TabsTrigger = createComponent(function TabsTrigger(
@@ -149,8 +150,8 @@ export const TabsTrigger = createComponent(function TabsTrigger(
 ) {
 	return TabsCtx.Use((root) => {
 		root.triggerIds.set(value, id);
-		const disabledSignal = signal(disabled);
-		const isDisabled = derived([disabledSignal, root.disabled], (own, group) => own || group);
+		const ownDisabled = toReadable(disabled);
+		const isDisabled = derived([ownDisabled, root.disabled], (own, group) => own || group);
 		const selected = root.value.bind((current) => current === value);
 
 		const activate = () => {

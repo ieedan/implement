@@ -69,6 +69,48 @@ src/routes
 
 An `@` [layout reset](/kit/routing) resets data the same way it resets layouts: a page that skips a layout also skips that layout's load.
 
+## Reading the layout's data in a page load
+
+The layouts above a page and the page itself run for the same request, so a page load can wait for what the layouts already worked out instead of working it out again. That's `parent()`:
+
+```ts
+// src/routes/app/[slug]/layout.server.ts
+import { requireMembership } from "@/lib/auth";
+import type { LayoutLoadEvent } from "./$types";
+
+export default async function load({ locals, params }: LayoutLoadEvent) {
+	return { workspace: await requireMembership(locals, params.slug) };
+}
+```
+
+```ts
+// src/routes/app/[slug]/issues/page.server.ts
+import { listIssues } from "@/lib/issues";
+import type { LoadEvent } from "./$types";
+
+export default async function load({ parent }: LoadEvent) {
+	const { workspace } = await parent();
+	return { issues: await listIssues(workspace.id) };
+}
+```
+
+`parent()` resolves to everything the loads **above** this one returned, merged root first — the same merge `data` is, minus this load's own contribution. It's typed from those loads' return types, so `workspace` here is whatever `requireMembership` hands back.
+
+That matters most for decisions rather than data. A membership check that lives in the layout and is read by the pages beneath it is made once per request; one repeated in every page load is four queries and, worse, four copies of the same authorization rule.
+
+`./$types` exports two flavours, because a directory's own layout is a parent of its page but not of itself:
+
+- `LoadEvent` — for `page.server.ts`. `parent()` is every layout above the page, this directory's own included.
+- `LayoutLoadEvent` — for `layout.server.ts`. `parent()` is the layouts above _it_.
+
+### Loads run concurrently
+
+Kit starts every load in a route's chain at once. A page load that never calls `parent()` doesn't wait for the layout above it, so a chain of four independent loads costs one round of work rather than four in a row.
+
+`parent()` is how you opt back into sequencing, and it only ever waits on the loads above the one calling it — which is why awaiting it can't deadlock. If a page load needs the layout's data, it awaits `parent()` and pays for that wait; its sibling that doesn't, doesn't.
+
+One consequence worth knowing: a page load can't rely on its layout's load having mutated `locals` first, because the two may well be in flight together. Pass the value through `parent()` instead.
+
 ## Calling your own API from a load
 
 A load's event carries a `fetch` of its own, and an `api` — the [generated client](/kit/api-routes) bound to it. A same-origin request through either is dispatched **in-process**, back through the request pipeline with no socket in between, so a load reading its own app's endpoint costs a function call rather than a round trip out of the process and back:
@@ -84,7 +126,59 @@ export default async function load({ api }: LoadEvent) {
 }
 ```
 
-`event.fetch` also resolves relative URLs against `event.url` and forwards the request's `cookie` and `authorization` headers on same-origin calls, so an endpoint behind a session sees the same session the page does.
+`event.fetch` also resolves relative URLs against `event.url` and forwards the request's `cookie` and `authorization` headers on same-origin calls, so an endpoint behind a session sees the same session the page does — the session as it now stands, including a cookie this request has just set.
+
+## Setting a cookie from a load
+
+A load has no access to the response, so `event.cookies` is how it answers with one:
+
+```ts
+// src/routes/app/[slug]/layout.server.ts
+import type { LayoutLoadEvent } from "./$types";
+
+export default function load({ params, cookies }: LayoutLoadEvent) {
+	cookies.set("last-workspace", params.slug, { maxAge: 60 * 60 * 24 * 30 });
+	return { workspace: params.slug };
+}
+```
+
+It goes out on the rendered document and on the `__data.json` a client navigation fetched alike, so the cookie reaches the browser whichever way the page was reached. See [cookies](/kit/hooks#cookies) for the whole API and the defaults kit fills in.
+
+## Re-running a load after a mutation
+
+A load runs when a page is rendered or navigated to. When the user then _changes_ something, the data that load returned is stale — and that's what `invalidate()` is for:
+
+```ts
+import { invalidate, invalidateAll } from "$implement/navigation";
+
+await api.PATCH("/api/v1/issues/[id]", { params: { id }, body: { done: true } });
+await invalidate();
+```
+
+`invalidate()` re-runs the loads feeding the page you're on and reseeds `data` with what they return. It goes through the same `__data.json` endpoint a client navigation uses, so it is the same loads, the same merge, and the same typed `data` — nothing is patched by hand.
+
+The new data lands in the store the page is already reading, so a component holding `data` — or anything `derived` from it — updates where it stands. Nothing remounts.
+
+`invalidate()` resolves once the fresh data is seeded, so awaiting it means the page is showing it.
+
+### Naming a route
+
+With no argument, `invalidate()` re-runs everything feeding the page. Pass a route and the loads only re-run when that route is part of what's on screen — the page's own route, or a layout above it:
+
+```ts
+// the unread count lives in the app shell's layout load, and this page is
+// inside that shell — so the shell's load re-runs with everything else
+await invalidate("/app/:slug");
+
+// a route this page is not inside: nothing to do
+await invalidate("/app/:slug/settings");
+```
+
+The argument is a route pattern (`/app/:slug/inbox`) or a concrete path (`/app/acme/inbox`) — a concrete path is just a pattern that binds nothing.
+
+`invalidateAll()` is `invalidate()` with nothing to narrow it. Kit keys load data by the server file that produced it and one route's chain is live at a time, so "all of them" and "this page's" are the same set; the two names are there so the call site can say which one it meant.
+
+Two invalidations in flight at once are a mutation answered twice, and the older answer is the stale one however the network ordered them — kit drops it rather than seeding it over the newer one. So is an answer that arrives after the user has navigated away.
 
 ## Where the data actually comes from
 
@@ -92,6 +186,7 @@ You never fetch it yourself, but it helps to know the plumbing:
 
 - **First paint.** The server render runs the loads, renders with the data, and embeds it in the HTML. The client picks it up during hydration — no duplicate request.
 - **Client-side navigation.** Before a navigation to a load-bearing route commits, kit fetches that route's data from `<path>/__data.json` and only then swaps the page. In dev that endpoint runs your loads on demand; in the built site it's a static file. That fetch usually happens while the pointer is still over the link rather than under the click — see [Preloading](/kit/preloading).
+- **`invalidate()`.** The same `__data.json` request, made on demand instead of on the way into a route, with the result seeded into the store the mounted page is reading. Never served from a preload — stale is the one thing invalidating is trying not to be.
 - **On build.** The prerender runs every route's loads once, writing the results into each page's HTML and its `__data.json`. On a static host the data is frozen at build time — rebuild to refresh it.
 
 The [packages page](/packages) of this site is a live example: a `page.server.ts` reads every workspace `package.json` off disk and the page renders the versions from `data`.

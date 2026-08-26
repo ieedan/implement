@@ -15,7 +15,7 @@ import { handleRovingKeydown } from "../helpers/roving-focus";
 import { collapsePresence } from "../helpers/collapse-presence";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
-import { getId, LIB_PREFIX, resolveId } from "../../utils";
+import { getId, LIB_PREFIX, resolveId, toReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
 
@@ -36,7 +36,7 @@ export type AccordionRootProps<T extends "single" | "multiple" = "single"> = (T 
 			onValueChange?: ChangeHandler<string | null>;
 		}) &
 	RenderableProps<typeof Div> & {
-		disabled?: Signal<boolean> | boolean;
+		disabled?: Readable<boolean> | boolean;
 		/** Whether arrow keys wrap from the last trigger back to the first. */
 		loop?: boolean;
 		orientation?: "horizontal" | "vertical";
@@ -45,13 +45,13 @@ export type AccordionRootProps<T extends "single" | "multiple" = "single"> = (T 
 const AccordionCtx = context<AccordionState>("AccordionCtx");
 
 abstract class AccordionState {
-	disabled: Signal<boolean>;
+	disabled: Readable<boolean>;
 	constructor(
 		readonly opts: { loop: boolean; orientation: "horizontal" | "vertical" },
 		readonly ref: Ref<HTMLDivElement>,
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 	) {
-		this.disabled = signal(disabled);
+		this.disabled = toReadable(disabled);
 	}
 
 	abstract isOpen(value: string): Readable<boolean>;
@@ -74,7 +74,7 @@ class AccordionSingleState extends AccordionState {
 	constructor(
 		opts: { loop: boolean; orientation: "horizontal" | "vertical" },
 		rootRef: Ref<HTMLDivElement>,
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 		value?: Signal<string | null>,
 	) {
 		super(opts, rootRef, disabled);
@@ -103,7 +103,7 @@ class AccordionMultipleState extends AccordionState {
 	constructor(
 		opts: { loop: boolean; orientation: "horizontal" | "vertical" },
 		rootRef: Ref<HTMLDivElement>,
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 		value?: Signal<string[]>,
 	) {
 		super(opts, rootRef, disabled);
@@ -178,7 +178,7 @@ export const Accordion = createComponent(function Accordion(
 export type AccordionItemProps = RenderableProps<typeof Div> & {
 	/** Identifies the item. Must be unique within the accordion. */
 	value: string;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 class AccordionItemState {
@@ -191,9 +191,9 @@ class AccordionItemState {
 	constructor(
 		readonly rootState: AccordionState,
 		readonly value: AccordionItemProps["value"],
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 	) {
-		const ownDisabled = signal(disabled);
+		const ownDisabled = toReadable(disabled);
 		this.disabled = derived([ownDisabled, rootState.disabled], (own, root) => own || root);
 	}
 
@@ -250,7 +250,7 @@ export const AccordionItem = createComponent(function AccordionItem(
 });
 
 export type AccordionTriggerProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 export const AccordionTrigger = createComponent(function AccordionTrigger(
@@ -259,7 +259,7 @@ export const AccordionTrigger = createComponent(function AccordionTrigger(
 ) {
 	return AccordionItemCtx.Use((state) => {
 		state.triggerId.set(resolveId(id));
-		const ownDisabled = signal(disabled);
+		const ownDisabled = toReadable(disabled);
 		const isDisabled = derived([ownDisabled, state.disabled], (own, item) => own || item);
 
 		return render(

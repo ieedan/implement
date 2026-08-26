@@ -74,8 +74,35 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect((await render("/users/42")).html).toContain("<p>user 42</p>");
 	});
 
-	it("renders the error page for unmatched paths", async () => {
-		expect((await render("/nope/nope")).html).toContain("<p>not found</p>");
+	it("renders the error page for unmatched paths, inside the layouts above it", async () => {
+		const { html } = await render("/nope/nope");
+		expect(html).toContain("<p>not found</p>");
+		// the root error page renders in the root layout, the way a root page does
+		expect(html).toContain('<main class="shell">');
+	});
+
+	it("renders a section's own error page inside that section's shell", async () => {
+		const { html } = await render("/section/acme/issue/9999");
+		// the nearest error.ts wins over the root's
+		expect(html).toContain("<p>section says 404</p>");
+		expect(html).not.toContain("<p>not found</p>");
+		// and it renders inside the section's layout, with what the section's
+		// layout load returned — the sidebar and the workspace switcher survive
+		expect(html).toContain('<div class="workspace">');
+		expect(html).toContain("<p>acme</p>");
+		// which is itself inside the root layout
+		expect(html.indexOf('<main class="shell">')).toBeLessThan(
+			html.indexOf('<div class="workspace">'),
+		);
+	});
+
+	it("falls back to the root error page for a section that declares none", async () => {
+		// `/shop` has layouts of its own but no error.ts, so the root boundary is
+		// the nearest one and its chain is the root layout alone
+		const { html } = await render("/shop/42/nope");
+		expect(html).toContain("<p>not found</p>");
+		expect(html).toContain('<main class="shell">');
+		expect(html).not.toContain('<div class="product">');
 	});
 
 	it("renders (group) routes without the group in the path", async () => {
@@ -136,6 +163,43 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			"data-page/layout.server.ts": { shared: "layout-data" },
 			"data-page/page.server.ts": { message: "loaded /data-page" },
 		});
+	});
+
+	it("gives a load its parent layouts' data, two levels up", async () => {
+		const result = await render("/parent-chain/deep");
+		expect(result.data).toEqual({
+			"parent-chain/layout.server.ts": { workspace: "acme", member: true },
+			"parent-chain/deep/layout.server.ts": { section: "acme/deep" },
+			"parent-chain/deep/page.server.ts": { title: "acme/deep in acme" },
+		});
+		expect(result.html).toContain("<p>acme/deep in acme</p>");
+	});
+
+	it("writes a $types typing parent() as the chain above the load", () => {
+		const types = readFileSync(
+			join(fixture, ".implement/types/src/routes/parent-chain/deep/$types.d.ts"),
+			"utf8",
+		);
+		expect(types).toContain("export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;");
+		expect(types).toContain(
+			"export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;",
+		);
+		// the layout's own load is not its own parent; the page's is both layouts
+		expect(types).toContain(
+			'export type LayoutParentData = Merge<{}, LoadData<typeof import("../../parent-chain/layout.server.ts").default>>;',
+		);
+		expect(types).toContain(
+			'export type PageParentData = Merge<Merge<{}, LoadData<typeof import("../../parent-chain/layout.server.ts").default>>, LoadData<typeof import("../../parent-chain/deep/layout.server.ts").default>>;',
+		);
+	});
+
+	it("resolves $implement/navigation to the invalidation helpers", async () => {
+		const navigation = (await server.ssrLoadModule("$implement/navigation")) as {
+			invalidate: unknown;
+			invalidateAll: unknown;
+		};
+		expect(typeof navigation.invalidate).toBe("function");
+		expect(typeof navigation.invalidateAll).toBe("function");
 	});
 
 	it("returns no data for routes without loads", async () => {
@@ -473,6 +537,20 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 					required: false,
 					schema: { type: "string", enum: ["true", "false"], default: "false" },
 				},
+			]);
+			// a matcher gates which requests reach the route, which is no part of
+			// the URL — and the param is documented as what the matcher parses it to
+			expect(Object.keys(live.paths)).toContain("/orders/{id}");
+			expect(Object.keys(live.paths)).not.toContain("/orders/{id=integer}");
+			// the schema is the matcher's own, so the document says what the route
+			// hands a handler rather than the string the segment arrived as
+			expect(live.paths["/orders/{id}"]?.["get"]?.parameters).toEqual([
+				{ name: "id", in: "path", required: true, schema: { type: "integer" } },
+			]);
+			// a built-in matcher: nothing in src/params declares `number`, and the
+			// document still says what the route hands a handler
+			expect(live.paths["/prices/{at}"]?.["get"]?.parameters).toEqual([
+				{ name: "at", in: "path", required: true, schema: { type: "number" } },
 			]);
 			// `output` lands under static/, so its URL answers in dev too — built
 			// from the routes as they are now, not from a file a build left behind

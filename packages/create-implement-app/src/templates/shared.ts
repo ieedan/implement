@@ -1,5 +1,6 @@
 import dedent from "dedent";
 import { hasAddon, type TemplateContext } from "@/templates/types";
+import { call, json, object, property } from "@/utils/format";
 
 /** implement has no docs site of its own yet, everything lives in the monorepo. */
 export const DOCS_URL = "https://github.com/ieedan/implement";
@@ -86,19 +87,17 @@ export function packageJson({
 	dependencies: Record<string, string>;
 	devDependencies: Record<string, string>;
 }): string {
-	return `${JSON.stringify(
-		{
-			name,
-			private: true,
-			version: "0.0.0",
-			type: "module",
-			scripts,
-			dependencies,
-			devDependencies,
-		},
-		null,
-		"\t",
-	)}\n`;
+	// the key order oxfmt puts a package.json in — `version` ahead of `private` — so the app's
+	// first format leaves its manifest alone
+	return json({
+		name,
+		version: "0.0.0",
+		private: true,
+		type: "module",
+		scripts,
+		dependencies,
+		devDependencies,
+	});
 }
 
 /**
@@ -142,7 +141,7 @@ export function vscodeExtensions(ctx: TemplateContext): string {
 	// Tailwind's class completion is only useful where the app has tailwind.
 	if (hasAddon(ctx, "tailwind")) recommendations.push("bradlc.vscode-tailwindcss");
 
-	return `${JSON.stringify({ recommendations }, null, "\t")}\n`;
+	return json({ recommendations });
 }
 
 /**
@@ -179,15 +178,11 @@ const TAILWIND_CLASS_FUNCTIONS = ["cn", "tv"];
  * where VS Code does not offer completions unless it is asked to.
  */
 export function vscodeSettings(ctx: TemplateContext): string {
-	return `${JSON.stringify(
-		{
-			"editor.quickSuggestions": { strings: "on" },
-			...(hasAddon(ctx, "ui") ? { "tailwindCSS.classFunctions": TAILWIND_CLASS_FUNCTIONS } : {}),
-			"tailwindCSS.experimental.classRegex": TAILWIND_CLASS_REGEX,
-		},
-		null,
-		"\t",
-	)}\n`;
+	return json({
+		"editor.quickSuggestions": { strings: "on" },
+		...(hasAddon(ctx, "ui") ? { "tailwindCSS.classFunctions": TAILWIND_CLASS_FUNCTIONS } : {}),
+		"tailwindCSS.experimental.classRegex": TAILWIND_CLASS_REGEX,
+	});
 }
 
 export function gitignore(): string {
@@ -818,11 +813,7 @@ export function counterComponent(
 	if (icons) lines.push(`import { MinusIcon, PlusIcon } from "@implementjs/lucide";`);
 	if (primitives) {
 		lines.push(
-			`import {`,
-			`\tCollapsible,`,
-			`\tCollapsibleContent,`,
-			`\tCollapsibleTrigger,`,
-			`} from "@implementjs/primitives";`,
+			`import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@implementjs/primitives";`,
 		);
 	}
 	if (ui) lines.push(`import { Button } from ${JSON.stringify(uiImport)};`);
@@ -846,12 +837,12 @@ export function counterComponent(
 	lines.push(
 		``,
 		`const styles = {`,
-		...used.map((key) => `\t${key}: ${JSON.stringify(c[key])},`),
+		...used.map((key) => property(`${key}: ${JSON.stringify(c[key])}`, 1)),
 		`};`,
 		``,
 		`const links = [`,
-		...links.map(
-			(link) => `\t{ label: ${JSON.stringify(link.label)}, href: ${JSON.stringify(link.href)} },`,
+		...links.flatMap((link) =>
+			object([`label: ${JSON.stringify(link.label)}`, `href: ${JSON.stringify(link.href)}`], 1),
 		),
 		`];`,
 		``,
@@ -863,10 +854,10 @@ export function counterComponent(
 	};
 
 	// the styled Button carries its own look, so it takes a variant instead of a class
-	const buttonProps = (direction: "Decrement" | "Increment"): string => {
+	const buttonProps = (direction: "Decrement" | "Increment"): string[] => {
 		const onClick = `onClick: () => count.${direction === "Decrement" ? "decrement" : "increment"}()`;
-		if (ui) return `{ variant: "outline", size: "icon", "aria-label": "${direction}", ${onClick} }`;
-		return `{ class: styles.button, "aria-label": "${direction}", ${onClick} }`;
+		const look = ui ? [`variant: "outline"`, `size: "icon"`] : [`class: styles.button`];
+		return [...look, `"aria-label": "${direction}"`, onClick];
 	};
 
 	lines.push(
@@ -884,15 +875,9 @@ export function counterComponent(
 		`\t\t),`,
 		`\t\tDiv(`,
 		`\t\t\t{ class: styles.counter },`,
-		`\t\t\tButton(`,
-		`\t\t\t\t${buttonProps("Decrement")},`,
-		`\t\t\t\t${label("minus")},`,
-		`\t\t\t),`,
+		...call("Button", buttonProps("Decrement"), [label("minus")], 3),
 		`\t\t\tSpan({ class: styles.count }, count),`,
-		`\t\t\tButton(`,
-		`\t\t\t\t${buttonProps("Increment")},`,
-		`\t\t\t\t${label("plus")},`,
-		`\t\t\t),`,
+		...call("Button", buttonProps("Increment"), [label("plus")], 3),
 		`\t\t),`,
 		...(modeWatcher ? [`\t\tModeToggle(),`] : []),
 		...(forms ? [`\t\tSignUpForm(),`] : []),
@@ -951,7 +936,7 @@ export function modeModule(ctx: TemplateContext): string {
 		`import { createModeManager } from "@implementjs/mode-watcher";`,
 		``,
 		`const styles = {`,
-		`\ttoggle: ${JSON.stringify(c.trigger)},`,
+		property(`toggle: ${JSON.stringify(c.trigger)}`, 1),
 		`};`,
 		``,
 		`/** Module scope, so anything can import it and change the mode. */`,
@@ -983,7 +968,7 @@ export function signUpFormComponent(ctx: TemplateContext): string {
 		`import * as v from "valibot";`,
 		``,
 		`const styles = {`,
-		...used.map((key) => `\t${key}: ${JSON.stringify(c[key])},`),
+		...used.map((key) => property(`${key}: ${JSON.stringify(c[key])}`, 1)),
 		`};`,
 		``,
 		`const SignUpSchema = v.object({`,
@@ -999,8 +984,18 @@ export function signUpFormComponent(ctx: TemplateContext): string {
 		`\t\t{ class: styles.form, of: form, onSubmit: (output) => signedUpAs.set(output.email) },`,
 		`\t\tTextField(form, "email", "Email", "email"),`,
 		`\t\tTextField(form, "password", "Password", "password"),`,
-		`\t\tButton({ class: styles.submit, type: "submit", disabled: form.isSubmitting }, "Sign up"),`,
-		`\t\tSpan({ class: styles.success }, signedUpAs.bind((email) => (email ? \`Signed up as \${email}\` : ""))),`,
+		...call(
+			"Button",
+			[`class: styles.submit`, `type: "submit"`, `disabled: form.isSubmitting`],
+			[`"Sign up"`],
+			2,
+		),
+		...call(
+			"Span",
+			[`class: styles.success`],
+			[`signedUpAs.bind((email) => (email ? \`Signed up as \${email}\` : ""))`],
+			2,
+		),
 		`\t);`,
 		`}`,
 		``,
@@ -1023,6 +1018,18 @@ export function signUpFormComponent(ctx: TemplateContext): string {
 	].join("\n")}\n`;
 }
 
+/**
+ * The ES version both templates compile against — `target` and the `lib` that comes with it.
+ *
+ * It has to keep up with the rules the `oxlint` adder turns on: `unicorn/no-array-sort` fixes an
+ * `array.sort(...)` to `Array#toSorted()` and `unicorn/no-array-reverse` fixes `array.reverse()`
+ * to `Array#toReversed()`, both of which arrived in ES2023. On ES2022 the two halves of the app
+ * contradict each other — `pnpm lint` asks for a method `pnpm check` says does not exist — over
+ * something as ordinary as sorting a list. `LINT_ES_VERSION`, next to those rules, is the
+ * version they need, and a test holds this one at or above it.
+ */
+export const TARGET = "ES2023";
+
 export function tsconfig({
 	extend,
 	include,
@@ -1032,30 +1039,26 @@ export function tsconfig({
 	include: string[];
 	types: string[];
 }): string {
-	return `${JSON.stringify(
-		{
-			...(extend ? { extends: extend } : {}),
-			compilerOptions: {
-				target: "ES2022",
-				lib: ["ES2022", "DOM", "DOM.Iterable"],
-				module: "ESNext",
-				moduleResolution: "bundler",
-				strict: true,
-				noEmit: true,
-				skipLibCheck: true,
-				isolatedModules: true,
-				verbatimModuleSyntax: true,
-				noUncheckedIndexedAccess: true,
-				noUncheckedSideEffectImports: true,
-				// the implement packages export their TypeScript source
-				allowImportingTsExtensions: true,
-				types,
-			},
-			include,
+	return json({
+		...(extend ? { extends: extend } : {}),
+		compilerOptions: {
+			target: TARGET,
+			lib: [TARGET, "DOM", "DOM.Iterable"],
+			module: "ESNext",
+			moduleResolution: "bundler",
+			strict: true,
+			noEmit: true,
+			skipLibCheck: true,
+			isolatedModules: true,
+			verbatimModuleSyntax: true,
+			noUncheckedIndexedAccess: true,
+			noUncheckedSideEffectImports: true,
+			// the implement packages export their TypeScript source
+			allowImportingTsExtensions: true,
+			types,
 		},
-		null,
-		"\t",
-	)}\n`;
+		include,
+	});
 }
 
 /** The `plugins: [...]` entries a Vite config needs for the selected addons. */

@@ -126,14 +126,21 @@ A few behaviors worth knowing:
 
 ## Programmatic navigation
 
+`navigate` takes params under a `params` key, the way `Link` does, next to the navigation options. A nav item that becomes a menu item's `onSelect` keeps the object it already had:
+
 ```ts
 router.navigate("/issues");
-router.navigate("/issues/:id", { id: created.id });
+router.navigate("/issues/:id", { params: { id: created.id } });
+router.navigate("/issues/:id", { params: { id }, replace: true }); // params can be Readables
 router.navigate("/login", { replace: true });
 router.navigate("/issues", { noScroll: true });
 
-const url = router.href("/issues/:id", { id: 42 }); // "/issues/42"
+const url = router.href("/issues/:id", { params: { id: 42 } }); // "/issues/42"
 ```
+
+A `Readable` param is read when the call happens. A `Link` goes on tracking one and rewrites its `href`; `navigate` and `href` are a moment, not a subscription, so they take the value it has then — which is why the same params work for both without a `.get()` in between.
+
+Both also still take params as a bare second argument — `router.navigate("/issues/:id", { id }, { replace: true })` and `router.href("/issues/:id", { id })` — the shape they had before the `params` key. It keeps working; new code should use `params`.
 
 Both are typed against the tree like `Link`. `href` only builds the string — it never navigates, so it has nothing to scroll. For untyped navigation (external state, redirects by string) there is `navigateTo(href, { replace?, noScroll? })`, which lives in `@implementjs/core` — navigation and the current location are core's, not the router's.
 

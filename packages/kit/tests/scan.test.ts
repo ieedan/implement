@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { pageRoutes, staticRoutePaths } from "../src/codegen.ts";
+import { errorPatterns, pageRoutes, staticRoutePaths } from "../src/codegen.ts";
 import { formatRouteWarning, parseSegment, routeFileSuggestion, scanRoutes } from "../src/scan.ts";
 
 let dir: string | null = null;
@@ -43,7 +43,7 @@ describe("parseSegment", () => {
 });
 
 describe("scanRoutes", () => {
-	it("collects pages, layouts, and the root error file", () => {
+	it("collects pages, layouts, and the root error page", () => {
 		const tree = scanRoutes(
 			makeRoutes([
 				"page.ts",
@@ -118,8 +118,23 @@ describe("scanRoutes", () => {
 		);
 	});
 
-	it("rejects error.ts outside the routes root", () => {
-		expect(() => scanRoutes(makeRoutes(["docs/error.ts"]))).toThrow(/routes root/);
+	it("collects an error.ts in any directory, scoped to that subtree", () => {
+		const tree = scanRoutes(
+			makeRoutes(["page.ts", "error.ts", "app/[slug]/page.ts", "app/[slug]/error.ts"]),
+		);
+		expect(tree.error).toBe("error.ts");
+		expect(errorPatterns(tree)).toEqual([
+			{ node: expect.objectContaining({ dir: "", error: "error.ts" }), pattern: "/" },
+			{
+				node: expect.objectContaining({ dir: "app/[slug]", error: "app/[slug]/error.ts" }),
+				pattern: "/app/:slug",
+			},
+		]);
+	});
+
+	it("keeps a directory that holds nothing but an error.ts", () => {
+		const tree = scanRoutes(makeRoutes(["page.ts", "settings/error.ts"]));
+		expect(errorPatterns(tree).map((boundary) => boundary.pattern)).toEqual(["/settings"]);
 	});
 
 	it("collects load files next to their page and layout", () => {

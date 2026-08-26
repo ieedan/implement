@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Template file map lookups return known scaffold paths. */
+import { LINT_ES_VERSION } from "@/adders/oxlint";
 import { getTemplate, templates } from "@/templates";
 import { ADDONS, type Addon, TEMPLATES, type TemplateContext } from "@/templates/types";
 
@@ -116,6 +117,20 @@ describe("templates", () => {
 		expect(pkg(files)).toMatchObject({ dependencies: { "@implementjs/core": expect.any(String) } });
 		expect(JSON.parse(files.get("package.json") as string).name).toBe("cool-app");
 		expect(files.get("src/index.html")).toContain("<title>cool-app</title>");
+	});
+
+	it.each(TEMPLATES)("%s targets an ES version the bundled lint config can be obeyed on", (id) => {
+		const { target, lib } = JSON.parse(fileMap(id, ctx()).get("tsconfig.json") as string)
+			.compilerOptions as { target: string; lib: string[] };
+
+		// `unicorn/no-array-sort` fixes an `array.sort(...)` to `Array#toSorted()` and
+		// `unicorn/no-array-reverse` to `Array#toReversed()`, so anything lower leaves `pnpm lint`
+		// asking for a method `pnpm check` says does not exist
+		const es = lib.filter((entry) => /^ES\d+$/i.test(entry));
+		expect(es).not.toEqual([]);
+		for (const entry of [target, ...es]) {
+			expect(Number(entry.slice("ES".length)), entry).toBeGreaterThanOrEqual(LINT_ES_VERSION);
+		}
 	});
 
 	it.each(TEMPLATES)("%s asks for a version by default and workspace:* with --workspace", (id) => {
@@ -346,7 +361,10 @@ describe("templates", () => {
 		expect(pkg(withUi).scripts.ui).toBe("jsrepo add");
 		// the counter opens on a styled Button rather than the bare element from core
 		expect(withUi.get(counterPath)).toContain("components/ui/button");
-		expect(withUi.get(counterPath)).toContain('variant: "outline", size: "icon"');
+		// a prop per line: the call runs past 100 columns, so this is what the app's own oxfmt
+		// would have made of it and what the template writes rather than leave to it
+		expect(withUi.get(counterPath)).toContain('variant: "outline",');
+		expect(withUi.get(counterPath)).toContain('size: "icon",');
 		expect(withUi.get(counterPath)).not.toContain("Button,");
 	});
 

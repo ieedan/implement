@@ -26,10 +26,11 @@ Start with **Introduction**, which covers project layout, `src/lib`, the generat
 - [Routing](https://implementjs.dev/kit/routing.md) — The file conventions, params, layouts, and generated types.
 - [SSR & Prerendering](https://implementjs.dev/kit/ssr-and-prerendering.md) — Server-rendered pages in dev, a prerendered static site on build.
 - [Loading Data](https://implementjs.dev/kit/loading-data.md) — Load functions run on the server and feed pages and layouts their data.
+- [Preloading](https://implementjs.dev/kit/preloading.md) — Warm a route's code and data while the pointer is still over the link.
 - [Server Routes](https://implementjs.dev/kit/server-routes.md) — server.ts endpoints serve raw responses — JSON, markdown, anything.
 - [API Routes](https://implementjs.dev/kit/api-routes.md) — Validated handlers, a generated typed client, and an optional OpenAPI document — off one definition.
 - [Server Hooks](https://implementjs.dev/kit/hooks.md) — hooks.server.ts runs on every server request — middleware, locals, and error handling.
-- [Environment Variables](https://implementjs.dev/kit/environment-variables.md) — Typed environment variables that cannot leak — two files, one validated at build time.
+- [Environment Variables](https://implementjs.dev/kit/environment-variables.md) — Typed environment variables that cannot leak — validated by schema, baked in at build time or read by the running server.
 - [Adapters](https://implementjs.dev/kit/adapters.md) — Build the app for the place it runs — a static host, a Node server, Vercel, Cloudflare.
 - [Open Graph Images](https://implementjs.dev/kit/og-images.md) — Generate social share images from implement components, one per page, at build time.
 

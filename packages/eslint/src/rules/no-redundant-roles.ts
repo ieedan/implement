@@ -1,5 +1,5 @@
 import type { Rule } from "eslint";
-import { coreElementTag } from "../elements.ts";
+import { elementPropsTag } from "../elements.ts";
 import { readProps, writtenRole } from "../props.ts";
 import { implicitRoleOf, isKnownRole } from "../roles.ts";
 
@@ -19,22 +19,22 @@ const rule: Rule.RuleModule = {
 
 	create(context) {
 		return {
-			CallExpression(node) {
-				const tag = coreElementTag(context, node.callee);
+			ObjectExpression(node) {
+				// Only the props of an element the call actually names; the implicit
+				// role is a fact about the tag, so there is nothing to compare
+				// against without one.
+				const tag = elementPropsTag(context, node);
 				if (tag == null) return;
 
-				const [first] = node.arguments;
-				if (first?.type !== "ObjectExpression") return;
-
-				const props = readProps(first);
+				const props = readProps(node);
 				// A spread could be supplying the role that ends up winning.
 				if (props.hasSpread) return;
 
 				const role = writtenRole(props, isKnownRole);
-				if (role == null || role !== implicitRoleOf(tag, first)) return;
+				if (role == null || role !== implicitRoleOf(tag, node)) return;
 
 				context.report({
-					node: props.keys.get("role") ?? first,
+					node: props.keys.get("role") ?? node,
 					messageId: "redundant",
 					data: { element: `<${tag}>`, role },
 				});

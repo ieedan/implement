@@ -94,7 +94,7 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents selecting the item; the keyboard skips it.",
 				},
@@ -159,7 +159,7 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents selecting the item; the keyboard skips it.",
 				},
@@ -212,7 +212,7 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents selecting the item; the keyboard skips it.",
 				},
@@ -258,7 +258,7 @@ function menuParts(prefix: string, variant: string): ApiPart[] {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents opening the submenu; the keyboard skips the item.",
 				},
@@ -427,7 +427,7 @@ function calendarParts(prefix: string, variant: string): ApiPart[] {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents changing the month.",
 				},
@@ -455,7 +455,7 @@ function calendarParts(prefix: string, variant: string): ApiPart[] {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents changing the year.",
 				},
@@ -507,13 +507,13 @@ function calendarSharedRootProps(): ApiProp[] {
 		},
 		{
 			name: "disabled",
-			type: "Signal<boolean> | boolean",
+			type: "Readable<boolean> | boolean",
 			default: "false",
 			description: "Disables the whole calendar.",
 		},
 		{
 			name: "readonly",
-			type: "Signal<boolean> | boolean",
+			type: "Readable<boolean> | boolean",
 			default: "false",
 			description: "The value can be read but not changed.",
 		},
@@ -814,7 +814,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents choosing the item; the keyboard skips it.",
 				},
@@ -857,7 +857,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents choosing the item; the keyboard skips it.",
 				},
@@ -1077,7 +1077,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Disables every item in the accordion.",
 				},
@@ -1114,7 +1114,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Disables this item.",
 				},
@@ -1133,7 +1133,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Disables this trigger.",
 				},
@@ -1430,20 +1430,20 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "value",
-					type: "Signal<number> | number",
+					type: "Readable<number> | number",
 					default: "0",
 					description:
 						"The current value. Pass a signal to control it from outside; a number seeds uncontrolled state.",
 				},
 				{
 					name: "min",
-					type: "Signal<number> | number",
+					type: "Readable<number> | number",
 					default: "0",
 					description: "The lowest value the meter can take.",
 				},
 				{
 					name: "max",
-					type: "Signal<number> | number",
+					type: "Readable<number> | number",
 					default: "100",
 					description: "The highest value the meter can take.",
 				},
@@ -1465,20 +1465,20 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "value",
-					type: "Signal<number | null> | number | null",
+					type: "Readable<number | null> | number | null",
 					default: "0",
 					description:
 						"The current value; null renders an indeterminate bar. Pass a signal to control it from outside; a number seeds uncontrolled state.",
 				},
 				{
 					name: "min",
-					type: "Signal<number> | number",
+					type: "Readable<number> | number",
 					default: "0",
 					description: "The value the bar starts from.",
 				},
 				{
 					name: "max",
-					type: "Signal<number> | number",
+					type: "Readable<number> | number",
 					default: "100",
 					description: "The value at which the task is complete.",
 				},
@@ -1520,7 +1520,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents toggling. Sets the native disabled attribute and data-disabled.",
 				},
@@ -1567,7 +1567,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents opening the menu. Sets disabled and data-disabled.",
 				},
@@ -1615,7 +1615,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Falls back to the native browser menu.",
 				},
@@ -1686,7 +1686,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents opening the menu. Sets disabled and data-disabled.",
 				},
@@ -1740,7 +1740,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Disables every trigger.",
 				},
@@ -1782,7 +1782,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents selecting the tab. Sets disabled and data-disabled.",
 				},
@@ -1848,7 +1848,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Disables every item in the group.",
 				},
@@ -1885,7 +1885,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents pressing the item. Sets disabled and data-disabled.",
 				},
@@ -1920,7 +1920,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Disables every item in the group.",
 				},
@@ -1963,7 +1963,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents checking the item. Sets disabled and data-disabled.",
 				},
@@ -2022,7 +2022,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents changes and removes the group from the Tab order.",
 				},
@@ -2066,7 +2066,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Ignores pointer input on this item.",
 				},
@@ -2090,7 +2090,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "ratio",
-					type: "Signal<number> | number",
+					type: "Readable<number> | number",
 					default: "1",
 					description: "Width divided by height, e.g. 16 / 9.",
 				},
@@ -2151,7 +2151,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "While true the preview never opens. The link still navigates.",
 				},
@@ -2356,7 +2356,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			props: [
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "While true this trigger never opens the tooltip.",
 				},
@@ -3253,7 +3253,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Prevents selecting the item. Sets data-disabled and aria-disabled.",
 				},

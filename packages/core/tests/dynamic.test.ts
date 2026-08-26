@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	App,
 	context,
@@ -13,6 +13,7 @@ import {
 	Span,
 	type Child,
 	type Mountable,
+	type PrimitiveChild,
 } from "../src/index";
 import { renderToString } from "../src/server/index";
 
@@ -258,5 +259,95 @@ describe("Dynamic", () => {
 		expect(renderToString(Div(Dynamic(signal<Mountable | null>(null)))).html).toBe(
 			"<div><!----></div>",
 		);
+	});
+});
+
+/**
+ * A node forced into the text-child shape, which is the cast a developer writes
+ * to make the `Child` union stop complaining — the detour these tests are about.
+ */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the bad cast is the subject of these tests
+const asText = (value: unknown): PrimitiveChild => value as PrimitiveChild;
+
+describe("a readable child holding a node", () => {
+	it("warns, and names `Dynamic` as the fix", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const { target, render, cleanup } = mount(Div(Span({}, signal(asText(P("high"))))));
+		const unmount = render();
+
+		expect(warn).toHaveBeenCalledTimes(1);
+		expect(warn.mock.calls[0]![0]).toContain("Dynamic");
+		// stringified rather than mounted, which is the behavior the warning explains
+		expect(target.querySelector("p")).toBeNull();
+
+		unmount();
+		cleanup();
+		warn.mockRestore();
+	});
+
+	it("warns for a node that only arrives on an update", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const label = signal<PrimitiveChild>("high");
+		const { render, cleanup } = mount(Div(Span({}, "priority: ", label)));
+		const unmount = render();
+		expect(warn).not.toHaveBeenCalled();
+
+		label.set(asText(P("high")));
+		expect(warn).toHaveBeenCalledTimes(1);
+		expect(warn.mock.calls[0]![0]).toContain("Dynamic");
+
+		unmount();
+		cleanup();
+		warn.mockRestore();
+	});
+
+	it("catches a raw DOM node too", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const { render, cleanup } = mount(
+			Div(Span({}, signal(asText(document.createElement("span"))))),
+		);
+		const unmount = render();
+
+		expect(warn).toHaveBeenCalledTimes(1);
+
+		unmount();
+		cleanup();
+		warn.mockRestore();
+	});
+
+	it("leaves every value that is genuinely text alone", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const value = signal<PrimitiveChild>("high");
+		const { render, cleanup } = mount(Div(Span({}, "priority: ", value)));
+		const unmount = render();
+
+		value.set(3);
+		value.set(false);
+		value.set(null);
+		value.set(undefined);
+		// an object with a `toString` worth reading is text somebody may have meant
+		value.set(asText(new Date(0)));
+		expect(warn).not.toHaveBeenCalled();
+
+		unmount();
+		cleanup();
+		warn.mockRestore();
+	});
+
+	it("reports one mistake once, however many updates follow it", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const icon = asText(P("high"));
+		const label = signal<PrimitiveChild>("high");
+		const { render, cleanup } = mount(Div(Span({}, "priority: ", label)));
+		const unmount = render();
+
+		label.set(icon);
+		label.set("low");
+		label.set(icon);
+		expect(warn).toHaveBeenCalledTimes(1);
+
+		unmount();
+		cleanup();
+		warn.mockRestore();
 	});
 });

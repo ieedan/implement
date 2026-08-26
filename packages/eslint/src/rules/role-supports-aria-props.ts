@@ -1,4 +1,5 @@
 import type { Rule } from "eslint";
+import { isElementProps } from "../elements.ts";
 import { readProps, writtenRole } from "../props.ts";
 import { isKnownAriaAttribute, isKnownRole, roleSupports } from "../roles.ts";
 
@@ -19,6 +20,10 @@ const rule: Rule.RuleModule = {
 	create(context) {
 		return {
 			ObjectExpression(node) {
+				// Only an element's props carry a `role`; anywhere else the word is
+				// just a word.
+				if (!isElementProps(context, node)) return;
+
 				const props = readProps(node);
 				const role = writtenRole(props, isKnownRole);
 				if (role == null) return;

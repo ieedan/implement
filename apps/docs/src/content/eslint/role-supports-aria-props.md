@@ -15,3 +15,5 @@ Div({ role: "switch", "aria-checked": on }); // fine
 Supported sets include everything a role inherits from its superclasses plus the global properties, so `aria-label` and `aria-hidden` are fine everywhere.
 
 Two deliberate silences. An attribute [`aria-query`](https://www.npmjs.com/package/aria-query) has never heard of is left to [`valid-aria`](/eslint/valid-aria) rather than being called unsupported here — a gap in the table should read as no opinion, not as a mistake in your code. And a spread _after_ the `role` key could replace the role this was judged against, so those are skipped too; a spread before it cannot, so they are not.
+
+Like the rest of the `role` rules, this one only reads objects [in element-props position](/eslint/how-rules-work); an object elsewhere has no role for an `aria-*` key to be judged against.

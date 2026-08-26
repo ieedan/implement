@@ -49,6 +49,8 @@ Button({ onClick: () => open.set(false) }, "Close");
 
 If it starts open (`open: true`, or a signal that's already true) focus moves into the panel on mount. Closing returns focus to the trigger that opened it, or the one marked `default`.
 
+Tab cycles the panel's focusable elements, wrapping from the last back to the first. Only what the page actually draws counts as a stop: a `display: none` file input behind an attachment button, a field inside a closed menu, or anything under `inert` or `hidden` is passed over rather than focused.
+
 While open, the page behind cannot scroll. Pass `preventScroll: false` to leave it scrollable. The overlay and panel can still scroll if you give them `overflow`.
 
 `onOpenChange` reports every open and close, whether it came from a trigger, a close button, Escape, or a write to a signal you passed in.

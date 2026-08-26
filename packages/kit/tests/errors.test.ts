@@ -5,6 +5,7 @@ import {
 	markErrorSource,
 	type ServerErrorReport,
 } from "../src/errors.ts";
+import { createCookieJar } from "../src/cookies.ts";
 import type { RequestEvent } from "../src/match.ts";
 
 const ROOT = "/app";
@@ -12,12 +13,14 @@ const OPTIONS = { root: ROOT, routes: "src/routes" };
 
 function event(path = "/docs/install", routeId: string | null = "/docs/[...slug]"): RequestEvent {
 	const url = new URL(`http://localhost${path}`);
+	const request = new Request(url);
 	return {
-		request: new Request(url),
+		request,
 		url,
 		params: {},
 		route: { id: routeId },
 		locals: {},
+		cookies: createCookieJar(request, url).cookies,
 		fetch: globalThis.fetch,
 		api: {},
 		isDataRequest: false,

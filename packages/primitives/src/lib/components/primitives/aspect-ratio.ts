@@ -1,12 +1,12 @@
-import { Div, signal, type Child, type Signal } from "@implementjs/core";
+import { Div, type Child, type Readable } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 import type { RenderableProps } from "../../render";
 
 export type AspectRatioProps = RenderableProps<typeof Div> & {
 	/** Width divided by height, e.g. `16 / 9`. */
-	ratio?: Signal<number> | number;
+	ratio?: Readable<number> | number;
 };
 
 /**
@@ -19,14 +19,14 @@ export const AspectRatio = createComponent(function AspectRatio(
 	{ id = getId(), ratio = 1, render = Div, ...restProps }: AspectRatioProps,
 	...children: Child[]
 ) {
-	const ratioSignal = signal(ratio);
+	const currentRatio = toReadable(ratio);
 
 	return Div(
 		{
 			style: {
 				position: "relative",
 				width: "100%",
-				paddingBottom: ratioSignal.bind((ratio) => `${ratio ? 100 / ratio : 0}%`),
+				paddingBottom: currentRatio.bind((ratio) => `${ratio ? 100 / ratio : 0}%`),
 			},
 		},
 		render(

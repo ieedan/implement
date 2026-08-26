@@ -1,4 +1,21 @@
 /**
+ * Whether an element is actually reachable by Tab right now. A selector only
+ * knows markup, so on its own it hands back the `display: none` file input
+ * behind an attachment button and the search field inside a closed menu —
+ * elements the browser will not focus. `getClientRects()` is empty for
+ * anything the layout does not draw, including detached subtrees, and unlike
+ * `offsetParent` it does not call a `position: fixed` element hidden. `inert`
+ * and `hidden` are the two ways a drawn element still refuses focus, so they
+ * are asked separately; `inert` is inherited, hence the walk up the tree.
+ */
+function isReachable(el: HTMLElement) {
+	if (el.hasAttribute("hidden")) return false;
+	if (el.closest("[inert]") !== null) return false;
+
+	return el.getClientRects().length > 0;
+}
+
+/**
  * Get all tabbable elements within an element
  *
  * @param el
@@ -18,7 +35,7 @@ export function tabbable(el: HTMLElement) {
 		"details > summary:first-of-type",
 	].join(",");
 
-	return [...el.querySelectorAll<HTMLElement>(TABBABLE)];
+	return [...el.querySelectorAll<HTMLElement>(TABBABLE)].filter(isReachable);
 }
 
 /**
@@ -35,9 +52,20 @@ export function trapFocus(e: KeyboardEvent, el: HTMLElement | undefined | null) 
 
 	const direction = e.shiftKey ? "previous" : "next";
 
+	/**
+	 * Cancelling the keystroke comes last, once focus has moved. Cancelling it
+	 * first and then asking an element that turns focus down to take it left
+	 * Tab doing nothing at all — a trap with no way out — where falling
+	 * through to the browser's own Tab at least keeps the keyboard working.
+	 */
 	const focus = (index: number) => {
+		const target = tabbableElements[index];
+		if (!target) return;
+
+		target.focus();
+		if (document.activeElement !== target) return;
+
 		e.preventDefault();
-		tabbableElements[index]?.focus();
 	};
 
 	const activeElement = document.activeElement;

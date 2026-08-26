@@ -13,7 +13,7 @@ import {
 } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 
 export type RatingGroupRootProps = ComponentProps<typeof Div> & {
@@ -26,7 +26,7 @@ export type RatingGroupRootProps = ComponentProps<typeof Div> & {
 	allowHalf?: boolean;
 	/** The value can be read but not changed. */
 	readonly?: boolean;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 	/** Preview the value under the pointer before clicking. */
 	hoverPreview?: boolean;
 	orientation?: "horizontal" | "vertical";
@@ -46,16 +46,16 @@ export type RatingGroupItemStateValue = "active" | "partial" | "inactive";
 
 class RatingGroupState {
 	value: Signal<number>;
-	disabled: Signal<boolean>;
+	disabled: Readable<boolean>;
 	hover = signal<number | null>(null);
 	constructor(
 		readonly opts: RatingGroupOpts,
 		readonly ref: Ref<HTMLDivElement>,
 		value: Signal<number> | number,
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 	) {
 		this.value = signal(value);
-		this.disabled = signal(disabled);
+		this.disabled = toReadable(disabled);
 	}
 
 	/** The hover preview when there is one, the committed value otherwise. */
@@ -203,7 +203,7 @@ export const RatingGroup = createComponent(function RatingGroup(
 export type RatingGroupItemProps = ComponentProps<typeof Div> & {
 	/** Zero-based position of the item; the item represents the rating `index + 1`. */
 	index: number;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 export const RatingGroupItem = createComponent(function RatingGroupItem(
@@ -211,8 +211,8 @@ export const RatingGroupItem = createComponent(function RatingGroupItem(
 	...children: Child[]
 ) {
 	return RatingGroupCtx.Use((root) => {
-		const disabledSignal = signal(disabled);
-		const isDisabled = derived([disabledSignal, root.disabled], (own, group) => own || group);
+		const ownDisabled = toReadable(disabled);
+		const isDisabled = derived([ownDisabled, root.disabled], (own, group) => own || group);
 		const state = root.itemState(index);
 
 		return Div(
@@ -228,11 +228,11 @@ export const RatingGroupItem = createComponent(function RatingGroupItem(
 					"data-disabled": isDisabled.bind((disabled) => (disabled ? "" : undefined)),
 					"data-readonly": root.opts.readonly ? "" : undefined,
 					onClick: (e: MouseEvent) => {
-						if (disabledSignal.get()) return;
+						if (ownDisabled.get()) return;
 						root.onItemClick(index, e);
 					},
 					onPointermove: (e: PointerEvent) => {
-						if (disabledSignal.get() || e.pointerType === "touch") return;
+						if (ownDisabled.get() || e.pointerType === "touch") return;
 						root.setHover(root.fromPointer(index, e));
 					},
 				},

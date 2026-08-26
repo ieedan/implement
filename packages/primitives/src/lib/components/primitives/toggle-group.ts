@@ -14,7 +14,7 @@ import {
 import { handleRovingKeydown } from "../helpers/roving-focus";
 import { mergeProps } from "../../merge-props";
 import { changeEffect, type ChangeHandler } from "../../on-change";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import { createComponent } from "../../create-component";
 
 export type ToggleGroupRootProps<T extends "single" | "multiple" = "single"> = (T extends "multiple"
@@ -31,7 +31,7 @@ export type ToggleGroupRootProps<T extends "single" | "multiple" = "single"> = (
 			onValueChange?: ChangeHandler<string | null>;
 		}) &
 	ComponentProps<typeof Div> & {
-		disabled?: Signal<boolean> | boolean;
+		disabled?: Readable<boolean> | boolean;
 		/** Whether arrow keys wrap from the last item back to the first. */
 		loop?: boolean;
 		orientation?: "horizontal" | "vertical";
@@ -40,16 +40,16 @@ export type ToggleGroupRootProps<T extends "single" | "multiple" = "single"> = (
 const ToggleGroupCtx = context<ToggleGroupState>("ToggleGroupCtx");
 
 abstract class ToggleGroupState {
-	disabled: Signal<boolean>;
+	disabled: Readable<boolean>;
 	/** The one item reachable with Tab; arrow keys move between the rest. */
 	tabStop = signal<string | null>(null);
 	abstract readonly multiple: boolean;
 	constructor(
 		readonly opts: { loop: boolean; orientation: "horizontal" | "vertical" },
 		readonly ref: Ref<HTMLDivElement>,
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 	) {
-		this.disabled = signal(disabled);
+		this.disabled = toReadable(disabled);
 	}
 
 	abstract isPressed(value: string): Readable<boolean>;
@@ -84,7 +84,7 @@ class ToggleGroupSingleState extends ToggleGroupState {
 	constructor(
 		opts: { loop: boolean; orientation: "horizontal" | "vertical" },
 		rootRef: Ref<HTMLDivElement>,
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 		value?: Signal<string | null>,
 	) {
 		super(opts, rootRef, disabled);
@@ -110,7 +110,7 @@ class ToggleGroupMultipleState extends ToggleGroupState {
 	constructor(
 		opts: { loop: boolean; orientation: "horizontal" | "vertical" },
 		rootRef: Ref<HTMLDivElement>,
-		disabled: Signal<boolean> | boolean,
+		disabled: Readable<boolean> | boolean,
 		value?: Signal<string[]>,
 	) {
 		super(opts, rootRef, disabled);
@@ -186,7 +186,7 @@ export const ToggleGroup = createComponent(function ToggleGroup(
 export type ToggleGroupItemProps = Omit<ComponentProps<typeof Button>, "disabled" | "value"> & {
 	/** Identifies the item. Must be unique within the group. */
 	value: string;
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 export const ToggleGroupItem = createComponent(function ToggleGroupItem(
@@ -195,8 +195,8 @@ export const ToggleGroupItem = createComponent(function ToggleGroupItem(
 ) {
 	return ToggleGroupCtx.Use((root) => {
 		root.register(value);
-		const disabledSignal = signal(disabled);
-		const isDisabled = derived([disabledSignal, root.disabled], (own, group) => own || group);
+		const ownDisabled = toReadable(disabled);
+		const isDisabled = derived([ownDisabled, root.disabled], (own, group) => own || group);
 		const pressed = root.isPressed(value);
 
 		return Button(

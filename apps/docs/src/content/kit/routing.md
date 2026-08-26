@@ -9,7 +9,7 @@ Routes are directories under `src/routes`. A handful of file names mean somethin
 
 - `page.ts` is a page. It renders when the URL matches its directory.
 - `layout.ts` wraps every page beneath it (including its own directory's page).
-- `error.ts` at the routes root renders when nothing matches or a render throws.
+- `error.ts` renders when nothing matches or a render throws, for its own directory and everything under it.
 - `page.server.ts` and `layout.server.ts` are [load functions](/kit/loading-data), and `server.ts` is a [server route](/kit/server-routes) — they run only on the server.
 
 So a routes directory like this:
@@ -18,7 +18,7 @@ So a routes directory like this:
 src/routes
 	page.ts           → /
 	layout.ts         → wraps everything
-	error.ts          → the 404 page
+	error.ts          → the error page for everything below
 	docs
 		page.ts         → /docs
 		layout.ts       → wraps /docs and /docs/*
@@ -86,40 +86,52 @@ Static segments always beat params at the same position, so `/users/new` wins ov
 
 ## Param matchers
 
-`[id]` matches any segment, which means `/users/oops` reaches the page and the page has to deal with it. A **matcher** moves that decision up to routing: a matcher lives in `src/params/<name>.ts`, a `[id=<name>]` directory names it, and a segment the matcher turns down never becomes a match at all.
+`[id]` matches any segment, which means `/users/oops` reaches the page and the page has to deal with it. A **matcher** moves that decision up to routing: a `[id=<name>]` directory names one, and a segment the matcher turns down never becomes a match at all.
 
-```ts
-// src/params/integer.ts
-import { matcher } from "@implementjs/kit/params";
+Two are built in, so the common cases need no setup:
 
-export default matcher(/\d+/);
+|                  | binds               | turns down                                                                 |
+| ---------------- | ------------------- | -------------------------------------------------------------------------- |
+| `[id=integer]`   | a whole `number`    | anything `Number` reads as `NaN`, a fraction, or a value too large to hold |
+| `[price=number]` | any finite `number` | anything `Number` reads as `NaN` or `Infinity`                             |
+
 ```
-
-```
-src/params
-	integer.ts
 src/routes
 	users
 		[id=integer]
 			page.ts       → /users/42, but not /users/oops
 ```
 
-A pattern has to match the whole segment — kit anchors it for you, so `/\d+/` means "digits and nothing else". That much is [SvelteKit's feature](https://svelte.dev/docs/kit/advanced-routing#Matching), and it behaves the way you'd expect: `/users/oops` falls through to whatever else can serve it, and reaches the [error page](#the-error-page) if nothing can.
+That is the whole setup — `params.id` is a `number`, in the page, in a load, in a `server.ts` handler, in the generated client, and in the OpenAPI document. Both read a segment the way `Number` does rather than policing how it is written, so `/users/0x10` is user `16`.
+
+Write your own for anything else, or to replace one of those: a matcher lives in `src/params/<name>.ts`, and a file named `integer.ts` **wins** over the built-in, so these are defaults rather than reserved words.
+
+```ts
+// src/params/slug.ts
+import { matcher } from "@implementjs/kit/params";
+import * as v from "valibot";
+
+export default matcher(v.pipe(v.string(), v.regex(/^[a-z0-9-]+$/)));
+```
+
+A matcher is built from a [Standard Schema](https://standardschema.dev) — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) take, so it is a library you already have rather than one kit makes you add.
+
+The schema's input is the string in the URL, so an action before a transform constrains the **segment** and one after it constrains the **value**. Both are useful, and which you want depends on the route. If you do reach for a regex, note that kit no longer anchors it for you — `v.regex(/\d+/)` accepts `12abc`, so write `/^\d+$/`.
+
+Gating the route that way is [SvelteKit's feature](https://svelte.dev/docs/kit/advanced-routing#Matching), and it behaves the way you'd expect: `/users/oops` falls through to whatever else can serve it, and reaches the [error page](#the-error-page) if nothing can.
 
 ### Matchers that parse
 
 Here's the part that goes further. A matcher doesn't have to answer yes or no — it can answer with a **value**, and that value is what the param is from then on. Not just at runtime: in the types, everywhere the param appears.
 
-Return `mismatch` to turn a segment down, and anything else to accept it:
+A schema that transforms is a schema that parses, so this is the same matcher with one more step:
 
 ```ts
 // src/params/integer.ts
-import { matcher, mismatch } from "@implementjs/kit/params";
+import { matcher } from "@implementjs/kit/params";
+import * as v from "valibot";
 
-export default matcher((value) => {
-	const parsed = Number(value);
-	return /^\d+$/.test(value) ? parsed : mismatch;
-});
+export default matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
 ```
 
 Now `params.id` is a `number`:
@@ -146,29 +158,56 @@ export default function Page({ params }: PageProps) {
 
 Nothing declares that type twice. The generated `./$types` reads it straight off the matcher module, so changing what `src/params/integer.ts` returns changes every route that names it — pages, layouts, loads, `server.ts` handlers, and the [generated client](/kit/api-routes).
 
-### Three ways to write one
+### Why a schema, and only a schema
 
-`matcher()` takes a pattern, a parse function, or any [Standard Schema](https://standardschema.dev) — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) use:
+`matcher()` takes a [Standard Schema](https://standardschema.dev) and nothing else — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) take, so it is a library you already have:
 
 ```ts
-import * as v from "valibot";
-import { matcher, mismatch } from "@implementjs/kit/params";
-
-// a pattern — the param stays a string
-export default matcher(/[a-z0-9-]+/);
-
-// a parse — the param is whatever you return
-export default matcher((value) => (value === "en" || value === "fr" ? value : mismatch));
-//                                  → Readable<"en" | "fr">
-
-// a schema — the param is the schema's output
-export default matcher(
-	v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1)),
-);
-//                                  → Readable<number>
+matcher(v.pipe(v.string(), v.regex(/^[a-z0-9-]+$/))); // → Readable<string>
+matcher(v.picklist(["en", "fr"])); // → Readable<"en" | "fr">
+matcher(v.pipe(v.string(), v.transform(Number), v.integer(), v.minValue(1))); // → Readable<number>
 ```
 
-A schema has to validate synchronously; matching a route can't wait on a database. Reach for a schema when you want its parsing (a `v.transform(Number)` pipe, `v.isoDate()`), a pattern when a regex says it, and a function when neither does.
+It has to validate synchronously; matching a route can't wait on a database.
+
+Kit took a bare regex and a bare parse function once, and the parse function was a trap. `$types` reads what a matcher produces from the matcher module, so a parsing matcher typed its param `number` everywhere in the app — but the [OpenAPI document](/kit/api-routes) is written by a build, with no types to read, so it went on calling that param a string. The app was right, the document was wrong, and nothing anywhere said the two disagreed. A schema exists at runtime, so one object answers all three questions at once:
+
+```ts
+// src/params/integer.ts
+export default matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
+```
+
+```jsonc
+{
+	"name": "id",
+	"in": "path",
+	"required": true,
+	"schema": { "type": "integer", "pattern": "^\\d+$" },
+}
+```
+
+The object that just decided whether the route matches is the object the document is written from, so the document can't claim a constraint the route doesn't enforce, or miss one it does.
+
+End the pipe with a check on the parsed value. It is what makes the document describe what the route hands you — kit's converter takes every action it can represent from both sides of the transform, so a `v.integer()` after the transform is what turns `"type": "string"` into `"type": "integer"`. It also does real work at runtime: `Number` answers `NaN` for `"oops"` and `Infinity` for four hundred digits rather than failing, and `v.integer()` is what turns both of those down.
+
+What it deliberately does **not** do is police the spelling of the segment. `/users/0x10` binds `16` and `/users/007` binds `7`, the same way `Number` reads them — permissive parsing, not a bug, and a matcher named `integer` still accepts `-5` as it should. Add a `v.digits()` or a `v.regex(/^\d+$/)` before the transform if a route wants only the canonical spelling, and be aware that it makes the matcher reject negatives too.
+
+Standard Schema is an interface, not a dependency, so an app that doesn't want a schema library can hand `matcher()` an object implementing it directly:
+
+```ts
+export default matcher({
+	"~standard": {
+		version: 1,
+		vendor: "my-app",
+		validate: (value: unknown) =>
+			typeof value === "string" && /^\d+$/.test(value)
+				? { value: Number(value) }
+				: { issues: [{ message: "not an integer" }] },
+	},
+} as const);
+```
+
+That one has no vendor kit knows how to convert, so its param is documented as an unconstrained schema with a build warning naming the route — the cost of skipping the library, and said out loud rather than silently.
 
 ### What matching does with them
 
@@ -182,7 +221,7 @@ Naming a matcher the app doesn't have is a scan error, not a route that quietly 
 
 ## The error page
 
-A root `error.ts` renders whenever no route matches, or a page or layout throws while rendering. It receives the `error`, just like SvelteKit:
+An `error.ts` renders whenever no route matches, or a page or layout throws while rendering. It receives the `error`, just like SvelteKit:
 
 ```ts
 // src/routes/error.ts
@@ -196,7 +235,28 @@ export default function ErrorPage({ error }: ErrorProps) {
 
 `error.code` is an HTTP-style status — `404` when no route matched, `500` when a render threw — and `error.message` describes it. Throw a `{ code, message }` object from a page to surface a custom status: `throw { code: 403, message: "Forbidden" }`.
 
-It's root-only for now, kit will refuse an `error.ts` anywhere deeper. When it exists, the build also writes a `404.html` so static hosts serve it for unknown URLs.
+### Error pages nest
+
+An `error.ts` may sit in any route directory, and it covers that directory and everything under it. The nearest one up the tree wins, so a section can answer for itself and the root one stays the fallback:
+
+```
+src/routes
+	error.ts              → everything else
+	app
+		[slug]
+			layout.ts         → the app shell
+			layout.server.ts
+			error.ts          → anything under /app/:slug
+			issue
+				[id]
+					page.ts
+```
+
+A 404 at `/app/acme/issue/9999` renders `app/[slug]/error.ts` **inside the layouts around it** — the app shell, and the root layout around that — the same chain the page it replaced would have rendered in. The sidebar, the workspace switcher, and the way back stay on screen; only the page is gone. A 404 at `/pricing/nope` has no section boundary above it, so it falls through to the root `error.ts`, which renders in the root layout.
+
+Those layouts get their `data` too: kit runs the load chain of the boundary's directory before it renders the error page, so a shell that reads `data` from its `layout.server.ts` is a real shell rather than an empty one. The boundary's own params come with it, so `/app/:slug` still knows which workspace the 404 was in.
+
+An app with no `error.ts` at all answers in plain text with the status and the message — there is no page to render. When a **root** one exists, the build also writes a `404.html` so static hosts serve it for unknown URLs; a section boundary cannot answer for a path a static host has never heard of.
 
 ## $implement/router
 

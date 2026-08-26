@@ -54,4 +54,25 @@ If(open).Then(
 );
 ```
 
+## When the node itself comes from a signal
+
+`If` chooses between branches you wrote out ahead of time. When it's the node that changes — a priority glyph that swaps shape, not just text — the instinct is to hand the signal straight to an element:
+
+```ts
+const icon = derived([priority], (p) => PRIORITIES[p].icon());
+
+Span(icon); // renders `[object Object]`, it does not mount the icon
+```
+
+That doesn't work, because a readable child _is_ the text-node shape: it renders the value as text and follows it. [`Dynamic`](/docs/dynamic) is the helper that mounts what the readable is holding:
+
+```ts
+Span(Dynamic(icon));
+
+// or without the intermediate readable
+Span(Dynamic([priority], (p) => PRIORITIES[p].icon()));
+```
+
+In development the first form warns in the console and names `Dynamic`, so this is one you only have to get wrong once.
+
 `If` is the right tool for conditions. When you find yourself matching one value against many cases, the next page's [Switch](/docs/switch) reads much better.

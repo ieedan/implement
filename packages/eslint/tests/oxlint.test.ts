@@ -53,6 +53,10 @@ export function Toggle(open: Readable<boolean>, rows: Signal<string[]>): unknown
 	const btn = Div({ role: "button", "aria-checked": open });
 	// A role the element already has.
 	const dup = Button({ role: "button" }, "Save");
+	// A misspelled role, on an element.
+	const typo = Div({ role: "buton" });
+	// The same word away from an element: a row on its way into a database.
+	const row = { id: "1", userId: open, role: "admin" };
 
 	// A list rendered from a snapshot rather than through ForEach.
 	const list = Ul(...rows.get().map((row: string) => Li(row)));
@@ -64,9 +68,8 @@ export function Toggle(open: Readable<boolean>, rows: Signal<string[]>): unknown
 		"aria-lable": "Close",
 		"aria-hidden": "yes",
 		"aria-current": "page",
-		role: "buton",
 		class: "aria-invalid:border",
-		children: [label, picked, drafts, touched, raw, allowed, box, btn, dup, list, onSave],
+		children: [label, picked, drafts, touched, raw, allowed, box, btn, dup, typo, row, list, onSave],
 	};
 }
 `;
@@ -174,7 +177,7 @@ it("reports a Lifecycle that only owns a watch", () => {
 it("reports a misspelled aria attribute, a bad value, and a bad role", () => {
 	expect(on('"aria-lable"')).toEqual(["implementjs(valid-aria)"]);
 	expect(on('"aria-hidden"')).toEqual(["implementjs(valid-aria)"]);
-	expect(on('role: "buton"')).toEqual(["implementjs(valid-role)"]);
+	expect(on("const typo =")).toEqual(["implementjs(valid-role)"]);
 });
 
 it("leaves valid props and Tailwind aria variants alone", () => {
@@ -221,4 +224,8 @@ it("checks a role against what it requires and what it supports", () => {
 
 it("reports a role an element already has, resolved through core's helpers", () => {
 	expect(on("const dup =")).toEqual(["implementjs(no-redundant-roles)"]);
+});
+
+it("leaves a `role` that is a database column rather than an element prop alone", () => {
+	expect(on("const row =")).toEqual([]);
 });

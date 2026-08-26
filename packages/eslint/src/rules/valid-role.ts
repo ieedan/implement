@@ -1,6 +1,7 @@
 import type { Rule } from "eslint";
 import { ABSTRACT_ARIA_ROLES, ARIA_ROLES, DEPRECATED_ARIA_ROLES } from "../aria.ts";
 import { didYouMean, staticKey } from "../ast.ts";
+import { isElementProps } from "../elements.ts";
 
 type Options = { extraRoles?: string[] };
 
@@ -43,6 +44,10 @@ const rule: Rule.RuleModule = {
 			Property(node) {
 				if (node.parent.type !== "ObjectExpression") return;
 				if (staticKey(node) !== "role") return;
+				// `role` is an ordinary word — a database column, a config key, a
+				// test fixture — so the key alone says nothing. Only a props object
+				// on its way to an element is describing an ARIA role.
+				if (!isElementProps(context, node.parent)) return;
 
 				const { value } = node;
 				if (value.type !== "Literal" || typeof value.value !== "string") return;

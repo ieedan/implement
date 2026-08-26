@@ -58,6 +58,6 @@ Remounting the _same_ node on a signal change is [`Key`](/docs/key)'s job, not t
 - Any [child](/docs/components) works, not only nodes. A string becomes text, a readable becomes text that follows it.
 - Children mount at the `Dynamic`'s position in the tree, so [context](/docs/context) resolves through it, errors reach the nearest [boundary](/docs/boundary), and server rendering and hydration go through the same path as any other child.
 - It holds one region. For several nodes at once, return a [`Fragment`](/docs/components#fragment).
-- A readable of a node is not a child on its own: `Div(view)` renders text, because a readable child _is_ the text-node shape. `Dynamic` is how you say you meant the node.
+- A readable of a node is not a child on its own: `Div(view)` renders text, because a readable child _is_ the text-node shape. `Dynamic` is how you say you meant the node — and in development, passing the bare readable warns in the console and says so.
 
 That's every control-flow helper. The next part is about structuring bigger apps, starting with sharing state through [Context](/docs/context).

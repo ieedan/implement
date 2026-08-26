@@ -1,13 +1,6 @@
-import {
-	Button,
-	Portal,
-	signal,
-	type Child,
-	type PortalProps,
-	type Signal,
-} from "@implementjs/core";
+import { Button, Portal, type Child, type PortalProps, type Readable } from "@implementjs/core";
 import { mergeProps } from "../../merge-props";
-import { getId } from "../../utils";
+import { getId, toReadable } from "../../utils";
 import {
 	MenuCheckboxGroup,
 	MenuCheckboxItem,
@@ -57,7 +50,7 @@ export const DropdownMenu = createComponent(function DropdownMenu(
 });
 
 export type DropdownMenuTriggerProps = Omit<RenderableProps<typeof Button>, "disabled"> & {
-	disabled?: Signal<boolean> | boolean;
+	disabled?: Readable<boolean> | boolean;
 };
 
 export const DropdownMenuTrigger = createComponent(function DropdownMenuTrigger(
@@ -65,19 +58,19 @@ export const DropdownMenuTrigger = createComponent(function DropdownMenuTrigger(
 	...children: Child[]
 ) {
 	return MenuCtx.Use((state) => {
-		const disabledSignal = signal(disabled);
+		const isDisabled = toReadable(disabled);
 		return render(
 			mergeProps(
 				{
 					id,
 					type: "button",
-					...menuTriggerProps(state, { disabled: disabledSignal }),
+					...menuTriggerProps(state, { disabled: isDisabled }),
 					onClick: () => {
-						if (disabledSignal.get()) return;
+						if (isDisabled.get()) return;
 						state.toggleOpen(false);
 					},
 					onKeydown: (e: KeyboardEvent) => {
-						if (disabledSignal.get()) return;
+						if (isDisabled.get()) return;
 						if (e.key === "Enter" || e.key === " ") {
 							e.preventDefault();
 							state.toggleOpen(true);

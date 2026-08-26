@@ -11,6 +11,7 @@ import {
 	type DataChain,
 	type PageRoute,
 } from "./codegen.ts";
+import { BUILTIN_MATCHER_NAMES } from "./params.ts";
 import type { PreloadOptions } from "./preload-kinds.ts";
 import { type RouteNode, type RouteParam, type RouteTree } from "./scan.ts";
 
@@ -76,55 +77,67 @@ preloadRoute(window.location.pathname).then(
  * prerenderer calls; `respond` is what the dev server calls. Both run the
  * app's `src/hooks.server.ts` around the page, endpoint, or route-data
  * response.
+ *
+ * It is the same file for every app — an app with no `error.ts` anywhere has
+ * no boundary for `renderErrorPage` to find, and answers `null`, which the
+ * pipeline turns into a plain-text response.
  */
-function entryServer(hasErrorPage: boolean, dynamicPublicEnv: string | undefined): string {
-	const renderPage = hasErrorPage
-		? [
-				"		return renderToString(error === null ? router : errorPage(error), {",
-				"			location: url.pathname + url.search,",
-				"		});",
-			]
-		: [
-				"		// without a root error.ts there is no error page to render",
-				"		if (error !== null) return null;",
-				"		return renderToString(router, { location: url.pathname + url.search });",
-			];
+/**
+ * The generated `entry-server.ts`.
+ *
+ * A function rather than a constant because the app decides one thing about
+ * it: whether a dynamic public env snapshot is imported and embedded. Which
+ * error page renders is not one of them any more — the boundary is resolved at
+ * runtime, and `renderErrorPage` answers `null` for a path no `error.ts`
+ * covers, so an app without one needs no different entry.
+ */
+function entryServer(dynamicPublicEnv: string | undefined): string {
 	// absent unless the app has the file: no import, no snapshot embedded in a
 	// page, and no `/_implement/env.js` route on the server
 	const envImport =
 		dynamicPublicEnv === undefined ? [] : [`import * as publicEnv from "/${dynamicPublicEnv}";`];
-	const envOption = dynamicPublicEnv === undefined ? [] : ["	publicEnv,"];
+	const envOption = dynamicPublicEnv === undefined ? [] : ["\tpublicEnv,"];
 	return `${[
 		'import { renderToString } from "@implementjs/core/server";',
-		'import { preloadRoute, seedData } from "@implementjs/kit/runtime";',
+		'import { preloadErrorRoute, preloadRoute, renderErrorPage, seedData } from "@implementjs/kit/runtime";',
 		'import { createKitServer } from "@implementjs/kit/server";',
 		'import * as hooks from "$implement/hooks";',
 		'import { createClient } from "$implement/client";',
 		'import { endpoints } from "$implement/endpoints";',
 		'import { matchers } from "$implement/params";',
-		'import { pages } from "$implement/pages";',
-		`import { ${hasErrorPage ? "errorPage, router" : "router"} } from "$implement/router";`,
+		'import { errors, pages } from "$implement/pages";',
+		'import { router } from "$implement/router";',
 		...envImport,
 		"",
 		'export type { RenderResult } from "@implementjs/kit/server";',
 		"",
 		"const server = createKitServer({",
-		"	hooks,",
-		"	pages,",
-		"	endpoints,",
-		"	// so a `[param=<name>]` route only serves what its matcher accepts",
-		"	matchers,",
-		"	// so `event.api` is this app's own client, bound to `event.fetch`",
-		"	createApiClient: createClient,",
+		"\thooks,",
+		"\tpages,",
+		"\tendpoints,",
+		"\t// so an error page renders in the layouts around its own error.ts, with",
+		"\t// what their loads returned",
+		"\terrors,",
+		"\t// so a `[param=<name>]` route only serves what its matcher accepts",
+		"\tmatchers,",
+		"\t// so `event.api` is this app's own client, bound to `event.fetch`",
+		"\tcreateApiClient: createClient,",
 		...envOption,
-		"	renderPage: async ({ url, data, error }) => {",
-		"		if (data !== null) seedData(data);",
-		"		// renderToString walks the tree synchronously, so the route's own",
-		"		// chunks have to be loaded first. The error page is not split, so",
-		"		// an error render has nothing to wait for.",
-		"		if (error === null) await preloadRoute(url.pathname);",
-		...renderPage,
-		"	},",
+		"\trenderPage: async ({ url, data, error }) => {",
+		"\t\tif (data !== null) seedData(data);",
+		"\t\t// renderToString walks the tree synchronously, so whatever renders has to",
+		"\t\t// be in memory first: the route's own chunks, or the layouts around the",
+		"\t\t// nearest error.ts — which is also what a path no route matches renders in.",
+		"\t\tif (error === null) {",
+		"\t\t\tawait preloadRoute(url.pathname);",
+		"\t\t\treturn renderToString(router, { location: url.pathname + url.search });",
+		"\t\t}",
+		"\t\tawait preloadErrorRoute(url.pathname);",
+		"\t\tconst page = renderErrorPage(error, url.pathname);",
+		"\t\t// no error.ts covers this path, so there is no error page to render",
+		"\t\tif (page === null) return null;",
+		"\t\treturn renderToString(page, { location: url.pathname + url.search });",
+		"\t},",
 		"});",
 		"",
 		"export const render = server.render;",
@@ -243,20 +256,29 @@ export function generateTsconfig(aliases: Record<string, string>): string {
  * param carries what its matcher makes of the segment, read off the matcher
  * module's own type.
  */
-function paramsType(params: RouteParam[], paramsSpecifier: string): string {
+function paramsType(
+	params: RouteParam[],
+	paramsSpecifier: string,
+	appMatchers: readonly string[],
+): string {
 	if (params.length === 0) return "{}";
 	const entries = params.map(
 		(param) =>
-			`${JSON.stringify(param.name)}: Readable<${matcherTypeExpr(param, paramsSpecifier)}>`,
+			`${JSON.stringify(param.name)}: Readable<${matcherTypeExpr(param, paramsSpecifier, appMatchers)}>`,
 	);
 	return `{ ${entries.join("; ")} }`;
 }
 
 /** The same, as `event.params` carries it: the value itself, not a readable. */
-function serverParamsType(params: RouteParam[], paramsSpecifier: string): string {
+function serverParamsType(
+	params: RouteParam[],
+	paramsSpecifier: string,
+	appMatchers: readonly string[],
+): string {
 	if (params.length === 0) return "{}";
 	const entries = params.map(
-		(param) => `${JSON.stringify(param.name)}: ${matcherTypeExpr(param, paramsSpecifier)}`,
+		(param) =>
+			`${JSON.stringify(param.name)}: ${matcherTypeExpr(param, paramsSpecifier, appMatchers)}`,
 	);
 	return `{ ${entries.join("; ")} }`;
 }
@@ -273,6 +295,12 @@ export type GenPaths = {
 	routes: string;
 	/** Param matchers directory (`src/params`), forward slashes, no leading one. */
 	params: string;
+	/**
+	 * The matchers the app declares a file for. A `[id=integer]` route naming
+	 * something that is not in here is served by a built-in, and typed from kit
+	 * rather than from a file the app does not have.
+	 */
+	appMatchers: readonly string[];
 };
 
 /**
@@ -309,6 +337,15 @@ export { json } from "@implementjs/kit/endpoint";
 const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/endpoint";
 `;
 
+/**
+ * The load chain feeding a directory's own load — everything above it, its own
+ * file dropped. That file is always last in the chain it belongs to, so what is
+ * left is exactly what its `parent()` resolves to.
+ */
+function parentFiles(files: string[], own: string | null): string[] {
+	return own === null ? files : files.slice(0, -1);
+}
+
 /** The \`./$types\` module for one route directory. */
 export function generateRouteTypes(node: RouteNode, chain: DataChain, paths: GenPaths): string {
 	const params = paramsSpecifier(paths, node.dir);
@@ -325,11 +362,14 @@ type LoadData<T> = T extends (...args: never) => infer R
 `;
 	return `import type { Mountable, Readable, RouterLocation } from "@implementjs/core";
 import type { RouterError } from "@implementjs/router";
-${node.endpoint === null ? "" : HANDLER_IMPORT}import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
+${node.endpoint === null ? "" : HANDLER_IMPORT}import type { LoadEvent as KitLoadEvent, RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 ${helpers}
-export type RouteParams = ${paramsType(node.params, params)};
-export type ServerParams = ${serverParamsType(node.params, params)};
-export type LoadEvent = KitRequestEvent<ServerParams>;
+export type RouteParams = ${paramsType(node.params, params, paths.appMatchers)};
+export type ServerParams = ${serverParamsType(node.params, params, paths.appMatchers)};
+export type LayoutParentData = ${dataType(node.dir, parentFiles(chain.layoutFiles, node.layoutServer))};
+export type PageParentData = ${dataType(node.dir, parentFiles(chain.pageFiles, node.pageServer))};
+export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;
+export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;
 export type RequestEvent = KitRequestEvent<ServerParams>;
 export type LayoutData = ${dataType(node.dir, chain.layoutFiles)};
 export type PageData = ${dataType(node.dir, chain.pageFiles)};
@@ -345,7 +385,7 @@ export function generateExtensionTypes(node: RouteNode, paths: GenPaths): string
 	const params = paramsSpecifier(paths, node.dir, 1);
 	return `${HANDLER_IMPORT}import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 
-export type ServerParams = ${serverParamsType(node.params, params)};
+export type ServerParams = ${serverParamsType(node.params, params, paths.appMatchers)};
 export type RequestEvent = KitRequestEvent<ServerParams>;
 ${HANDLER_EXPORT}`;
 }
@@ -365,7 +405,6 @@ ${HANDLER_EXPORT}`;
  */
 export function generateRouterDeclaration(
 	routes: PageRoute[],
-	hasErrorPage: boolean,
 	paths: GenPaths,
 	client: ClientStyle = {},
 ): string {
@@ -373,19 +412,16 @@ export function generateRouterDeclaration(
 	const entries = routes
 		.map(
 			(route) =>
-				`\t\t${JSON.stringify(route.pattern)}: (params: ${paramsType(route.params, params)}) => Child;`,
+				`\t\t${JSON.stringify(route.pattern)}: (params: ${paramsType(route.params, params, paths.appMatchers)}) => Child;`,
 		)
 		.join("\n");
-	const errorPage = hasErrorPage
-		? `\n\n\texport function errorPage(error: RouterError): Child;`
-		: "";
 	return `declare module "$implement/router" {
 	import type { Child, Readable } from "@implementjs/core";
-	import type { RouterError, RouterHelper } from "@implementjs/router";
+	import type { RouterHelper } from "@implementjs/router";
 
 	export const router: RouterHelper<{
 ${entries}
-	}>;${errorPage}
+	}>;
 }
 
 declare module "$implement/params" {
@@ -395,10 +431,17 @@ declare module "$implement/params" {
 	export const matchers: ParamMatchers;
 }
 
+declare module "$implement/navigation" {
+	export { invalidate, invalidateAll } from "@implementjs/kit/runtime";
+}
+
 declare module "$implement/pages" {
-	import type { PageRoute } from "@implementjs/kit/server";
+	import type { ErrorRoute, PageRoute } from "@implementjs/kit/server";
 
 	export const pages: PageRoute[];
+
+	/** Every \`error.ts\`, with the loads feeding the layouts it renders inside. */
+	export const errors: ErrorRoute[];
 }
 
 declare module "$implement/endpoints" {
@@ -459,12 +502,19 @@ declare namespace App {
  * So: \`import type {}\` makes this one a module, and nothing else goes in it.
  */
 export function generateParamTypesDeclaration(matchers: string[], paths: GenPaths): string {
-	const entries = matchers
-		.map(
+	// a built-in the app has not shadowed is typed from kit, so `Link` and
+	// `navigate` know what `/orders/:id=integer` binds as surely as `$types` does
+	const builtin = BUILTIN_MATCHER_NAMES.filter((name) => !matchers.includes(name)).map(
+		(name) =>
+			`\t\t${JSON.stringify(name)}: import("@implementjs/kit/params").ParamType<(typeof import("@implementjs/kit/params").builtinMatchers)[${JSON.stringify(name)}]>;`,
+	);
+	const entries = [
+		...builtin,
+		...matchers.map(
 			(name) =>
 				`\t\t${JSON.stringify(name)}: import("@implementjs/kit/params").ParamType<typeof import(${JSON.stringify(`./${paths.params}/${name}.ts`)}).default>;`,
-		)
-		.join("\n");
+		),
+	].join("\n");
 	return `import type {} from "@implementjs/router";
 
 declare module "@implementjs/router" {
@@ -571,6 +621,7 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	const paths: GenPaths = {
 		routes: normalizeDir(routesDir),
 		params: normalizeDir(options.params ?? DEFAULT_PARAMS_DIR),
+		appMatchers: tree.matchers,
 	};
 	const outDir = join(root, IMPLEMENT_DIR);
 	const typesDir = join(outDir, "types");
@@ -585,10 +636,7 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 		options.dynamicPublicEnv !== undefined && existsSync(join(root, options.dynamicPublicEnv))
 			? options.dynamicPublicEnv
 			: undefined;
-	writeIfChanged(
-		join(outDir, "entry-server.ts"),
-		entryServer(tree.error !== null, dynamicPublicEnv),
-	);
+	writeIfChanged(join(outDir, "entry-server.ts"), entryServer(dynamicPublicEnv));
 	writeIfChanged(
 		join(outDir, "tsconfig.json"),
 		generateTsconfig({ ...DEFAULT_ALIASES, ...routerAliases().tsconfig, ...options.alias }),
@@ -599,14 +647,13 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	);
 	writeIfChanged(
 		join(typesDir, "$implement.d.ts"),
-		generateRouterDeclaration(pageRoutes(tree), tree.error !== null, paths, options.client ?? {}),
+		generateRouterDeclaration(pageRoutes(tree), paths, options.client ?? {}),
 	);
 	// its own file because it is a module and `$implement.d.ts` is a script — and
-	// removed rather than emptied, since what is left of it once the last matcher
-	// goes is a module augmentation of an interface with nothing to add
+	// always written now: the built-in matchers are always there to declare, so
+	// the augmentation never has nothing to add
 	const paramTypesFile = join(typesDir, "$implement-params.d.ts");
-	if (tree.matchers.length === 0) rmSync(paramTypesFile, { force: true });
-	else writeIfChanged(paramTypesFile, generateParamTypesDeclaration(tree.matchers, paths));
+	writeIfChanged(paramTypesFile, generateParamTypesDeclaration(tree.matchers, paths));
 	writeIfChanged(join(typesDir, "app.d.ts"), generateAppDeclaration());
 
 	const chains = dataChains(tree);
@@ -621,7 +668,10 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 			node.page !== null ||
 			node.layout !== null ||
 			node.layoutServer !== null ||
-			node.endpoint !== null
+			node.endpoint !== null ||
+			// an `error.ts` imports `./$types` for its `ErrorProps`, so a directory
+			// holding nothing else still gets one
+			node.error !== null
 		) {
 			write(
 				join(typesDir, routesDir, node.dir, "$types.d.ts"),
@@ -637,13 +687,6 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 		for (const child of node.children) emit(child);
 	};
 	emit(tree.root);
-	// error.ts imports the root ./$types too
-	if (tree.error !== null && !expected.has(join(typesDir, routesDir, "$types.d.ts"))) {
-		write(
-			join(typesDir, routesDir, "$types.d.ts"),
-			generateRouteTypes(tree.root, chains.get(tree.root)!, paths),
-		);
-	}
 	pruneStaleTypes(join(typesDir, routesDir), expected);
 }
 
