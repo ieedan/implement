@@ -547,6 +547,11 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			expect(live.paths["/orders/{id}"]?.["get"]?.parameters).toEqual([
 				{ name: "id", in: "path", required: true, schema: { type: "integer" } },
 			]);
+			// a built-in matcher: nothing in src/params declares `number`, and the
+			// document still says what the route hands a handler
+			expect(live.paths["/prices/{at}"]?.["get"]?.parameters).toEqual([
+				{ name: "at", in: "path", required: true, schema: { type: "number" } },
+			]);
 			// `output` lands under static/, so its URL answers in dev too — built
 			// from the routes as they are now, not from a file a build left behind
 			const fromOutput = await fetch(`${origin}/spec/api.json`);

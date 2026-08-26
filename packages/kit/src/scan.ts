@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { BUILTIN_MATCHER_NAMES } from "./params.ts";
 
 export const PAGE_FILE = "page.ts";
 export const LAYOUT_FILE = "layout.ts";
@@ -416,7 +417,8 @@ export function segmentKey(segment: RouteSegment): string {
  * Checked over the whole tree at once so the message can list what is there.
  */
 function assertMatchersExist(root: RouteNode, matchers: string[]): void {
-	const known = new Set(matchers);
+	// a built-in needs no file, so it is known whether or not the app wrote one
+	const known = new Set([...matchers, ...BUILTIN_MATCHER_NAMES]);
 	const walk = (node: RouteNode) => {
 		const segment = node.segment;
 		if (
@@ -427,8 +429,8 @@ function assertMatchersExist(root: RouteNode, matchers: string[]): void {
 		) {
 			const available =
 				matchers.length === 0
-					? "the app declares no param matchers"
-					: `the ones it declares are ${matchers.join(", ")}`;
+					? `the app declares no param matchers, and the built-in ones are ${BUILTIN_MATCHER_NAMES.join(", ")}`
+					: `the ones it declares are ${matchers.join(", ")}, and the built-in ones are ${BUILTIN_MATCHER_NAMES.join(", ")}`;
 			throw new Error(
 				`"${node.dir}" names the param matcher "${segment.matcher}", but there is no "${segment.matcher}.ts" in the params directory — ${available}`,
 			);

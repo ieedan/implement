@@ -228,20 +228,21 @@ const routeDataExpr = (files: string[]): string => `routeData(${JSON.stringify(f
  * that forgot to default-export a `matcher()` into a message naming the file.
  */
 export function generateParamsModule(tree: RouteTree, paramsBase: string): string {
-	if (tree.matchers.length === 0) return "export const matchers = {};\n";
 	const imports = tree.matchers.map(
 		(name, index) => `import matcher_${index} from ${JSON.stringify(`${paramsBase}/${name}.ts`)};`,
 	);
 	const entries = tree.matchers.map(
-		(name, index) => `\t${JSON.stringify(name)}: matcher_${index},`,
+		(name, index) => `\t\t${JSON.stringify(name)}: matcher_${index},`,
 	);
+	// the app's spread last, so a `src/params/integer.ts` of its own wins and a
+	// built-in stays a default rather than a reserved word
 	return `${[
-		'import { matcherTable } from "@implementjs/kit/params";',
+		'import { builtinMatchers, matcherTable } from "@implementjs/kit/params";',
 		imports.join("\n"),
 		"",
-		`export const matchers = matcherTable({\n${entries.join("\n")}\n}, ${JSON.stringify(
-			paramsBase.replace(/^\//, ""),
-		)});`,
+		`export const matchers = {\n\t...builtinMatchers,\n\t...matcherTable({\n${entries.join(
+			"\n",
+		)}\n}, ${JSON.stringify(paramsBase.replace(/^\//, ""))}),\n};`,
 	].join("\n")}\n`;
 }
 
@@ -701,10 +702,15 @@ export function clientTypeReference(options: ClientStyle, api: string): string {
  * `{}` or `{ "id": number; "slug": string }` — the params a route key binds, a
  * matched one typed by what its matcher makes of the segment.
  */
-function clientParamsType(params: RouteParam[], paramsSpecifier: string): string {
+function clientParamsType(
+	params: RouteParam[],
+	paramsSpecifier: string,
+	appMatchers: readonly string[],
+): string {
 	if (params.length === 0) return "{}";
 	const entries = params.map(
-		(param) => `${JSON.stringify(param.name)}: ${matcherTypeExpr(param, paramsSpecifier)}`,
+		(param) =>
+			`${JSON.stringify(param.name)}: ${matcherTypeExpr(param, paramsSpecifier, appMatchers)}`,
 	);
 	return `{ ${entries.join("; ")} }`;
 }
@@ -714,8 +720,19 @@ function clientParamsType(params: RouteParam[], paramsSpecifier: string): string
  * the matcher module makes of a segment — read off the matcher's own type, so
  * the matcher declares it once and every route naming it inherits it.
  */
-export function matcherTypeExpr(param: RouteParam, paramsSpecifier: string): string {
+export function matcherTypeExpr(
+	param: RouteParam,
+	paramsSpecifier: string,
+	appMatchers: readonly string[],
+): string {
 	if (param.matcher === null) return "string";
+	// a name the app has no file for is a built-in — the scan already refused
+	// any name that is neither, so there is no third case to fall through to
+	if (!appMatchers.includes(param.matcher)) {
+		return `import("@implementjs/kit/params").ParamType<
+			(typeof import("@implementjs/kit/params").builtinMatchers)[${JSON.stringify(param.matcher)}]
+		>`.replaceAll(/\s+/g, " ");
+	}
 	const specifier = JSON.stringify(`${paramsSpecifier}/${param.matcher}.ts`);
 	return `import("@implementjs/kit/params").ParamType<typeof import(${specifier}).default>`;
 }
@@ -749,7 +766,7 @@ export function generateClientModule(
 		const specifier = JSON.stringify(`..${routesBase}/${route.file}`);
 		return [
 			`\t${JSON.stringify(route.key)}: {`,
-			`\t\tparams: ${clientParamsType(route.params, paramsSpecifier)};`,
+			`\t\tparams: ${clientParamsType(route.params, paramsSpecifier, tree.matchers)};`,
 			`\t\toperations: Operations<typeof import(${specifier})>;`,
 			"\t};",
 		].join("\n");

@@ -26,6 +26,9 @@ const word = matcher(v.pipe(v.string(), v.regex(/^[a-z]+$/)));
 
 const matchers = { integer, word };
 
+/** The same names as files on disk, which is what a generator is told. */
+const APP_MATCHERS = ["integer", "word"];
+
 // ---------------------------------------------------------------------------
 // The matcher primitive
 // ---------------------------------------------------------------------------
@@ -257,16 +260,30 @@ describe("scanRoutes with matchers", () => {
 		expect(serverRoutes(tree)[0]!.params).toEqual([{ name: "slug", matcher: null }]);
 	});
 
-	it("rejects a route naming a matcher the app does not have", () => {
-		const app = makeApp(["posts/[id=integer]/page.ts"], ["word"]);
+	it("rejects a route naming a matcher that is neither the app's nor built in", () => {
+		const app = makeApp(["posts/[id=uuid]/page.ts"], ["word"]);
 		expect(() => scanRoutes(app.routes, app.params)).toThrow(
-			/names the param matcher "integer".*the ones it declares are word/s,
+			/names the param matcher "uuid".*the ones it declares are word.*built-in ones are integer, number/s,
 		);
 	});
 
-	it("says the app has none when the params directory is missing", () => {
-		const app = makeApp(["posts/[id=integer]/page.ts"]);
-		expect(() => scanRoutes(app.routes, app.params)).toThrow(/declares no param matchers/);
+	it("says what is built in when the params directory is missing", () => {
+		const app = makeApp(["posts/[id=uuid]/page.ts"]);
+		expect(() => scanRoutes(app.routes, app.params)).toThrow(
+			/declares no param matchers, and the built-in ones are integer, number/,
+		);
+	});
+
+	it("accepts a built-in with no file for it, and an app file that shadows one", () => {
+		// the whole point: `[id=integer]` needs nothing in src/params
+		const bare = makeApp(["posts/[id=integer]/page.ts", "prices/[at=number]/page.ts"]);
+		expect(() => scanRoutes(bare.routes, bare.params)).not.toThrow();
+		expect(scanRoutes(bare.routes, bare.params).matchers).toEqual([]);
+
+		const shadowed = makeApp(["posts/[id=integer]/page.ts"], ["integer"]);
+		expect(() => scanRoutes(shadowed.routes, shadowed.params)).not.toThrow();
+		// `matchers` stays the app's own files — what it declares, not what exists
+		expect(scanRoutes(shadowed.routes, shadowed.params).matchers).toEqual(["integer"]);
 	});
 
 	it("lets two siblings bind the same name behind different matchers", () => {
@@ -292,14 +309,21 @@ describe("generateParamsModule", () => {
 		expect(code).toContain('import matcher_0 from "/src/params/integer.ts";');
 		expect(code).toContain('import matcher_1 from "/src/params/word.ts";');
 		expect(code).toContain('"integer": matcher_0,');
-		expect(code).toContain('}, "src/params");');
+		expect(code).toContain('}, "src/params")');
 	});
 
-	it("is an empty table for an app with no matchers", () => {
+	it("still carries the built-ins for an app with no matchers of its own", () => {
 		const app = makeApp(["page.ts"]);
-		expect(generateParamsModule(scanRoutes(app.routes, app.params), "/src/params")).toBe(
-			"export const matchers = {};\n",
-		);
+		const code = generateParamsModule(scanRoutes(app.routes, app.params), "/src/params");
+		expect(code).toContain("...builtinMatchers,");
+		expect(code).not.toContain("import matcher_0");
+	});
+
+	it("spreads the app's over the built-ins, so its own file wins", () => {
+		const app = makeApp(["posts/[id=integer]/page.ts"], ["integer"]);
+		const code = generateParamsModule(scanRoutes(app.routes, app.params), "/src/params");
+		expect(code.indexOf("...builtinMatchers,")).toBeLessThan(code.indexOf("...matcherTable("));
+		expect(code).toContain('import matcher_0 from "/src/params/integer.ts";');
 	});
 });
 
@@ -326,7 +350,7 @@ describe("generateRouterModule with matchers", () => {
 // The generated types — the point of the whole thing
 // ---------------------------------------------------------------------------
 
-const PATHS = { routes: "src/routes", params: "src/params" };
+const PATHS = { routes: "src/routes", params: "src/params", appMatchers: APP_MATCHERS };
 
 describe("the types a matched param gets", () => {
 	const node = {

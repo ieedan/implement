@@ -49,7 +49,7 @@ import {
 } from "./guard.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
 import { buildOpenApiDocument, type OpenApiEndpoint, type OpenApiOptions } from "./openapi.ts";
-import { matcherTable, type ParamMatchers } from "./params.ts";
+import { builtinMatchers, matcherTable, type ParamMatchers } from "./params.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
 import type { KitPluginApi } from "./sync.ts";
@@ -541,12 +541,16 @@ export function kit(options: KitOptions = {}): Plugin[] {
 					.filter((name): name is string => name !== null && name !== undefined),
 			),
 		);
-		const names = [...named];
+		// a built-in has no module to load, and the app's own file shadows one
+		const names = [...named].filter((name) => (tree ?? scan()).matchers.includes(name));
 		const modules = await Promise.all(names.map((name) => load(`${paramsBase}/${name}.ts`)));
-		return matcherTable(
-			Object.fromEntries(names.map((name, index) => [name, modules[index]!["default"]])),
-			paramsGlob,
-		);
+		return {
+			...builtinMatchers,
+			...matcherTable(
+				Object.fromEntries(names.map((name, index) => [name, modules[index]!["default"]])),
+				paramsGlob,
+			),
+		};
 	};
 
 	/** The document as a file, with every warning reported against the route it came from. */

@@ -11,6 +11,7 @@ import {
 	type DataChain,
 	type PageRoute,
 } from "./codegen.ts";
+import { BUILTIN_MATCHER_NAMES } from "./params.ts";
 import { type RouteNode, type RouteParam, type RouteTree } from "./scan.ts";
 
 export const IMPLEMENT_DIR = ".implement";
@@ -219,20 +220,29 @@ export function generateTsconfig(aliases: Record<string, string>): string {
  * param carries what its matcher makes of the segment, read off the matcher
  * module's own type.
  */
-function paramsType(params: RouteParam[], paramsSpecifier: string): string {
+function paramsType(
+	params: RouteParam[],
+	paramsSpecifier: string,
+	appMatchers: readonly string[],
+): string {
 	if (params.length === 0) return "{}";
 	const entries = params.map(
 		(param) =>
-			`${JSON.stringify(param.name)}: Readable<${matcherTypeExpr(param, paramsSpecifier)}>`,
+			`${JSON.stringify(param.name)}: Readable<${matcherTypeExpr(param, paramsSpecifier, appMatchers)}>`,
 	);
 	return `{ ${entries.join("; ")} }`;
 }
 
 /** The same, as `event.params` carries it: the value itself, not a readable. */
-function serverParamsType(params: RouteParam[], paramsSpecifier: string): string {
+function serverParamsType(
+	params: RouteParam[],
+	paramsSpecifier: string,
+	appMatchers: readonly string[],
+): string {
 	if (params.length === 0) return "{}";
 	const entries = params.map(
-		(param) => `${JSON.stringify(param.name)}: ${matcherTypeExpr(param, paramsSpecifier)}`,
+		(param) =>
+			`${JSON.stringify(param.name)}: ${matcherTypeExpr(param, paramsSpecifier, appMatchers)}`,
 	);
 	return `{ ${entries.join("; ")} }`;
 }
@@ -249,6 +259,12 @@ export type GenPaths = {
 	routes: string;
 	/** Param matchers directory (`src/params`), forward slashes, no leading one. */
 	params: string;
+	/**
+	 * The matchers the app declares a file for. A `[id=integer]` route naming
+	 * something that is not in here is served by a built-in, and typed from kit
+	 * rather than from a file the app does not have.
+	 */
+	appMatchers: readonly string[];
 };
 
 /**
@@ -312,8 +328,8 @@ type LoadData<T> = T extends (...args: never) => infer R
 import type { RouterError } from "@implementjs/router";
 ${node.endpoint === null ? "" : HANDLER_IMPORT}import type { LoadEvent as KitLoadEvent, RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 ${helpers}
-export type RouteParams = ${paramsType(node.params, params)};
-export type ServerParams = ${serverParamsType(node.params, params)};
+export type RouteParams = ${paramsType(node.params, params, paths.appMatchers)};
+export type ServerParams = ${serverParamsType(node.params, params, paths.appMatchers)};
 export type LayoutParentData = ${dataType(node.dir, parentFiles(chain.layoutFiles, node.layoutServer))};
 export type PageParentData = ${dataType(node.dir, parentFiles(chain.pageFiles, node.pageServer))};
 export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;
@@ -333,7 +349,7 @@ export function generateExtensionTypes(node: RouteNode, paths: GenPaths): string
 	const params = paramsSpecifier(paths, node.dir, 1);
 	return `${HANDLER_IMPORT}import type { RequestEvent as KitRequestEvent } from "@implementjs/kit/server";
 
-export type ServerParams = ${serverParamsType(node.params, params)};
+export type ServerParams = ${serverParamsType(node.params, params, paths.appMatchers)};
 export type RequestEvent = KitRequestEvent<ServerParams>;
 ${HANDLER_EXPORT}`;
 }
@@ -360,7 +376,7 @@ export function generateRouterDeclaration(
 	const entries = routes
 		.map(
 			(route) =>
-				`\t\t${JSON.stringify(route.pattern)}: (params: ${paramsType(route.params, params)}) => Child;`,
+				`\t\t${JSON.stringify(route.pattern)}: (params: ${paramsType(route.params, params, paths.appMatchers)}) => Child;`,
 		)
 		.join("\n");
 	return `declare module "$implement/router" {
@@ -450,12 +466,19 @@ declare namespace App {
  * So: \`import type {}\` makes this one a module, and nothing else goes in it.
  */
 export function generateParamTypesDeclaration(matchers: string[], paths: GenPaths): string {
-	const entries = matchers
-		.map(
+	// a built-in the app has not shadowed is typed from kit, so `Link` and
+	// `navigate` know what `/orders/:id=integer` binds as surely as `$types` does
+	const builtin = BUILTIN_MATCHER_NAMES.filter((name) => !matchers.includes(name)).map(
+		(name) =>
+			`\t\t${JSON.stringify(name)}: import("@implementjs/kit/params").ParamType<(typeof import("@implementjs/kit/params").builtinMatchers)[${JSON.stringify(name)}]>;`,
+	);
+	const entries = [
+		...builtin,
+		...matchers.map(
 			(name) =>
 				`\t\t${JSON.stringify(name)}: import("@implementjs/kit/params").ParamType<typeof import(${JSON.stringify(`./${paths.params}/${name}.ts`)}).default>;`,
-		)
-		.join("\n");
+		),
+	].join("\n");
 	return `import type {} from "@implementjs/router";
 
 declare module "@implementjs/router" {
@@ -553,6 +576,7 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	const paths: GenPaths = {
 		routes: normalizeDir(routesDir),
 		params: normalizeDir(options.params ?? DEFAULT_PARAMS_DIR),
+		appMatchers: tree.matchers,
 	};
 	const outDir = join(root, IMPLEMENT_DIR);
 	const typesDir = join(outDir, "types");
@@ -574,11 +598,10 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 		generateRouterDeclaration(pageRoutes(tree), paths, options.client ?? {}),
 	);
 	// its own file because it is a module and `$implement.d.ts` is a script — and
-	// removed rather than emptied, since what is left of it once the last matcher
-	// goes is a module augmentation of an interface with nothing to add
+	// always written now: the built-in matchers are always there to declare, so
+	// the augmentation never has nothing to add
 	const paramTypesFile = join(typesDir, "$implement-params.d.ts");
-	if (tree.matchers.length === 0) rmSync(paramTypesFile, { force: true });
-	else writeIfChanged(paramTypesFile, generateParamTypesDeclaration(tree.matchers, paths));
+	writeIfChanged(paramTypesFile, generateParamTypesDeclaration(tree.matchers, paths));
 	writeIfChanged(join(typesDir, "app.d.ts"), generateAppDeclaration());
 
 	const chains = dataChains(tree);

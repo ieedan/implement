@@ -32,7 +32,9 @@ afterEach(() => {
 	root = null;
 });
 
-const PATHS = { routes: "src/routes", params: "src/params" };
+const APP_MATCHERS = ["integer", "word"];
+
+const PATHS = { routes: "src/routes", params: "src/params", appMatchers: APP_MATCHERS };
 
 const slugNode = {
 	dir: "docs/[...slug]",
@@ -332,7 +334,7 @@ describe("writeGenerated", () => {
 		);
 	});
 
-	it("writes the ParamTypes augmentation only while the app has matchers", () => {
+	it("stops pointing ParamTypes at a matcher module the app has deleted", () => {
 		const app = makeApp(["page.ts", "posts/[id=integer]/page.ts"]);
 		const routesDir = join(app, "src/routes");
 		const paramsDir = join(app, "src/params");
@@ -341,13 +343,39 @@ describe("writeGenerated", () => {
 		const augmentation = join(app, ".implement/types/$implement-params.d.ts");
 
 		writeGenerated(app, scanRoutes(routesDir, paramsDir));
-		expect(readFileSync(augmentation, "utf8")).toContain('declare module "@implementjs/router"');
+		expect(readFileSync(augmentation, "utf8")).toContain("src/params/integer.ts");
 
-		// left behind, it augments the registry with a matcher module that is gone
+		// the app's own `integer` goes; the built-in of that name is what is left,
+		// so the augmentation stays but must not name a module that is gone
 		rmSync(join(routesDir, "posts"), { recursive: true });
 		rmSync(paramsDir, { recursive: true });
 		writeGenerated(app, scanRoutes(routesDir, paramsDir));
-		expect(existsSync(augmentation)).toBe(false);
+		const after = readFileSync(augmentation, "utf8");
+		expect(after).not.toContain("src/params/integer.ts");
+		expect(after).toContain("builtinMatchers");
+	});
+
+	it("types a built-in from kit, and lets the app's own file shadow it", () => {
+		const app = makeApp(["posts/[id=integer]/page.ts", "prices/[at=number]/page.ts"]);
+		const routesDir = join(app, "src/routes");
+		const paramsDir = join(app, "src/params");
+		mkdirSync(paramsDir, { recursive: true });
+		writeFileSync(join(paramsDir, "integer.ts"), "export default null;\n");
+		writeGenerated(app, scanRoutes(routesDir, paramsDir));
+
+		// `number` has no file, so it types from kit
+		const prices = readFileSync(
+			join(app, ".implement/types/src/routes/prices/[at=number]/$types.d.ts"),
+			"utf8",
+		);
+		expect(prices).toContain("builtinMatchers");
+		// `integer` does, so the app's wins over the built-in of that name
+		const posts = readFileSync(
+			join(app, ".implement/types/src/routes/posts/[id=integer]/$types.d.ts"),
+			"utf8",
+		);
+		expect(posts).toContain("params/integer.ts");
+		expect(posts).not.toContain("builtinMatchers");
 	});
 
 	it("prunes $types for removed routes", () => {

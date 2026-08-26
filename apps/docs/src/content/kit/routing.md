@@ -86,23 +86,32 @@ Static segments always beat params at the same position, so `/users/new` wins ov
 
 ## Param matchers
 
-`[id]` matches any segment, which means `/users/oops` reaches the page and the page has to deal with it. A **matcher** moves that decision up to routing: a matcher lives in `src/params/<name>.ts`, a `[id=<name>]` directory names it, and a segment the matcher turns down never becomes a match at all.
+`[id]` matches any segment, which means `/users/oops` reaches the page and the page has to deal with it. A **matcher** moves that decision up to routing: a `[id=<name>]` directory names one, and a segment the matcher turns down never becomes a match at all.
 
-```ts
-// src/params/integer.ts
-import { matcher } from "@implementjs/kit/params";
-import * as v from "valibot";
+Two are built in, so the common cases need no setup:
 
-export default matcher(v.pipe(v.string(), v.digits()));
+|                  | binds               | turns down                                                                 |
+| ---------------- | ------------------- | -------------------------------------------------------------------------- |
+| `[id=integer]`   | a whole `number`    | anything `Number` reads as `NaN`, a fraction, or a value too large to hold |
+| `[price=number]` | any finite `number` | anything `Number` reads as `NaN` or `Infinity`                             |
+
 ```
-
-```
-src/params
-	integer.ts
 src/routes
 	users
 		[id=integer]
 			page.ts       → /users/42, but not /users/oops
+```
+
+That is the whole setup — `params.id` is a `number`, in the page, in a load, in a `server.ts` handler, in the generated client, and in the OpenAPI document. Both read a segment the way `Number` does rather than policing how it is written, so `/users/0x10` is user `16`.
+
+Write your own for anything else, or to replace one of those: a matcher lives in `src/params/<name>.ts`, and a file named `integer.ts` **wins** over the built-in, so these are defaults rather than reserved words.
+
+```ts
+// src/params/slug.ts
+import { matcher } from "@implementjs/kit/params";
+import * as v from "valibot";
+
+export default matcher(v.pipe(v.string(), v.regex(/^[a-z0-9-]+$/)));
 ```
 
 A matcher is built from a [Standard Schema](https://standardschema.dev) — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) take, so it is a library you already have rather than one kit makes you add.

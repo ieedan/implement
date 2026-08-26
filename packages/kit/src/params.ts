@@ -129,6 +129,97 @@ export function matcher<S extends StandardSchemaV1>(
 	};
 }
 
+/**
+ * The JSON Schema a built-in schema describes itself with.
+ *
+ * Kit converts a Standard Schema per vendor, and kit's own schemas have no
+ * vendor package to convert them — so they carry the answer instead. A symbol
+ * rather than a key, so nothing an app writes collides with it.
+ */
+export const JSON_SCHEMA: unique symbol = Symbol.for("implementjs:json-schema");
+
+/** The vendor tag kit's own schemas carry, so the converter recognizes them. */
+export const KIT_VENDOR = "implementjs";
+
+/**
+ * A Standard Schema over a route segment, written out by hand.
+ *
+ * Kit cannot depend on a schema library — it does not bundle one, and the whole
+ * point of Standard Schema is that an app brings its own — so the built-ins are
+ * the interface implemented directly, which is the same thing an app does when
+ * it would rather not add a dependency.
+ */
+function segmentSchema<T>(
+	expected: string,
+	parse: (value: string) => T | Mismatch,
+	jsonSchema: Record<string, unknown>,
+): StandardSchemaV1<string, T> {
+	return {
+		"~standard": {
+			version: 1,
+			vendor: KIT_VENDOR,
+			validate: (value: unknown) => {
+				if (typeof value !== "string") return { issues: [{ message: `expected ${expected}` }] };
+				const parsed = parse(value);
+				return parsed === mismatch
+					? { issues: [{ message: `expected ${expected}` }] }
+					: { value: parsed };
+			},
+		},
+		[JSON_SCHEMA]: jsonSchema,
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The symbol rides along beside the spec's own key.
+	} as StandardSchemaV1<string, T> & { [JSON_SCHEMA]: Record<string, unknown> };
+}
+
+/**
+ * A finite number, however `Number` reads the segment — so `/items/1e3` is
+ * `1000` and `/items/0x10` is `16`, the same values `Number` gives. What it
+ * turns down is what `Number` invents rather than refuses: `NaN` for a segment
+ * that is not a number at all, and `Infinity` for one too large to hold.
+ */
+const numberSchema = segmentSchema(
+	"a number",
+	(value) => {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : mismatch;
+	},
+	{ type: "number" },
+);
+
+/** {@link numberSchema}, narrowed to a whole number — `4.5` is not one. */
+const integerSchema = segmentSchema(
+	"an integer",
+	(value) => {
+		const parsed = Number(value);
+		return Number.isInteger(parsed) ? parsed : mismatch;
+	},
+	{ type: "integer" },
+);
+
+/**
+ * The matchers every app has without writing one: `[id=integer]` and
+ * `[price=number]` work with nothing in `src/params`.
+ *
+ * They are ordinary matchers, so nothing about a route that names one is
+ * special — and a `src/params/integer.ts` of your own **wins**, so a built-in
+ * is a default rather than a reserved word.
+ *
+ * Both parse: `params.id` is a `number`, in `$types`, in the router, and in the
+ * OpenAPI document. Both read a segment the way `Number` does rather than
+ * policing its spelling; put a check before the transform in a matcher of your
+ * own where a route wants only one way of writing its ids.
+ */
+export const builtinMatchers: {
+	readonly integer: ParamMatcher<number>;
+	readonly number: ParamMatcher<number>;
+} = {
+	integer: matcher(integerSchema),
+	number: matcher(numberSchema),
+};
+
+/** The names {@link builtinMatchers} provides, for a scan deciding what exists. */
+export const BUILTIN_MATCHER_NAMES: readonly string[] = Object.keys(builtinMatchers).toSorted();
+
 /** Whether a value came out of {@link matcher}. */
 export function isParamMatcher(value: unknown): value is AnyParamMatcher {
 	return (

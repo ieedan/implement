@@ -33,7 +33,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { handlerDefinition, type HandlerDefinition, type Method } from "./endpoint.ts";
 import type { EndpointRoute, RequestHandler } from "./match.ts";
-import type { ParamMatchers } from "./params.ts";
+import { JSON_SCHEMA, KIT_VENDOR, type ParamMatchers } from "./params.ts";
 
 const METHODS: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"];
 
@@ -352,6 +352,15 @@ async function loadModule(name: string): Promise<Record<string, unknown>> {
 
 /** The JSON-Schema converter for a Standard Schema vendor, or `null` for one kit does not know. */
 async function vendorConverter(vendor: string): Promise<ToJsonSchema | null> {
+	if (vendor === KIT_VENDOR) {
+		// kit's own built-in matchers, which have no vendor package to convert
+		// them — they carry their JSON Schema instead, so `[id=integer]` is
+		// documented as an integer rather than as an unconstrained schema with a
+		// warning, which would make the matchers most apps reach for the worst
+		// documented ones
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The symbol is kit's own, on a schema kit built.
+		return (schema) => (schema as { [JSON_SCHEMA]?: JsonSchema })[JSON_SCHEMA] ?? {};
+	}
 	if (vendor === "zod") {
 		const zod = await loadModule("zod");
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- zod's own converter, reached through a dynamic import.
