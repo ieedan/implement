@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { defineDynamicEnv } from "@implementjs/kit/env";
 import { kit } from "@implementjs/kit";
 import { build } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -64,6 +65,27 @@ describe("@implementjs/adapter-cloudflare", () => {
 		const bundled = readFileSync(join(out, "_worker.js"), "utf8");
 		expect(bundled).not.toMatch(/^import .* from "(?!node:)/m);
 		expect(existsSync(join(out, "chunks"))).toBe(false);
+	});
+
+	it("points kit's dynamic env at the bindings the request arrived with", async () => {
+		// a worker has no `process.env`, so this is the only place `env.dynamic.server.ts`
+		// can get its values — and the slot is shared, so a separate copy of kit sees it
+		await worker.default.fetch(
+			new Request("https://example.com/"),
+			{ WORKER_TOKEN: "from-binding" },
+			{},
+		);
+		const env = defineDynamicEnv({
+			WORKER_TOKEN: {
+				"~standard": {
+					version: 1,
+					vendor: "kit-tests",
+					validate: (value) =>
+						typeof value === "string" ? { value } : { issues: [{ message: "expected a string" }] },
+				},
+			},
+		});
+		expect(env.WORKER_TOKEN).toBe("from-binding");
 	});
 
 	it("renders pages and serves endpoints", async () => {

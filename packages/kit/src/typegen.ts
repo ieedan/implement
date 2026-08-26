@@ -12,6 +12,7 @@ import {
 	type PageRoute,
 } from "./codegen.ts";
 import { BUILTIN_MATCHER_NAMES } from "./params.ts";
+import type { PreloadOptions } from "./preload-kinds.ts";
 import { type RouteNode, type RouteParam, type RouteTree } from "./scan.ts";
 
 export const IMPLEMENT_DIR = ".implement";
@@ -19,8 +20,18 @@ export const IMPLEMENT_DIR = ".implement";
 /** Where param matchers live, relative to the app root. */
 export const DEFAULT_PARAMS_DIR = "src/params";
 
-const ENTRY_CLIENT = `import { App } from "@implementjs/core";
+/**
+ * The generated client entry: hydrate the server render, install the data
+ * store and the link preloading, and mount the router.
+ *
+ * `preload` is baked in rather than read at runtime because there is nowhere
+ * for it to be read *from* — the option lives in `vite.config.ts`, which is a
+ * node module the browser bundle never sees.
+ */
+function entryClient(preload: PreloadOptions | undefined): string {
+	return `import { App } from "@implementjs/core";
 import { installHydration } from "@implementjs/core/hydrate";
+import { initPreloading } from "@implementjs/kit/navigation";
 import { initClientData, preloadRoute } from "@implementjs/kit/runtime";
 import { router } from "$implement/router";
 
@@ -30,6 +41,11 @@ import { router } from "$implement/router";
 installHydration();
 
 initClientData();
+
+// Links warm their route ahead of the click. Per-link and per-subtree
+// overrides ride on \`data-implement-preload-data\` / \`-code\`; this is only
+// what a link inherits when nothing above it says otherwise.
+initPreloading(${JSON.stringify(preload ?? {})});
 
 const app = App({ target: document.body });
 
@@ -54,6 +70,7 @@ preloadRoute(window.location.pathname).then(
 	},
 );
 `;
+}
 
 /**
  * The generated server entry: the app's request pipeline. `render` is what the
@@ -65,49 +82,68 @@ preloadRoute(window.location.pathname).then(
  * no boundary for `renderErrorPage` to find, and answers `null`, which the
  * pipeline turns into a plain-text response.
  */
-const ENTRY_SERVER = `import { renderToString } from "@implementjs/core/server";
-import { preloadErrorRoute, preloadRoute, renderErrorPage, seedData } from "@implementjs/kit/runtime";
-import { createKitServer } from "@implementjs/kit/server";
-import * as hooks from "$implement/hooks";
-import { createClient } from "$implement/client";
-import { endpoints } from "$implement/endpoints";
-import { matchers } from "$implement/params";
-import { errors, pages } from "$implement/pages";
-import { router } from "$implement/router";
-
-export type { RenderResult } from "@implementjs/kit/server";
-
-const server = createKitServer({
-	hooks,
-	pages,
-	endpoints,
-	// so an error page renders in the layouts around its own error.ts, with what
-	// their loads returned
-	errors,
-	// so a \`[param=<name>]\` route only serves what its matcher accepts
-	matchers,
-	// so \`event.api\` is this app's own client, bound to \`event.fetch\`
-	createApiClient: createClient,
-	renderPage: async ({ url, data, error }) => {
-		if (data !== null) seedData(data);
-		// renderToString walks the tree synchronously, so whatever renders has to
-		// be in memory first: the route's own chunks, or the layouts around the
-		// nearest error.ts — which is also what a path no route matches renders in.
-		if (error === null) {
-			await preloadRoute(url.pathname);
-			return renderToString(router, { location: url.pathname + url.search });
-		}
-		await preloadErrorRoute(url.pathname);
-		const page = renderErrorPage(error, url.pathname);
-		// no error.ts covers this path, so there is no error page to render
-		if (page === null) return null;
-		return renderToString(page, { location: url.pathname + url.search });
-	},
-});
-
-export const render = server.render;
-export const respond = server.respond;
-`;
+/**
+ * The generated `entry-server.ts`.
+ *
+ * A function rather than a constant because the app decides one thing about
+ * it: whether a dynamic public env snapshot is imported and embedded. Which
+ * error page renders is not one of them any more — the boundary is resolved at
+ * runtime, and `renderErrorPage` answers `null` for a path no `error.ts`
+ * covers, so an app without one needs no different entry.
+ */
+function entryServer(dynamicPublicEnv: string | undefined): string {
+	// absent unless the app has the file: no import, no snapshot embedded in a
+	// page, and no `/_implement/env.js` route on the server
+	const envImport =
+		dynamicPublicEnv === undefined ? [] : [`import * as publicEnv from "/${dynamicPublicEnv}";`];
+	const envOption = dynamicPublicEnv === undefined ? [] : ["\tpublicEnv,"];
+	return `${[
+		'import { renderToString } from "@implementjs/core/server";',
+		'import { preloadErrorRoute, preloadRoute, renderErrorPage, seedData } from "@implementjs/kit/runtime";',
+		'import { createKitServer } from "@implementjs/kit/server";',
+		'import * as hooks from "$implement/hooks";',
+		'import { createClient } from "$implement/client";',
+		'import { endpoints } from "$implement/endpoints";',
+		'import { matchers } from "$implement/params";',
+		'import { errors, pages } from "$implement/pages";',
+		'import { router } from "$implement/router";',
+		...envImport,
+		"",
+		'export type { RenderResult } from "@implementjs/kit/server";',
+		"",
+		"const server = createKitServer({",
+		"\thooks,",
+		"\tpages,",
+		"\tendpoints,",
+		"\t// so an error page renders in the layouts around its own error.ts, with",
+		"\t// what their loads returned",
+		"\terrors,",
+		"\t// so a `[param=<name>]` route only serves what its matcher accepts",
+		"\tmatchers,",
+		"\t// so `event.api` is this app's own client, bound to `event.fetch`",
+		"\tcreateApiClient: createClient,",
+		...envOption,
+		"\trenderPage: async ({ url, data, error }) => {",
+		"\t\tif (data !== null) seedData(data);",
+		"\t\t// renderToString walks the tree synchronously, so whatever renders has to",
+		"\t\t// be in memory first: the route's own chunks, or the layouts around the",
+		"\t\t// nearest error.ts — which is also what a path no route matches renders in.",
+		"\t\tif (error === null) {",
+		"\t\t\tawait preloadRoute(url.pathname);",
+		"\t\t\treturn renderToString(router, { location: url.pathname + url.search });",
+		"\t\t}",
+		"\t\tawait preloadErrorRoute(url.pathname);",
+		"\t\tconst page = renderErrorPage(error, url.pathname);",
+		"\t\t// no error.ts covers this path, so there is no error page to render",
+		"\t\tif (page === null) return null;",
+		"\t\treturn renderToString(page, { location: url.pathname + url.search });",
+		"\t},",
+		"});",
+		"",
+		"export const render = server.render;",
+		"export const respond = server.respond;",
+	].join("\n")}\n`;
+}
 
 /** Aliases every kit app gets; \`KitOptions.alias\` entries merge over them. */
 export const DEFAULT_ALIASES: Record<string, string> = { "@/lib": "src/lib" };
@@ -520,6 +556,15 @@ export type SyncOptions = {
 	client?: ClientStyle;
 	/** Extra aliases (name → path relative to the app root) for the generated tsconfig, on top of `@/lib` → `src/lib`. */
 	alias?: Record<string, string>;
+	/** What a link preloads when nothing above it says otherwise — \`KitOptions.preload\`. */
+	preload?: PreloadOptions;
+	/**
+	 * Where the app's public dynamic env file would be, relative to the app
+	 * root — \`KitOptions.env.dynamicPublic\`. The generated server entry imports
+	 * it only if it is actually there, which is what keeps an app without one
+	 * from carrying any of the machinery that serves it.
+	 */
+	dynamicPublicEnv?: string;
 };
 
 /**
@@ -583,8 +628,15 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	mkdirSync(typesDir, { recursive: true });
 
 	writeIfChanged(join(outDir, ".gitignore"), "*\n");
-	writeIfChanged(join(outDir, "entry-client.ts"), ENTRY_CLIENT);
-	writeIfChanged(join(outDir, "entry-server.ts"), ENTRY_SERVER);
+	writeIfChanged(join(outDir, "entry-client.ts"), entryClient(options.preload));
+	// the path is always configured; the file being there is what turns it on,
+	// and checking here means the plugin and the `sync` CLI agree without having
+	// to be told the same thing twice
+	const dynamicPublicEnv =
+		options.dynamicPublicEnv !== undefined && existsSync(join(root, options.dynamicPublicEnv))
+			? options.dynamicPublicEnv
+			: undefined;
+	writeIfChanged(join(outDir, "entry-server.ts"), entryServer(dynamicPublicEnv));
 	writeIfChanged(
 		join(outDir, "tsconfig.json"),
 		generateTsconfig({ ...DEFAULT_ALIASES, ...routerAliases().tsconfig, ...options.alias }),

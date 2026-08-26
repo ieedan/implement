@@ -10,6 +10,9 @@ import {
 import type { RouterError } from "@implementjs/router";
 import { errorBoundaryFor, preloadRoute } from "./lazy.ts";
 import { dataPath, matchRoutePattern, normalizeRoutePath, type RouteData } from "./match.ts";
+// `RequestEvent.cookies` is typed by these, so they belong on the same entry —
+// otherwise a hand-built event cannot name the field it has to fill in.
+export type { CookieOptions, Cookies, CookieScope } from "./cookies.ts";
 import { appMatchers, registerMatchers } from "./params.ts";
 
 export {
@@ -58,18 +61,17 @@ export {
 	type RouteData,
 	type ServerLoad,
 } from "./match.ts";
-// `RequestEvent.cookies` is typed by these, so they belong on the same entry —
-// otherwise a hand-built event cannot name the field it has to fill in.
-export type { CookieOptions, Cookies, CookieScope } from "./cookies.ts";
 
 /**
  * The browser- and server-render half of kit's server data: a store of what
  * each `*.server.ts` load returned, the `data` readables pages and layouts
- * receive, the client-side navigation hook that fetches a route's data before
- * it renders, and `invalidate` / `invalidateAll`, which run that same fetch on
- * demand. The generated `$implement/router` module and `.implement/` entries
- * wire it up — apps reach the invalidation half through
- * `$implement/navigation` and never import this directly.
+ * receive, and the client-side navigation hook that fetches a route's data
+ * before it renders. The generated `$implement/router` module and
+ * `.implement/` entries wire it up — apps normally never import it directly.
+ *
+ * The exception is {@link preloadCode} and {@link preloadData}, which an app
+ * calls to warm a route ahead of a navigation. They are re-exported as
+ * `@implementjs/kit/navigation`, which is the spelling app code should use.
  */
 
 const store = new Map<string, Signal<unknown>>();
@@ -109,32 +111,159 @@ export function registerRoutes(routes: ClientRoute[]): void {
 	clientRoutes = routes;
 }
 
-/**
- * Run a path's loads on the server and hand back what they returned, or `null`
- * for a route with no loads. This is the `__data.json` endpoint — the same one
- * a navigation goes through, and the same `runLoads` behind it — which is why
- * invalidating reuses it rather than having a path of its own.
- *
- * The query string comes along: the pipeline rebuilds `event.url` from it, so
- * a load reading `url.searchParams` sees what the page it is rendering for
- * was asked with.
- */
-async function loadRouteData(path: string, search: string): Promise<RouteData | null> {
+/** Whether the route serving `path` has any loads to fetch data for. */
+function hasLoads(path: string): boolean {
 	const matchers = appMatchers();
-	const route = clientRoutes.find(
-		(entry) => matchRoutePattern(entry.pattern, path, matchers) !== null,
-	);
-	if (route === undefined) return null;
+	return clientRoutes.some((entry) => matchRoutePattern(entry.pattern, path, matchers) !== null);
+}
+
+/** One request for a route's serialized load results. */
+async function requestRouteData(path: string, search = ""): Promise<RouteData> {
 	const response = await fetch(`${dataPath(path)}${search}`);
 	if (!response.ok) throw new Error(`fetching route data failed: ${response.status}`);
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Route data JSON matches the generated load module shape.
 	return (await response.json()) as RouteData;
 }
 
-/** Fetch and seed the destination's `__data.json`; no-op for a route with no loads. */
+/**
+ * How long a preloaded payload stays usable, in milliseconds.
+ *
+ * A preload is a guess that the reader is about to follow the link, and the
+ * value of the guess decays: the click it was for lands within a second or
+ * two, while the pointer that crossed a link and moved on leaves a payload
+ * that is only going to get staler. Serving that to a navigation minutes
+ * later would make preloading a correctness change rather than a speed one —
+ * so an entry that was not spent expires, and the navigation fetches fresh.
+ */
+const PRELOAD_TTL = 30_000;
+
+/** A preloaded payload and the moment it stops being worth serving. */
+type Preloaded = { data: Promise<RouteData>; expires: number };
+
+/**
+ * Route data fetched ahead of a navigation, by path.
+ *
+ * Deliberately *not* {@link seedData}: seeding is what makes the mounted
+ * `data` readables update, so a hover that seeded would re-render the page
+ * the reader is still looking at with the destination's data. The payload
+ * waits here instead, and the navigation resolver spends it on the way
+ * through.
+ */
+const preloaded = new Map<string, Preloaded>();
+
+/** The unspent, unexpired entry for `path`, dropping it if it has gone stale. */
+function livePreload(path: string): Promise<RouteData> | undefined {
+	const entry = preloaded.get(path);
+	if (entry === undefined) return undefined;
+	if (entry.expires > Date.now()) return entry.data;
+	preloaded.delete(path);
+	return undefined;
+}
+
+/** Drop everything past its TTL, so a page of hovered links does not accumulate. */
+function sweepPreloads(): void {
+	const now = Date.now();
+	for (const [path, entry] of preloaded) {
+		if (entry.expires <= now) preloaded.delete(path);
+	}
+}
+
+/**
+ * Loads the code the route serving `href` renders through, without waiting for
+ * anything else — the cheap half of a preload, and the whole of it for a route
+ * with no loads.
+ *
+ * ```ts
+ * import { preloadCode } from "@implementjs/kit/navigation";
+ *
+ * Button({ onMouseEnter: () => void preloadCode("/checkout") }, "Checkout");
+ * ```
+ *
+ * A path matching no route in the app resolves without doing anything.
+ * Rejects if a chunk fails to load.
+ */
+export function preloadCode(...hrefs: string[]): Promise<void> {
+	return Promise.all(hrefs.map((href) => preloadRoute(href))).then(() => undefined);
+}
+
+/**
+ * Everything a navigation to `href` needs, fetched now rather than on the
+ * click: the route's chunks *and* its `__data.json`. The payload is held for
+ * {@link PRELOAD_TTL} and spent by the next navigation there, which then
+ * commits without a round trip of its own.
+ *
+ * ```ts
+ * import { preloadData } from "@implementjs/kit/navigation";
+ *
+ * A({ href: "/orders/1", onMouseEnter: () => void preloadData("/orders/1") }, "Order #1");
+ * ```
+ *
+ * Most apps never call this — the `data-implement-preload-data` attribute
+ * does it for links on hover or tap. Reach for it when what predicts the
+ * navigation is not a pointer over an `<a>`: a wizard warming its next step,
+ * a list row that opens on double click.
+ *
+ * Resolves with the data it fetched, or `null` for a route with no loads (the
+ * code is still preloaded). Rejects if the fetch or a chunk fails; a caller
+ * with nothing to do about that can ignore the rejection, since the
+ * navigation itself will try again and fall back to a full document load.
+ */
+export async function preloadData(href: string): Promise<RouteData | null> {
+	const url = new URL(href, window.location.href);
+	const path = normalizeRoutePath(url.pathname);
+	// keyed with the query, since a load reads `url.searchParams`: a payload
+	// fetched for `/issues` is not the answer for `/issues?status=open`, and
+	// spending it there would serve the unfiltered page's data
+	const key = `${path}${url.search}`;
+	// the code first: a route with no loads has nothing else to preload, and
+	// one with loads wants both fetches in flight together anyway
+	const code = preloadRoute(path);
+	if (!hasLoads(path)) {
+		await code;
+		return null;
+	}
+	const live = livePreload(key);
+	if (live !== undefined) {
+		// a second hover over a link already warmed joins the first fetch
+		// rather than starting another
+		await code;
+		return live;
+	}
+	sweepPreloads();
+	const data = requestRouteData(path, url.search);
+	preloaded.set(key, { data, expires: Date.now() + PRELOAD_TTL });
+	// a failed preload must not sit in the map poisoning the navigation that
+	// follows — that one deserves its own attempt, and its own fallback
+	data.catch(() => {
+		if (preloaded.get(key)?.data === data) preloaded.delete(key);
+	});
+	const [, resolved] = await Promise.all([code, data]);
+	return resolved;
+}
+
+/**
+ * Seed the destination's `__data.json`, spending a preload if one is waiting;
+ * no-op for a route with no loads.
+ */
 async function fetchRouteData(path: string, search: string): Promise<void> {
-	const data = await loadRouteData(path, search);
-	if (data !== null) seedData(data);
+	if (!hasLoads(path)) return;
+	const key = `${path}${search}`;
+	const preload = livePreload(key);
+	// spent either way: what it holds is about to be in the store, and holding
+	// it past that is holding a copy that only gets staler
+	preloaded.delete(key);
+	seedData(await (preload ?? requestRouteData(path, search)));
+}
+
+/**
+ * A route's loads, run fresh and handed back rather than seeded — what
+ * {@link invalidate} needs, since it decides whether the answer is still the
+ * current one before putting it in the store. Never spends a preload: stale is
+ * the one thing invalidating is trying not to be.
+ */
+async function loadRouteData(path: string, search: string): Promise<RouteData | null> {
+	if (!hasLoads(path)) return null;
+	return await requestRouteData(path, search);
 }
 
 /**
@@ -247,6 +376,13 @@ export function renderErrorPage(error: RouterError, path: string): Child | null 
 	return child;
 }
 
+/**
+ * Called by the generated client entry: seeds the store from the data the
+ * server render embedded in the page, then installs the navigation resolver
+ * that resolves everything the destination needs before a navigation commits —
+ * its route chunks and its `__data.json`. If either fails the navigation falls
+ * back to a full document load.
+ */
 /**
  * Called by the generated client entry: seeds the store from the data the
  * server render embedded in the page, then installs the navigation resolver

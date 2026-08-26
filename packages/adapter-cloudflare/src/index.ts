@@ -105,9 +105,14 @@ function routes(builder: Builder, exclude: string[]): unknown {
  * assets is both cheaper and the same answer the app would give.
  */
 const ENTRY = `import { handler } from "$implement/handler";
+import { setDynamicEnv } from "@implementjs/kit/env";
 
 export default {
 	async fetch(request, env, context) {
+		// a worker has no \`process.env\`: its vars and secrets arrive with the
+		// request, so this is where \`env.dynamic.server.ts\` gets pointed at them.
+		// One assignment, and kit re-validates only when the object changes
+		setDynamicEnv(env);
 		if (env.ASSETS !== undefined) {
 			const response = await env.ASSETS.fetch(request);
 			if (response.status !== 404) return response;

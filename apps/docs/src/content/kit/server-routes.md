@@ -2,7 +2,7 @@
 title: Server Routes
 description: server.ts endpoints serve raw responses — JSON, markdown, anything.
 section: Guides
-order: 13
+order: 14
 ---
 
 Not every URL is a page. A `server.ts` in a route directory is an **endpoint**: it exports a handler per HTTP method and returns a standard `Response`.

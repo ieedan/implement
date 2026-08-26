@@ -185,8 +185,8 @@ Two invalidations in flight at once are a mutation answered twice, and the older
 You never fetch it yourself, but it helps to know the plumbing:
 
 - **First paint.** The server render runs the loads, renders with the data, and embeds it in the HTML. The client picks it up during hydration — no duplicate request.
-- **Client-side navigation.** Before a navigation to a load-bearing route commits, kit fetches that route's data from `<path>/__data.json` and only then swaps the page. In dev that endpoint runs your loads on demand; in the built site it's a static file.
-- **`invalidate()`.** The same `__data.json` request, made on demand instead of on the way into a route, with the result seeded into the store the mounted page is reading.
+- **Client-side navigation.** Before a navigation to a load-bearing route commits, kit fetches that route's data from `<path>/__data.json` and only then swaps the page. In dev that endpoint runs your loads on demand; in the built site it's a static file. That fetch usually happens while the pointer is still over the link rather than under the click — see [Preloading](/kit/preloading).
+- **`invalidate()`.** The same `__data.json` request, made on demand instead of on the way into a route, with the result seeded into the store the mounted page is reading. Never served from a preload — stale is the one thing invalidating is trying not to be.
 - **On build.** The prerender runs every route's loads once, writing the results into each page's HTML and its `__data.json`. On a static host the data is frozen at build time — rebuild to refresh it.
 
 The [packages page](/packages) of this site is a live example: a `page.server.ts` reads every workspace `package.json` off disk and the page renders the versions from `data`.

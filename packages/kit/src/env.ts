@@ -2,157 +2,44 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { build } from "esbuild";
-import { formatSchemaIssues } from "./errors.ts";
+import {
+	PUBLIC_ENV_GLOBAL,
+	PUBLIC_ENV_ROUTE,
+	validateEnv,
+	withEnvContext,
+	type EnvFileInfo,
+	type EnvSchemas,
+} from "./env-runtime.ts";
 import type { ServerKind } from "./guard.ts";
 import { loadEnv } from "vite";
 
-/** The prefix every key in the public env file must carry, and the server file must not. */
-export const PUBLIC_PREFIX = "PUBLIC_";
-
-/** Which of the two env files a set of schemas came from. */
-export type EnvKind = "public" | "server";
-
-/** One env file, as the error messages refer to it — paths relative to the app root. */
-export type EnvFileInfo = {
-	kind: EnvKind;
-	/** The file being evaluated, relative to the app root. */
-	file: string;
-	/** The other file, named in prefix errors as the place a key belongs instead. */
-	counterpart: string;
-};
-
-export type EnvSchemas = Record<string, StandardSchemaV1>;
-
-/** The object `defineEnv` hands back: every key, validated and typed by its schema's output. */
-export type Env<T extends EnvSchemas> = {
-	[K in keyof T]: StandardSchemaV1.InferOutput<T[K]>;
-};
-
 /**
- * The raw values and the file identity an evaluation runs against, published on
- * `globalThis` so the copy of `defineEnv` inside the evaluated bundle — a
- * different module instance, or the generated shim — reaches the same
- * implementation.
+ * The plugin half of the env feature: bundling an env file with esbuild,
+ * evaluating it in Node, and re-emitting it as literals. The half that runs
+ * where the app runs — `defineEnv`, `defineDynamicEnv`, the validation they
+ * share — lives in `./env-runtime.ts`, which carries none of this and so can
+ * ship inside a server bundle.
  */
-type EnvContext = {
-	values: Record<string, string | undefined>;
-	info: EnvFileInfo;
-	defineEnv: (schemas: EnvSchemas) => Record<string, unknown>;
-};
-
-const CONTEXT_KEY = Symbol.for("@implementjs/kit:env-context");
-
-type ContextHolder = { [CONTEXT_KEY]?: EnvContext };
-
-/**
- * Declares an app's environment variables and returns them validated.
- *
- * Each key maps to a [Standard Schema](https://standardschema.dev) — valibot,
- * arktype, zod, anything implementing the spec — and the returned object is
- * typed by each schema's output, so `typeof env` flows straight into every
- * module that imports it. No code generation is involved.
- *
- * ```ts
- * // src/lib/env.public.ts
- * import { defineEnv } from "@implementjs/kit";
- * import * as v from "valibot";
- *
- * export const env = defineEnv({ PUBLIC_DOCS_URL: v.pipe(v.string(), v.url()) });
- * ```
- *
- * Under the kit plugin both env files are evaluated in Node at build time and
- * re-emitted as literals, so neither the schemas nor the schema library reach a
- * bundle — and the client copy of `env.server.ts` holds no values at all. Run
- * untransformed (plain `node`, `vitest`) the same call validates against
- * `process.env` instead, which keeps the files honest and unit-testable.
- *
- * Every key in `env.public.ts` must start with `PUBLIC_`, and no key in
- * `env.server.ts` may — a fixed rule, enforced when kit evaluates the file.
- */
-export function defineEnv<T extends EnvSchemas>(schemas: T): Env<T> {
-	// oxlint-disable typescript/no-unsafe-type-assertion -- The evaluation context lives on globalThis, and each key's output type is the schema's, which only the mapped type expresses.
-	const context = (globalThis as ContextHolder)[CONTEXT_KEY];
-	if (context !== undefined) return context.defineEnv(schemas) as Env<T>;
-	return validateEnv(schemas, process.env, null) as Env<T>;
-	// oxlint-enable typescript/no-unsafe-type-assertion
-}
-
-/**
- * Validates `schemas` against `values`, reporting every failure at once.
- * `info` scopes the `PUBLIC_` prefix rules to a file; passing `null` — the
- * untransformed `process.env` path, which has no file to attribute a key to —
- * runs the schemas only.
- *
- * @throws {Error} on a misplaced prefix, or on any key whose schema rejects.
- */
-export function validateEnv(
-	schemas: EnvSchemas,
-	values: Record<string, string | undefined>,
-	info: EnvFileInfo | null,
-): Record<string, unknown> {
-	const keys = Object.keys(schemas);
-	if (info !== null) assertPrefixes(keys, info);
-
-	const where = info?.file ?? "defineEnv";
-	const result: Record<string, unknown> = {};
-	const failures: string[] = [];
-	for (const key of keys) {
-		const value = values[key];
-		const validated = schemas[key]!["~standard"].validate(value);
-		if (validated instanceof Promise) {
-			throw new Error(
-				`${where}: the schema for "${key}" validates asynchronously, which kit cannot do. Use a synchronous schema.`,
-			);
-		}
-		if (validated.issues === undefined) {
-			result[key] = validated.value;
-			continue;
-		}
-		failures.push(
-			`${key} - ${value === undefined ? "not set" : formatSchemaIssues(validated.issues)}`,
-		);
-	}
-
-	if (failures.length > 0) {
-		const count = failures.length === 1 ? "1 variable" : `${failures.length} variables`;
-		throw new Error(
-			`${where}: ${count} failed validation.\n\n${failures.map((line) => `  ${line}`).join("\n")}\n\n` +
-				`Set them in a .env file or in the environment.`,
-		);
-	}
-	return result;
-}
-
-/**
- * The safety net the type system was never going to provide: a key's prefix,
- * not the file it happens to sit in, decides whether it may ship to a browser.
- */
-function assertPrefixes(keys: string[], info: EnvFileInfo): void {
-	if (info.kind === "public") {
-		const unprefixed = keys.filter((key) => !key.startsWith(PUBLIC_PREFIX));
-		if (unprefixed.length === 0) return;
-		throw new Error(
-			`${info.file}: ${list(unprefixed)} must start with ${PUBLIC_PREFIX}.\n\n` +
-				`Every variable in this file is inlined into the client bundle and shipped to the browser. ` +
-				`Move ${unprefixed.length === 1 ? "it" : "them"} to ${info.counterpart}, or add the ${PUBLIC_PREFIX} prefix if the value is safe to expose.`,
-		);
-	}
-	const prefixed = keys.filter((key) => key.startsWith(PUBLIC_PREFIX));
-	if (prefixed.length === 0) return;
-	throw new Error(
-		`${info.file}: ${list(prefixed)} must not start with ${PUBLIC_PREFIX}.\n\n` +
-			`${PUBLIC_PREFIX} is reserved for ${info.counterpart}, whose values ship to the browser. ` +
-			`Move ${prefixed.length === 1 ? "it" : "them"} there, or drop the prefix.`,
-	);
-}
-
-function list(keys: string[]): string {
-	const quoted = keys.map((key) => `"${key}"`);
-	if (quoted.length === 1) return quoted[0]!;
-	return `${quoted.slice(0, -1).join(", ")} and ${quoted.at(-1)}`;
-}
+export {
+	assertPrefixes,
+	defineDynamicEnv,
+	defineDynamicPublicEnv,
+	defineEnv,
+	PUBLIC_ENV_GLOBAL,
+	PUBLIC_ENV_ROUTE,
+	publicEnvBootModule,
+	PUBLIC_PREFIX,
+	publicEnvSnapshot,
+	setDynamicEnv,
+	validateEnv,
+	withEnvContext,
+	type Env,
+	type EnvContext,
+	type EnvFileInfo,
+	type EnvKind,
+	type EnvSchemas,
+} from "./env-runtime.ts";
 
 /**
  * The raw values an env file validates against: Vite's own `.env` resolution
@@ -224,25 +111,19 @@ async function runEnvModule(
 	const file = join(dir, `${key}.mjs`);
 	if (!existsSync(file)) writeFileSync(file, code);
 
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The evaluation context is published on globalThis so the evaluated bundle's own defineEnv finds it.
-	const holder = globalThis as ContextHolder;
-	const previous = holder[CONTEXT_KEY];
-	holder[CONTEXT_KEY] = {
+	const context = {
 		values,
 		info,
-		defineEnv: (schemas) => validateEnv(schemas, values, info),
+		defineEnv: (schemas: EnvSchemas) => validateEnv(schemas, values, info),
 	};
-	try {
+	return withEnvContext(context, async () => {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- A module namespace is exactly a record of its exports.
 		const namespace = (await import(pathToFileURL(file).href)) as Record<string, unknown>;
 		const exports: Record<string, unknown> = {};
 		for (const name of Object.keys(namespace)) exports[name] = namespace[name];
 		assertSerializable(exports, info.file);
 		return exports;
-	} finally {
-		if (previous === undefined) delete holder[CONTEXT_KEY];
-		else holder[CONTEXT_KEY] = previous;
-	}
+	});
 }
 
 const SHIM = `const KEY = Symbol.for("@implementjs/kit:env-context");
@@ -429,4 +310,54 @@ function exportAlias(name: string): string {
 
 function hash(input: string): string {
 	return createHash("sha256").update(input).digest("hex").slice(0, 16);
+}
+
+/**
+ * The client copy of the public dynamic env file: the module's shape, and each
+ * export read from the values the page carries. No schemas and no schema
+ * library, because the server already validated and coerced them — the same
+ * promise the static public file makes, kept for a value that is not known
+ * until a request.
+ *
+ * A page that kit server-rendered embeds them; one that was prerendered has a
+ * module from the server assign {@link PUBLIC_ENV_GLOBAL} before the app's
+ * entry runs, and that wins, being the fresher of the two.
+ */
+export function publicEnvClientModule(names: string[], file: string): string {
+	const message =
+		`${file} has no values on this page. ` +
+		`Kit embeds them when it renders a page — a document built without kit's pipeline carries none.`;
+	const bindings = names.map((name, index) => `__public_${index} as ${exportAlias(name)}`);
+	const lines = [
+		`// ${file} - values come from the page; validated on the server`,
+		`const __values = (() => {`,
+		`\tconst seeded = globalThis[${JSON.stringify(PUBLIC_ENV_GLOBAL)}];`,
+		`\tif (seeded !== undefined) return seeded;`,
+		`\tconst tag = document.querySelector("script[data-implement-env]");`,
+		`\tif (tag !== null && tag.textContent) return JSON.parse(tag.textContent);`,
+		`\tthrow new Error(${JSON.stringify(message)});`,
+		`})();`,
+	];
+	for (const [index, name] of names.entries()) {
+		lines.push(`const __public_${index} = __values[${JSON.stringify(name)}];`);
+	}
+	lines.push(`export {${bindings.length === 0 ? "" : ` ${bindings.join(", ")} `}};`);
+	return `${lines.join("\n")}\n`;
+}
+
+/**
+ * Puts kit's public-env module first in the document's `<head>`. Module scripts
+ * run in document order, so being first is the whole mechanism: the values are
+ * assigned before the app's entry — and so before any module that reads them —
+ * evaluates.
+ *
+ * Only prerendered documents need this. A page kit rendered for a request
+ * already carries its values.
+ */
+export function injectPublicEnvBoot(html: string, base: string): string {
+	const prefix = base.endsWith("/") ? base : `${base}/`;
+	return html.replace(
+		/<head([^>]*)>/,
+		`<head$1><script type="module" src="${prefix}${PUBLIC_ENV_ROUTE}"></script>`,
+	);
 }

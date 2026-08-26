@@ -1,16 +1,20 @@
 ---
 title: Environment Variables
-description: Typed environment variables that cannot leak — two files, one validated at build time.
+description: Typed environment variables that cannot leak — validated by schema, baked in at build time or read by the running server.
 section: Guides
-order: 16
+order: 17
 ---
 
-Environment variables are where secrets get spilled. A build tool that inlines the wrong string into a JavaScript bundle publishes it permanently, and a prerendered site has no server to patch afterwards. Kit's answer is two files, distinguished by name and enforced by the compiler:
+Environment variables are where secrets get spilled. A build tool that inlines the wrong string into a JavaScript bundle publishes it permanently, and a prerendered site has no server to patch afterwards. Kit's answer is a set of files, distinguished by name and enforced by the compiler:
 
 - `src/lib/env.public.ts` — safe to ship. Inlined into the browser bundle.
 - `src/lib/env.server.ts` — never ships. The client copy contains no values at all.
+- `src/lib/env.dynamic.server.ts` — never ships, and never baked in either: [read by the running server](#values-the-running-server-reads).
+- `src/lib/env.dynamic.public.ts` — ships, and is not baked in: [carried by the page](#public-values-the-running-server-reads).
 
-Both are ordinary TypeScript modules you write, so `typeof env` flows straight through to every file that imports one. Nothing is code-generated.
+All four are ordinary TypeScript modules you write, so `typeof env` flows straight through to every file that imports one. Nothing is code-generated.
+
+Start with the first two. The dynamic pair exists for values that have to change without a rebuild, and an app that never creates those files carries none of the machinery that serves them.
 
 ## Declaring variables
 
@@ -73,7 +77,7 @@ Server code takes two imports rather than one merged object. That is deliberate:
 
 ## The PUBLIC_ prefix
 
-Every key in `env.public.ts` **must** start with `PUBLIC_`, and no key in `env.server.ts` may. This is fixed and not configurable.
+Every key in `env.public.ts` **must** start with `PUBLIC_`, and no key in either server file may. This is fixed and not configurable.
 
 The rule exists because the type system was never going to catch the mistake that actually happens — pasting `DATABASE_URL` into the public file. A prefix is something you can see at every call site:
 
@@ -112,14 +116,16 @@ Commit a `.env.example` listing the keys with blank values; keep `.env` out of g
 
 ## What actually gets built
 
-Kit evaluates both files in Node during the build, validates them, and re-emits each one as a module of literals. The schemas — and the schema library — never enter a bundle:
+Kit evaluates both of these files in Node during the build, validates them, and re-emits each one as a module of literals. The schemas — and the schema library — never enter a bundle:
 
-| File            | Server (dev requests, prerender) | Browser bundle                 |
-| --------------- | -------------------------------- | ------------------------------ |
-| `env.public.ts` | literals                         | literals                       |
-| `env.server.ts` | literals                         | **a throwing body, no values** |
+| File                    | Server (dev requests, prerender)                                        | Browser bundle                 |
+| ----------------------- | ----------------------------------------------------------------------- | ------------------------------ |
+| `env.public.ts`         | literals                                                                | literals                       |
+| `env.server.ts`         | literals                                                                | **a throwing body, no values** |
+| `env.dynamic.server.ts` | left alone — [read at runtime](#values-the-running-server-reads)        | **a throwing body, no values** |
+| `env.dynamic.public.ts` | left alone — [read at runtime](#public-values-the-running-server-reads) | a reader, no schemas           |
 
-Every export of these files is inlined, not just the `defineEnv` call, which means **every export must be JSON-serializable**. A helper function in `env.public.ts` fails the build by name rather than silently vanishing:
+Every export of the two inlined files is inlined, not just the `defineEnv` call, which means **every export must be JSON-serializable**. A helper function in `env.public.ts` fails the build by name rather than silently vanishing:
 
 ```
 src/lib/env.public.ts is evaluated at build time and its exports are inlined;
@@ -182,42 +188,170 @@ Two things keep this from being annoying:
 
 What is left is a `vite build` for an app whose loads read `DATABASE_URL`. That build genuinely cannot produce correct output without it, so failing is the honest result.
 
-## Scope: server variables are build-time values
+## Scope: `env.server.ts` holds build-time values
 
-Both files are evaluated **once, during `vite build`**, and re-emitted as literals. A server variable is read at build time and baked into whatever the build produces — the prerendered pages with no adapter, the server bundle with one.
+`env.public.ts` and `env.server.ts` are evaluated **once, during `vite build`**, and re-emitted as literals. A variable declared in either is read at build time and baked into whatever the build produces — the prerendered pages with no adapter, the server bundle with one.
 
-That is a real simplification: there is no `$env/dynamic` counterpart to reason about, and a variable's value is visible in the artifact you are about to ship rather than in an environment you have to reconstruct.
+That is a real simplification, and the right default: the schemas cost the bundle nothing, a missing variable fails the build rather than the deploy, and a value is visible in the artifact you are about to ship rather than in an environment you have to reconstruct.
 
-It is also the thing to know before you deploy a server. With an [adapter](/kit/adapters), `DATABASE_URL` is compiled into the server bundle, so rotating it means rebuilding, and the built artifact holds the secret. Read it from `process.env` in the route itself where you want a value the running server picks up:
+It is also the thing to know before you deploy a server. With an [adapter](/kit/adapters), `DATABASE_URL` is compiled into the server bundle — so rotating it means rebuilding, and the built artifact holds the secret. When that is the wrong trade, declare the variable in the third file instead.
+
+## Values the running server reads
+
+`src/lib/env.dynamic.server.ts` declares variables kit does **not** bake in. Same schemas, same types, read while the app runs:
 
 ```ts
-// src/routes/api/server.ts
+// src/lib/env.dynamic.server.ts
+import { defineDynamicEnv } from "@implementjs/kit/env";
+import * as v from "valibot";
+
+export const env = defineDynamicEnv({
+	BETTER_AUTH_SECRET: v.string(),
+	SESSION_TTL: v.pipe(v.string(), v.transform(Number), v.number()),
+});
+```
+
+Import it exactly like the other two, and `SESSION_TTL` still arrives as a `number`:
+
+```ts
+// src/routes/api/session/server.ts
+import { env } from "@/lib/env.dynamic.server";
+
 export async function POST(): Promise<Response> {
-	const key = process.env.STRIPE_KEY;
+	const token = await sign(payload, env.BETTER_AUTH_SECRET, { ttl: env.SESSION_TTL });
 	// ...
 }
 ```
 
-A `$env/dynamic` counterpart — validated, typed, read per request — is additive work on top of what is here.
+What you get back is a live view rather than a snapshot. The first read validates every key at once and caches the result; the cache is dropped when the environment underneath is replaced. So rotating `BETTER_AUTH_SECRET` is a restart rather than a rebuild, and the deployed artifact never held the value in the first place.
+
+> [!NOTE]
+> The import is `@implementjs/kit/env`, not `@implementjs/kit`. The other two files are replaced wholesale, so their import of kit disappears before anything is bundled — this one survives into the server bundle, and `@implementjs/kit` is a Vite plugin with esbuild attached to it. The subpath carries the two `define*` functions and nothing else.
+
+### What it costs
+
+Being read at runtime is not free, and the three differences are worth knowing before you move a variable across:
+
+|                              | `env.server.ts`    | `env.dynamic.server.ts`               |
+| ---------------------------- | ------------------ | ------------------------------------- |
+| Rotating a value             | rebuild            | restart                               |
+| A missing variable           | fails `vite build` | throws on the first read              |
+| Schemas in the server bundle | no                 | yes, and the schema library with them |
+
+None of that changes what reaches the browser. `env.dynamic.server.ts` is a `*.server.ts` file under [the same rule as every other one](#importing-a-server-file-from-the-browser): a client import fails the build with the chain, and the client copy is the same throwing stub holding no values. That is also why the name is not free-form — point `env.dynamic` somewhere that is not `*.server.ts` and kit refuses to start, because for this file the name is the only thing keeping it out of a bundle.
+
+The `PUBLIC_` rule holds too, and a violation is caught the moment the module evaluates rather than on the first read — it needs no values to spot. Values that do ship to the browser go in [`env.dynamic.public.ts`](#public-values-the-running-server-reads) instead, which is a separate file precisely because it costs more.
+
+### Where the values come from at runtime
+
+| Where                    | Source                                         |
+| ------------------------ | ---------------------------------------------- |
+| `vite dev`, prerendering | the same `.env` resolution as the other two    |
+| Node, Vercel             | `process.env`                                  |
+| Cloudflare               | the worker's bindings, wired up by the adapter |
+
+Node and Vercel need nothing: `process.env` is the fallback. A worker has no `process.env` at all — its vars and secrets arrive with the request — so [`@implementjs/adapter-cloudflare`](/kit/adapters) hands them over in its own entry, and a hand-rolled host does the same:
+
+```js
+import { setDynamicEnv } from "@implementjs/kit/env";
+
+export default {
+	fetch(request, env, context) {
+		setDynamicEnv(env);
+		return handler(request, { platform: { env, context } });
+	},
+};
+```
+
+One assignment per request, and kit re-validates only when the object changes. The catch on a worker is that the environment does not exist until the first request, so a module that reads `env.DATABASE_URL` at the _top level_ — building a connection pool as it loads, say — has nothing to read. Reach for these values inside a load, an endpoint or a hook.
+
+### Prerendering reads the build's environment
+
+A prerender has no runtime, so it is given the build's `.env` values like everything else. A page that prerenders a dynamic value therefore bakes it in, which is the one case where this file behaves exactly like the one it was meant to replace. Keep dynamic values on routes that [render per request](/kit/ssr-and-prerendering).
+
+## Public values the running server reads
+
+`src/lib/env.dynamic.public.ts` is the same idea for values the browser needs. Every key must start with `PUBLIC_`, as in `env.public.ts`:
+
+```ts
+// src/lib/env.dynamic.public.ts
+import { defineDynamicPublicEnv } from "@implementjs/kit/env";
+import * as v from "valibot";
+
+export const env = defineDynamicPublicEnv({
+	PUBLIC_API_URL: v.pipe(v.string(), v.url()),
+	PUBLIC_UPLOAD_LIMIT: v.pipe(v.string(), v.transform(Number), v.number()),
+});
+```
+
+Import it from anywhere — a page, a component, a load — and read it like any other env file:
+
+```ts
+// src/routes/upload/page.ts
+import { env } from "@/lib/env.dynamic.public";
+
+export default function Page(): Child {
+	return P(`Up to ${env.PUBLIC_UPLOAD_LIMIT} MB`);
+}
+```
+
+### Only the server runs the schemas
+
+This is the difference between kit's version and the equivalent elsewhere. The `defineDynamicPublicEnv` call never runs in a browser. Kit replaces the module in the client graph with a reader over the values the page is carrying — already validated, already coerced, so `PUBLIC_UPLOAD_LIMIT` arrives as a `number` — and neither the schemas nor the schema library are in the client bundle. That is the promise `env.public.ts` makes, kept for a value that is not known until a request.
+
+The values ride along in the document kit renders, next to the route data:
+
+```html
+<script type="application/json" data-implement-env>
+	{ "env": { "PUBLIC_API_URL": "…" } }
+</script>
+```
+
+### Prerendered pages fetch them
+
+A prerendered page was written before there was a request, so it carries no current values. What happens next depends on whether the app ships a server:
+
+| The app                                     | A prerendered page                                         |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| has an [adapter](/kit/adapters) that serves | boots from `/_implement/env.js`, so it sees current values |
+| is static, or its adapter serves nothing    | keeps the build's values, exactly as `env.public.ts` would |
+
+The boot module goes first in the document's `<head>`. Module scripts run in document order, so it is assigned before the app's entry — and before any module that reads it — evaluates:
+
+```html
+<head>
+	<script type="module" src="/_implement/env.js"></script>
+	…
+</head>
+```
+
+That is a round trip in front of hydration, on every prerendered page, for the whole app. It is the price of a public value that is not baked in, and it is why this is a separate file rather than a flag on another one: create it and you have opted in, leave it out and the route is never mounted, the import is never generated, and nothing is embedded in any page.
+
+> [!NOTE]
+> `/_implement/env.js` is served by kit's own pipeline, before hooks and before route matching. It is revalidated rather than cached outright, and its body is built once per process — rotating a value is a restart, which is the whole bargain of a dynamic variable.
 
 ## Running outside kit
 
 `defineEnv` is not magic, and the transform is a secret-scrubber and an optimisation rather than the only code path. Run one of these files under plain `node` or `vitest` and it validates against `process.env` instead, returning the same shape. The files stay honest, and they stay unit-testable.
 
+`defineDynamicEnv` and `defineDynamicPublicEnv` read `process.env` there too — it is the fallback everywhere, and outside kit there is nothing else to point them at. Give a test its own values with `setDynamicEnv({ ... })` from the same import.
+
 ## Options
 
-Both paths are configurable, relative to your Vite root:
+All three paths are configurable, relative to your Vite root:
 
 ```ts
 kit({
 	env: {
 		public: "src/lib/env.public.ts",
 		server: "src/lib/env.server.ts",
+		dynamic: "src/lib/env.dynamic.server.ts",
+		dynamicPublic: "src/lib/env.dynamic.public.ts",
 	},
 });
 ```
 
-A file that doesn't exist simply turns that half off — an app with neither behaves exactly as it did before.
+A file that doesn't exist simply turns that part off — an app with none of them behaves exactly as it did before. `dynamic` must still be named `*.server.ts`, and `dynamicPublic` must not be.
 
 ## Where to next
 
