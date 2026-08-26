@@ -7,6 +7,7 @@ import { createLogger, createServer, type ViteDevServer } from "vite";
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Test mocks and dynamic module loading require intentional narrowing. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prerenderServerFiles } from "../src/dev.ts";
+import { decodeEventStream } from "../src/sse.ts";
 import { kit } from "../src/index.ts";
 
 const fixture = join(import.meta.dirname, "fixtures/basic");
@@ -393,6 +394,44 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			expect(errors[0]).toContain(
 				"GET /boom (__data.json) → 500 — load in src/routes/boom/page.server.ts",
 			);
+		} finally {
+			rmSync(outDir, { recursive: true, force: true });
+		}
+	});
+
+	it("streams an event-stream endpoint over a real socket, unbuffered", async () => {
+		await withListener(async (origin) => {
+			const response = await fetch(`${origin}/ticks`);
+			expect(response.status).toBe(200);
+			expect(response.headers.get("content-type")).toBe("text/event-stream; charset=utf-8");
+			// no length to give: the body is written as it is produced
+			expect(response.headers.get("content-length")).toBeNull();
+			const seen: number[] = [];
+			for await (const event of decodeEventStream<{ n: number }>(response.body!)) {
+				expect(event.event).toBe("tick");
+				seen.push(event.data.n);
+			}
+			expect(seen).toEqual([1, 2, 3]);
+		});
+	});
+
+	it("says why an event stream cannot be prerendered instead of hanging the build", async () => {
+		const outDir = join(fixture, "dist-stream");
+		try {
+			await expect(
+				prerenderServerFiles({
+					routes: [],
+					outDir,
+					load: (id) => server.ssrLoadModule(id) as Promise<Record<string, unknown>>,
+					entry: "/.implement/entry-server.ts",
+					hasLoads: false,
+					serverRoutes: [{ pattern: "/ticks", file: "src/routes/ticks/server.ts" }] as never,
+					shouldPrerender: (route) => route.file.endsWith("ticks/server.ts"),
+					logger: { info: () => {}, warn: () => {}, error: () => {} },
+					source: { root: fixture, routes: "src/routes" },
+				}),
+			).rejects.toThrow(/an event stream cannot be a file/);
+			expect(existsSync(join(outDir, "ticks"))).toBe(false);
 		} finally {
 			rmSync(outDir, { recursive: true, force: true });
 		}

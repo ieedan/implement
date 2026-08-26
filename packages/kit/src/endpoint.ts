@@ -38,6 +38,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { error, formatSchemaIssues } from "./errors.ts";
 import type { RequestEvent } from "./match.ts";
+import type { ServerSentEvent, SseResponse } from "./sse.ts";
 // type-only, so this never becomes a runtime cycle with `./server.ts`'s
 // re-export of `handler`
 import type { MaybePromise } from "./server.ts";
@@ -84,12 +85,25 @@ export function json<T>(body: T, init?: ResponseInit): JsonResponse<T> {
 	return Response.json(body, init) as JsonResponse<T>;
 }
 
+// re-exported so a route's `./$types` reaches `sse` the same way it reaches
+// `handler` and `json` — one specifier for everything an endpoint writes with
+export { sse } from "./sse.ts";
+export type { ServerSentEvent, SseInit, SseResponse, SseSource } from "./sse.ts";
+
 /**
  * What a caller receives for what `handle` returned. A plain `Response` opts
  * out of response handling, so it says nothing about `data`; a {@link json}
- * says exactly what it carries.
+ * says exactly what it carries, and an
+ * {@link import("./sse.ts").sse | sse} says what its frames carry.
  */
-type HandlerData<R> = R extends JsonResponse<infer T> ? T : R extends Response ? never : R;
+type HandlerData<R> =
+	R extends JsonResponse<infer T>
+		? T
+		: R extends SseResponse<infer T>
+			? AsyncIterable<ServerSentEvent<T>>
+			: R extends Response
+				? never
+				: R;
 
 /**
  * Query params as the parser produces them: one value for a key is a `string`,

@@ -331,7 +331,7 @@ function dataType(dir: string, files: string[]): string {
  */
 const HANDLER_EXPORT = `
 export const handler: HandlerBuilder<ServerParams>;
-export { json } from "@implementjs/kit/endpoint";
+export { json, sse } from "@implementjs/kit/endpoint";
 `;
 
 const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/endpoint";

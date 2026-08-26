@@ -101,6 +101,12 @@ export async function handleServerRequest(options: {
 	return true;
 }
 
+/** Whether a response is a live event stream rather than a body with an end. */
+function isEventStream(response: Response): boolean {
+	const type = (response.headers.get("content-type") ?? "").trim().toLowerCase();
+	return /^text\/event-stream\b/.test(type);
+}
+
 /**
  * The build-time half of the server files, run from the prerender `after`
  * hook: writes each load-bearing prerendered route's `__data.json` next to
@@ -199,6 +205,16 @@ export async function prerenderServerFiles(options: {
 				const response = await get(target);
 				if (!response.ok) {
 					failed.push(`${target}: ${response.status}`);
+					continue;
+				}
+				// an event stream ends when its source does, which for a live one is
+				// never — reading it into a file would hang the build with nothing
+				// said about why
+				if (isEventStream(response)) {
+					await response.body?.cancel();
+					failed.push(
+						`${target}: an event stream cannot be a file — add \`export const prerender = false\` to ${endpoint.file}, and an adapter to serve it`,
+					);
 					continue;
 				}
 				write(target, Buffer.from(await response.arrayBuffer()));
