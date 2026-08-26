@@ -19,10 +19,21 @@ type VercelConfig = {
 	})[];
 };
 
+/** Where Vercel's Node launcher keeps the invocation's context. */
+const REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
+
+/** `globalThis`, as the thing the launcher hangs that context off. */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- A global under a well-known symbol has no type to reach it by.
+const host = globalThis as unknown as Record<symbol, { get: () => unknown } | undefined>;
+
 describe("@implementjs/adapter-vercel", () => {
 	/** The function, served the way Vercel's Node launcher serves it. */
 	let server: Server;
 	let origin: string;
+	/** Every promise the launcher's `waitUntil` was handed, oldest first. */
+	const scheduled: Promise<unknown>[] = [];
+	/** Whether the launcher supplies a context at all, as a runtime without post-response work does not. */
+	let launcher = true;
 
 	beforeAll(async () => {
 		await build({
@@ -35,7 +46,21 @@ describe("@implementjs/adapter-vercel", () => {
 		const built = (await import(pathToFileURL(join(fn, "index.js")).href)) as {
 			default: (req: unknown, res: unknown) => void;
 		};
-		server = createServer(built.default);
+		server = createServer((req, res) => {
+			// what the launcher does around an invocation and nothing else does:
+			// the context exists for the length of a request and is read out of
+			// the async storage that request runs in
+			host[REQUEST_CONTEXT] = launcher
+				? {
+						get: () => ({
+							waitUntil: (promise: Promise<unknown>) => {
+								scheduled.push(promise);
+							},
+						}),
+					}
+				: undefined;
+			built.default(req, res);
+		});
 		await new Promise<void>((ready) => {
 			server.listen(0, "127.0.0.1", ready);
 		});
@@ -44,6 +69,7 @@ describe("@implementjs/adapter-vercel", () => {
 	}, 180_000);
 
 	afterAll(async () => {
+		host[REQUEST_CONTEXT] = undefined;
 		await new Promise((closed) => server.close(closed));
 		rmSync(join(fixture, ".vercel"), { recursive: true, force: true });
 		rmSync(join(fixture, ".implement"), { recursive: true, force: true });
@@ -104,6 +130,40 @@ describe("@implementjs/adapter-vercel", () => {
 		// inlined one throws at load and every request gets a 500 instead
 		const response = await fetch(`${origin}/lazy`);
 		expect(await response.json()).toEqual({ before: false, after: true });
+	});
+
+	it("hands the app the invocation's context, so work outlives the response", async () => {
+		const posted = await fetch(`${origin}/background`, { method: "POST" });
+		// the route reached `waitUntil` through `event.platform.context` and the
+		// launcher took the promise — the whole point of populating `platform`
+		expect(await posted.json()).toEqual({ scheduled: true });
+		expect(scheduled).toHaveLength(1);
+
+		// the response is already sent and the work has not run: nothing about
+		// scheduling it held the request open
+		const before = await fetch(`${origin}/background`);
+		expect(await before.json()).toEqual({ finished: false });
+
+		await fetch(`${origin}/background`, { method: "DELETE" });
+		await Promise.all(scheduled);
+
+		const after = await fetch(`${origin}/background`);
+		expect(await after.json()).toEqual({ finished: true });
+	});
+
+	it("answers with no waitUntil where the runtime supplies no context", async () => {
+		// a runtime that cannot run work after the response, or the bundle under a
+		// plain `node`: the route gets a platform whose context is empty rather
+		// than a throw. That this differs from the request above also says the
+		// entry reads the symbol per request: a module-scope read happened before
+		// any request and would answer the same both times.
+		launcher = false;
+		try {
+			const posted = await fetch(`${origin}/background`, { method: "POST" });
+			expect(await posted.json()).toEqual({ scheduled: false });
+		} finally {
+			launcher = true;
+		}
 	});
 
 	it("takes the client address from the proxy, not the socket", async () => {

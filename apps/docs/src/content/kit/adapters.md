@@ -113,6 +113,33 @@ The build writes [Build Output API v3](https://vercel.com/docs/build-output-api/
 
 `runtime` (default `"nodejs22.x"`), `regions`, `memory`, and `maxDuration` are passed through to the function.
 
+The invocation's context reaches your routes as `event.platform.context`, which is how you run work _after_ the response — a webhook delivery, a cache warm — without the invocation being frozen out from under it:
+
+```ts
+// src/routes/api/issues/server.ts
+export async function POST({ platform, request }: RequestEvent): Promise<Response> {
+	const issue = await createIssue(await request.json());
+	platform?.context.waitUntil?.(deliverWebhooks(issue));
+	return Response.json(issue);
+}
+```
+
+Declare it in `src/app.d.ts`, the same file `App.Locals` lives in:
+
+```ts
+declare global {
+	namespace App {
+		interface Platform {
+			context: { waitUntil?: (promise: Promise<unknown>) => void };
+		}
+	}
+}
+
+export {};
+```
+
+Both of those are optional on purpose. `platform` is undefined in dev and while prerendering, where there is no invocation to schedule against; `waitUntil` is undefined wherever the runtime cannot run work after the response. A route that guards the call works everywhere and drops the work nowhere — with one caveat: `waitUntil` keeps the invocation alive until the promise settles, so it is for finishing something, not for retrying it. Work that must not be lost still belongs in a queue you own.
+
 ### Cloudflare
 
 ```ts

@@ -37,6 +37,26 @@ const FUNCTION = "fn";
  * Vercel runs `vite build` and deploys `.vercel/output` — no project settings
  * beyond the build command, and nothing about the app in `vercel.json`.
  *
+ * The invocation's context reaches the app as `event.platform.context`, which
+ * is how a route runs work *after* it has answered — a webhook delivery, a
+ * cache warm — without the invocation being frozen mid-flight. Declare it in
+ * `src/app.d.ts`:
+ *
+ * ```ts
+ * declare global {
+ * 	namespace App {
+ * 		interface Platform {
+ * 			context: { waitUntil?: (promise: Promise<unknown>) => void };
+ * 		}
+ * 	}
+ * }
+ * ```
+ *
+ * `waitUntil` is optional because the runtime decides: a deployment whose
+ * runtime runs work after the response has it, one without it does not, and
+ * neither does the bundle run directly under Node. A route that guards the
+ * call behaves the same in all three.
+ *
  * The function is bundled with its dependencies, since only the function's own
  * directory is uploaded.
  */
@@ -127,12 +147,29 @@ function config(builder: Builder): unknown {
 
 /**
  * The function, as Vercel's Node launcher wants it: a default export taking
- * `(req, res)`. Kit's own Node middleware does the translating, so the only
- * thing here is where the client's address comes from — Vercel terminates TLS
- * and forwards it, so the socket's address is the proxy's.
+ * `(req, res)`. Kit's own Node middleware does the translating, so what is
+ * left here is where the client's address comes from — Vercel terminates TLS
+ * and forwards it, so the socket's address is the proxy's — and the
+ * invocation's context, which reaches the app as `event.platform.context`.
  */
 const ENTRY = `import { handler as app } from "$implement/handler";
 import { serveApp } from "@implementjs/kit/node";
+
+// Where Vercel's Node launcher keeps the invocation's context: \`waitUntil\`
+// above all, which is the only way to run work after the response without the
+// invocation being frozen out from under it. \`get()\` reads the context out of
+// the async storage the request runs in, so it is called per request rather
+// than once at load — a module-level read happens outside every request and
+// finds nothing.
+const REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
+
+/**
+ * The context this request is running in, or an empty one where nothing sets
+ * the symbol — a runtime that cannot run work after the response, the bundle
+ * run directly under Node. A route reaches \`waitUntil\` through it and finds
+ * \`undefined\` there rather than a platform that is missing outright.
+ */
+const context = () => globalThis[REQUEST_CONTEXT]?.get?.() ?? {};
 
 // Vercel terminates TLS and overwrites Host and X-Forwarded-Proto before the
 // function sees them, so trusting those headers here is safe on this platform.
@@ -140,6 +177,7 @@ const serve = serveApp(app, {
 	protocolHeader: "x-forwarded-proto",
 	hostHeader: "host",
 	address: { header: "x-forwarded-for" },
+	platform: () => ({ context: context() }),
 	onError: ({ error, event, status }) => {
 		console.error(\`[implement] \${event.request.method} \${event.url.pathname} -> \${status}\`);
 		console.error(error);
