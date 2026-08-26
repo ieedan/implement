@@ -3552,7 +3552,7 @@ const primitiveReference: Record<string, ApiPart[]> = {
 				},
 				{
 					name: "disabled",
-					type: "Signal<boolean> | boolean",
+					type: "Readable<boolean> | boolean",
 					default: "false",
 					description: "Mounts the children in place instead of teleporting.",
 				},
