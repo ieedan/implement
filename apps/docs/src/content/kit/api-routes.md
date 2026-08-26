@@ -83,7 +83,7 @@ invalid query — area: Invalid type: Expected ("lib" | "kit" | …) but receive
 
 ## What comes back
 
-Return anything and kit serializes it as JSON. Return `undefined` and the response is a `204`. Return a `Response` and it goes through untouched — which is how you set a content type, stream, or answer with something that is not JSON:
+Return anything and kit serializes it as JSON. Return `undefined` and the response is a `204`. Return a `Response` and it goes through untouched — which is how you set a content type, [stream](/kit/server-routes#streaming), or answer with something that is not JSON:
 
 ```ts
 export const GET = handler({
@@ -95,7 +95,7 @@ export const GET = handler({
 });
 ```
 
-A `Response` says nothing about its body, so the client reads `data` as `never` for one — right for markdown or a stream, wrong for JSON that only wanted a status other than `200`. `json()` is that case: it sets the status and keeps the body's type.
+A `Response` says nothing about its body, so the client reads `data` as `never` for one — right for markdown, wrong for JSON that only wanted a status other than `200`. `json()` is that case: it sets the status and keeps the body's type.
 
 ```ts
 import { handler, json } from "./$types";
@@ -110,7 +110,14 @@ export const POST = handler({
 const { data } = await api.POST("/api/issues", { body }); // the issue, not `never`
 ```
 
-`json` comes from `@implementjs/kit/server`, and a route's `./$types` re-exports it beside `handler`. With a `response` schema the schema is what types `data`, and returning any `Response` — a `json()` included — still skips that validation.
+[`sse()`](/kit/server-routes#streaming) is the other one. It is still a `Response` — response handling is still skipped — but it says what its frames carry, so the client hands back the events rather than reading the stream to an end it does not have:
+
+```ts
+const { data } = await api.GET("/api/inbox/stream");
+for await (const { data: notification } of data) show(notification);
+```
+
+Both come from `@implementjs/kit/server`, and a route's `./$types` re-exports them beside `handler`. With a `response` schema the schema is what types `data`, and returning any `Response` — a `json()` or an `sse()` included — still skips that validation.
 
 `response` is optional, and the two choices differ in what they buy:
 

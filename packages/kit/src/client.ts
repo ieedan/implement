@@ -18,6 +18,7 @@
  */
 
 import type { EndpointSpec, Method, SPEC } from "./endpoint.ts";
+import { decodeEventStream } from "./sse.ts";
 
 export type { Method } from "./endpoint.ts";
 
@@ -435,6 +436,7 @@ export async function run(
 }
 
 const JSON_TYPE = /^application\/([\w.-]+\+)?json\b/;
+const EVENT_STREAM_TYPE = /^text\/event-stream\b/;
 
 async function readBody(response: Response): Promise<unknown> {
 	// a 204/205/304 has no body to read, and reading one is an error in itself
@@ -442,6 +444,12 @@ async function readBody(response: Response): Promise<unknown> {
 		return undefined;
 	}
 	const type = (response.headers.get("content-type") ?? "").trim().toLowerCase();
+	// an event stream is answered while it is still being written, so reading it
+	// to the end is exactly what a caller must not do: hand back the frames as
+	// they arrive and let the caller decide when it has had enough
+	if (EVENT_STREAM_TYPE.test(type) && response.body !== null) {
+		return decodeEventStream(response.body);
+	}
 	const text = await response.text();
 	if (!JSON_TYPE.test(type)) return text;
 	return text === "" ? undefined : JSON.parse(text);

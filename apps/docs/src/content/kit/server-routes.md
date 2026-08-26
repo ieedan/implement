@@ -90,6 +90,83 @@ This is how a page can have a machine-readable twin at the same address. This si
 
 It also negotiates: a [server hook](/kit/hooks) redirects any request for a docs page that asks for markdown — `Accept: text/markdown` — to that page's twin, so a reader that wants the source doesn't have to know the convention. Browsers never send that header, so nothing about the page changes for them.
 
+## Streaming
+
+A handler's `Response` reaches the client untouched, so a body that is a `ReadableStream` stays one: kit never buffers it, and neither does the `hooks.server.ts` around it. An endpoint can answer a request now and keep writing to it for as long as it likes.
+
+The long-lived case with a format of its own is **server-sent events**, and `sse` builds one:
+
+```ts
+// src/routes/api/inbox/stream/server.ts
+import { handler, sse } from "./$types";
+import { watchInbox } from "@/lib/inbox.server";
+
+export const GET = handler({
+	handle: ({ locals }) =>
+		sse<Notification>(async function* (signal) {
+			for await (const notification of watchInbox(locals.user.id, signal)) {
+				yield { event: "notification", data: notification };
+			}
+		}),
+});
+```
+
+Each `yield` is one frame. `data` is the payload — serialized as JSON, and typed — and `event`, `id`, and `retry` are the format's own fields, all optional.
+
+The generated client reads it back as the events themselves rather than as text, so a stream is one of the few `Response`s that still says what a caller receives:
+
+```ts
+const { data, error } = await api.GET("/api/inbox/stream");
+if (error !== undefined) return;
+for await (const { data: notification } of data) show(notification);
+```
+
+The call settles as soon as the response headers arrive — the frames are still being written — and `break`ing out of the loop, or aborting the call's `signal`, closes the connection. A browser's own [`EventSource`](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) reads the same URL if you would rather have its automatic reconnection.
+
+### Ending one
+
+A stream ends when its source does, when the client goes away, or when a `signal` you passed aborts. All three return the iterator, so a generator's `finally` runs and whatever the stream was holding gets let go:
+
+```ts
+sse<Tick>(async function* (signal) {
+	const subscription = await subscribe();
+	try {
+		for await (const tick of subscription.ticks(signal)) yield { data: tick };
+	} finally {
+		await subscription.close();
+	}
+});
+```
+
+That `signal` argument is the one thing worth taking care over. Returning a generator interrupts it at a `yield` and nowhere else, so a source parked on a promise that never settles is never reached — wait under the signal instead, and the disconnect is what wakes you.
+
+| Option      | Default |                                                                     |
+| ----------- | ------- | ------------------------------------------------------------------- |
+| `keepAlive` | `15000` | milliseconds between comment frames, or `false` for none            |
+| `signal`    | —       | ends the stream when it aborts — a shutdown, a deadline of your own |
+| `status`    | `200`   | and any other `ResponseInit` field, `headers` included              |
+
+The keep-alive is there because an idle connection is one a proxy eventually closes. Kit sends a comment frame on that interval, which every client discards and every proxy counts as traffic.
+
+### Where a stream can live
+
+An open connection is a resource on whatever is holding it, and hosts differ on how long they will:
+
+| Host                                             | A long-lived response                                                       |
+| ------------------------------------------------ | --------------------------------------------------------------------------- |
+| dev, and [`adapter-node`](/kit/adapters#node)    | as long as you like — a proxy in front may have an idle timeout of its own  |
+| [`adapter-cloudflare`](/kit/adapters#cloudflare) | yes; waiting costs no CPU time, and a worker is billed for what it uses     |
+| [`adapter-vercel`](/kit/adapters#vercel)         | yes, until `maxDuration` — the function is stopped at the limit, mid-stream |
+| [`adapter-static`](/kit/adapters#static)         | no: nothing is running to hold one                                          |
+
+A streaming endpoint must also never be prerendered — a file is a body with an end, and a live stream has none. With a server that is already the default; a static build prerenders `GET` endpoints, so say so:
+
+```ts
+export const prerender = false;
+```
+
+The build says the same thing if you forget, rather than hanging on a response that was never going to finish.
+
 ## On build
 
 The prerender renders every `GET` endpoint into a real file in `dist/`, so the built site serves them statically:

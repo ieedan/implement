@@ -58,6 +58,8 @@ no way to answer them:
   endpoint /api
 ```
 
+There is nothing running behind these files, so anything that has to be answered per request is out — a [streaming endpoint](/kit/server-routes#streaming) included, since a file is a body with an end and a live stream has none. `strict` names those routes at build time rather than leaving them to 404.
+
 A single-page app is the same adapter with the prerender off and a shell for the client router to boot from:
 
 ```ts
@@ -101,6 +103,8 @@ app.use("/", handler);
 
 Dependencies stay external, so deploy `dist/` alongside the `node_modules` the app was built with.
 
+A response body is written as it is produced rather than buffered first, so a [streaming endpoint](/kit/server-routes#streaming) holds its connection for as long as it wants to. Nothing here times it out; a reverse proxy in front of it usually will, so raise its read timeout for the paths that stream.
+
 ### Vercel
 
 ```ts
@@ -112,6 +116,8 @@ kit({ adapter: adapter() });
 The build writes [Build Output API v3](https://vercel.com/docs/build-output-api/v3) into `.vercel/output`: the client bundle and everything prerendered as static files on the CDN, the app as a bundled Node function, and a routing table that caches hashed assets forever, serves the filesystem, then falls through to the function. Vercel needs no project settings beyond running `vite build`, and `vercel.json` stays empty.
 
 `runtime` (default `"nodejs22.x"`), `regions`, `memory`, and `maxDuration` are passed through to the function.
+
+`maxDuration` is the one that matters to a [streaming endpoint](/kit/server-routes#streaming). The function streams, but it is stopped at that limit whether or not it was finished, so a stream that outlives it is cut mid-frame. Raise it to what the plan allows, and have the client reconnect.
 
 ### Cloudflare
 
@@ -161,6 +167,8 @@ export {};
 ```
 
 The worker is bundled for `workerd` rather than Node, so a dependency that cannot run on workers fails this build instead of the deploy.
+
+A worker returns the app's `Response` as it is, so a [streaming endpoint](/kit/server-routes#streaming) streams. There is no wall-clock limit on one, and a worker waiting on its source is not spending CPU time — which is what a worker is billed and limited on.
 
 ## What still prerenders
 

@@ -85,6 +85,8 @@ export type { CookieOptions, Cookies, CookieScope } from "./cookies.ts";
 // the wrapper routes reach through their `./$types`, re-exported so a
 // `server.ts` that would rather name the package can
 export { handler, json, type JsonResponse } from "./endpoint.ts";
+export { sse } from "./sse.ts";
+export type { ServerSentEvent, SseInit, SseResponse, SseSource } from "./sse.ts";
 export type {
 	EndpointSpec,
 	Handler,
