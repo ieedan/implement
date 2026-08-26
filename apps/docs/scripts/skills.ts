@@ -156,6 +156,12 @@ const catalog: PackageGroup[] = [
 				description:
 					"Builds an implement kit app into a Cloudflare worker with static assets beside it.",
 			},
+			{
+				name: "@implementjs/adapter-iis",
+				collection: "kit",
+				permalink: "/kit/adapters",
+				description: "Builds an implement kit app for IIS on Windows Server.",
+			},
 		],
 	},
 ];

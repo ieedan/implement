@@ -48,6 +48,7 @@ Fetch the package the task needs — its intro links every other page in that do
 - [@implementjs/adapter-node](https://implementjs.dev/kit/adapters.md) — Builds an implement kit app into a standalone Node server.
 - [@implementjs/adapter-vercel](https://implementjs.dev/kit/adapters.md) — Builds an implement kit app for Vercel, through the Build Output API.
 - [@implementjs/adapter-cloudflare](https://implementjs.dev/kit/adapters.md) — Builds an implement kit app into a Cloudflare worker with static assets beside it.
+- [@implementjs/adapter-iis](https://implementjs.dev/kit/adapters.md) — Builds an implement kit app for IIS on Windows Server.
 
 <!-- pages:end -->
 

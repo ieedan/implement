@@ -1,6 +1,6 @@
 ---
 title: Adapters
-description: Build the app for the place it runs — a static host, a Node server, Vercel, Cloudflare.
+description: Build the app for the place it runs — a static host, a Node server, Vercel, Cloudflare, IIS.
 section: Guides
 order: 19
 ---
@@ -30,6 +30,7 @@ Nothing in your app changes when you swap adapters. The same `hooks.server.ts`, 
 | [`@implementjs/adapter-node`](#node)             | anywhere Node runs           | `dist/`, run with `node dist` |
 | [`@implementjs/adapter-vercel`](#vercel)         | Vercel                       | `.vercel/output/`             |
 | [`@implementjs/adapter-cloudflare`](#cloudflare) | Cloudflare Workers and Pages | `dist/`                       |
+| [`@implementjs/adapter-iis`](#iis)               | IIS on Windows Server        | `dist/`, with a `web.config`  |
 
 ### Static
 
@@ -169,6 +170,62 @@ export {};
 The worker is bundled for `workerd` rather than Node, so a dependency that cannot run on workers fails this build instead of the deploy.
 
 A worker returns the app's `Response` as it is, so a [streaming endpoint](/kit/server-routes#streaming) streams. There is no wall-clock limit on one, and a worker waiting on its source is not spending CPU time — which is what a worker is billed and limited on.
+
+### IIS
+
+A site on Windows Server.
+
+```ts
+import adapter from "@implementjs/adapter-iis";
+
+kit({ adapter: adapter({ origin: "https://intranet.example.com" }) });
+```
+
+`vite build` writes `dist/`: the app as a Node server, the client bundle beside it, and the `web.config` that tells IIS to start the one and hand it every request. Copy the directory to the server, point a site at it, and it runs — there is nothing to set up in IIS Manager beyond that. Dependencies are bundled in, so the folder is the whole deployment.
+
+IIS does not run JavaScript, so something has to start the process and proxy to it. That module has to be installed on the server, and there are two:
+
+| `hosting`        | Needs                                                                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `"iisnode"`      | [iisnode](https://github.com/Azure/iisnode) and [URL Rewrite](https://www.iis.net/downloads/microsoft/url-rewrite)                |
+| `"httpPlatform"` | [HttpPlatformHandler](https://learn.microsoft.com/iis/extensions/httpplatformhandler/httpplatformhandler-configuration-reference) |
+
+`"iisnode"` is the default: it starts `node.exe`, hands it a named pipe, and manages the process alongside the app pool, and it is what most existing IIS-and-Node servers already have. It has not had a release in years, though, so on a server you are setting up now prefer HttpPlatformHandler — Microsoft's own, still supported, and indifferent to the fact that the process is Node.
+
+| Option               | Default          |                                                         |
+| -------------------- | ---------------- | ------------------------------------------------------- |
+| `origin`             | —                | the origin the site is served from                      |
+| `hosting`            | `"iisnode"`      | which IIS module starts the process                     |
+| `nodeExe`            | `"node.exe"`     | the Node the site runs on                               |
+| `env`                | —                | environment written into `web.config`                   |
+| `externalRoutes`     | —                | paths IIS answers itself                                |
+| `redirectToHttps`    | `false`          | add the rewrite rule that sends `http://` to `https://` |
+| `healthcheck`        | `"/healthcheck"` | a path answered `ok` without the app running            |
+| `maxRequestBodySize` | `30_000_000`     | the largest body IIS lets through, in bytes             |
+| `bundle`             | `true`           | bundle dependencies into the output                     |
+| `out`                | `"dist"`         | where the output goes                                   |
+
+`origin` is the one to set. IIS forwards the visitor's own `Host` header, so without it every absolute URL the app builds — a redirect, a canonical link, a password reset — is whatever the request claimed, which is host-header injection. It is written into `web.config` as `ORIGIN`, and the server refuses to start in production without it or an explicit `PROTOCOL_HEADER`/`HOST_HEADER` pair.
+
+A Windows server has no `.env`, so `env` is where the app's configuration goes — `<appSettings>` under iisnode, `<environmentVariables>` under HttpPlatformHandler. It ends up in a file that ships with the build, so anything secret belongs on the app pool instead.
+
+`externalRoutes` is for a site this app does not own the whole of. A virtual directory or an ASP.NET application mounted beside it is named here and left alone rather than handed to Node:
+
+```ts
+kit({ adapter: adapter({ origin: "https://intranet.example.com", externalRoutes: ["reports"] }) });
+```
+
+Static files are served by Node rather than by IIS. IIS could do it, and faster, but only by being told where the build put each file and which of them are hashed — a second copy of the routing, in XML, that goes stale the first time the build changes.
+
+Anything `web.config` needs that the options do not cover goes through `iisnode` and `httpPlatform`, which are written into their elements as they are:
+
+```ts
+kit({
+	adapter: adapter({ origin: "https://intranet.example.com", iisnode: { loggingEnabled: true } }),
+});
+```
+
+A [streaming endpoint](/kit/server-routes#streaming) streams through either module, up to the request timeout the site is configured with — four minutes by default under HttpPlatformHandler, and IIS's own limit under iisnode. Raise it for the paths that stream.
 
 ## What still prerenders
 

@@ -1,0 +1,65 @@
+{
+	"name": "@implementjs/adapter-iis",
+	"version": "0.0.0",
+	"description": "Builds an implement kit app for IIS on Windows Server.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"kit",
+		"adapter",
+		"iis",
+		"iisnode",
+		"windows",
+		"deploy"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/kit/adapters",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/adapter-iis"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
+	"type": "module",
+	"sideEffects": false,
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			}
+		}
+	},
+	"scripts": {
+		"dev": "tsdown --watch",
+		"build": "tsdown",
+		"check": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"peerDependencies": {
+		"@implementjs/kit": "workspace:*"
+	},
+	"devDependencies": {
+		"@implementjs/core": "workspace:*",
+		"@implementjs/kit": "workspace:*",
+		"@implementjs/router": "workspace:*",
+		"@types/node": "^26.2.0",
+		"tsdown": "^0.22.14",
+		"typescript": "^7.0.2",
+		"vite": "^7.3.0",
+		"vitest": "^4.0.18"
+	}
+}

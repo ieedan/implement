@@ -32,7 +32,7 @@ Start with **Introduction**, which covers project layout, `src/lib`, the generat
 - [MCP Server](https://implementjs.dev/kit/mcp-server.md) — Your app as tools a model can call — declared like endpoints, validated by the same schemas, protocol handled once.
 - [Server Hooks](https://implementjs.dev/kit/hooks.md) — hooks.server.ts runs on every server request — middleware, locals, and error handling.
 - [Environment Variables](https://implementjs.dev/kit/environment-variables.md) — Typed environment variables that cannot leak — validated by schema, baked in at build time or read by the running server.
-- [Adapters](https://implementjs.dev/kit/adapters.md) — Build the app for the place it runs — a static host, a Node server, Vercel, Cloudflare.
+- [Adapters](https://implementjs.dev/kit/adapters.md) — Build the app for the place it runs — a static host, a Node server, Vercel, Cloudflare, IIS.
 - [Open Graph Images](https://implementjs.dev/kit/og-images.md) — Generate social share images from implement components, one per page, at build time.
 
 <!-- pages:end -->

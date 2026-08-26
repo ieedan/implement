@@ -32,5 +32,6 @@ instead:
 | `@implementjs/adapter-static`     | Static files for any static host          |
 | `@implementjs/adapter-vercel`     | Vercel, through the Build Output API      |
 | `@implementjs/adapter-cloudflare` | A Cloudflare worker with assets beside it |
+| `@implementjs/adapter-iis`        | IIS on Windows Server                     |
 
 Full documentation: [implementjs.dev/kit](https://implementjs.dev/kit)
