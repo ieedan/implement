@@ -9,6 +9,7 @@ export default defineConfig({
 		"src/endpoint.ts",
 		"src/env-runtime.ts",
 		"src/handler.ts",
+		"src/mcp.ts",
 		"src/navigation.ts",
 		"src/node.ts",
 		"src/openapi.ts",

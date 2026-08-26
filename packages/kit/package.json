@@ -59,6 +59,10 @@
 			"types": "./src/handler.ts",
 			"default": "./src/handler.ts"
 		},
+		"./mcp": {
+			"types": "./src/mcp.ts",
+			"default": "./src/mcp.ts"
+		},
 		"./og": {
 			"types": "./src/og.ts",
 			"default": "./src/og.ts"
@@ -122,6 +126,10 @@
 			"./handler": {
 				"types": "./dist/handler.d.mts",
 				"default": "./dist/handler.mjs"
+			},
+			"./mcp": {
+				"types": "./dist/mcp.d.mts",
+				"default": "./dist/mcp.mjs"
 			},
 			"./openapi": {
 				"types": "./dist/openapi.d.mts",
