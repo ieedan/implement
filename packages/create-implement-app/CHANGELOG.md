@@ -1,5 +1,13 @@
 # create-implement-app
 
+## 0.0.8
+
+### Patch Changes
+
+- [#75](https://github.com/ieedan/implement/pull/75) [`992e998`](https://github.com/ieedan/implement/commit/992e9986c0e35ef8064943f2a6404271b68d514a) Thanks [@ieedan](https://github.com/ieedan)! - Scaffold an app the bundled formatter leaves alone. Running the template's own `pnpm format` in a new project rewrote files the developer never opened — `.vscode/extensions.json` and `.vscode/settings.json` collapsing their arrays, and, less visibly, the `tsconfig.json`, the `package.json`, the README's script table and every component holding a Tailwind class list long enough to wrap. The generator wrote what read well in the generator; oxfmt writes what prettier's rules say, and the two disagreed. Both templates now emit what the `oxfmt.config.ts` next to them would have written: arrays collapsed where they fit inside 100 columns, a value dropped below its key only where the formatter would drop it, and `package.json` in the key order oxfmt puts a manifest in. A test materialises both templates against every combination of addons and holds `oxfmt --check` clean over all of them.
+
+  Target ES2023 in the emitted `tsconfig.json`, both `target` and `lib`. The bundled `oxlint.config.ts` turns on the `unicorn` rules, and two of them fix to an ES2023 array method — `no-array-sort` to `Array#toSorted()` and `no-array-reverse` to `Array#toReversed()` — so on ES2022 `pnpm lint` asked for a method `pnpm check` said did not exist, over something as ordinary as sorting a list. The version the rules need is now a constant next to them, and a test holds the templates' target at or above it.
+
 ## 0.0.7
 
 ### Patch Changes
