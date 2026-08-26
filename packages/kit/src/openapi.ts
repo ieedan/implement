@@ -289,13 +289,7 @@ async function matcherSchema(
 	if (param.matcher === undefined || param.matcher === null) return null;
 	const schema = matchers[param.matcher]?.schema;
 	if (schema === undefined || schema === null) return null;
-	const converted = await convert(schema, "output", `${where} [${param.name}=${param.matcher}]`);
-	if (converted === null) return null;
-	// the converters stamp a `$schema` on what they hand back, which belongs to a
-	// document rather than to one parameter of one inside it
-	const fragment = { ...converted };
-	delete fragment["$schema"];
-	return fragment;
+	return await convert(schema, "output", `${where} [${param.name}=${param.matcher}]`);
 }
 
 function properties(schema: JsonSchema | null): Record<string, unknown> {
@@ -321,7 +315,7 @@ function requiredNames(schema: JsonSchema | null): string[] {
 function converter(custom: ToJsonSchema | undefined, warnings: string[]): Converter {
 	return async (schema, io, where) => {
 		try {
-			if (custom !== undefined) return await custom(schema, io);
+			if (custom !== undefined) return inlinable(await custom(schema, io));
 			const vendor = schema["~standard"].vendor;
 			const convert = await vendorConverter(vendor);
 			if (convert === null) {
@@ -330,7 +324,7 @@ function converter(custom: ToJsonSchema | undefined, warnings: string[]): Conver
 				);
 				return null;
 			}
-			return await convert(schema, io);
+			return inlinable(await convert(schema, io));
 		} catch (error) {
 			warnings.push(
 				`${where}: converting the schema to JSON Schema failed — ${error instanceof Error ? error.message : String(error)}`,
@@ -338,6 +332,24 @@ function converter(custom: ToJsonSchema | undefined, warnings: string[]): Conver
 			return null;
 		}
 	};
+}
+
+/**
+ * A converted schema as it can be inlined into the document.
+ *
+ * The converters stamp a `$schema` on what they hand back — draft-07 from
+ * valibot, 2020-12 from zod — declaring the dialect of a document they think
+ * they are the root of. Inlined into an operation they are not: the dialect of
+ * a schema inside an OpenAPI 3.1 document is the document's, which is 2020-12,
+ * and a `$schema` disagreeing with it in every operation is something a strict
+ * validator is entitled to complain about. So it comes off, wherever the
+ * schema came from — kit's own converters or an app's `toJsonSchema`.
+ */
+function inlinable(schema: JsonSchema): JsonSchema {
+	if (!("$schema" in schema)) return schema;
+	const fragment = { ...schema };
+	delete fragment["$schema"];
+	return fragment;
 }
 
 /**
