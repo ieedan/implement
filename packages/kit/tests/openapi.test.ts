@@ -93,7 +93,6 @@ describe("buildOpenApiDocument", () => {
 			content: {
 				"application/json": {
 					schema: {
-						$schema: "http://json-schema.org/draft-07/schema#",
 						type: "object",
 						properties: { title: { type: "string" } },
 						required: ["title"],
@@ -213,6 +212,34 @@ describe("buildOpenApiDocument", () => {
 				schema: { type: "string", enum: ["kit", "ui"] },
 			},
 		]);
+	});
+
+	// the document is 3.1, whose dialect is 2020-12; the converters hand back a
+	// `$schema` of their own — draft-07 from valibot — and it has no business in
+	// a schema inlined into an operation
+	it("leaves no `$schema` on an inlined schema", async () => {
+		const integer = matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
+		const { document } = await buildOpenApiDocument(
+			[posts, items({ GET: handler({ handle: () => [] }) })],
+			{ info: INFO },
+			{ integer },
+		);
+		expect(JSON.stringify(document)).not.toContain("$schema");
+	});
+
+	it("strips it from a caller's own converter too", async () => {
+		const { document } = await buildOpenApiDocument([posts], {
+			info: INFO,
+			toJsonSchema: () => ({
+				$schema: "https://json-schema.org/draft/2020-12/schema",
+				type: "object",
+			}),
+		});
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Reading back the document this test just built.
+		const patch = document.paths["/api/posts/{id}"]!["patch"] as {
+			requestBody: { content: Record<string, { schema: unknown }> };
+		};
+		expect(patch.requestBody.content["application/json"]!.schema).toEqual({ type: "object" });
 	});
 
 	it("uses a caller's own converter when it has one", async () => {
