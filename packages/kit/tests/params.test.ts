@@ -67,30 +67,30 @@ describe("matcher", () => {
 		expect(page.match("0")).toBe(mismatch);
 	});
 
-	it("gates on the segment, not only on what the segment parses to", () => {
-		// `Number` is far more permissive than it looks, and a check after the
-		// transform runs against the number rather than the URL — so without a
-		// constraint on the string, `/users/0x10` and `/users/16` are one route
-		const loose = matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
-		expect(loose.match("0x10")).toBe(16);
-		expect(loose.match("1e3")).toBe(1000);
-		expect(loose.match("")).toBe(0);
-		expect(loose.match(" 12 ")).toBe(12);
-		expect(loose.match("-5")).toBe(-5);
-
-		const tight = matcher(v.pipe(v.string(), v.digits(), v.transform(Number), v.integer()));
-		for (const segment of ["0x10", "1e3", "", " 12 ", "-5"]) {
-			expect(tight.match(segment)).toBe(mismatch);
-		}
-		expect(tight.match("42")).toBe(42);
+	it("parses as permissively as `Number` does, checking the value it got", () => {
+		// a check after the transform runs against the number, so the matcher
+		// reads a segment the way `Number` does rather than policing its spelling
+		const integer = matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
+		expect(integer.match("42")).toBe(42);
+		expect(integer.match("007")).toBe(7);
+		expect(integer.match("0x10")).toBe(16);
+		expect(integer.match("-5")).toBe(-5);
+		// `Number` answers rather than failing for both of these, and the check
+		// after the transform is what turns them down
+		expect(integer.match("oops")).toBe(mismatch);
+		expect(integer.match("9".repeat(400))).toBe(mismatch);
 	});
 
-	it("rejects a segment too long to survive Number, given a check after the transform", () => {
-		const digits = v.pipe(v.string(), v.digits(), v.transform(Number));
-		// 400 digits is past what a double holds, and `Number` says `Infinity`
-		// rather than failing — the trailing `integer()` is what turns that down
-		expect(matcher(digits).match("9".repeat(400))).toBe(Infinity);
-		expect(matcher(v.pipe(digits, v.integer())).match("9".repeat(400))).toBe(mismatch);
+	it("constrains the segment itself when an action sits before the transform", () => {
+		// the other half of the choice — note it turns down negatives too, so it
+		// is a narrower thing than "an integer"
+		const digits = matcher(v.pipe(v.string(), v.digits(), v.transform(Number), v.integer()));
+		expect(digits.match("42")).toBe(42);
+		for (const segment of ["0x10", "1e3", " 12 ", "-5"]) {
+			expect(digits.match(segment)).toBe(mismatch);
+		}
+		// and it still does not make the URL canonical: `007` is `7` either way
+		expect(digits.match("007")).toBe(7);
 	});
 
 	it("takes a hand-rolled Standard Schema, since the contract is not a library", () => {

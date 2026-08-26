@@ -542,15 +542,10 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 			// the URL — and the param is documented as what the matcher parses it to
 			expect(Object.keys(live.paths)).toContain("/orders/{id}");
 			expect(Object.keys(live.paths)).not.toContain("/orders/{id=integer}");
-			// the schema is the matcher's own, so the document carries every
-			// constraint that actually gates the segment — the digits pattern too
+			// the schema is the matcher's own, so the document says what the route
+			// hands a handler rather than the string the segment arrived as
 			expect(live.paths["/orders/{id}"]?.["get"]?.parameters).toEqual([
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					schema: { type: "integer", pattern: String.raw`^\d+$` },
-				},
+				{ name: "id", in: "path", required: true, schema: { type: "integer" } },
 			]);
 			// `output` lands under static/, so its URL answers in dev too — built
 			// from the routes as they are now, not from a file a build left behind

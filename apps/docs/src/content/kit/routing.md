@@ -107,7 +107,7 @@ src/routes
 
 A matcher is built from a [Standard Schema](https://standardschema.dev) — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) take, so it is a library you already have rather than one kit makes you add.
 
-Constrain the **segment**, not just the value you parse it to. The schema's input is the string in the URL, and if you reach for a regex kit does not anchor it for you the way it once did — `v.regex(/\d+/)` accepts `12abc`, so write `/^\d+$/`, or `v.digits()` and skip the question.
+The schema's input is the string in the URL, so an action before a transform constrains the **segment** and one after it constrains the **value**. Both are useful, and which you want depends on the route. If you do reach for a regex, note that kit no longer anchors it for you — `v.regex(/\d+/)` accepts `12abc`, so write `/^\d+$/`.
 
 Gating the route that way is [SvelteKit's feature](https://svelte.dev/docs/kit/advanced-routing#Matching), and it behaves the way you'd expect: `/users/oops` falls through to whatever else can serve it, and reaches the [error page](#the-error-page) if nothing can.
 
@@ -122,7 +122,7 @@ A schema that transforms is a schema that parses, so this is the same matcher wi
 import { matcher } from "@implementjs/kit/params";
 import * as v from "valibot";
 
-export default matcher(v.pipe(v.string(), v.digits(), v.transform(Number)));
+export default matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
 ```
 
 Now `params.id` is a `number`:
@@ -165,7 +165,7 @@ Kit took a bare regex and a bare parse function once, and the parse function was
 
 ```ts
 // src/params/integer.ts
-export default matcher(v.pipe(v.string(), v.digits(), v.transform(Number), v.integer()));
+export default matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
 ```
 
 ```jsonc
@@ -179,7 +179,9 @@ export default matcher(v.pipe(v.string(), v.digits(), v.transform(Number), v.int
 
 The object that just decided whether the route matches is the object the document is written from, so the document can't claim a constraint the route doesn't enforce, or miss one it does.
 
-End the pipe with a check on the parsed value when you want the document to describe it. Every action kit's converter can represent goes in, from both sides of the transform — the `v.digits()` above becomes the `pattern`, the `v.integer()` becomes the `type`. Drop the `v.integer()` and the param is still a `number` in your code, but the document calls it a `string`, which is the segment it arrived as and not what the route hands you. It earns its place at runtime too: without it a four-hundred-digit segment parses to `Infinity` and matches.
+End the pipe with a check on the parsed value. It is what makes the document describe what the route hands you — kit's converter takes every action it can represent from both sides of the transform, so a `v.integer()` after the transform is what turns `"type": "string"` into `"type": "integer"`. It also does real work at runtime: `Number` answers `NaN` for `"oops"` and `Infinity` for four hundred digits rather than failing, and `v.integer()` is what turns both of those down.
+
+What it deliberately does **not** do is police the spelling of the segment. `/users/0x10` binds `16` and `/users/007` binds `7`, the same way `Number` reads them — permissive parsing, not a bug, and a matcher named `integer` still accepts `-5` as it should. Add a `v.digits()` or a `v.regex(/^\d+$/)` before the transform if a route wants only the canonical spelling, and be aware that it makes the matcher reject negatives too.
 
 Standard Schema is an interface, not a dependency, so an app that doesn't want a schema library can hand `matcher()` an object implementing it directly:
 
