@@ -264,3 +264,5 @@ export default matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
 A handler's own `params` schema wins over the matcher where it declares one.
 
 Standard Schema has no JSON-Schema introspection of its own, so conversion is per-vendor. Kit detects it from the schema's vendor tag — arktype's `.toJsonSchema()`, zod's `z.toJSONSchema`, valibot's `@valibot/to-json-schema` — each imported lazily, in Node only. Anything else is documented as an unconstrained schema with a build warning naming the route, or you can pass `toJsonSchema` yourself. An operation with no schemas is still listed, as a path and a method with an undocumented body.
+
+The same conversion describes your schemas to models: an [MCP server](/kit/mcp-server) built from these endpoints documents its tools through it.

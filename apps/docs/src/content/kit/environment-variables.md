@@ -2,7 +2,7 @@
 title: Environment Variables
 description: Typed environment variables that cannot leak — validated by schema, baked in at build time or read by the running server.
 section: Guides
-order: 17
+order: 18
 ---
 
 Environment variables are where secrets get spilled. A build tool that inlines the wrong string into a JavaScript bundle publishes it permanently, and a prerendered site has no server to patch afterwards. Kit's answer is a set of files, distinguished by name and enforced by the compiler:
