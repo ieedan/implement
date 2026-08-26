@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/adapter-static",
-	"version": "0.0.12",
+	"version": "0.0.13",
 	"description": "Builds an implement kit app into static files for any static host.",
 	"keywords": [
 		"implement",

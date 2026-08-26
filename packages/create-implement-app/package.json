@@ -1,6 +1,6 @@
 {
 	"name": "create-implement-app",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"description": "Scaffolds a new implement app: kit or plain Vite, with Tailwind, primitives, icons, forms and dark mode as optional addons.",
 	"keywords": [
 		"implement",

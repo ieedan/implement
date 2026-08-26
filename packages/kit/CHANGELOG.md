@@ -1,5 +1,106 @@
 # @implementjs/kit
 
+## 0.0.13
+
+### Patch Changes
+
+- [#75](https://github.com/ieedan/implement/pull/75) [`ad05ed6`](https://github.com/ieedan/implement/commit/ad05ed61f02f76235fd696d7227eab15e3443ea6) Thanks [@ieedan](https://github.com/ieedan)! - `[id=integer]` and `[price=number]` work with nothing in `src/params`. Every app that wanted a numeric param had to write the same matcher file first, and once a matcher had to be a schema that was a few more lines than it was worth for the two cases everybody reaches for. They are ordinary matchers, so a route naming one is not special in any way — the param is a `number` in the page, the load, the handler, the generated client and the OpenAPI document, and both read a segment the way `Number` does rather than policing how it is written. What they turn down is what `Number` invents rather than refuses: `NaN` for a segment that is not a number, `Infinity` for one too large to hold, and a fraction where a whole number was asked for.
+
+  A `src/params/integer.ts` of your own still wins, so these are defaults rather than reserved words — the app's matchers are spread over the built-ins wherever the two meet, in the runtime table, in `./$types`, and in the router's `ParamTypes`. Kit cannot depend on a schema library, so the built-ins implement Standard Schema directly, which is also what an app does when it would rather not add one; they carry their own JSON Schema, since a converter is per-vendor and kit's own schemas have no vendor package to convert them.
+
+- [`a8d5286`](https://github.com/ieedan/implement/commit/a8d528668fb5ac32d63d9e36fad3a81a632e04c5) Thanks [@ieedan](https://github.com/ieedan)! - Adds two env files the running server reads instead of the build: `src/lib/env.dynamic.server.ts` and `src/lib/env.dynamic.public.ts`.
+
+  `env.public.ts` and `env.server.ts` are evaluated once during `vite build` and re-emitted as literals, which is the right default and stays the default: the schemas cost the bundle nothing and a missing variable fails the build rather than the deploy. It also means rotating a secret is a rebuild and a redeploy, and the artifact you shipped holds the value. The escape hatch was bare `process.env` in the route, which gives up the validation and the types that were the point of `defineEnv`.
+
+  `defineDynamicEnv`, from the new `@implementjs/kit/env` entry, declares the same kind of schema map and hands back the same `typeof env` — but as a live view rather than a snapshot:
+
+  ```ts
+  // src/lib/env.dynamic.server.ts
+  import { defineDynamicEnv } from "@implementjs/kit/env";
+  import * as v from "valibot";
+
+  export const env = defineDynamicEnv({
+  	BETTER_AUTH_SECRET: v.string(),
+  	SESSION_TTL: v.pipe(v.string(), v.transform(Number), v.number()),
+  });
+  ```
+
+  The first read validates every key at once, reporting all the failures together the way a build does, and caches the result until the environment underneath is replaced. So a read costs a property lookup, `SESSION_TTL` still arrives as a `number`, and rotating `BETTER_AUTH_SECRET` is a restart.
+
+  Three things follow from reading at runtime, and they are the reason this is a separate file rather than a flag on the other one. `vite build` no longer fails on a variable it declares — there is nothing to validate against yet, so the first read on the running server throws instead. The schemas ship, because kit cannot replace this file with literals; the file and the schema library are part of the server bundle. And prerendering reads the build's environment, because that is the only one a prerender has, so a page that prerenders a dynamic value bakes it in.
+
+  What reaches the browser does not change. The file is a `*.server.ts` under the existing guard: a client import fails the build with the importer chain, and the client copy is the same throwing stub with no values in it. That name is not free-form — `kit({ env: { dynamic } })` refuses a path that is not `*.server.ts`, because for the one file kit does not rewrite, the name is the only thing keeping it out of a bundle. `PUBLIC_` is refused here as it is in `env.server.ts`, and caught when the module evaluates rather than on the first read.
+
+  Values come from `.env` in dev and while prerendering, and from `process.env` on a built server — so Node and Vercel need nothing. A worker has no `process.env`, so `@implementjs/adapter-cloudflare` now calls `setDynamicEnv(env)` with the bindings each request arrives with; the same function is exported for a hand-rolled host. On a worker the environment does not exist until the first request, so read these values inside a load, an endpoint or a hook rather than at the top level of a module.
+
+  ## Public values, without shipping the schemas
+
+  `src/lib/env.dynamic.public.ts` is the same idea for values the browser needs. Every key must start with `PUBLIC_`, as in `env.public.ts`:
+
+  ```ts
+  // src/lib/env.dynamic.public.ts
+  import { defineDynamicPublicEnv } from "@implementjs/kit/env";
+  import * as v from "valibot";
+
+  export const env = defineDynamicPublicEnv({
+  	PUBLIC_API_URL: v.pipe(v.string(), v.url()),
+  	PUBLIC_UPLOAD_LIMIT: v.pipe(v.string(), v.transform(Number), v.number()),
+  });
+  ```
+
+  The `defineDynamicPublicEnv` call never runs in a browser. Kit replaces the module in the client graph with a reader over the values the page is carrying — already validated, already coerced, so `PUBLIC_UPLOAD_LIMIT` arrives as a `number` — so neither the schemas nor the schema library are in the client bundle. That is the promise `env.public.ts` makes, kept for a value that is not known until a request. The values ride in the document kit renders, beside the route data, as `<script type="application/json" data-implement-env>`.
+
+  A prerendered page was written before there was a request, so it carries no current values. An app with an adapter that serves gets a module first in the document's `<head>` — `<script type="module" src="/_implement/env.js">`, which module ordering alone guarantees runs before the app's entry and anything it imports. An app that is static, or whose adapter serves nothing, keeps the build's values instead, exactly as `env.public.ts` would, because nothing is running that could offer fresher ones.
+
+  That boot module is a round trip in front of hydration, on every prerendered page. It is the price of a public value that is not baked in, and it is why this is a file rather than a flag: **an app that does not create the file pays none of it.** The generated server entry imports the module only when it is there, so there is no snapshot in any page, no `/_implement/env.js` route on the server, and no reader in the client bundle.
+
+  ## Also
+
+  The kit plugin entry is now excluded from Vite's dependency pre-bundling. `@implementjs/kit` imports vite and esbuild, the env files import it for `defineEnv`, and kit replaces those modules wholesale long before a bundle is written — but an optimizer that reached one first would try to prebundle a bundler for a browser.
+
+- [#75](https://github.com/ieedan/implement/pull/75) [`b0a4d26`](https://github.com/ieedan/implement/commit/b0a4d264717f2c86b638fe8341b78ffebd93d1eb) Thanks [@ieedan](https://github.com/ieedan)! - Loads can be re-run on demand, and can read what the loads above them returned.
+
+  `invalidate()` and `invalidateAll()`, from the new `$implement/navigation` module, re-run the loads feeding the page on screen and reseed `data` with what they return. Until now a load was write-once per navigation: the blessed, end-to-end-typed way to get data into a page had no way to say "that is stale now", so every mutation grew a workaround around it — a signal seeded from `data` and patched by hand, a module-scope signal to reach a component on another branch of the tree, a poll for a count that only changes when the user does something. Invalidation goes through the same `__data.json` endpoint a client navigation already uses, so it is the same `runLoads`, the same merge, and the same typed `data`; the result lands in the store the mounted page is reading, so a component holding `data` — or anything derived from it — sees the new value where it stands, with nothing remounted and nothing patched. `invalidate("/app/:slug")` narrows it to a route that is part of what is rendered, which is how a page re-runs the load behind the shell around it. An answer overtaken by a newer invalidation, or by a navigation onto another route, is dropped rather than seeded over what replaced it.
+
+  `LoadEvent` gains `parent()`: what the loads above this one returned, merged root first — the same merge `data` is, minus this load's own contribution, and typed from those loads' return types through the route's `./$types`. A layout and the pages beneath it run for one request and kit already merges their results for the component, but they could share nothing on the way there, so a membership check that belongs in the layout was re-run by every page under it: a duplicated query per request, and a duplicated authorization decision. `./$types` now exports `LoadEvent` for `page.server.ts` (whose parent is every layout above the page, that directory's own included) and `LayoutLoadEvent` for `layout.server.ts` (whose parent is the layouts above it).
+
+  A route's loads now all **start** in one pass rather than running one after another, so a chain of independent loads costs one round of work instead of one per level. `parent()` is the opt-in back into sequencing, and it only ever waits on the loads above the one calling it — a page load awaiting its layout's data cannot deadlock, and a sibling that never calls it carries none of that wait. Two consequences worth knowing: a load can no longer rely on a load above it having mutated `locals` first (pass the value through `parent()` instead), and when more than one load in a chain fails, the request still answers with the root-most failure, as it did when the chain ran in order.
+
+  A client navigation's data request now carries the destination's query string, so a load reading `url.searchParams` sees what the page was asked with rather than nothing — the server already rebuilt `event.url` from it, and only the browser half was dropping it.
+
+- [#75](https://github.com/ieedan/implement/pull/75) [`cb2dffb`](https://github.com/ieedan/implement/commit/cb2dffb0053a570bf39992b81a290dcc5970596c) Thanks [@ieedan](https://github.com/ieedan)! - Keep a param matcher out of the OpenAPI path template, and document what the matcher parses the segment to. A route directory named `[number=integer]` emitted the path key `/api/items/{number=integer}` while its parameter object was named `number`, so the document was invalid for that route: a generated client or a Swagger UI looked for a parameter that was not there. The matcher gates which requests reach a route, which is the app's business and not the URL's, so it now comes off the template and out of the operation id along with it. Two routes binding one name behind different matchers reach the same template, and the document warns rather than quietly documenting one of them.
+
+  The same parameter was documented as a `string` even where the matcher parsed it to a `number` and kit's own types said so everywhere else. **`matcher()` now takes a Standard Schema and nothing else** — the pattern and parse-function forms are gone. A parsing matcher written as a bare function typed its param `number` throughout the app while the document, written by a build with no types to read, went on calling it a string: the app right, the document wrong, and nothing to say they disagreed. A schema exists at runtime, so the one object gates the segment, types the param, and is converted into the document's parameter — through the same per-vendor path a handler's `params` schema takes — and the three cannot drift. `[id=integer]` is documented as an integer, carrying whatever else the schema constrains, and a handler's own `params` schema still wins over the matcher. Standard Schema is an interface rather than a dependency, so an app without a schema library can pass `matcher()` an object implementing it directly. Migrating: `matcher(/^\d+$/)` becomes `matcher(v.pipe(v.string(), v.regex(/^\d+$/)))`, and a parse function becomes the schema that was already implied by it — note that kit anchored a bare pattern for you and a schema's regex is the schema's own, so add the `^` and `$` yourself.
+
+  A handler's `params` schema now **merges** with the route's params instead of replacing them. Declaring a schema for one param dropped every other param the route bound, so a four-param route had to redeclare three params it never meant to touch — and the docs' single-param example is a route where replacing and narrowing look identical. What the schema declares wins; what it says nothing about comes through as the route bound it, at runtime and in the type.
+
+  Stop `api.openapi.path` making every build log `[vite] (ssr) Error when evaluating SSR module /src/routes/(openapi)`. The prerender policy read each endpoint's `prerender` export off its file, and the OpenAPI route is generated rather than scanned — there is no file under the routes dir to read, so every build reported a missing module that looked exactly like a broken import and pointed at a path the app never wrote. The synthetic route now takes the build's default: a static build writes the document out, a build with a server behind it serves it live.
+
+- [#75](https://github.com/ieedan/implement/pull/75) [`1db158e`](https://github.com/ieedan/implement/commit/1db158e951f0bf07d63681a153f7e1d972905ac4) Thanks [@ieedan](https://github.com/ieedan)! - Cookies on the request event, and an `error.ts` in any route directory.
+
+  `event.cookies` — `get`, `getAll`, `set`, `delete` — is there wherever the event is: a hook, a load, an endpoint. Until now cookies were raw headers in one direction and impossible in the other. Reading meant `event.request.headers.get("cookie")` and parsing the header yourself; writing had nowhere to go at all, since `setHeaders` is one value per header by design and a load has no access to the response. Anything doing its own sessions — or just remembering a filter, a last-visited workspace, a dismissed banner — hand-built `Set-Cookie` strings somewhere that could still reach the response, and could not do it from a load at all. `Set-Cookie` is also the one header where "one value per header" is wrong: it is legitimately repeated, so cookies are _appended_ to the response, and two cookies are two headers rather than one that no browser reads.
+
+  A cookie set in a load goes out on the rendered document **and** on the `__data.json` a client navigation fetched, because a cookie set during a navigation that never reaches the browser is a bug nothing would ever say out loud. Values are encoded on the way out and decoded on the way back, quoted values included, so anything a string can hold survives the round trip. Kit fills in the attributes that decide where a cookie goes and leaves the lifetime to the caller: `path: "/"` (the browser's own default is the current directory, which makes a cookie set from a deep route invisible to the rest of the app), `httpOnly`, `sameSite: "lax"`, and `secure` whenever _this_ request arrived over https — a blanket `Secure` would have the browser drop every cookie set in dev over `http://localhost` and say nothing. `delete` sends the same cookie back empty with an expiry in the past, `path`/`domain` included so the browser matches the cookie it is meant to replace. Reads see this request's own writes, so a load reads back the session the hook above it just issued, and `event.fetch` forwards that same state on same-origin calls.
+
+  An `error.ts` may now sit in any route directory, covering that directory and everything under it; kit used to refuse one anywhere but the routes root. So a 404 deep inside an app shell (`/app/acme/issue/9999`) rendered the same bare full-page error as a 404 at the root, losing the sidebar, the workspace switcher, and any way back that was not the browser's back button. The nearest boundary up the tree now wins and renders **inside the layouts around it** — the same chain the page it replaced would have rendered in — with the root `error.ts` still the fallback for everything no section answers for. Kit runs the boundary's layout load chain before rendering it, so a shell that reads `data` is a real shell rather than an empty one, and the boundary's own params come with it: `/app/:slug` still knows which workspace the 404 was in. A root error page now renders inside the root layout for the same reason, where before it replaced the document. The prerendered `404.html` is still the root one's — a section boundary cannot answer for a path a static host has never heard of.
+
+- [`a8d5286`](https://github.com/ieedan/implement/commit/a8d528668fb5ac32d63d9e36fad3a81a632e04c5) Thanks [@ieedan](https://github.com/ieedan)! - Links the router follows preload their route's code and data before they are followed.
+
+  A navigation already resolved the destination's chunks and its `__data.json` before committing — the click just paid for both. It now usually pays for neither: the pointer arriving over a link (or focus landing on it) starts the same two fetches a couple of hundred milliseconds early, and the navigation spends what is waiting instead of asking again.
+
+  The default applies to `router.Link` and nothing else, which is narrower than it might look and deliberate. This framework routes a `Link` click and leaves every other `<a>` to the browser, so a plain `<a href="/somewhere">` is a full document load — a chunk or a payload warmed for one is thrown away the moment it is followed. `@implementjs/router` now marks its own anchors with `data-implement-link` (exported as `ROUTED_LINK_ATTRIBUTE`) to say the click stays in the page, and that marker is what the default follows.
+
+  The behaviour is otherwise declared in markup rather than wired per link. Any element may carry `data-implement-preload-data` (`"hover"`, `"tap"`, `"off"`) or `data-implement-preload-code` (`"eager"`, `"viewport"`, `"hover"`, `"tap"`, `"off"`), and links beneath it take the nearest one — so a subtree whose loads are expensive enough that a passing pointer should not run one holds them back to the press without touching the links themselves. A named attribute is honoured on any link, routed or not, which is how an app that routes a link its own way opts in. `kit({ preload })` sets what a routed link inherits when nothing above it says otherwise. Only code offers `"eager"` and `"viewport"`: a chunk is immutable and cached for the life of the page, while a load result goes stale, and prefetching every one in the viewport would be a way to serve the reader yesterday's data.
+
+  `@implementjs/kit/navigation` is a new entry exporting `preloadCode(...hrefs)` and `preloadData(href)`, for the navigations markup cannot predict — a wizard warming its next step, a row that opens on double click. A preloaded payload waits rather than being applied (seeding it would re-render the page the reader is still on), is spent by the next navigation to that route, and is dropped after 30 seconds unspent, so preloading stays a speed change rather than a caching layer.
+
+  Nothing is preloaded speculatively while `navigator.connection.saveData` is set, and links the browser owns are left alone throughout: another origin, `target="_blank"`, `download`, `rel="external"`, `mailto:`, a bare fragment, or a link back to the page already on screen.
+
+- Updated dependencies [[`a8d5286`](https://github.com/ieedan/implement/commit/a8d528668fb5ac32d63d9e36fad3a81a632e04c5), [`acc73c7`](https://github.com/ieedan/implement/commit/acc73c732c927585a7064f4805cd08a1f625f6fc), [`88c4745`](https://github.com/ieedan/implement/commit/88c4745c2e9bdc1819abe112200f8bb05804c0af), [`a8d5286`](https://github.com/ieedan/implement/commit/a8d528668fb5ac32d63d9e36fad3a81a632e04c5)]:
+  - @implementjs/vite@0.0.2
+  - @implementjs/router@0.0.11
+  - @implementjs/core@0.0.9
+
 ## 0.0.12
 
 ### Patch Changes
