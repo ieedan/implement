@@ -239,7 +239,7 @@ kit({
 
 With `api.openapi` absent — the default — no document is produced, no file is written, and no route is mounted. Individual routes opt out with `export const openapi = false;`.
 
-`output` writes the document as a file. Point it inside `static/` and it ships as a plain static asset the host serves; kit answers the same URL in dev, built from the routes as they are right now rather than from whatever the last build left behind.
+`output` writes the document as a file. Point it inside `static/` and it ships as a plain static asset the host serves; kit answers the same URL in dev, built from the routes as they are right now rather than from whatever the last build left behind. The write is the build's own, not the prerender's: `prerender: false` — the usual setting for an app whose pages sit behind a session, and exactly the kind that wants a documented API — still gets the file.
 
 `path` additionally mounts a live route that builds the document per server. That is the one option with a cost: generating the document needs the schema _objects_, so it pulls your schema library and its JSON-Schema converter into the production server bundle. `output` alone does the work in Node at build time, and neither ever reaches what you deploy.
 

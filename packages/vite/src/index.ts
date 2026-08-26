@@ -30,6 +30,19 @@ export type PrerenderContext = BuildContext & {
 	outDir: string;
 };
 
+/**
+ * What a hook that runs whether or not there is a prerender gets: the module
+ * runner, and where the build landed. No `render` — an app with prerendering
+ * off never needs its entry loaded, and loading it anyway would make a
+ * document's write depend on a render that has nothing to do with it.
+ */
+export type BuildOutputContext = {
+	/** Load a module (real or virtual id) through the build-time SSR module runner. */
+	load: (id: string) => Promise<Record<string, unknown>>;
+	/** Absolute path of the build output directory. */
+	outDir: string;
+};
+
 /** What runs once the client build (and any prerender) is done. */
 export type FinishContext = {
 	/** Every route that was prerendered — empty when prerendering is off. */
@@ -69,6 +82,15 @@ export type ImplementOptions = {
 	entry?: string;
 	/** Prerender the built site into the output directory. @default true */
 	prerender?: boolean | PrerenderOptions;
+	/**
+	 * Runs with the SSR module runner open, before anything is prerendered and
+	 * whether or not prerendering is on — for output a host owes the build
+	 * itself rather than the prerender. `@implementjs/kit` writes its OpenAPI
+	 * document here, so `api.openapi.output` produces a file under
+	 * `prerender: false` too. The runner is opened for this hook alone when
+	 * prerendering is off, so only pass one when there is work to do.
+	 */
+	build?: (context: BuildOutputContext) => void | Promise<void>;
 	/**
 	 * Runs once the client build is done and anything prerendered has been
 	 * written — the hook a host hangs its own output stage off, whether or not
@@ -155,11 +177,11 @@ export function implement(options: ImplementOptions = {}): Plugin {
 				? config.build.outDir
 				: join(config.root, config.build.outDir);
 			const finish = options.finish;
-			if (prerender === false) {
+			const buildHook = options.build;
+			if (prerender === false && buildHook === undefined) {
 				await finish?.({ routes: [], outDir });
 				return;
 			}
-			const template = readFileSync(join(outDir, "index.html"), "utf8");
 			// the sources render through a dev-mode module runner; the built
 			// client bundle has no render entry to import. It runs on the config
 			// the build itself was given — plugins passed inline rather than
@@ -176,42 +198,48 @@ export function implement(options: ImplementOptions = {}): Plugin {
 			});
 			let routes: string[] = [];
 			try {
-				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SSR entry module exports the app render function.
-				const { render } = (await dev.ssrLoadModule(entry)) as { render: RenderFn };
 				const load = (id: string) => dev.ssrLoadModule(id) as Promise<Record<string, unknown>>;
-				const routesOption = typeof prerender === "object" ? prerender.routes : undefined;
-				routes =
-					routesOption == null
-						? await crawlRoutes(render)
-						: typeof routesOption === "function"
-							? await routesOption({ render, load })
-							: routesOption;
-				const transformHtml = typeof prerender === "object" ? prerender.transformHtml : undefined;
-				const { written, failed } = await prerenderRoutes({
-					render,
-					routes,
-					template,
-					outDir,
-					transformHtml,
-				});
-				config.logger.info(`prerendered ${written}/${routes.length} routes`);
-				if (failed.length > 0) {
-					throw new Error(`prerender failed:\n  ${failed.join("\n  ")}`);
+				// ahead of the prerender, and reached whether or not there is one:
+				// what this writes is the build's own output, not the prerender's
+				await buildHook?.({ load, outDir });
+				if (prerender !== false) {
+					const template = readFileSync(join(outDir, "index.html"), "utf8");
+					// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SSR entry module exports the app render function.
+					const { render } = (await dev.ssrLoadModule(entry)) as { render: RenderFn };
+					const routesOption = typeof prerender === "object" ? prerender.routes : undefined;
+					routes =
+						routesOption == null
+							? await crawlRoutes(render)
+							: typeof routesOption === "function"
+								? await routesOption({ render, load })
+								: routesOption;
+					const transformHtml = typeof prerender === "object" ? prerender.transformHtml : undefined;
+					const { written, failed } = await prerenderRoutes({
+						render,
+						routes,
+						template,
+						outDir,
+						transformHtml,
+					});
+					config.logger.info(`prerendered ${written}/${routes.length} routes`);
+					if (failed.length > 0) {
+						throw new Error(`prerender failed:\n  ${failed.join("\n  ")}`);
+					}
+					const notFound = typeof prerender === "object" ? prerender.notFound : undefined;
+					if (notFound !== undefined) {
+						writeFileSync(
+							join(outDir, "404.html"),
+							await renderDocument(
+								template,
+								await render(notFound),
+								[],
+								transformHtml === undefined ? undefined : (html) => transformHtml(notFound, html),
+							),
+						);
+					}
+					const after = typeof prerender === "object" ? prerender.after : undefined;
+					await after?.({ routes, outDir, render, load });
 				}
-				const notFound = typeof prerender === "object" ? prerender.notFound : undefined;
-				if (notFound !== undefined) {
-					writeFileSync(
-						join(outDir, "404.html"),
-						await renderDocument(
-							template,
-							await render(notFound),
-							[],
-							transformHtml === undefined ? undefined : (html) => transformHtml(notFound, html),
-						),
-					);
-				}
-				const after = typeof prerender === "object" ? prerender.after : undefined;
-				await after?.({ routes, outDir, render, load });
 			} finally {
 				await dev.close();
 			}
