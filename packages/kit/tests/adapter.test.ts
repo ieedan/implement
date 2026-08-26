@@ -196,3 +196,40 @@ describe("an adapter that ships no server", () => {
 		expect(existsSync(join(builder().clientDir, "404.html"))).toBe(true);
 	});
 });
+
+describe("the OpenAPI document with prerendering off", () => {
+	const { adapter, builder } = recorder();
+	const document = join(fixture, "static/openapi.json");
+
+	beforeAll(async () => {
+		rmSync(document, { force: true });
+		await buildWith(adapter, {
+			prerender: false,
+			api: {
+				openapi: {
+					info: { title: "Adapter API", version: "1.0.0" },
+					output: "static/openapi.json",
+				},
+			},
+		});
+	}, 120_000);
+
+	afterAll(() => {
+		rmSync(join(fixture, ".implement"), { recursive: true, force: true });
+		rmSync(document, { force: true });
+	});
+
+	it("writes `output` from a build that prerenders nothing at all", () => {
+		expect(builder().prerendered.pages).toEqual([]);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Reading back the document the build just wrote.
+		const { paths } = JSON.parse(readFileSync(document, "utf8")) as {
+			paths: Record<string, unknown>;
+		};
+		expect(Object.keys(paths)).toEqual(["/api"]);
+	});
+
+	it("ships it with the build that produced it, and names it to the adapter", () => {
+		expect(readFileSync(join(builder().clientDir, "openapi.json"), "utf8")).toContain('"/api"');
+		expect(builder().prerendered.files).toContain("/openapi.json");
+	});
+});

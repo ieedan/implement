@@ -670,6 +670,37 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		return inside.startsWith("..") ? null : `/${inside}`;
 	};
 
+	/** Where the build wrote the document, as site-root-relative paths. */
+	let openApiFiles: string[] = [];
+
+	/**
+	 * The document as the build's own output: written whatever `prerender` is
+	 * set to, because `output` is a file the build owes and the prerender has
+	 * no say in it. Building it also surfaces the document's warnings, which
+	 * an app serving `path` alone still wants to hear at build time.
+	 */
+	const writeOpenApi = async (
+		load: (id: string) => Promise<Record<string, unknown>>,
+		outDir: string,
+	): Promise<void> => {
+		openApiFiles = [];
+		const json = await openApiJson(load, (message) => {
+			console.warn(message);
+		});
+		const output = openapi?.output;
+		if (output === undefined) return;
+		// two copies: the source one, so the next build's publicDir sweep
+		// ships it like any other static file, and one straight into this
+		// build's output, so the build that produced the document is not
+		// the one build missing it
+		write(resolve(root, output), json);
+		const url = openApiPublicUrl();
+		if (url !== null) {
+			write(join(outDir, url.slice(1)), json);
+			openApiFiles.push(url);
+		}
+	};
+
 	const adapter = options.adapter;
 	const entriesOption =
 		typeof options.prerender === "object" ? options.prerender.entries : undefined;
@@ -709,24 +740,6 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		},
 		after: async ({ routes: prerendered, outDir, load }) => {
 			const scanned = tree ?? scan();
-			const extras: string[] = [];
-			if (openapi !== undefined) {
-				const json = await openApiJson(load, (message) => {
-					console.warn(message);
-				});
-				if (openapi.output !== undefined) {
-					// two copies: the source one, so the next build's publicDir sweep
-					// ships it like any other static file, and one straight into this
-					// build's output, so the build that produced the document is not
-					// the one build missing it
-					write(resolve(root, openapi.output), json);
-					const url = openApiPublicUrl();
-					if (url !== null) {
-						write(join(outDir, url.slice(1)), json);
-						extras.push(url);
-					}
-				}
-			}
 			const written = await prerenderServerFiles({
 				routes: prerendered,
 				outDir,
@@ -738,7 +751,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				logger: console,
 				source: { root, routes },
 			});
-			prerenderedFiles = [...extras, ...written];
+			prerenderedFiles = written;
 		},
 	};
 
@@ -1204,6 +1217,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			// kit serves dev pages itself, through the request pipeline
 			devSsr: false,
 			prerender: options.prerender === false ? false : prerenderConfig,
+			// the document does not come from the prerender, so it is not written
+			// from it: a `prerender: false` app — the normal shape for one whose
+			// pages sit behind a session — gets its `output` file all the same
+			build: openapi === undefined ? undefined : ({ load, outDir }) => writeOpenApi(load, outDir),
 			finish:
 				adapter === undefined
 					? undefined
@@ -1216,7 +1233,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 								tree: tree ?? scan(),
 								routesBase,
 								pages: prerendered,
-								files: prerenderedFiles,
+								files: [...openApiFiles, ...prerenderedFiles],
 								extraEndpoints: openapi?.path === undefined ? [] : [openapi.path],
 							});
 						},
