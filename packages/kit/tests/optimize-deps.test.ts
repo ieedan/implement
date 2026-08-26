@@ -115,7 +115,21 @@ describe("dep pre-bundling", () => {
 		expect(prebundled).toContain("@implementjs/kit/params");
 	});
 
+	it("pre-bundles the preload entry alongside the runtime it re-exports", () => {
+		// not an optimization: a source copy of `navigation` would pull a second
+		// copy of `runtime` with it, and the route tables the router registered
+		// into the prebundled one would be invisible to every preload
+		expect(prebundled).toContain("@implementjs/kit/navigation");
+	});
+
 	it("leaves a server file's deps out of the browser's pre-bundle", () => {
 		expect(prebundled).not.toContain("neverthrow");
+	});
+
+	it("never pre-bundles the plugin entry, which is a build tool", () => {
+		// the env files import it for `defineEnv`, and kit replaces those modules
+		// long before a bundle is written — an optimizer that reached one first
+		// would try to prebundle vite and esbuild for a browser
+		expect(prebundled).not.toContain("@implementjs/kit");
 	});
 });

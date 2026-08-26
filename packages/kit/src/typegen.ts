@@ -11,6 +11,7 @@ import {
 	type DataChain,
 	type PageRoute,
 } from "./codegen.ts";
+import type { PreloadOptions } from "./preload-kinds.ts";
 import { type RouteNode, type RouteParam, type RouteTree } from "./scan.ts";
 
 export const IMPLEMENT_DIR = ".implement";
@@ -18,8 +19,18 @@ export const IMPLEMENT_DIR = ".implement";
 /** Where param matchers live, relative to the app root. */
 export const DEFAULT_PARAMS_DIR = "src/params";
 
-const ENTRY_CLIENT = `import { App } from "@implementjs/core";
+/**
+ * The generated client entry: hydrate the server render, install the data
+ * store and the link preloading, and mount the router.
+ *
+ * `preload` is baked in rather than read at runtime because there is nowhere
+ * for it to be read *from* — the option lives in `vite.config.ts`, which is a
+ * node module the browser bundle never sees.
+ */
+function entryClient(preload: PreloadOptions | undefined): string {
+	return `import { App } from "@implementjs/core";
 import { installHydration } from "@implementjs/core/hydrate";
+import { initPreloading } from "@implementjs/kit/navigation";
 import { initClientData, preloadRoute } from "@implementjs/kit/runtime";
 import { router } from "$implement/router";
 
@@ -29,6 +40,11 @@ import { router } from "$implement/router";
 installHydration();
 
 initClientData();
+
+// Links warm their route ahead of the click. Per-link and per-subtree
+// overrides ride on \`data-implement-preload-data\` / \`-code\`; this is only
+// what a link inherits when nothing above it says otherwise.
+initPreloading(${JSON.stringify(preload ?? {})});
 
 const app = App({ target: document.body });
 
@@ -53,6 +69,7 @@ preloadRoute(window.location.pathname).then(
 	},
 );
 `;
+}
 
 /**
  * The generated server entry: the app's request pipeline. `render` is what the
@@ -60,7 +77,7 @@ preloadRoute(window.location.pathname).then(
  * app's `src/hooks.server.ts` around the page, endpoint, or route-data
  * response.
  */
-function entryServer(hasErrorPage: boolean): string {
+function entryServer(hasErrorPage: boolean, dynamicPublicEnv: string | undefined): string {
 	const renderPage = hasErrorPage
 		? [
 				"		return renderToString(error === null ? router : errorPage(error), {",
@@ -72,6 +89,11 @@ function entryServer(hasErrorPage: boolean): string {
 				"		if (error !== null) return null;",
 				"		return renderToString(router, { location: url.pathname + url.search });",
 			];
+	// absent unless the app has the file: no import, no snapshot embedded in a
+	// page, and no `/_implement/env.js` route on the server
+	const envImport =
+		dynamicPublicEnv === undefined ? [] : [`import * as publicEnv from "/${dynamicPublicEnv}";`];
+	const envOption = dynamicPublicEnv === undefined ? [] : ["	publicEnv,"];
 	return `${[
 		'import { renderToString } from "@implementjs/core/server";',
 		'import { preloadRoute, seedData } from "@implementjs/kit/runtime";',
@@ -82,6 +104,7 @@ function entryServer(hasErrorPage: boolean): string {
 		'import { matchers } from "$implement/params";',
 		'import { pages } from "$implement/pages";',
 		`import { ${hasErrorPage ? "errorPage, router" : "router"} } from "$implement/router";`,
+		...envImport,
 		"",
 		'export type { RenderResult } from "@implementjs/kit/server";',
 		"",
@@ -93,6 +116,7 @@ function entryServer(hasErrorPage: boolean): string {
 		"	matchers,",
 		"	// so `event.api` is this app's own client, bound to `event.fetch`",
 		"	createApiClient: createClient,",
+		...envOption,
 		"	renderPage: async ({ url, data, error }) => {",
 		"		if (data !== null) seedData(data);",
 		"		// renderToString walks the tree synchronously, so the route's own",
@@ -482,6 +506,15 @@ export type SyncOptions = {
 	client?: ClientStyle;
 	/** Extra aliases (name → path relative to the app root) for the generated tsconfig, on top of `@/lib` → `src/lib`. */
 	alias?: Record<string, string>;
+	/** What a link preloads when nothing above it says otherwise — \`KitOptions.preload\`. */
+	preload?: PreloadOptions;
+	/**
+	 * Where the app's public dynamic env file would be, relative to the app
+	 * root — \`KitOptions.env.dynamicPublic\`. The generated server entry imports
+	 * it only if it is actually there, which is what keeps an app without one
+	 * from carrying any of the machinery that serves it.
+	 */
+	dynamicPublicEnv?: string;
 };
 
 /**
@@ -544,8 +577,18 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 	mkdirSync(typesDir, { recursive: true });
 
 	writeIfChanged(join(outDir, ".gitignore"), "*\n");
-	writeIfChanged(join(outDir, "entry-client.ts"), ENTRY_CLIENT);
-	writeIfChanged(join(outDir, "entry-server.ts"), entryServer(tree.error !== null));
+	writeIfChanged(join(outDir, "entry-client.ts"), entryClient(options.preload));
+	// the path is always configured; the file being there is what turns it on,
+	// and checking here means the plugin and the `sync` CLI agree without having
+	// to be told the same thing twice
+	const dynamicPublicEnv =
+		options.dynamicPublicEnv !== undefined && existsSync(join(root, options.dynamicPublicEnv))
+			? options.dynamicPublicEnv
+			: undefined;
+	writeIfChanged(
+		join(outDir, "entry-server.ts"),
+		entryServer(tree.error !== null, dynamicPublicEnv),
+	);
 	writeIfChanged(
 		join(outDir, "tsconfig.json"),
 		generateTsconfig({ ...DEFAULT_ALIASES, ...routerAliases().tsconfig, ...options.alias }),

@@ -2,7 +2,7 @@
 title: Open Graph Images
 description: Generate social share images from implement components, one per page, at build time.
 section: Guides
-order: 18
+order: 19
 ---
 
 A link to your site is a card in someone else's feed, and the image on it is generated or it is nothing. `@implementjs/kit/og` renders one from ordinary implement components — the same `Div`, the same `style` prop — and hands back a `Response`.

@@ -5,6 +5,7 @@ import {
 	markErrorSource,
 	type ServerErrorReport,
 } from "./errors.ts";
+import { PUBLIC_ENV_ROUTE, publicEnvBootModule, publicEnvSnapshot } from "./env-runtime.ts";
 import {
 	matchEndpoint,
 	matchPage,
@@ -275,7 +276,7 @@ export type PageTransform = ((html: string) => Promise<string>) | null;
  * it and lets `@implementjs/vite` do the injecting.
  */
 export type PageDocument = (page: {
-	render: PageRender & { data?: RouteData };
+	render: PageRender & { data?: RouteData; env?: Record<string, unknown> };
 	event: RequestEvent;
 	transform: PageTransform;
 }) => MaybePromise<string>;
@@ -316,6 +317,8 @@ const FORWARDED_HEADERS = ["cookie", "authorization"];
 /** What the prerenderer consumes — `@implementjs/vite`'s `SsrResult`. */
 export type RenderResult = PageRender & {
 	data?: RouteData;
+	/** The app's public dynamic env, for the page to carry — absent when it has no such file. */
+	env?: Record<string, unknown>;
 	transform?: (html: string) => Promise<string>;
 };
 
@@ -341,6 +344,17 @@ export type KitServerOptions = {
 	 * says it is until an app generates its own.
 	 */
 	createApiClient?: (options: { fetch: typeof fetch; baseUrl: string }) => App.Api;
+	/**
+	 * The app's `env.dynamic.public.ts` module, as a namespace. The generated
+	 * `.implement/entry-server.ts` imports it only when the app has that file,
+	 * so an app without one carries none of this: no values in its pages, no
+	 * `/_implement/env.js` route, nothing.
+	 *
+	 * Every page render embeds a snapshot for the client copy of the module to
+	 * read, and the route serves the same snapshot to pages that were
+	 * prerendered without one.
+	 */
+	publicEnv?: Record<string, unknown>;
 };
 
 export type KitServer = {
@@ -357,9 +371,10 @@ export type KitServer = {
  * should need to.
  */
 export function createKitServer(options: KitServerOptions): KitServer {
-	const { hooks, pages, endpoints, renderPage, createApiClient } = options;
+	const { hooks, pages, endpoints, renderPage, createApiClient, publicEnv } = options;
 	const matchers = options.matchers ?? {};
 	let started: Promise<void> | undefined;
+	const serveEnv = publicEnv === undefined ? null : publicEnvRoute(publicEnv);
 
 	async function respond(request: Request, respondOptions: RespondOptions = {}): Promise<Response> {
 		const onError = respondOptions.onError;
@@ -382,6 +397,10 @@ export function createKitServer(options: KitServerOptions): KitServer {
 		const url = isDataRequest
 			? new URL(`${routePath}${requestUrl.search}${requestUrl.hash}`, requestUrl.origin)
 			: requestUrl;
+
+		// answered before anything else, hooks included: it is kit's own module, not
+		// the app's, and a page that was prerendered is waiting on it to boot
+		if (serveEnv !== null && path === `/${PUBLIC_ENV_ROUTE}`) return serveEnv(request);
 
 		const endpoint = isDataRequest ? null : matchEndpoint(endpoints, routePath, matchers);
 		const page = endpoint === null ? matchPage(pages, routePath, matchers) : null;
@@ -487,7 +506,13 @@ export function createKitServer(options: KitServerOptions): KitServer {
 					headers: { "content-type": "text/plain; charset=utf-8" },
 				});
 			}
-			const result = data === null ? rendered : { ...rendered, data };
+			const result = {
+				...rendered,
+				...(data === null ? {} : { data }),
+				// carried by the page so the client copy of `env.dynamic.public.ts`
+				// reads validated values with no schemas of its own
+				...(publicEnv === undefined ? {} : { env: publicEnvSnapshot(publicEnv) }),
+			};
 			const document = respondOptions.document ?? (({ render }) => render.html);
 			const html = await document({ render: result, event: current, transform });
 			return new Response(html, {
@@ -619,4 +644,43 @@ async function runEndpoint(match: EndpointMatch, event: RequestEvent): Promise<R
 	} catch (thrown) {
 		throw markErrorSource(thrown, { kind: "endpoint", file: match.route.file, method: name });
 	}
+}
+
+/**
+ * The handler for `/_implement/env.js`: the app's public dynamic env as a
+ * module that assigns it before the app's entry runs. A page kit rendered
+ * carries these values already — this is for one that was prerendered, and so
+ * was written before there was a request to read them for.
+ *
+ * The body is built once per process. Rotating a value is a restart, which is
+ * the whole bargain of a dynamic variable, so there is nothing here that a
+ * running server could have to change its mind about.
+ */
+function publicEnvRoute(namespace: Record<string, unknown>): (request: Request) => Response {
+	let body: string | undefined;
+	let etag: string | undefined;
+	return (request) => {
+		body ??= publicEnvBootModule(publicEnvSnapshot(namespace));
+		etag ??= `W/"${weakHash(body)}"`;
+		const headers = {
+			"content-type": "application/javascript; charset=utf-8",
+			etag,
+			// revalidated rather than trusted: a redeploy changes the values, and
+			// a prerendered page reads this before it can render anything
+			"cache-control": "public, max-age=0, must-revalidate",
+		};
+		if (request.headers.get("if-none-match") === etag) {
+			return new Response(null, { status: 304, headers });
+		}
+		return new Response(body, { headers });
+	};
+}
+
+/** djb2, so the etag changes with the values without pulling in a hash implementation. */
+function weakHash(input: string): string {
+	let hash = 5381;
+	for (let index = 0; index < input.length; index += 1) {
+		hash = ((hash << 5) + hash + input.charCodeAt(index)) | 0;
+	}
+	return (hash >>> 0).toString(36);
 }

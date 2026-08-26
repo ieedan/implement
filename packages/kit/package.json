@@ -47,6 +47,10 @@
 			"types": "./src/endpoint.ts",
 			"default": "./src/endpoint.ts"
 		},
+		"./env": {
+			"types": "./src/env-runtime.ts",
+			"default": "./src/env-runtime.ts"
+		},
 		"./adapter": {
 			"types": "./src/adapter.ts",
 			"default": "./src/adapter.ts"
@@ -66,6 +70,10 @@
 		"./params": {
 			"types": "./src/params.ts",
 			"default": "./src/params.ts"
+		},
+		"./navigation": {
+			"types": "./src/navigation.ts",
+			"default": "./src/navigation.ts"
 		},
 		"./node": {
 			"types": "./src/node.ts",
@@ -103,6 +111,10 @@
 				"types": "./dist/endpoint.d.mts",
 				"default": "./dist/endpoint.mjs"
 			},
+			"./env": {
+				"types": "./dist/env-runtime.d.mts",
+				"default": "./dist/env-runtime.mjs"
+			},
 			"./adapter": {
 				"types": "./dist/adapter.d.mts",
 				"default": "./dist/adapter.mjs"
@@ -118,6 +130,10 @@
 			"./params": {
 				"types": "./dist/params.d.mts",
 				"default": "./dist/params.mjs"
+			},
+			"./navigation": {
+				"types": "./dist/navigation.d.mts",
+				"default": "./dist/navigation.mjs"
 			},
 			"./node": {
 				"types": "./dist/node.d.mts",
@@ -166,6 +182,7 @@
 	"devDependencies": {
 		"@types/node": "^26.2.0",
 		"@valibot/to-json-schema": "^1.7.1",
+		"happy-dom": "^20.0.11",
 		"neverthrow": "^8.2.0",
 		"tsdown": "^0.22.14",
 		"typescript": "^7.0.2",

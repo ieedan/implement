@@ -2,7 +2,7 @@
 title: API Routes
 description: Validated handlers, a generated typed client, and an optional OpenAPI document — off one definition.
 section: Guides
-order: 14
+order: 15
 ---
 
 A [`server.ts` endpoint](/kit/server-routes) is a function that takes a `Request` and returns a `Response`. That is the whole contract, and it is untyped at both edges: nothing describes the body coming in, nothing describes what goes out, and nothing connects the endpoint to the code that calls it.

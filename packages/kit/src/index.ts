@@ -30,7 +30,10 @@ import {
 	exportNames,
 	loadRawEnv,
 	serializeEnvModule,
+	injectPublicEnvBoot,
+	publicEnvClientModule,
 	serverStubModule,
+	setDynamicEnv,
 	type EnvFileInfo,
 } from "./env.ts";
 import {
@@ -49,6 +52,7 @@ import {
 } from "./guard.ts";
 import { isRootShell, previewPages, resolveShell, shellOutputPlugin } from "./html.ts";
 import { buildOpenApiDocument, type OpenApiEndpoint, type OpenApiOptions } from "./openapi.ts";
+import type { PreloadOptions } from "./preload-kinds.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
 import type { KitPluginApi } from "./sync.ts";
@@ -84,6 +88,7 @@ export type {
 } from "./adapter.ts";
 export type { ClientStyle, DataChain, PageRoute, ServerRoute } from "./codegen.ts";
 export type { OpenApiDocument, OpenApiOptions, ToJsonSchema } from "./openapi.ts";
+export type { PreloadCodeKind, PreloadDataKind, PreloadOptions } from "./preload-kinds.ts";
 export type { PrerenderDefault } from "./prerender.ts";
 export {
 	isParamMatcher,
@@ -136,8 +141,28 @@ const NOT_FOUND_ROUTE = "/__implement__/not-found";
  * Naming them here puts them in the first prebundle instead. `params` is here
  * even for an app with no matchers yet: adding the first one would otherwise
  * be its own discovery, mid-session, with the dev server already running.
+ *
+ * `navigation` is here for a second reason, and a sharper one: it re-exports
+ * the runtime's preload functions, so leaving it out does not merely delay a
+ * prebundle — it *duplicates the runtime*. The generated client entry would
+ * import it as source while `$implement/router` imports the prebundled
+ * `runtime`, and the route tables the router registers would be registered
+ * into a module instance the preloader cannot see. Every preload would then
+ * quietly no-op: two registries, one of them empty.
  */
-const OPTIMIZE_INCLUDE = [ROUTER_PACKAGE, "@implementjs/kit/runtime", "@implementjs/kit/params"];
+/**
+ * Never pre-bundled for a browser: the plugin entry is a build tool, imported
+ * by the env files for `defineEnv` and replaced with literals long before a
+ * bundle is written.
+ */
+const OPTIMIZE_EXCLUDE = ["@implementjs/kit"];
+
+const OPTIMIZE_INCLUDE = [
+	ROUTER_PACKAGE,
+	"@implementjs/kit/navigation",
+	"@implementjs/kit/params",
+	"@implementjs/kit/runtime",
+];
 
 /** Writes a file, creating its directory — the build's own small needs. */
 function write(file: string, contents: string): void {
@@ -147,6 +172,8 @@ function write(file: string, contents: string): void {
 
 const DEFAULT_ENV_PUBLIC = "src/lib/env.public.ts";
 const DEFAULT_ENV_SERVER = "src/lib/env.server.ts";
+const DEFAULT_ENV_DYNAMIC = "src/lib/env.dynamic.server.ts";
+const DEFAULT_ENV_DYNAMIC_PUBLIC = "src/lib/env.dynamic.public.ts";
 
 export type KitPrerenderOptions = {
 	/**
@@ -235,12 +262,41 @@ export type KitOptions = {
 	 */
 	api?: KitApiOptions;
 	/**
-	 * Where the two environment-variable files live, relative to the Vite root.
-	 * A file that does not exist simply turns that half of the feature off.
+	 * Where the environment-variable files live, relative to the Vite root. A
+	 * file that does not exist simply turns that part of the feature off.
 	 *
-	 * @default { public: "src/lib/env.public.ts", server: "src/lib/env.server.ts" }
+	 * `public` and `server` are evaluated once during the build and re-emitted
+	 * as literals. `dynamic` and `dynamicPublic` are left alone and read by the
+	 * running server, so rotating what they declare is a restart rather than a
+	 * rebuild — `dynamic` must be named `*.server.ts`, and `dynamicPublic` must
+	 * not be, since its values are meant to reach the browser.
+	 *
+	 * @default { public: "src/lib/env.public.ts", server: "src/lib/env.server.ts", dynamic: "src/lib/env.dynamic.server.ts", dynamicPublic: "src/lib/env.dynamic.public.ts" }
 	 */
-	env?: { public?: string; server?: string };
+	env?: { public?: string; server?: string; dynamic?: string; dynamicPublic?: string };
+	/**
+	 * What a link preloads before it is followed — the route's chunks, its
+	 * `__data.json`, or neither. A navigation resolves both before it commits,
+	 * so warming them while the pointer is still over the link is what takes
+	 * the round trip out from under the click.
+	 *
+	 * This is only the default. Any element may carry
+	 * `data-implement-preload-data` or `data-implement-preload-code`, and the
+	 * links beneath it take the nearest one — which is how a link whose load is
+	 * expensive enough that a passing pointer should not run it opts out:
+	 *
+	 * ```html
+	 * <a href="/reports/annual" data-implement-preload-data="tap">Annual report</a>
+	 * ```
+	 *
+	 * ```ts
+	 * // warm chunks as links scroll into view; leave data to the click
+	 * kit({ preload: { code: "viewport", data: "off" } });
+	 * ```
+	 *
+	 * @default { data: "hover", code: "hover" }
+	 */
+	preload?: PreloadOptions;
 };
 
 export type KitApiOptions = {
@@ -257,21 +313,50 @@ export type KitApiOptions = {
 type EnvFile = { path: string; info: EnvFileInfo };
 
 /**
- * The two env files as absolute paths. Existence is not checked: the transform
- * only ever sees an id Vite already loaded, so a file that is not there is a
- * file nothing imports, and that half of the feature is simply off.
+ * The env files as absolute paths. Existence is not checked: the transform only
+ * ever sees an id Vite already loaded, so a file that is not there is a file
+ * nothing imports, and that part of the feature is simply off.
+ *
+ * @throws {Error} if the dynamic file is not named `*.server.ts`.
  */
 function resolveEnvFiles(root: string, option: KitOptions["env"]): EnvFile[] {
 	const publicFile = normalizeFile(option?.public ?? DEFAULT_ENV_PUBLIC);
 	const serverFile = normalizeFile(option?.server ?? DEFAULT_ENV_SERVER);
+	const dynamicFile = normalizeFile(option?.dynamic ?? DEFAULT_ENV_DYNAMIC);
+	const dynamicPublicFile = normalizeFile(option?.dynamicPublic ?? DEFAULT_ENV_DYNAMIC_PUBLIC);
+	// the static files are replaced wholesale, so the browser copy is kit's to
+	// write either way. The dynamic file keeps its own body, which leaves the
+	// `*.server.ts` guard as the only thing standing between it and a bundle
+	if (!isServerModule(dynamicFile)) {
+		throw new Error(
+			`kit({ env: { dynamic } }): "${dynamicFile}" must be named \`*.server.ts\`.\n\n` +
+				`Unlike the other two, this file is not replaced at build time — the name is what makes it server-only and keeps its values out of the client bundle.`,
+		);
+	}
+	// the mirror image: this file's values are meant to reach the browser, and
+	// `*.server.ts` is the one name that guarantees they never will
+	if (isServerModule(dynamicPublicFile)) {
+		throw new Error(
+			`kit({ env: { dynamicPublic } }): "${dynamicPublicFile}" must not be named \`*.server.ts\`.\n\n` +
+				`Every variable in this file is shipped to the browser, and a \`*.server.ts\` file is one kit refuses to let client code import.`,
+		);
+	}
 	return [
 		{
 			path: normalizeFile(join(root, publicFile)),
 			info: { kind: "public", file: publicFile, counterpart: serverFile },
 		},
 		{
+			path: normalizeFile(join(root, dynamicPublicFile)),
+			info: { kind: "dynamic-public", file: dynamicPublicFile, counterpart: serverFile },
+		},
+		{
 			path: normalizeFile(join(root, serverFile)),
 			info: { kind: "server", file: serverFile, counterpart: publicFile },
+		},
+		{
+			path: normalizeFile(join(root, dynamicFile)),
+			info: { kind: "dynamic", file: dynamicFile, counterpart: publicFile },
 		},
 	];
 }
@@ -414,6 +499,8 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		params: paramsPath,
 		alias: options.alias,
 		client: options.api?.client,
+		preload: options.preload,
+		dynamicPublicEnv: normalizeFile(options.env?.dynamicPublic ?? DEFAULT_ENV_DYNAMIC_PUBLIC),
 	};
 	let root = process.cwd();
 	let routesDir = join(root, routes);
@@ -453,6 +540,10 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	let envFiles: EnvFile[] = [];
 	let envValues: Record<string, string | undefined> = {};
 	let aliasTargets: Record<string, string> = {};
+
+	/** Where the app's public dynamic env file would be — its being there is what turns it on. */
+	const dynamicPublicEnvFile = (): string =>
+		envFiles.find((env) => env.info.kind === "dynamic-public")?.path ?? "";
 
 	/** The app's hooks module as an import specifier, or `null` when it has none. */
 	const hooksSpecifier = (): string | null => (existsSync(hooksFile) ? `/${hooksPath}` : null);
@@ -667,6 +758,11 @@ export function kit(options: KitOptions = {}): Plugin[] {
 						`${paramsGlob}/*.ts`,
 					],
 					include: OPTIMIZE_INCLUDE,
+					// the plugin entry is a build tool — it imports vite and esbuild.
+					// The env files import it for `defineEnv`, and kit replaces those
+					// modules wholesale before a browser sees them, but a dep optimizer
+					// that reaches one first would try to prebundle a bundler
+					exclude: OPTIMIZE_EXCLUDE,
 				},
 				build: {
 					// the prerender needs chunk filenames to emit preload hints for
@@ -697,6 +793,12 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			// .env to work — kit sources the raw values here and hands them to the evaluator.
 			// `envDir: false` turns .env files off entirely, leaving the environment itself.
 			envValues = config.envDir === false ? process.env : loadRawEnv(config.mode, config.envDir);
+			// dev requests and the prerender run in this process, where `.env` never
+			// reached `process.env` — so the dynamic file is pointed at the same
+			// values the other two were evaluated against. A built server runs
+			// elsewhere and falls back to its own `process.env`, or to whatever its
+			// adapter hands `setDynamicEnv`.
+			setDynamicEnv(envValues);
 			publicDir = config.publicDir;
 			aliasTargets = Object.fromEntries(
 				Object.entries(aliases).map(([name, target]) => [name, resolve(root, target)]),
@@ -708,11 +810,22 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			if (scanned.error !== null && (adapter === undefined || adapter.server === false)) {
 				prerenderConfig.notFound = NOT_FOUND_ROUTE;
 			}
-			prerenderConfig.transformHtml = preloadHints({
+			const hints = preloadHints({
 				manifest: manifestPath(outDir, config.build.manifest),
 				routesBase,
 				tree: () => tree ?? scan(),
+				base: config.base,
 			});
+			// A prerendered page was written before there was a request to read the
+			// public env for, so it boots from `/_implement/env.js` instead of from
+			// values of its own — but only where something will be running to answer
+			// it. With no server the page keeps the build's values, which is the same
+			// bargain the private dynamic file makes when it is prerendered.
+			const bootsEnv =
+				existsSync(dynamicPublicEnvFile()) && adapter !== undefined && adapter.server !== false;
+			prerenderConfig.transformHtml = bootsEnv
+				? (route, html) => injectPublicEnvBoot(hints(route, html), config.base)
+				: hints;
 		},
 		resolveId(id) {
 			if (id === ROUTER_ID) return RESOLVED_ROUTER_ID;
@@ -760,6 +873,21 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			const client = isClientGraph(this.environment);
 			for (const env of envFiles) {
 				if (env.path !== file) continue;
+				// the dynamic files are the ones kit does not inline: their values are
+				// not known yet, so the schemas — and the schema library — stay in the
+				// server bundle and run there. The private one falls through to the
+				// server-file stub below, like any other `*.server.ts`
+				if (env.info.kind === "dynamic") break;
+				// the public one does reach the browser, but as values rather than as
+				// code: the server has already validated and coerced them, so the
+				// client copy reads what the page carries and ships no schemas either
+				if (env.info.kind === "dynamic-public") {
+					if (!client) break;
+					return {
+						code: publicEnvClientModule(await exportNames(file), displayId(file, root)),
+						map: null,
+					};
+				}
 				if (env.info.kind === "public" || !client) {
 					return { code: await inlineEnv(env), map: null };
 				}

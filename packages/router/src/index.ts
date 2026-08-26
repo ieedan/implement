@@ -158,6 +158,19 @@ export type LinkProps<P extends string> = Omit<ElementProps<"a">, "href"> & {
 	noScroll?: boolean;
 } & ([PathParamNames<P>] extends [never] ? { params?: undefined } : { params: LinkParams<P> });
 
+/**
+ * Marks an `<a>` the router follows itself, rather than letting the browser
+ * fetch a new document for it. {@link RouterHelper.Link} sets it; nothing else
+ * does, because nothing else calls `preventDefault` on the click.
+ *
+ * Published rather than kept private because the difference is worth acting
+ * on from outside: `@implementjs/kit` preloads a route's code and data on
+ * hover, and that only pays off for a link whose click stays in the page. A
+ * plain `<a>` is a full document load, and everything warmed for it is thrown
+ * away the moment it is followed.
+ */
+export const ROUTED_LINK_ATTRIBUTE = "data-implement-link";
+
 export type RouterError = {
 	/** HTTP-style status — `404` for unmatched paths, `500` for render errors. */
 	code: number;
@@ -776,6 +789,9 @@ export function Router<T extends Routes<T>>(
 				...rest,
 				href: linkHref,
 				"aria-current": ariaCurrent,
+				// says what the `onClick` below is about to do, for anything
+				// outside that needs to know this click stays in the page
+				[ROUTED_LINK_ATTRIBUTE]: "",
 				onClick(event) {
 					if (typeof onClick === "function") {
 						onClick.call(this, event);

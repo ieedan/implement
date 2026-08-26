@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { Div, P, type Mountable } from "@implementjs/core";
 import { renderToString } from "@implementjs/core/server";
-import { Router } from "../src/index";
+import { ROUTED_LINK_ATTRIBUTE, Router } from "../src/index";
 
 const makeIssuesRouter = () =>
 	Router(
@@ -153,14 +153,20 @@ describe("router", () => {
 		);
 	});
 
-	it("renders Link as a plain anchor", () => {
+	it("renders Link as an anchor, marked as one the router follows", () => {
 		const router = makeIssuesRouter();
 		const routes = Router({
 			"/": () => Div(router.Link({ to: "/issues/:id", params: { id: 7 } }, "Open")),
 		});
 		expect(renderToString(routes, { location: "/" }).html).toBe(
-			'<div><a href="/issues/7">Open</a></div><!---->',
+			'<div><a href="/issues/7" data-implement-link>Open</a></div><!---->',
 		);
+	});
+
+	it("names the marker rather than leaving callers to spell it", () => {
+		// what `@implementjs/kit` reads to tell a routed link from a plain `<a>`,
+		// which is a full document load and not worth preloading
+		expect(ROUTED_LINK_ATTRIBUTE).toBe("data-implement-link");
 	});
 
 	it("marks the current Link with aria-current", () => {
@@ -169,7 +175,7 @@ describe("router", () => {
 			"/about": () => Div(router.Link({ to: "/about" }, "About")),
 		});
 		expect(renderToString(routes, { location: "/about" }).html).toBe(
-			'<div><a href="/about" aria-current="page">About</a></div><!---->',
+			'<div><a href="/about" aria-current="page" data-implement-link>About</a></div><!---->',
 		);
 	});
 });

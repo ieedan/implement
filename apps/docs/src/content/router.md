@@ -121,6 +121,7 @@ A few behaviors worth knowing:
 - `replace: true` replaces the history entry instead of pushing.
 - `noScroll: true` follows the link without jumping to the top. See [scroll restoration](#scroll-restoration).
 - The link sets `aria-current="page"` while its path is current. Style it with CSS (`aria-[current=page]:` in Tailwind).
+- The link also carries `data-implement-link`, which says the click stays in the page. A plain `<a href="/somewhere">` is a full document load — nothing intercepts it — and the marker is how something outside the router tells the two apart. [Kit preloads](/kit/preloading) a route's code and data on hover for the marked ones, since warming a route the browser is about to reload from scratch would only spend bandwidth. `ROUTED_LINK_ATTRIBUTE` exports the name.
 - All other `A` props (class, events, ...) pass through.
 
 ## Programmatic navigation

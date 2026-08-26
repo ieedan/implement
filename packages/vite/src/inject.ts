@@ -6,6 +6,12 @@ export type SsrResult = {
 	/** Serializable route data to embed in the page for the client to pick up. */
 	data?: unknown;
 	/**
+	 * Serializable public environment values to embed for the client to pick up
+	 * — `@implementjs/kit`'s `env.dynamic.public.ts`. Absent for an app that has
+	 * no such file, and no tag is written then.
+	 */
+	env?: unknown;
+	/**
 	 * Final pass over the assembled document, after the render has been
 	 * injected into the shell — how `@implementjs/kit` applies a hook's
 	 * `transformPageChunk`.
@@ -30,11 +36,15 @@ export function injectSsr(template: string, result: SsrResult, styles: DevStyle[
 		result.data === undefined
 			? ""
 			: `<script type="application/json" data-implement-data>${serializeData(result.data)}</script>`;
+	const envTag =
+		result.env === undefined
+			? ""
+			: `<script type="application/json" data-implement-env>${serializeData(result.env)}</script>`;
 	// display: contents keeps the wrapper layout-neutral; App.render swaps it
 	// out for the client mount (no hydration)
 	return page.replace(
 		/<body([^>]*)>/,
-		`<body$1><div data-ssr style="display: contents">${result.html}</div>${dataTag}`,
+		`<body$1><div data-ssr style="display: contents">${result.html}</div>${dataTag}${envTag}`,
 	);
 }
 
