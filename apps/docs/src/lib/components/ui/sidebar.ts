@@ -571,12 +571,14 @@ type MenuButtonStyleProps = VariantProps<typeof sidebarMenuButtonVariants> & {
 /**
  * `id` and `disabled` are narrower here than on a bare button: with `tooltip`
  * set the row *is* the tooltip trigger, and that primitive takes a plain
- * string id and a `Signal<boolean> | boolean` rather than any bindable.
+ * string id and a `Readable<boolean> | boolean` rather than any bindable.
+ * `disabled` is only ever read, so a `derived` or a `.bind()` is as welcome as
+ * a signal you own.
  */
 export type SidebarMenuButtonProps = Omit<ElementProps<"button">, "id" | "disabled"> &
 	MenuButtonStyleProps & {
 		id?: string;
-		disabled?: Signal<boolean> | boolean;
+		disabled?: Readable<boolean> | boolean;
 		/** Label shown as a tooltip while the sidebar is collapsed to icons. */
 		tooltip?: string;
 	};
