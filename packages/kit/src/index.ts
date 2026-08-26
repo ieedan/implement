@@ -91,7 +91,6 @@ export {
 	matcher,
 	mismatch,
 	type AnyParamMatcher,
-	type MatcherOptions,
 	type ParamMatcher,
 	type ParamMatchers,
 	type ParamType,

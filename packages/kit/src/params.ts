@@ -68,12 +68,13 @@ export type ParamMatcher<T = string> = {
 	/** The value this segment carries, or {@link mismatch} when the route does not serve it. */
 	readonly match: (value: string) => T | Mismatch;
 	/**
-	 * What the matcher makes of a segment, said in a schema rather than in
-	 * TypeScript — the one thing a `match` function cannot say about itself.
-	 * `matcher(schema)` fills it in; the pattern and function forms take it from
-	 * {@link MatcherOptions.schema}, and are `null` without one.
+	 * The schema this matcher was built from, when it was built from one —
+	 * which is both what gates the segment and what it produces, so it is the
+	 * matcher describing itself rather than being told twice. `null` for a
+	 * pattern or a parse function, which say what they produce in TypeScript
+	 * and nowhere a runtime can read.
 	 *
-	 * Kit reads it where a runtime needs the param's type and has no types to
+	 * Kit reads it where something needs the param's type and has no types to
 	 * read it from: the OpenAPI document, whose path parameters would otherwise
 	 * describe a `[id=integer]` route's `id` as the string it arrived as.
 	 */
@@ -95,24 +96,6 @@ export type ParamType<M> = M extends ParamMatcher<infer T> ? T : string;
 
 type Parse<T> = (value: string) => T | Mismatch;
 
-/** The second argument to {@link matcher} — what the matcher cannot work out for itself. */
-export type MatcherOptions = {
-	/**
-	 * What this matcher produces, as a schema. A matcher *built* from a schema
-	 * already says so; a pattern or a parse function says it in TypeScript, and
-	 * TypeScript is not there when kit writes the OpenAPI document — so a
-	 * parsing matcher that wants its type documented declares it here.
-	 *
-	 * ```ts
-	 * export default matcher(
-	 * 	(value) => (/^\d+$/.test(value) ? Number(value) : mismatch),
-	 * 	{ schema: v.pipe(v.number(), v.integer()) },
-	 * );
-	 * ```
-	 */
-	schema?: StandardSchemaV1;
-};
-
 /**
  * Builds a route param matcher from a pattern, a parse function, or a
  * [Standard Schema](https://standardschema.dev).
@@ -125,25 +108,25 @@ export type MatcherOptions = {
  *
  * A pattern has to match the whole segment — kit anchors it, so `/\d+/` means
  * "digits and nothing else" rather than "digits somewhere in there".
+ *
+ * The schema form is the one that carries its type past TypeScript. A pattern
+ * or a parse function says what it produces in TypeScript, which is where
+ * `$types` reads it — but the OpenAPI document is written by a build, with no
+ * types to read, so it can only describe such a param as the string it arrived
+ * as. Built from a schema, one declaration gates the segment, types the param,
+ * and documents it, and none of the three can drift from the others.
  */
-export function matcher(pattern: RegExp, options?: MatcherOptions): ParamMatcher;
-export function matcher<T>(
-	parse: Parse<T>,
-	options?: MatcherOptions,
-): ParamMatcher<Exclude<T, Mismatch>>;
+export function matcher(pattern: RegExp): ParamMatcher;
+export function matcher<T>(parse: Parse<T>): ParamMatcher<Exclude<T, Mismatch>>;
 export function matcher<S extends StandardSchemaV1>(
 	schema: S,
-	options?: MatcherOptions,
 ): ParamMatcher<StandardSchemaV1.InferOutput<S>>;
-export function matcher(
-	source: RegExp | Parse<unknown> | StandardSchemaV1,
-	options: MatcherOptions = {},
-): AnyParamMatcher {
+export function matcher(source: RegExp | Parse<unknown> | StandardSchemaV1): AnyParamMatcher {
 	if (source instanceof RegExp) {
 		const anchored = wholeSegment(source);
-		return define((value) => (anchored.test(value) ? value : mismatch), options.schema ?? null);
+		return define((value) => (anchored.test(value) ? value : mismatch), null);
 	}
-	if (typeof source === "function") return define(source, options.schema ?? null);
+	if (typeof source === "function") return define(source, null);
 	return define((value) => {
 		const result = source["~standard"].validate(value);
 		if (result instanceof Promise) {
@@ -154,7 +137,7 @@ export function matcher(
 		return result.issues === undefined ? result.value : mismatch;
 		// the schema the matcher was built from is also what it produces, so it
 		// describes itself without being told twice
-	}, options.schema ?? source);
+	}, source);
 }
 
 function define<T>(match: Parse<T>, schema: StandardSchemaV1 | null): ParamMatcher<T> {

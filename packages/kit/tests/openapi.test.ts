@@ -261,18 +261,17 @@ describe("a param matcher's parameter", () => {
 		return get["parameters"];
 	}
 
-	it("documents what the matcher declares it produces", async () => {
-		const integer = matcher(parses, { schema: v.pipe(v.number(), v.integer()) });
+	it("documents a matcher from the schema it was built from", async () => {
+		const integer = matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
 		expect(await pathParams(items({ GET: handler({ handle: () => [] }) }), integer)).toEqual([
 			{ name: "number", in: "path", required: true, schema: { type: "integer" } },
 		]);
 	});
 
-	it("reads a matcher built from a schema without it being declared twice", async () => {
-		const integer = matcher(v.pipe(v.string(), v.transform(Number), v.number()));
-		expect(await pathParams(items({ GET: handler({ handle: () => [] }) }), integer)).toEqual([
-			{ name: "number", in: "path", required: true, schema: { type: "number" } },
-		]);
+	it("leaves a parse function the string it arrived as, having no schema to read", async () => {
+		expect(
+			await pathParams(items({ GET: handler({ handle: () => [] }) }), matcher(parses)),
+		).toEqual([{ name: "number", in: "path", required: true, schema: { type: "string" } }]);
 	});
 
 	it("leaves a matcher with nothing to say the string it arrived as", async () => {
@@ -282,7 +281,7 @@ describe("a param matcher's parameter", () => {
 	});
 
 	it("lets the handler's own params schema win", async () => {
-		const integer = matcher(parses, { schema: v.pipe(v.number(), v.integer()) });
+		const integer = matcher(v.pipe(v.string(), v.transform(Number), v.integer()));
 		const GET = handler({ params: v.object({ number: v.string() }), handle: () => [] });
 		expect(await pathParams(items({ GET }), integer)).toEqual([
 			{ name: "number", in: "path", required: true, schema: { type: "string" } },

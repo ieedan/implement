@@ -87,15 +87,12 @@ describe("matcher", () => {
 		expect(integer.schema).toBeNull();
 	});
 
-	it("takes a schema for a parse function that wants its type documented", () => {
-		const schema = v.pipe(v.number(), v.integer());
-		const declared = matcher((value) => (/^\d+$/.test(value) ? Number(value) : mismatch), {
-			schema,
-		});
-		expect(declared.schema).toBe(schema);
-		// declaring it changes nothing about matching: the function still decides
-		expect(declared.match("42")).toBe(42);
-		expect(declared.match("4.5")).toBe(mismatch);
+	it("gates on the schema it was built from, so the two cannot disagree", () => {
+		const parsed = matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), v.integer()));
+		// the schema kit documents the param from is the one that just rejected
+		// this segment — there is no second declaration to drift from it
+		expect(parsed.match("42")).toBe(42);
+		expect(parsed.match("4.5")).toBe(mismatch);
 	});
 
 	it("recognizes its own", () => {

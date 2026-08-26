@@ -170,15 +170,23 @@ export default matcher(
 
 A schema has to validate synchronously; matching a route can't wait on a database. Reach for a schema when you want its parsing (a `v.transform(Number)` pipe, `v.isoDate()`), a pattern when a regex says it, and a function when neither does.
 
-A parse function says what it produces in TypeScript, and TypeScript isn't there when kit writes the [OpenAPI document](/kit/api-routes) — a `[id=integer]` param is documented as the string it arrived as unless the matcher can say otherwise. Declare a `schema` for the value it parses to and the document says that instead:
+The schema form is also the one that carries its type past TypeScript. `$types` reads what a matcher produces from the matcher module, so all three forms type a param correctly for your code — but the [OpenAPI document](/kit/api-routes) is written by a build, with no types to read. A pattern or a parse function can only be documented as the string the segment arrived as; a schema is there at runtime, so kit converts it:
 
 ```ts
-export default matcher((value) => (/^\d+$/.test(value) ? Number(value) : mismatch), {
-	schema: v.pipe(v.number(), v.integer()), // → "type": "integer" in the document
-});
+// src/params/integer.ts
+export default matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), v.integer()));
 ```
 
-It changes nothing about matching — the function still decides — and a matcher built from a schema already describes itself.
+```jsonc
+{
+	"name": "id",
+	"in": "path",
+	"required": true,
+	"schema": { "type": "integer", "pattern": "^\\d+$" },
+}
+```
+
+One declaration gates the segment, types the param, and describes it — so the document cannot claim a constraint the route doesn't enforce, or miss one it does. Where a route's params are documented and a parse function is what you have, a handler's own `params` schema still wins over the matcher, so you can say it there instead.
 
 ### What matching does with them
 
