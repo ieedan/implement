@@ -10,7 +10,7 @@ import {
 	operationId,
 	type OpenApiEndpoint,
 } from "../src/openapi.ts";
-import { matcher, mismatch, type AnyParamMatcher } from "../src/params.ts";
+import { matcher, type AnyParamMatcher } from "../src/params.ts";
 
 const INFO = { title: "Docs API", version: "1.0.0" };
 
@@ -228,11 +228,6 @@ describe("buildOpenApiDocument", () => {
 	});
 });
 
-/** The matcher from the issue: it parses the segment rather than only accepting it. */
-function parses(value: string) {
-	return /^\d+$/.test(value) ? Number(value) : mismatch;
-}
-
 /** The `[number=integer]` route, over whatever module it serves with. */
 function items(module: Record<string, unknown>): OpenApiEndpoint {
 	return {
@@ -268,16 +263,16 @@ describe("a param matcher's parameter", () => {
 		]);
 	});
 
-	it("leaves a parse function the string it arrived as, having no schema to read", async () => {
-		expect(
-			await pathParams(items({ GET: handler({ handle: () => [] }) }), matcher(parses)),
-		).toEqual([{ name: "number", in: "path", required: true, schema: { type: "string" } }]);
-	});
-
-	it("leaves a matcher with nothing to say the string it arrived as", async () => {
-		expect(await pathParams(items({ GET: handler({ handle: () => [] }) }), matcher(/\d+/))).toEqual(
-			[{ name: "number", in: "path", required: true, schema: { type: "string" } }],
-		);
+	it("carries every constraint the schema gates the segment on", async () => {
+		const slug = matcher(v.pipe(v.string(), v.regex(/^[a-z-]+$/)));
+		expect(await pathParams(items({ GET: handler({ handle: () => [] }) }), slug)).toEqual([
+			{
+				name: "number",
+				in: "path",
+				required: true,
+				schema: { type: "string", pattern: String.raw`^[a-z-]+$` },
+			},
+		]);
 	});
 
 	it("lets the handler's own params schema win", async () => {

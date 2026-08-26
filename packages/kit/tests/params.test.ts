@@ -20,12 +20,9 @@ import {
 	generateRouterDeclaration,
 } from "../src/typegen.ts";
 
-const integer = matcher((value) => {
-	const parsed = Number(value);
-	return Number.isInteger(parsed) && value.trim() !== "" ? parsed : mismatch;
-});
+const integer = matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), v.integer()));
 
-const word = matcher(/[a-z]+/);
+const word = matcher(v.pipe(v.string(), v.regex(/^[a-z]+$/)));
 
 const matchers = { integer, word };
 
@@ -34,22 +31,24 @@ const matchers = { integer, word };
 // ---------------------------------------------------------------------------
 
 describe("matcher", () => {
-	it("builds one from a pattern, anchored to the whole segment", () => {
+	it("turns down what the schema turns down", () => {
 		expect(word.match("hello")).toBe("hello");
 		expect(word.match("hello1")).toBe(mismatch);
 		expect(word.match("a/b")).toBe(mismatch);
 	});
 
-	it("does not carry lastIndex between calls on a global pattern", () => {
-		const digits = matcher(/\d+/g);
-		expect(digits.match("12")).toBe("12");
-		expect(digits.match("12")).toBe("12");
-	});
-
-	it("builds one from a parse function, and the value is what it returned", () => {
+	it("carries what the schema parsed the segment to", () => {
 		expect(integer.match("42")).toBe(42);
 		expect(integer.match("4.5")).toBe(mismatch);
 		expect(integer.match("nope")).toBe(mismatch);
+	});
+
+	it("leaves a pattern unanchored, since the regex is the schema's own", () => {
+		// kit rewrote a bare `/\d+/` into `^(?:\d+)$` when it took patterns; a
+		// schema's regex belongs to the schema, so this one really does allow a
+		// suffix and it is the author's `^…$` that stops it
+		expect(matcher(v.pipe(v.string(), v.regex(/\d+/))).match("12abc")).toBe("12abc");
+		expect(matcher(v.pipe(v.string(), v.regex(/^\d+$/))).match("12abc")).toBe(mismatch);
 	});
 
 	it("builds one from a standard schema, rejecting what the schema rejects", () => {
@@ -68,6 +67,23 @@ describe("matcher", () => {
 		expect(page.match("0")).toBe(mismatch);
 	});
 
+	it("takes a hand-rolled Standard Schema, since the contract is not a library", () => {
+		// what an app with no schema library writes — the interface is small
+		// enough to implement inline, so schema-only never forces a dependency
+		const even = matcher({
+			"~standard": {
+				version: 1,
+				vendor: "test",
+				validate: (value: unknown) =>
+					typeof value === "string" && Number(value) % 2 === 0
+						? { value: Number(value) }
+						: { issues: [{ message: "not even" }] },
+			},
+		} as const);
+		expect(even.match("4")).toBe(4);
+		expect(even.match("5")).toBe(mismatch);
+	});
+
 	it("refuses a schema that cannot answer synchronously", () => {
 		const async = matcher(
 			v.pipeAsync(
@@ -78,21 +94,14 @@ describe("matcher", () => {
 		expect(() => async.match("x")).toThrow(/synchronously/);
 	});
 
-	it("keeps the schema it was built from, since that is what it produces", () => {
+	it("keeps the schema it was built from, since that is what gates the segment", () => {
 		const schema = v.pipe(v.string(), v.transform(Number), v.number());
-		expect(matcher(schema).schema).toBe(schema);
-		// a pattern and a parse function say what they produce in TypeScript, and
-		// the OpenAPI document is written where TypeScript is not
-		expect(word.schema).toBeNull();
-		expect(integer.schema).toBeNull();
-	});
-
-	it("gates on the schema it was built from, so the two cannot disagree", () => {
-		const parsed = matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), v.integer()));
-		// the schema kit documents the param from is the one that just rejected
-		// this segment — there is no second declaration to drift from it
-		expect(parsed.match("42")).toBe(42);
-		expect(parsed.match("4.5")).toBe(mismatch);
+		const built = matcher(schema);
+		// the object kit documents the param from is the object that just decided
+		// whether the route matches — there is no second declaration to drift
+		expect(built.schema).toBe(schema);
+		expect(word.schema).not.toBeNull();
+		expect(integer.schema).not.toBeNull();
 	});
 
 	it("recognizes its own", () => {

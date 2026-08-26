@@ -7,19 +7,17 @@
  */
 
 import type { StandardSchemaV1 } from "@standard-schema/spec";
+import * as v from "valibot";
 import type { Operations, TypedClient } from "./client.ts";
 import { json, type HandlerBuilder } from "./endpoint.ts";
 import type { LoadEvent, RequestEvent } from "./match.ts";
-import { matcher, mismatch, type ParamType } from "./params.ts";
+import { matcher, type ParamType } from "./params.ts";
 
-const integer = matcher((value) => {
-	const parsed = Number(value);
-	return /^\d+$/.test(value) ? parsed : mismatch;
-});
+const integer = matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number)));
 
-const locale = matcher((value) => (value === "en" || value === "fr" ? value : mismatch));
+const locale = matcher(v.picklist(["en", "fr"]));
 
-const word = matcher(/[a-z]+/);
+const word = matcher(v.pipe(v.string(), v.regex(/^[a-z]+$/)));
 
 // --- what a matcher says its param is -------------------------------------
 

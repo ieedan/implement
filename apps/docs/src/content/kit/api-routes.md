@@ -243,13 +243,24 @@ With `api.openapi` absent — the default — no document is produced, no file i
 
 `path` additionally mounts a live route that builds the document per server. That is the one option with a cost: generating the document needs the schema _objects_, so it pulls your schema library and its JSON-Schema converter into the production server bundle. `output` alone does the work in Node at build time, and neither ever reaches what you deploy.
 
-A route's path parameters come from the route itself. `/api/items/[number=integer]` is documented as the template `/api/items/{number}` — a [matcher](/kit/routing) decides which requests reach the route, which is the app's business and not the URL's — and the parameter takes its type from the matcher, so a matcher that parses the segment to a number documents `"type": "integer"` rather than the string it arrived as. A handler's own `params` schema wins where it declares one. A matcher built from a pattern or from a bare parse function has nothing to convert, so give it a `schema` if you want its type in the document:
+A route's path parameters come from the route itself. `/api/items/[number=integer]` is documented as the template `/api/items/{number}` — a [matcher](/kit/routing) decides which requests reach the route, which is the app's business and not the URL's.
+
+The parameter's type comes from the matcher's schema — which is the object that gates the segment, so the document describes exactly what the route accepts and cannot drift from it:
 
 ```ts
 // src/params/integer.ts
-export default matcher((value) => (/^\d+$/.test(value) ? Number(value) : mismatch), {
-	schema: v.pipe(v.number(), v.integer()),
-});
+export default matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), v.integer()));
 ```
+
+```jsonc
+{
+	"name": "number",
+	"in": "path",
+	"required": true,
+	"schema": { "type": "integer", "pattern": "^\\d+$" },
+}
+```
+
+A handler's own `params` schema wins over the matcher where it declares one.
 
 Standard Schema has no JSON-Schema introspection of its own, so conversion is per-vendor. Kit detects it from the schema's vendor tag — arktype's `.toJsonSchema()`, zod's `z.toJSONSchema`, valibot's `@valibot/to-json-schema` — each imported lazily, in Node only. Anything else is documented as an unconstrained schema with a build warning naming the route, or you can pass `toJsonSchema` yourself. An operation with no schemas is still listed, as a path and a method with an undocumented body.

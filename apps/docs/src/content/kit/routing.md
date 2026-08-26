@@ -91,8 +91,9 @@ Static segments always beat params at the same position, so `/users/new` wins ov
 ```ts
 // src/params/integer.ts
 import { matcher } from "@implementjs/kit/params";
+import * as v from "valibot";
 
-export default matcher(/\d+/);
+export default matcher(v.pipe(v.string(), v.regex(/^\d+$/)));
 ```
 
 ```
@@ -104,22 +105,22 @@ src/routes
 			page.ts       → /users/42, but not /users/oops
 ```
 
-A pattern has to match the whole segment — kit anchors it for you, so `/\d+/` means "digits and nothing else". That much is [SvelteKit's feature](https://svelte.dev/docs/kit/advanced-routing#Matching), and it behaves the way you'd expect: `/users/oops` falls through to whatever else can serve it, and reaches the [error page](#the-error-page) if nothing can.
+A matcher is built from a [Standard Schema](https://standardschema.dev) — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) take, so it is a library you already have rather than one kit makes you add. Anchor the pattern yourself: the regex belongs to the schema and kit does not rewrite it, so `/^\d+$/` means "digits and nothing else" where a bare `/\d+/` would accept `12abc`.
+
+Gating the route that way is [SvelteKit's feature](https://svelte.dev/docs/kit/advanced-routing#Matching), and it behaves the way you'd expect: `/users/oops` falls through to whatever else can serve it, and reaches the [error page](#the-error-page) if nothing can.
 
 ### Matchers that parse
 
 Here's the part that goes further. A matcher doesn't have to answer yes or no — it can answer with a **value**, and that value is what the param is from then on. Not just at runtime: in the types, everywhere the param appears.
 
-Return `mismatch` to turn a segment down, and anything else to accept it:
+A schema that transforms is a schema that parses, so this is the same matcher with one more step:
 
 ```ts
 // src/params/integer.ts
-import { matcher, mismatch } from "@implementjs/kit/params";
+import { matcher } from "@implementjs/kit/params";
+import * as v from "valibot";
 
-export default matcher((value) => {
-	const parsed = Number(value);
-	return /^\d+$/.test(value) ? parsed : mismatch;
-});
+export default matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number)));
 ```
 
 Now `params.id` is a `number`:
@@ -146,31 +147,19 @@ export default function Page({ params }: PageProps) {
 
 Nothing declares that type twice. The generated `./$types` reads it straight off the matcher module, so changing what `src/params/integer.ts` returns changes every route that names it — pages, layouts, loads, `server.ts` handlers, and the [generated client](/kit/api-routes).
 
-### Three ways to write one
+### Why a schema, and only a schema
 
-`matcher()` takes a pattern, a parse function, or any [Standard Schema](https://standardschema.dev) — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) use:
+`matcher()` takes a [Standard Schema](https://standardschema.dev) and nothing else — the same contract [`handler()`](/kit/api-routes) and [`defineEnv`](/kit/environment-variables) take, so it is a library you already have:
 
 ```ts
-import * as v from "valibot";
-import { matcher, mismatch } from "@implementjs/kit/params";
-
-// a pattern — the param stays a string
-export default matcher(/[a-z0-9-]+/);
-
-// a parse — the param is whatever you return
-export default matcher((value) => (value === "en" || value === "fr" ? value : mismatch));
-//                                  → Readable<"en" | "fr">
-
-// a schema — the param is the schema's output
-export default matcher(
-	v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1)),
-);
-//                                  → Readable<number>
+matcher(v.pipe(v.string(), v.regex(/^[a-z0-9-]+$/))); // → Readable<string>
+matcher(v.picklist(["en", "fr"])); // → Readable<"en" | "fr">
+matcher(v.pipe(v.string(), v.transform(Number), v.integer(), v.minValue(1))); // → Readable<number>
 ```
 
-A schema has to validate synchronously; matching a route can't wait on a database. Reach for a schema when you want its parsing (a `v.transform(Number)` pipe, `v.isoDate()`), a pattern when a regex says it, and a function when neither does.
+It has to validate synchronously; matching a route can't wait on a database.
 
-The schema form is also the one that carries its type past TypeScript. `$types` reads what a matcher produces from the matcher module, so all three forms type a param correctly for your code — but the [OpenAPI document](/kit/api-routes) is written by a build, with no types to read. A pattern or a parse function can only be documented as the string the segment arrived as; a schema is there at runtime, so kit converts it:
+Kit took a bare regex and a bare parse function once, and the parse function was a trap. `$types` reads what a matcher produces from the matcher module, so a parsing matcher typed its param `number` everywhere in the app — but the [OpenAPI document](/kit/api-routes) is written by a build, with no types to read, so it went on calling that param a string. The app was right, the document was wrong, and nothing anywhere said the two disagreed. A schema exists at runtime, so one object answers all three questions at once:
 
 ```ts
 // src/params/integer.ts
@@ -186,7 +175,24 @@ export default matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number),
 }
 ```
 
-One declaration gates the segment, types the param, and describes it — so the document cannot claim a constraint the route doesn't enforce, or miss one it does. Where a route's params are documented and a parse function is what you have, a handler's own `params` schema still wins over the matcher, so you can say it there instead.
+The object that just decided whether the route matches is the object the document is written from, so the document can't claim a constraint the route doesn't enforce, or miss one it does.
+
+Standard Schema is an interface, not a dependency, so an app that doesn't want a schema library can hand `matcher()` an object implementing it directly:
+
+```ts
+export default matcher({
+	"~standard": {
+		version: 1,
+		vendor: "my-app",
+		validate: (value: unknown) =>
+			typeof value === "string" && /^\d+$/.test(value)
+				? { value: Number(value) }
+				: { issues: [{ message: "not an integer" }] },
+	},
+} as const);
+```
+
+That one has no vendor kit knows how to convert, so its param is documented as an unconstrained schema with a build warning naming the route — the cost of skipping the library, and said out loud rather than silently.
 
 ### What matching does with them
 

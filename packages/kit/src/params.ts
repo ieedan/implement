@@ -2,31 +2,29 @@
  * Route param matchers — what `[id=integer]` means.
  *
  * A matcher lives in `src/params/<name>.ts` and default-exports a
- * {@link matcher}. A `[param=<name>]` or `[...rest=<name>]` directory runs it
- * over the segment before the route is allowed to match, so a path the matcher
- * rejects falls through to the next route and ends up at the error page rather
- * than in a handler that has to check for itself.
+ * {@link matcher}, built from a [Standard Schema](https://standardschema.dev).
+ * A `[param=<name>]` or `[...rest=<name>]` directory runs it over the segment
+ * before the route is allowed to match, so a path the matcher rejects falls
+ * through to the next route and ends up at the error page rather than in a
+ * handler that has to check for itself.
  *
  * ```ts
  * // src/params/integer.ts
  * import { matcher } from "@implementjs/kit/params";
+ * import * as v from "valibot";
  *
- * export default matcher(/\d+/);
+ * export default matcher(v.pipe(v.string(), v.regex(/^\d+$/)));
  * ```
  *
- * That much is SvelteKit's feature. What kit adds is the other half: a matcher
- * may *parse* the segment rather than only accept it, and the type it produces
- * is the type the param has everywhere downstream — `event.params` in a load or
- * a `server.ts` handler, `params` in a page or layout, the generated client.
+ * Gating the route is SvelteKit's feature. What kit adds is the other half: a
+ * matcher may *parse* the segment rather than only accept it, and the type it
+ * produces is the type the param has everywhere downstream — `event.params` in
+ * a load or a `server.ts` handler, `params` in a page or layout, the generated
+ * client.
  *
  * ```ts
  * // src/params/integer.ts
- * import { matcher, mismatch } from "@implementjs/kit/params";
- *
- * export default matcher((value) => {
- * 	const parsed = Number(value);
- * 	return Number.isInteger(parsed) ? parsed : mismatch;
- * });
+ * export default matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number)));
  * ```
  *
  * ```ts
@@ -68,17 +66,11 @@ export type ParamMatcher<T = string> = {
 	/** The value this segment carries, or {@link mismatch} when the route does not serve it. */
 	readonly match: (value: string) => T | Mismatch;
 	/**
-	 * The schema this matcher was built from, when it was built from one —
-	 * which is both what gates the segment and what it produces, so it is the
-	 * matcher describing itself rather than being told twice. `null` for a
-	 * pattern or a parse function, which say what they produce in TypeScript
-	 * and nowhere a runtime can read.
-	 *
-	 * Kit reads it where something needs the param's type and has no types to
-	 * read it from: the OpenAPI document, whose path parameters would otherwise
-	 * describe a `[id=integer]` route's `id` as the string it arrived as.
+	 * The schema this matcher was built from — which is what gates the segment,
+	 * what types the param, and what kit converts into the OpenAPI document's
+	 * parameter. One object, so the three can never disagree.
 	 */
-	readonly schema: StandardSchemaV1 | null;
+	readonly schema: StandardSchemaV1;
 };
 
 /** A matcher of any output type — what a table of them holds. */
@@ -94,63 +86,47 @@ export type ParamMatchers = Record<string, AnyParamMatcher>;
  */
 export type ParamType<M> = M extends ParamMatcher<infer T> ? T : string;
 
-type Parse<T> = (value: string) => T | Mismatch;
-
 /**
- * Builds a route param matcher from a pattern, a parse function, or a
- * [Standard Schema](https://standardschema.dev).
+ * Builds a route param matcher from a [Standard Schema](https://standardschema.dev)
+ * — the same contract `handler()` and `defineEnv` take.
  *
  * ```ts
- * matcher(/[a-z0-9-]+/);                       // ParamMatcher<string>
- * matcher((v) => (v === "en" ? v : mismatch)); // ParamMatcher<"en">
- * matcher(z.coerce.number().int());            // ParamMatcher<number>
+ * matcher(v.pipe(v.string(), v.regex(/^[a-z0-9-]+$/))); // ParamMatcher<string>
+ * matcher(v.picklist(["en", "fr"]));                    // ParamMatcher<"en" | "fr">
+ * matcher(z.coerce.number().int());                     // ParamMatcher<number>
  * ```
  *
- * A pattern has to match the whole segment — kit anchors it, so `/\d+/` means
- * "digits and nothing else" rather than "digits somewhere in there".
+ * The schema has to validate synchronously — a route match cannot be awaited.
  *
- * The schema form is the one that carries its type past TypeScript. A pattern
- * or a parse function says what it produces in TypeScript, which is where
- * `$types` reads it — but the OpenAPI document is written by a build, with no
- * types to read, so it can only describe such a param as the string it arrived
- * as. Built from a schema, one declaration gates the segment, types the param,
- * and documents it, and none of the three can drift from the others.
+ * A schema is the only form, because it is the only one that survives leaving
+ * TypeScript. A pattern or a parse function says what it produces in types and
+ * nowhere else, so a build writing the OpenAPI document could only call the
+ * param a string — and a `[id=integer]` route would be typed `number`
+ * everywhere in the app while its own document said otherwise, with nothing to
+ * say the two disagree. One schema answers all three questions at once.
+ *
+ * Anchor the pattern yourself. A schema's regex is the schema's own and kit
+ * does not rewrite it, so `v.regex(/\d+/)` accepts `12abc` where
+ * `v.regex(/^\d+$/)` does not.
  */
-export function matcher(pattern: RegExp): ParamMatcher;
-export function matcher<T>(parse: Parse<T>): ParamMatcher<Exclude<T, Mismatch>>;
 export function matcher<S extends StandardSchemaV1>(
 	schema: S,
-): ParamMatcher<StandardSchemaV1.InferOutput<S>>;
-export function matcher(source: RegExp | Parse<unknown> | StandardSchemaV1): AnyParamMatcher {
-	if (source instanceof RegExp) {
-		const anchored = wholeSegment(source);
-		return define((value) => (anchored.test(value) ? value : mismatch), null);
-	}
-	if (typeof source === "function") return define(source, null);
-	return define((value) => {
-		const result = source["~standard"].validate(value);
-		if (result instanceof Promise) {
-			throw new Error(
-				"a param matcher's schema has to validate synchronously — a route match cannot be awaited",
-			);
-		}
-		return result.issues === undefined ? result.value : mismatch;
-		// the schema the matcher was built from is also what it produces, so it
-		// describes itself without being told twice
-	}, source);
-}
-
-function define<T>(match: Parse<T>, schema: StandardSchemaV1 | null): ParamMatcher<T> {
-	return { [MATCHER]: true, match, schema };
-}
-
-/**
- * The pattern, anchored to the whole segment and stripped of the stateful
- * flags — `g` and `y` carry a `lastIndex` between calls, which would make a
- * matcher answer differently on every other request.
- */
-function wholeSegment(pattern: RegExp): RegExp {
-	return new RegExp(`^(?:${pattern.source})$`, pattern.flags.replaceAll(/[gy]/g, ""));
+): ParamMatcher<StandardSchemaV1.InferOutput<S>> {
+	return {
+		[MATCHER]: true,
+		match: (value) => {
+			const result = schema["~standard"].validate(value);
+			if (result instanceof Promise) {
+				throw new Error(
+					"a param matcher's schema has to validate synchronously — a route match cannot be awaited",
+				);
+			}
+			return result.issues === undefined ? result.value : mismatch;
+		},
+		// the schema that just gated the segment is the schema kit documents the
+		// param from, so there is no second declaration to drift from it
+		schema,
+	};
 }
 
 /** Whether a value came out of {@link matcher}. */
