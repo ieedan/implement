@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/vite",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "The Vite plugin behind implement's server rendering, prerendering and dev styles.",
 	"keywords": [
 		"implement",

@@ -1,5 +1,114 @@
 # @implementjs/kit
 
+## 0.0.14
+
+### Patch Changes
+
+- [#83](https://github.com/ieedan/implement/pull/83) [`a966956`](https://github.com/ieedan/implement/commit/a966956b4ea83998980e725adde89d78ee98d6a4) Thanks [@ieedan](https://github.com/ieedan)! - Add `@implementjs/kit/mcp`: an MCP server as a route. `mcp()` turns a set of tools into the `POST`/`GET`/`DELETE` handlers a `server.ts` re-exports, `tool()` declares one tool from a Standard Schema and a function, and `tool.fromEndpoint()` exposes an existing validated endpoint as a tool under its own schemas. The protocol — JSON-RPC framing, `initialize` and version negotiation, the Origin check, the RFC 9728 `WWW-Authenticate` challenge that starts OAuth — is handled once, and `tools/list` converts input schemas through the same vendor detection the OpenAPI document uses.
+
+- [#82](https://github.com/ieedan/implement/pull/82) [`b2c045b`](https://github.com/ieedan/implement/commit/b2c045be858f13f1a059fd9316f3e915445fb10e) Thanks [@ieedan](https://github.com/ieedan)! - `sse()`, for a `server.ts` endpoint that answers now and keeps writing.
+
+  A handler's `Response` already reached the client untouched — kit never
+  buffered one, and neither did the `hooks.server.ts` around it — so a
+  `ReadableStream` body has always worked. Nothing said so, nothing said how long
+  each host would hold one, and the generated client read a raw `Response` as
+  `data: never` while its runtime called `.text()` on the body, which is exactly
+  what a stream with no end never comes back from. So the one shape people
+  actually wanted was the one shape that could not be consumed.
+
+  `sse` builds the response, and the client knows how to read it:
+
+  ```ts
+  // src/routes/api/inbox/stream/server.ts
+  import { handler, sse } from "./$types";
+
+  export const GET = handler({
+  	handle: ({ locals }) =>
+  		sse<Notification>(async function* (signal) {
+  			for await (const notification of watchInbox(locals.user.id, signal)) {
+  				yield { event: "notification", data: notification };
+  			}
+  		}),
+  });
+  ```
+
+  ```ts
+  const { data, error } = await api.GET("/api/inbox/stream");
+  if (error !== undefined) return;
+  for await (const { data: notification } of data) show(notification);
+  ```
+
+  Each `yield` is one frame — `data` is the payload, serialized as JSON and typed
+  end to end, and `event`, `id`, and `retry` are the format's own fields. Like
+  `json()`, an `sse()` is still a plain `Response` that skips response handling;
+  unlike one, it says what a caller receives, so `data` is the events rather than
+  `never`. The call settles when the headers arrive, and `break`ing out of the
+  loop closes the connection.
+
+  A stream ends when its source does, when the client goes away, or when a
+  `signal` you passed aborts — all three return the iterator, so a generator's
+  `finally` runs. The source function is handed a signal of its own for the case
+  a return cannot reach: a generator parked on a promise is only interrupted at a
+  `yield`, so waiting under that signal is what makes a disconnect wake it. A
+  keep-alive comment goes out every 15s by default, since an idle connection is
+  one a proxy eventually closes.
+
+  Two other things came with it:
+
+  - The docs now say which adapters can hold a long-lived response, and what ends
+    one on each — Node and Cloudflare for as long as the source lives, Vercel
+    until `maxDuration`, a static build not at all.
+  - The prerenderer says an event stream cannot be a file, and names the endpoint,
+    rather than hanging the build on a response that was never going to finish.
+
+- [#79](https://github.com/ieedan/implement/pull/79) [`d8941a0`](https://github.com/ieedan/implement/commit/d8941a07d33300fbd9cddd63ac915d184ea5ef72) Thanks [@ieedan](https://github.com/ieedan)! - A schema inlined into the OpenAPI document no longer carries a `$schema` of
+  its own.
+
+  Every converter stamps a dialect on what it hands back — draft-07 from
+  valibot, 2020-12 from zod — declaring the dialect of a document it thinks it
+  is the root of. Inlined into an operation it is not, and the one kit generates
+  says `"openapi": "3.1.0"`, whose dialect is 2020-12. So a valibot app shipped a
+  `"$schema": "http://json-schema.org/draft-07/schema#"` beside every body,
+  response, and parameter in the document, disagreeing with the document that
+  contains it — something a strict validator is entitled to complain about.
+
+  It now comes off wherever the schema came from: kit's own per-vendor
+  converters, the built-in matchers behind a `[id=integer]` param, and an app's
+  own `api.openapi.toJsonSchema`. Only the key is dropped; nothing else about
+  the converted schema changes.
+
+- [#80](https://github.com/ieedan/implement/pull/80) [`e9e3451`](https://github.com/ieedan/implement/commit/e9e3451627bf62f9407b3793b0a598d7738a4b2a) Thanks [@ieedan](https://github.com/ieedan)! - `api.openapi.output` writes its file whatever `prerender` is set to.
+
+  The document was written from inside the prerender pass's `after` hook, which is
+  never reached with `prerender: false`. An app that turned prerendering off got
+  no file, no warning, and a build that still exited 0 — and `prerender: false` is
+  the normal setting for an app whose pages sit behind a session, which is exactly
+  the kind of app that wants a documented API.
+
+  `@implementjs/vite` grows a `build` hook that runs with the SSR module runner
+  open, ahead of the prerender and whether or not there is one, and kit writes the
+  document from there. The runner is opened for that hook alone when prerendering
+  is off, so a build with no document to write pays nothing for it. Route data
+  payloads and prerendered endpoints still come from `after`, which is where they
+  belong: those _are_ the prerender's output.
+
+  ```ts
+  kit({
+  	adapter: adapter(),
+  	prerender: false,
+  	api: {
+  		openapi: { info: { title: "x", version: "1" }, output: "static/openapi.json" },
+  	},
+  });
+  ```
+
+  `vite build` now writes `static/openapi.json`, copies it into the build's own
+  output when `output` lands under the public dir, and names it to the adapter
+  alongside everything else the build produced.
+
+- Updated dependencies [[`e9e3451`](https://github.com/ieedan/implement/commit/e9e3451627bf62f9407b3793b0a598d7738a4b2a)]:
+  - @implementjs/vite@0.0.3
+
 ## 0.0.13
 
 ### Patch Changes
