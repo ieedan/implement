@@ -2,7 +2,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { build } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Adapter, Builder } from "../src/adapter.ts";
+import { assertNoSockets, type Adapter, type Builder, type BuiltRoutes } from "../src/adapter.ts";
 import { kit, type KitOptions } from "../src/index.ts";
 
 const fixture = join(import.meta.dirname, "fixtures/adapter-app");
@@ -63,7 +63,8 @@ describe("adapter builds", () => {
 	it("hands the adapter the route table", () => {
 		const { routes } = builder();
 		expect(routes.pages).toEqual(expect.arrayContaining(["/", "/dynamic", "/pinned"]));
-		expect(routes.endpoints).toEqual([{ pattern: "/api", extension: null }]);
+		expect(routes.endpoints).toEqual([{ pattern: "/api", extension: null, socket: false }]);
+		expect(routes.sockets).toEqual([]);
 		expect(routes.dynamic).toBe(true);
 	});
 
@@ -297,5 +298,35 @@ describe("an MCP route in a bundled server", () => {
 				required: ["title"],
 			},
 		});
+	});
+});
+
+/** A route table with nothing in it but the socket routes a case is about. */
+const routes = (sockets: string[]): { routes: BuiltRoutes } => ({
+	routes: { pages: [], endpoints: [], sockets, dynamic: true },
+});
+
+describe("assertNoSockets", () => {
+	it("passes an app with no socket routes", () => {
+		expect(() => assertNoSockets(routes([]), "test-adapter", "it cannot")).not.toThrow();
+	});
+
+	it("names the adapter, the reason, and every route the host cannot serve", () => {
+		let message = "";
+		try {
+			assertNoSockets(
+				routes(["relay/server.ts", "rooms/[id]/server.ts"]),
+				"@implementjs/adapter-vercel",
+				"a serverless function cannot hold a socket open",
+			);
+		} catch (error) {
+			message = error instanceof Error ? error.message : String(error);
+		}
+		expect(message).toContain("@implementjs/adapter-vercel");
+		expect(message).toContain("a serverless function cannot hold a socket open");
+		expect(message).toContain("relay/server.ts");
+		expect(message).toContain("rooms/[id]/server.ts");
+		// and where the app can put them instead
+		expect(message).toContain("@implementjs/adapter-node");
 	});
 });

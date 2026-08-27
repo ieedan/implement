@@ -17,6 +17,7 @@ function node(partial: Partial<RouteNode>): RouteNode {
 		pageServer: null,
 		layoutServer: null,
 		endpoint: null,
+		endpointSocket: false,
 		error: null,
 		extensions: [],
 		children: [],

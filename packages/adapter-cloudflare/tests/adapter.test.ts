@@ -127,4 +127,25 @@ describe("@implementjs/adapter-cloudflare", () => {
 		);
 		expect(response.status).toBe(200);
 	});
+
+	it("routes an upgrade through the app before the assets or the handler see it", async () => {
+		// no `WebSocketPair` in node, so the accepted path cannot run here — the
+		// refusal is the half that proves the worker reaches the route at all, and
+		// reaches it with the hooks applied
+		const refused = await worker.default.fetch(
+			new Request("https://example.com/relay", {
+				headers: { connection: "Upgrade", upgrade: "websocket" },
+			}),
+			{},
+			{},
+		);
+		expect(refused.status).toBe(401);
+		expect(await refused.json()).toEqual({ message: "who are you?" });
+	});
+
+	it("leaves an ordinary request to the same path to the method handler", async () => {
+		const response = await worker.default.fetch(new Request("https://example.com/relay"), {}, {});
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ ok: true });
+	});
 });

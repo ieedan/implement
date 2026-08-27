@@ -34,8 +34,14 @@ export type EntrySettings = {
 export function entrySource(settings: EntrySettings): string {
 	return `import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { handler as app } from "$implement/handler";
-import { compose, serveApp, servePrerendered, serveStatic } from "@implementjs/kit/node";
+import { handler as app, hasSockets, upgrade } from "$implement/handler";
+import {
+	compose,
+	serveApp,
+	servePrerendered,
+	serveSockets,
+	serveStatic,
+} from "@implementjs/kit/node";
 
 const IMMUTABLE = ${JSON.stringify(settings.immutable)};
 const PAGES = ${JSON.stringify(settings.pages)};
@@ -126,6 +132,45 @@ function address(options) {
 }
 
 /**
+ * The app's WebSocket routes as an \`upgrade\` listener, or \`null\` when the app
+ * declares none.
+ *
+ * IIS does not forward an upgrade on its own: the site needs
+ * \`webSocket enabled="false"\` in \`web.config\` — which the adapter writes when
+ * the app has socket routes — so that the WebSocket module stops intercepting
+ * the handshake and lets the handler in front proxy it through.
+ */
+export const sockets = hasSockets
+	? serveSockets(upgrade, {
+			origin: ORIGIN,
+			protocolHeader: PROTOCOL_HEADER,
+			hostHeader: HOST_HEADER,
+			address: { header: env("ADDRESS_HEADER", undefined), depth: number("XFF_DEPTH", 1) },
+			onError: ({ error, event, status }) => {
+				console.error(\`[implement] socket \${event.url.pathname} -> \${status}\`);
+				console.error(error);
+			},
+		})
+	: null;
+
+/** Attaches the app's socket routes to a \`node:http\` server's \`upgrade\` event. */
+export function attachSockets(server) {
+	if (sockets === null) return server;
+	server.on("upgrade", (req, socket, head) => {
+		sockets(req, socket, head).then(
+			(handled) => {
+				if (!handled) socket.destroy();
+			},
+			(error) => {
+				console.error(error);
+				socket.destroy();
+			},
+		);
+	});
+	return server;
+}
+
+/**
  * Starts the server. Under IIS nothing needs to be passed: the module in front
  * has already decided where it listens.
  */
@@ -142,6 +187,7 @@ export function start(options = {}) {
 			res.end("Not Found");
 		});
 	});
+	attachSockets(server);
 
 	// IIS forwards the visitor's own Host header, so event.url.origin is
 	// attacker-controlled unless something pins it — enabling host-header

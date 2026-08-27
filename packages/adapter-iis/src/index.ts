@@ -268,10 +268,19 @@ export default function adapter(options: IISAdapterOptions = {}): Adapter {
 					externalRoutes: options.externalRoutes ?? [],
 					redirectToHttps: options.redirectToHttps ?? false,
 					maxRequestBodySize: options.maxRequestBodySize ?? 30_000_000,
+					sockets: builder.routes.sockets.length > 0,
 					iisnode: options.iisnode ?? {},
 					httpPlatform: options.httpPlatform ?? {},
 				}),
 			);
+
+			if (builder.routes.sockets.length > 0) {
+				builder.log.info(
+					`@implementjs/adapter-iis: ${builder.routes.sockets.length} socket route(s) — ` +
+						"web.config turns IIS's own WebSocket module off so the handshake reaches Node. " +
+						"The WebSocket Protocol Windows feature still has to be installed on the server.",
+				);
+			}
 
 			// the same three the built server checks for before it will start, so a
 			// deploy that is missing them hears about it here rather than as a site

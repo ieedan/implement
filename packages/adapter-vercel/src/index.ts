@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { Adapter, Builder } from "@implementjs/kit/adapter";
+import { assertNoSockets, type Adapter, type Builder } from "@implementjs/kit/adapter";
 
 export type VercelAdapterOptions = {
 	/**
@@ -59,6 +59,14 @@ export default function adapter(options: VercelAdapterOptions = {}): Adapter {
 			entry: ENTRY,
 		},
 		adapt(builder) {
+			// a Node function answers one request and is frozen; there is no
+			// upgrade path into it, so a socket route deployed here would 404 in
+			// production rather than fail here, which is the worse of the two
+			assertNoSockets(
+				builder,
+				"@implementjs/adapter-vercel",
+				"a serverless function cannot hold a socket open",
+			);
 			const target = join(builder.root, out);
 			builder.rimraf(target);
 

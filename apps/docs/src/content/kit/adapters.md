@@ -2,7 +2,7 @@
 title: Adapters
 description: Build the app for the place it runs — a static host, a Node server, Vercel, Cloudflare, IIS.
 section: Guides
-order: 19
+order: 20
 ---
 
 `vite build` on its own writes a static site: pages and `GET` endpoints become files, and anything that has to run when a request arrives — a `POST` endpoint, a webhook, an upload, a load that reads the session — has nowhere to go. An **adapter** is what gives it somewhere.
@@ -24,13 +24,15 @@ Nothing in your app changes when you swap adapters. The same `hooks.server.ts`, 
 
 ## The adapters
 
-| Package                                          | Deploys to                   | Output                        |
-| ------------------------------------------------ | ---------------------------- | ----------------------------- |
-| [`@implementjs/adapter-static`](#static)         | any static host              | `dist/`                       |
-| [`@implementjs/adapter-node`](#node)             | anywhere Node runs           | `dist/`, run with `node dist` |
-| [`@implementjs/adapter-vercel`](#vercel)         | Vercel                       | `.vercel/output/`             |
-| [`@implementjs/adapter-cloudflare`](#cloudflare) | Cloudflare Workers and Pages | `dist/`                       |
-| [`@implementjs/adapter-iis`](#iis)               | IIS on Windows Server        | `dist/`, with a `web.config`  |
+| Package                                          | Deploys to                   | Output                        | [Sockets](/kit/websockets) |
+| ------------------------------------------------ | ---------------------------- | ----------------------------- | -------------------------- |
+| [`@implementjs/adapter-static`](#static)         | any static host              | `dist/`                       | no                         |
+| [`@implementjs/adapter-node`](#node)             | anywhere Node runs           | `dist/`, run with `node dist` | yes                        |
+| [`@implementjs/adapter-vercel`](#vercel)         | Vercel                       | `.vercel/output/`             | no                         |
+| [`@implementjs/adapter-cloudflare`](#cloudflare) | Cloudflare Workers and Pages | `dist/`                       | yes                        |
+| [`@implementjs/adapter-iis`](#iis)               | IIS on Windows Server        | `dist/`, with a `web.config`  | yes                        |
+
+An adapter whose host cannot hold a connection open fails the build when the app declares a socket route, rather than deploying one that answers the upgrade with a 404.
 
 ### Static
 
@@ -241,6 +243,8 @@ kit({
 ```
 
 Under iisnode the same response is buffered by the named pipe in front of it, so it arrives when it ends rather than as it is written. That is the module, not the app — a site built on streaming wants `"httpPlatform"`.
+
+A [socket route](/kit/websockets) works through either module too, once IIS stops answering the handshake itself — the adapter writes `<webSocket enabled="false" />` for that when the app has one. See [IIS](/kit/websockets#iis).
 
 ## What still prerenders
 

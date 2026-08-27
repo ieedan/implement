@@ -42,9 +42,14 @@ export type NodeAdapterOptions = {
  * for mounting the app inside an Express or Polka server you already have:
  *
  * ```js
- * import { handler } from "./dist/handler.js";
+ * import { attachSockets, handler } from "./dist/handler.js";
  * app.use(handler);
+ * attachSockets(server); // when the app has `SOCKET` routes
  * ```
+ *
+ * WebSocket routes are served end to end: the generated server attaches an
+ * `upgrade` listener of its own, and `attachSockets` is the seam for doing it
+ * on a server you built yourself.
  *
  * Dependencies stay external, so the output is deployed alongside the
  * `node_modules` the app was built with.
@@ -84,7 +89,9 @@ export default function adapter(options: NodeAdapterOptions = {}): Adapter {
 			);
 			builder.writeFile(
 				join(target, "handler.js"),
-				['export { handler, start } from "./server/index.js";', ""].join("\n"),
+				['export { attachSockets, handler, sockets, start } from "./server/index.js";', ""].join(
+					"\n",
+				),
 			);
 
 			builder.log.info(`wrote ${relative(builder.root, target)} — run it with \`node ${out}\``);

@@ -10,6 +10,7 @@ function settings(overrides: Partial<WebConfigSettings> = {}): WebConfigSettings
 		externalRoutes: [],
 		redirectToHttps: false,
 		maxRequestBodySize: 30_000_000,
+		sockets: false,
 		iisnode: {},
 		httpPlatform: {},
 		...overrides,
@@ -113,5 +114,15 @@ describe("webConfig", () => {
 		);
 		expect(platform).toContain('requestTimeout="01:00:00"');
 		expect(platform).not.toContain('requestTimeout="00:20:00"');
+	});
+});
+
+describe("websocket routes", () => {
+	it("turns IIS's own WebSocket module off, so the handshake reaches Node", () => {
+		expect(webConfig(settings({ sockets: true }))).toContain('<webSocket enabled="false" />');
+	});
+
+	it("says nothing about it for an app with no socket routes", () => {
+		expect(webConfig(settings())).not.toContain("webSocket");
 	});
 });

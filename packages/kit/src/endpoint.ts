@@ -90,6 +90,20 @@ export function json<T>(body: T, init?: ResponseInit): JsonResponse<T> {
 export { sse } from "./sse.ts";
 export type { ServerSentEvent, SseInit, SseResponse, SseSource } from "./sse.ts";
 
+// and `socket` beside them: an upgrade is declared in the same `server.ts` as
+// the methods, so it is reached through the same specifier
+export { socket } from "./socket.ts";
+export type {
+	SocketBuilder,
+	SocketCloseDetails,
+	SocketHandler,
+	SocketHandlers,
+	SocketMessage,
+	SocketPeer,
+	SocketSource,
+	SocketUpgradeEvent,
+} from "./socket.ts";
+
 /**
  * What a caller receives for what `handle` returned. A plain `Response` opts
  * out of response handling, so it says nothing about `data`; a {@link json}

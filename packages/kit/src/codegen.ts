@@ -495,6 +495,8 @@ export type ServerRoute = {
 	params: RouteParam[];
 	/** Relative path of the `server.ts` file. */
 	file: string;
+	/** Whether the module exports a `SOCKET` handler — see {@link import("./scan.ts").exportsSocket}. */
+	socket: boolean;
 };
 
 /** Every `server.ts` endpoint in the tree, extension endpoints included. */
@@ -503,7 +505,13 @@ export function serverRoutes(tree: RouteTree): ServerRoute[] {
 	const walk = (node: RouteNode, prefix: string) => {
 		const pattern = prefix === "" ? "/" : prefix;
 		if (node.endpoint !== null) {
-			routes.push({ pattern, extension: null, params: node.params, file: node.endpoint });
+			routes.push({
+				pattern,
+				extension: null,
+				params: node.params,
+				file: node.endpoint,
+				socket: node.endpointSocket,
+			});
 		}
 		for (const extension of node.extensions) {
 			routes.push({
@@ -511,6 +519,7 @@ export function serverRoutes(tree: RouteTree): ServerRoute[] {
 				extension: extension.extension,
 				params: node.params,
 				file: extension.file,
+				socket: extension.socket,
 			});
 		}
 		for (const child of node.children) {
@@ -800,11 +809,19 @@ export function generateClientModule(
 			`\t${JSON.stringify(route.key)}: {`,
 			`\t\tparams: ${clientParamsType(route.params, paramsSpecifier, tree.matchers)};`,
 			`\t\toperations: Operations<typeof import(${specifier})>;`,
+			// `undefined` for a route with no `SOCKET` export, which is what keeps
+			// that route off `api.SOCKET`
+			`\t\tsocket: SocketOf<typeof import(${specifier})>;`,
 			"\t};",
 		].join("\n");
 	});
 	const names = client.wrapper === null ? [client.name] : [client.name, client.wrapper];
-	const imported = ["createClient as create", "type ClientOptions", "type Operations"]
+	const imported = [
+		"createClient as create",
+		"type ClientOptions",
+		"type Operations",
+		"type SocketOf",
+	]
 		.concat(names.map((name) => `type ${name}`))
 		.join(",\n\t");
 	// whatever the app fixed in its config, the generated `createClient` fixes

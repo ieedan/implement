@@ -13,9 +13,19 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join, normalize, sep } from "node:path";
-import { Readable } from "node:stream";
+import { Readable, type Duplex } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import type { FetchHandler, HandleOptions } from "./handler.ts";
+import type { FetchHandler, HandleOptions, UpgradeHandler } from "./handler.ts";
+import { isUpgradeRequest, type SocketSession } from "./socket.ts";
+import {
+	acceptWebSocket,
+	handshakeProblem,
+	refuseUpgrade,
+	type WebSocketSettings,
+} from "./websocket.ts";
+
+// the wire-level knobs an adapter passes through to `serveSockets`
+export type { WebSocketSettings } from "./websocket.ts";
 
 /** A connect-style middleware, which is what both Vite and a plain Node server take. */
 export type Middleware = (
@@ -334,6 +344,108 @@ export function serveApp(handler: FetchHandler, options: AppOptions = {}): Middl
 		})
 			.then((response) => sendResponse(res, response, (req.method ?? "GET") === "HEAD"))
 			.then(undefined, next);
+	};
+}
+
+// ---------------------------------------------------------------------------
+// WebSockets
+// ---------------------------------------------------------------------------
+
+/**
+ * A `node:http` `upgrade` listener. Resolves to whether it took the socket —
+ * `false` leaves it alone, which is what lets kit's sockets share a server
+ * with something else that speaks its own protocol (Vite's HMR channel in
+ * dev, a proxy's own tunnel).
+ */
+export type UpgradeListener = (
+	req: IncomingMessage,
+	socket: Duplex,
+	head: Buffer,
+) => Promise<boolean>;
+
+export type SocketServeOptions = AppOptions & {
+	/** Wire-level settings: the payload cap, the heartbeat, the close timeout. */
+	socket?: WebSocketSettings;
+};
+
+/**
+ * The app's socket routes as an `upgrade` listener.
+ *
+ * ```js
+ * const sockets = serveSockets(upgrade);
+ * server.on("upgrade", (req, socket, head) => {
+ * 	sockets(req, socket, head).then((handled) => {
+ * 		if (!handled) socket.destroy();
+ * 	});
+ * });
+ * ```
+ *
+ * The request goes through the app's pipeline first — `hooks.server.ts` runs,
+ * `event.locals` is filled in, and the route's `upgrade` hook decides — and
+ * only a request that survives all of that gets a handshake. A refusal is
+ * written to the socket as an ordinary HTTP response, which is what a client
+ * sees as a handshake that never completed.
+ */
+export function serveSockets(
+	upgrade: UpgradeHandler,
+	options: SocketServeOptions = {},
+): UpgradeListener {
+	return async (req, socket, head) => {
+		if (socket.destroyed) return false;
+		const url = requestUrl(req, options);
+		const request = toRequest(req, url);
+		// something else's protocol, or a plain request that arrived here by
+		// mistake — either way it is not kit's socket to answer
+		if (!isUpgradeRequest(request)) return false;
+
+		const result = await upgrade(request, {
+			getClientAddress: () => clientAddress(req, options.address),
+			platform: options.platform?.(req),
+			onError: options.onError,
+		});
+		// no route here accepts upgrades: leave the socket for whoever else is
+		// listening, rather than answering for a path this app does not serve
+		if (result === null) return false;
+		if (socket.destroyed) return true;
+
+		if (!result.accepted) {
+			await refuseUpgrade(socket, result.response);
+			return true;
+		}
+		// checked after the route claimed the path, not before: a broken handshake
+		// at a path nothing serves is not this app's to complain about
+		const problem = handshakeProblem(req);
+		if (problem !== null) {
+			await refuseUpgrade(
+				socket,
+				new Response(problem, {
+					status: 400,
+					headers: { "content-type": "text/plain; charset=utf-8", "sec-websocket-version": "13" },
+				}),
+			);
+			return true;
+		}
+
+		let session: SocketSession | undefined;
+		const connection = acceptWebSocket({
+			req,
+			socket,
+			head,
+			headers: result.headers,
+			settings: options.socket,
+			events: {
+				message: (data) => session?.message(data),
+				close: (details) => session?.closed(details),
+				error: (error) => session?.failed(error),
+				drain: () => session?.drained(),
+			},
+		});
+		session = result.accept(connection);
+		session.open();
+		// frames only start flowing here, so nothing can reach a handler before
+		// the session that owns it exists
+		connection.start();
+		return true;
 	};
 }
 

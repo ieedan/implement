@@ -28,6 +28,11 @@ export type WebConfigSettings = {
 	redirectToHttps: boolean;
 	/** The largest request body IIS lets through, in bytes. */
 	maxRequestBodySize: number;
+	/**
+	 * Whether the app declares WebSocket routes, which changes one thing in the
+	 * document — see the `<webSocket>` element in {@link webConfig}.
+	 */
+	sockets: boolean;
 	/** Extra `<iisnode>` attributes, overriding the defaults. */
 	iisnode: Attributes;
 	/** Extra `<httpPlatform>` attributes, overriding the defaults. */
@@ -197,6 +202,13 @@ export function webConfig(settings: WebConfigSettings): string {
 	const server = [
 		hosting(settings),
 		rewrite(settings),
+		// IIS ships its own WebSocket module, and while it is on it answers the
+		// handshake itself — the upgrade never reaches the process in front of
+		// Node, so the app's `SOCKET` route is never asked. Turning it off is what
+		// makes the handler proxy the connection through instead. The Windows
+		// feature still has to be installed; this only says IIS is not the one
+		// speaking the protocol.
+		...(settings.sockets ? ['<webSocket enabled="false" />'] : []),
 		// without this IIS replaces the app's own 404 and 500 bodies with its
 		// error pages, and the error route the app renders never reaches anyone
 		'<httpErrors existingResponse="PassThrough" />',

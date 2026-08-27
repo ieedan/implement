@@ -44,7 +44,7 @@ const HANDLER_ID = "$implement/handler";
 const MANIFEST_ID = "$implement/manifest";
 
 /** What kit builds when the adapter has no host glue of its own to add. */
-const DEFAULT_ENTRY = `export { handler, manifest, respond } from "${HANDLER_ID}";\n`;
+const DEFAULT_ENTRY = `export { handler, hasSockets, manifest, respond, upgrade } from "${HANDLER_ID}";\n`;
 
 export type AdapterStageOptions = {
 	adapter: Adapter;
@@ -128,11 +128,16 @@ function describeRoutes(tree: RouteTree, extraEndpoints: string[]): BuiltRoutes 
 	return {
 		pages: pageRoutes(tree).map((route) => route.pattern),
 		endpoints: [
-			...endpoints.map((route) => ({ pattern: route.pattern, extension: route.extension })),
+			...endpoints.map((route) => ({
+				pattern: route.pattern,
+				extension: route.extension,
+				socket: route.socket,
+			})),
 			// the OpenAPI route, when an app mounted a live one — it is served by
 			// the same pipeline, so a host routing by pattern has to know about it
-			...extraEndpoints.map((pattern) => ({ pattern, extension: null })),
+			...extraEndpoints.map((pattern) => ({ pattern, extension: null, socket: false })),
 		],
+		sockets: endpoints.filter((route) => route.socket).map((route) => route.file),
 		dynamic: endpoints.length > 0 || extraEndpoints.length > 0 || hasServerLoads(tree.root),
 	};
 }
@@ -199,12 +204,16 @@ async function buildServer(options: {
 			}
 			if (id !== `\0${HANDLER_ID}`) return null;
 			return [
-				'import { createHandler } from "@implementjs/kit/handler";',
+				'import { createHandler, createUpgradeHandler } from "@implementjs/kit/handler";',
 				`import { manifest } from "${MANIFEST_ID}";`,
-				`import { respond } from "${entryServer}";`,
+				`import { hasSockets, respond, upgrade as upgradeRoute } from "${entryServer}";`,
 				"",
-				"export { manifest, respond };",
+				"export { hasSockets, manifest, respond };",
 				"export const handler = createHandler({ respond }, manifest);",
+				// the socket half. An adapter whose host cannot hold a connection open
+				// never imports it, and the route table it reaches is the same one the
+				// handler above matches against
+				"export const upgrade = createUpgradeHandler({ upgrade: upgradeRoute });",
 				"",
 			].join("\n");
 		},

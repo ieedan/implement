@@ -17,7 +17,7 @@
 import { renderDocument } from "@implementjs/vite/inject";
 import { injectAssetTags, matchRouteAssets, type RouteAssetEntry } from "./assets.ts";
 import type { ServerErrorReport } from "./errors.ts";
-import type { RespondOptions } from "./server.ts";
+import type { RespondOptions, SocketUpgrade } from "./server.ts";
 
 /** What the build knows and the deployed server needs: the shell and the per-route chunks. */
 export type ServerManifest = {
@@ -47,12 +47,42 @@ export type HandleOptions = {
 
 export type FetchHandler = (request: Request, options?: HandleOptions) => Promise<Response>;
 
+/** The socket half of the same pipeline — see {@link createUpgradeHandler}. */
+export type UpgradeHandler = (
+	request: Request,
+	options?: HandleOptions,
+) => Promise<SocketUpgrade | null>;
+
 /**
  * Binds the app's request pipeline to the built shell: pages render into
  * `manifest.template` with their route's preload hints injected, and
  * everything else — endpoints, `__data.json`, redirects, errors — comes back
  * from the pipeline untouched.
  */
+/**
+ * The same binding for WebSocket upgrades: an adapter hands a request in and
+ * gets back either the app's refusal or the function that binds the route's
+ * handlers to the socket its host produced. There is no document to render
+ * here, which is why it is a second entry rather than a mode of the first.
+ *
+ * ```js
+ * const result = await upgrade(request, { platform });
+ * if (result === null) return; // no socket route here — not this host's to answer
+ * if (!result.accepted) return result.response;
+ * const session = result.accept(connection);
+ * ```
+ */
+export function createUpgradeHandler(server: {
+	upgrade: (request: Request, options?: RespondOptions) => Promise<SocketUpgrade | null>;
+}): UpgradeHandler {
+	return (request, options = {}) =>
+		server.upgrade(request, {
+			getClientAddress: options.getClientAddress,
+			platform: options.platform,
+			onError: options.onError,
+		});
+}
+
 export function createHandler(
 	server: { respond: RespondFn },
 	manifest: ServerManifest,

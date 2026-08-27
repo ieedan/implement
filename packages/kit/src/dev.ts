@@ -1,11 +1,12 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import type { ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
+import type { Duplex } from "node:stream";
 import { collectDevStyles, injectSsr } from "@implementjs/vite";
 import type { Connect, ViteDevServer } from "vite";
 import type { ServerRoute } from "./codegen.ts";
 import { dataPath, matchRoutePattern, type EndpointRoute, type RequestHandler } from "./match.ts";
-import { sendResponse, toRequest } from "./node.ts";
+import { sendResponse, serveSockets, toRequest } from "./node.ts";
 import { extensionPattern } from "./scan.ts";
 import {
 	formatServerError,
@@ -99,6 +100,63 @@ export async function handleServerRequest(options: {
 	});
 	await sendResponse(res, response, (req.method ?? "GET") === "HEAD");
 	return true;
+}
+
+/**
+ * Subprotocols Vite's own dev channels ask for. The dev server and the app
+ * share one `httpServer`, so both `upgrade` listeners see every handshake —
+ * and an app that happens to serve a socket at the same path as the HMR
+ * channel must not be the one that answers it.
+ */
+const VITE_PROTOCOLS = new Set(["vite-hmr", "vite-ping"]);
+
+/**
+ * The dev middleware's socket half: hands an upgrade request to the app's
+ * pipeline, exactly as `handleServerRequest` hands it an ordinary one.
+ * Returns whether the socket was taken — `false` leaves it for Vite's HMR
+ * channel, and for anything else listening on the same server.
+ */
+export async function handleUpgrade(options: {
+	server: ViteDevServer;
+	req: IncomingMessage;
+	socket: Duplex;
+	head: Buffer;
+	/** The generated server entry, which exports the app's pipeline. */
+	entry: string;
+	/** Routes directory relative to the Vite root, for naming the file an error came from. */
+	routes: string;
+}): Promise<boolean> {
+	const { server, req, socket, head, entry, routes } = options;
+	const requested = req.headers["sec-websocket-protocol"];
+	const protocols = (Array.isArray(requested) ? requested.join(",") : (requested ?? ""))
+		.split(",")
+		.map((value) => value.trim());
+	if (protocols.some((protocol) => VITE_PROTOCOLS.has(protocol))) return false;
+
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Generated server entry exports the app request pipeline.
+	const { upgrade } = (await server.ssrLoadModule(entry)) as unknown as KitServer;
+	const listener = serveSockets(upgrade, {
+		onError: (report) => {
+			server.config.logger.error(
+				tagged(formatServerError(report, { root: server.config.root, routes })),
+			);
+		},
+	});
+	if (await listener(req, socket, head)) return true;
+
+	// No socket route claims this path, and the request was not one of Vite's
+	// own channels. A deployed server drops such a socket; here something else
+	// on this server may still want it, so the question is whether anything
+	// answered — a handshake is bytes on the wire, written synchronously by
+	// every `upgrade` listener there is. Nothing written means nobody did, and
+	// a socket nobody answers waits for as long as the client will let it.
+	if (!socket.destroyed && written(socket) === 0) socket.destroy();
+	return false;
+}
+
+/** Bytes written to a socket, or `0` for a duplex that does not count them. */
+function written(socket: Duplex & { bytesWritten?: unknown }): number {
+	return typeof socket.bytesWritten === "number" ? socket.bytesWritten : 0;
 }
 
 /** Whether a response is a live event stream rather than a body with an end. */
