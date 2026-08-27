@@ -297,3 +297,90 @@ describe("bind(selector, update) on a read-only source", () => {
 		expect(new ReactiveMap([[1, "a"]]).bind("size").get()).toBe(1);
 	});
 });
+
+describe("change detection", () => {
+	it("does not notify for a structurally equal plain value", () => {
+		const store = signal({ title: "hi", tags: ["a"], nested: { count: 1 } });
+		let notified = 0;
+		store.subscribe(() => notified++);
+
+		store.set({ title: "hi", tags: ["a"], nested: { count: 1 } });
+		expect(notified).toBe(0);
+
+		store.set({ title: "hi", tags: ["a"], nested: { count: 2 } });
+		expect(notified).toBe(1);
+	});
+
+	it("compares value objects by what they are worth", () => {
+		const when = signal(new Date("2026-01-01"));
+		let notified = 0;
+		when.subscribe(() => notified++);
+
+		when.set(new Date("2026-01-01"));
+		expect(notified).toBe(0);
+
+		when.set(new Date("2026-01-02"));
+		expect(notified).toBe(1);
+	});
+
+	// A state object handed over on every mount is the shape this protects:
+	// the discarded instance and its replacement hold refs that are both empty
+	// at the moment of the swap, and reading them as equal drops the new one —
+	// leaving the component pointed at a ref that no node will ever fill.
+	it("compares a nested ref by identity", () => {
+		class Registration {
+			constructor(readonly el = ref<object>()) {}
+		}
+
+		const current = signal<Registration | null>(null);
+		const first = new Registration();
+		current.set(first);
+
+		let notified = 0;
+		current.subscribe(() => notified++);
+
+		const second = new Registration();
+		current.set(second);
+		expect(notified).toBe(1);
+		expect(current.get()).toBe(second);
+	});
+
+	it("compares a nested signal by identity", () => {
+		const store = signal({ open: signal(false) });
+		let notified = 0;
+		store.subscribe(() => notified++);
+
+		store.set({ open: signal(false) });
+		expect(notified).toBe(1);
+	});
+
+	it("compares nested collections and promises by identity", () => {
+		const store = signal({ seen: new Set([1]), loaded: Promise.resolve(1) });
+		const { seen, loaded } = store.get();
+		let notified = 0;
+		store.subscribe(() => notified++);
+
+		store.set({ seen, loaded });
+		expect(notified).toBe(0);
+
+		store.set({ seen: new Set([1]), loaded });
+		expect(notified).toBe(1);
+	});
+
+	it("keeps a derived following a replaced instance", () => {
+		class Registration {
+			constructor(readonly el = ref<object>()) {}
+		}
+
+		const current = signal<Registration | null>(null);
+		const el = derived([current], (c) => c?.el.get() ?? null);
+
+		current.set(new Registration());
+		const replacement = new Registration();
+		current.set(replacement);
+
+		const node = { tag: "div" };
+		replacement.el.set(node);
+		expect(el.get()).toBe(node);
+	});
+});

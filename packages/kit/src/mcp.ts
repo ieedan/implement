@@ -132,9 +132,38 @@ export type ToolAnnotations = {
 	openWorldHint?: boolean;
 } & Record<string, unknown>;
 
+/**
+ * Bytes for an `image` or `audio` block. The protocol carries base64, so a
+ * string is taken as already encoded and anything else is encoded here — a
+ * tool handing back a file it read does not have to spell that out.
+ */
+export type BinaryData = string | Uint8Array | ArrayBuffer;
+
+/** One block of an answer, as a tool builds it: `data` may still be bytes. */
+export type ContentBlockInput =
+	| { type: "text"; text: string }
+	| { type: "image"; data: BinaryData; mimeType: string }
+	| { type: "audio"; data: BinaryData; mimeType: string };
+
+/**
+ * One block of an answer as the protocol carries it. `text` is what the model
+ * reads; `image` and `audio` are what it looks at and listens to, base64 under
+ * a mime type — the difference between a screenshot it can see and a wall of
+ * characters it cannot.
+ */
+export type ContentBlock =
+	| { type: "text"; text: string }
+	| { type: "image"; data: string; mimeType: string }
+	| { type: "audio"; data: string; mimeType: string };
+
 /** What a `tools/call` answers with: content for the model, and whether it failed. */
 export type ToolResult = {
-	content: { type: "text"; text: string }[];
+	content: ContentBlock[];
+	/**
+	 * The same answer as data rather than prose, for a client that would rather
+	 * read fields than parse them back out of the text.
+	 */
+	structuredContent?: Record<string, unknown>;
 	isError?: boolean;
 };
 
@@ -168,6 +197,45 @@ function success(value: unknown): ToolResult {
 	if (value === undefined || value === null) return branded({ content: [] });
 	const text = typeof value === "string" ? value : JSON.stringify(value);
 	return branded({ content: [{ type: "text", text }] });
+}
+
+/** Bytes as the base64 the protocol carries; a string is taken as already encoded. */
+function base64(data: BinaryData): string {
+	if (typeof data === "string") return data;
+	const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+	// in chunks, because one spread of a whole file overflows the call stack
+	const CHUNK = 0x8000;
+	let binary = "";
+	for (let offset = 0; offset < bytes.length; offset += CHUNK) {
+		binary += String.fromCharCode(...bytes.subarray(offset, offset + CHUNK));
+	}
+	return btoa(binary);
+}
+
+function blockOf(block: ContentBlockInput): ContentBlock {
+	return block.type === "text" ? block : { ...block, data: base64(block.data) };
+}
+
+/** A successful call answering with these blocks, in this order. */
+function content(...blocks: ContentBlockInput[]): ToolResult {
+	return branded({ content: blocks.map(blockOf) });
+}
+
+function media(type: "image" | "audio", data: BinaryData, mimeType: string): ToolResult {
+	return branded({ content: [{ type, data: base64(data), mimeType }] });
+}
+
+/**
+ * A successful call carrying `structuredContent`. The JSON also goes through as
+ * text, which the spec asks for so a client that reads only `content` still
+ * sees the answer; pass blocks to say it differently there.
+ */
+function structured(value: Record<string, unknown>, ...blocks: ContentBlockInput[]): ToolResult {
+	return branded({
+		content:
+			blocks.length > 0 ? blocks.map(blockOf) : [{ type: "text", text: JSON.stringify(value) }],
+		structuredContent: value,
+	});
 }
 
 /** What a tool's `handle` receives: its validated input, and the request event. */
@@ -229,6 +297,40 @@ export interface ToolBuilder {
 	failure(message: string): ToolResult;
 
 	/**
+	 * A successful call answering with content blocks rather than one value —
+	 * text, an image, audio, in whatever order the answer reads best.
+	 *
+	 * ```ts
+	 * handle: async ({ input }) => {
+	 * 	const file = await db.attachment(input.id);
+	 * 	return tool.content(
+	 * 		{ type: "text", text: file.name },
+	 * 		{ type: "image", data: file.bytes, mimeType: file.mimeType },
+	 * 	);
+	 * },
+	 * ```
+	 *
+	 * `data` is base64 as a string, or bytes this encodes for you.
+	 */
+	content(...blocks: ContentBlockInput[]): ToolResult;
+
+	/**
+	 * One image as the whole answer — `tool.content()` with a single block. The
+	 * model looks at it; base64 inside text is only characters it cannot read.
+	 */
+	image(data: BinaryData, mimeType: string): ToolResult;
+
+	/** One audio clip as the whole answer, the way {@link ToolBuilder.image} is one image. */
+	audio(data: BinaryData, mimeType: string): ToolResult;
+
+	/**
+	 * A successful call whose answer is also data, under `structuredContent`.
+	 * The JSON goes through as text as well, so a client reading only `content`
+	 * still sees it; pass blocks to say it differently there.
+	 */
+	structured(value: Record<string, unknown>, ...blocks: ContentBlockInput[]): ToolResult;
+
+	/**
 	 * An existing endpoint as a tool, its own schemas becoming the input.
 	 *
 	 * ```ts
@@ -272,6 +374,14 @@ export interface ToolBuilder {
 export const tool = ((definition: McpTool) => ({ ...definition })) as ToolBuilder;
 
 tool.failure = failure;
+
+tool.content = content;
+
+tool.image = (data, mimeType) => media("image", data, mimeType);
+
+tool.audio = (data, mimeType) => media("audio", data, mimeType);
+
+tool.structured = structured;
 
 tool.fromEndpoint = (endpoint, options): McpTool => {
 	const definition = handlerDefinition(endpoint);

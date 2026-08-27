@@ -60,6 +60,9 @@ class DismissableLayerState {
 		readonly parent: DismissableLayerState | null,
 		readonly opts: DismissableLayerProps & { id: string },
 	) {
+		// a layer built around an already-open signal — a subtree remounted while
+		// its menu is open — is open now, not at the next transition
+		if (this.opts.open.get()) this.parent?.addDismissableLayer(this.opts.id, this);
 		this.openUnsubscribe = this.opts.open.subscribe((open) => {
 			if (open) {
 				this.parent?.addDismissableLayer(this.opts.id, this);
@@ -198,6 +201,10 @@ class DismissableLayerState {
 
 	dispose() {
 		this.openUnsubscribe();
+		// an open layer is registered above; unmounting it without taking the
+		// registration back leaves the parent forwarding escape and outside
+		// clicks to a layer that is gone, and never dismissing itself again
+		this.parent?.removeDismissableLayer(this.opts.id);
 	}
 }
 

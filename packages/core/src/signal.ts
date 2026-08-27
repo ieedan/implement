@@ -1,4 +1,3 @@
-import equal from "fast-deep-equal";
 import type { Unsubscribe } from "./types";
 
 export type Callback<T> = (value: T) => void;
@@ -18,24 +17,68 @@ function isThenable(value: unknown): value is PromiseLike<unknown> {
 	);
 }
 
+/**
+ * Objects that stand for something live rather than for a value: a collection
+ * that will be mutated in place, a promise that will settle, a readable that
+ * will emit. Two of these can look identical right now and mean different
+ * things a moment later — a fresh `ref()` deep-equals the `ref()` a discarded
+ * mount left behind, right up until the new node attaches to it — so they are
+ * compared by identity and never by their contents.
+ */
+function isLive(value: object): boolean {
+	// Maps and Sets keep their entries off their own keys anyway, so comparing
+	// their contents was never on the table for them.
+	return value instanceof Map || value instanceof Set || isThenable(value) || isReadable(value);
+}
+
+/**
+ * Structural equality, except that anything {@link isLive} says carries state
+ * of its own compares by identity — at any depth, not only as the whole value.
+ * A state object holding a `ref` is the shape that makes the difference: the
+ * registration signals in the primitives hand one of those over on every
+ * mount, and comparing them field by field would report the replacement of a
+ * discarded instance as "no change" and drop it.
+ */
+function valueEqual(a: unknown, b: unknown): boolean {
+	if (a === b) return true;
+	if (typeof a !== "object" || a === null || typeof b !== "object" || b === null) {
+		// the one pair that is equal without being `===`
+		return a !== a && b !== b;
+	}
+	// identity was already ruled out above
+	if (isLive(a) || isLive(b)) return false;
+	if (a.constructor !== b.constructor) return false;
+
+	// one array and one not differ by constructor already
+	if (Array.isArray(a) && Array.isArray(b)) {
+		if (a.length !== b.length) return false;
+		for (let i = 0; i < a.length; i++) {
+			if (!valueEqual(a[i], b[i])) return false;
+		}
+		return true;
+	}
+	// value objects — a Date, a boxed primitive — say what they are worth, and
+	// the rest of them say it in words. Both sides share a constructor here, so
+	// whatever `a` overrides `b` overrides too.
+	if (a.valueOf !== Object.prototype.valueOf) return a.valueOf() === b.valueOf();
+	/* oxlint-disable-next-line typescript/no-base-to-string -- Reached only for a type that overrides toString, which is the comparison. */
+	if (a.toString !== Object.prototype.toString) return a.toString() === b.toString();
+
+	const keys = Object.keys(a);
+	if (keys.length !== Object.keys(b).length) return false;
+	for (const key of keys) {
+		if (!Object.hasOwn(b, key)) return false;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Own keys of a plain object, read as such.
+		if (!valueEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) {
+			return false;
+		}
+	}
+	return true;
+}
+
 /** True when `next` should replace `prev` and notify subscribers. */
 function hasChanged<T>(prev: T, next: T): boolean {
-	if (prev === next) return false;
-	// fast-deep-equal treats Map/Set as empty objects, so a new collection is always a change
-	if (prev instanceof Map || prev instanceof Set || next instanceof Map || next instanceof Set) {
-		return true;
-	}
-	// promises also deep-equal as empty objects; a distinct promise is always a
-	// change or Await could never re-follow a readable promise source
-	if (isThenable(prev) || isThenable(next)) {
-		return true;
-	}
-	// readables compare by identity: two distinct signals may deep-equal now but
-	// diverge later, and a flattened bind must re-follow the new instance
-	if (isReadable(prev) || isReadable(next)) {
-		return true;
-	}
-	return !equal(prev, next);
+	return !valueEqual(prev, next);
 }
 
 /**
