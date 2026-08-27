@@ -574,18 +574,21 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	/**
 	 * A near miss (`+server.ts`, `page.tsx`) is colocated code as far as the scan
 	 * is concerned, so the route it was meant to be simply never exists and
-	 * nothing says why. Kit says it here instead, once per scan that turned the
-	 * warning up anew: a warning that is still there after an unrelated edit does
-	 * not repeat itself, and one that comes back after a rename is worth
-	 * repeating.
+	 * nothing says why; a `layout.server.ts` typed with `LoadEvent` fails with a
+	 * `TS2502` that names neither type. Kit says both here instead, once per scan
+	 * that turned the warning up anew: a warning that is still there after an
+	 * unrelated edit does not repeat itself, and one that comes back after a
+	 * rename — or after the wrong import goes back in — is worth repeating.
 	 */
 	const reportWarnings = (warnings: RouteWarning[]): void => {
 		const current = new Set<string>();
 		for (const warning of warnings) {
-			const key = `${warning.file} → ${warning.suggestion}`;
-			current.add(key);
-			if (reportedWarnings.has(key)) continue;
-			logger.warn(taggedWarning(formatRouteWarning(warning, routes)));
+			// the message is the identity: two warnings that read the same are the
+			// same warning, whatever kind they came from
+			const message = formatRouteWarning(warning, routes);
+			current.add(message);
+			if (reportedWarnings.has(message)) continue;
+			logger.warn(taggedWarning(message));
 		}
 		reportedWarnings = current;
 	};
@@ -1037,6 +1040,13 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				const serverRouteFile =
 					name === ENDPOINT_FILE || name === PAGE_SERVER_FILE || name === LAYOUT_SERVER_FILE;
 				if (file !== hooksFile && !(file.startsWith(routesDir + sep) && serverRouteFile)) return;
+				// a `layout.server.ts` is the one routing file warned about for what it
+				// says rather than for existing, so an edit is what turns that warning
+				// on and off and only a rescan notices. `regenerate` reloads too.
+				if (name === LAYOUT_SERVER_FILE && file.startsWith(routesDir + sep)) {
+					regenerate();
+					return;
+				}
 				server.ws.send({ type: "full-reload" });
 			};
 

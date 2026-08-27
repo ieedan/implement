@@ -346,6 +346,48 @@ function parentFiles(files: string[], own: string | null): string[] {
 	return own === null ? files : files.slice(0, -1);
 }
 
+/**
+ * The doc comment over a route's `LoadEvent`.
+ *
+ * The two load events differ by one word and a directory's own layout is a
+ * parent of its page but not of itself, so the type a file wants is not
+ * something the name alone settles — hence the note on both of them.
+ *
+ * The `@deprecated` tag is the part that matters, and it is only there for a
+ * directory where `LoadEvent` cannot be anyone's: a `layout.server.ts` and no
+ * `page.server.ts` beside it means the only load here is the layout's, and the
+ * only way this type is reachable is the wrong one. TypeScript answers that
+ * with `TS2502` pointed at the destructured parameter, which names neither
+ * `LoadEvent` nor `LayoutLoadEvent`; the strikethrough and the tag body do.
+ *
+ * Withheld where the directory has a `page.server.ts` too, because there
+ * `LoadEvent` is exactly right and a struck-through import in the file that
+ * wants it is its own papercut.
+ */
+function loadEventDoc(node: RouteNode): string {
+	const note =
+		" * The event a `page.server.ts` load receives. Its `parent()` resolves to what\n * the loads above the page returned — this directory's own layout included.";
+	if (node.layoutServer === null || node.pageServer !== null) return `/**\n${note}\n */\n`;
+	return `/**
+${note}
+ *
+ * @deprecated Nothing in this directory takes a \`LoadEvent\`: it has a
+ * \`layout.server.ts\` and no \`page.server.ts\`, and a layout load takes
+ * \`LayoutLoadEvent\`. Annotating one with \`LoadEvent\` is circular — \`LoadEvent\`
+ * carries this layout's own data — and is reported as \`TS2502\` on the load's
+ * parameter rather than on the import.
+ */
+`;
+}
+
+/** The doc comment over a route's `LayoutLoadEvent`. See {@link loadEventDoc}. */
+const LAYOUT_LOAD_EVENT_DOC = `/**
+ * The event a \`layout.server.ts\` load receives — the one a layout load takes,
+ * rather than \`LoadEvent\`. Its \`parent()\` resolves to what the loads above
+ * *this layout* returned, its own excluded.
+ */
+`;
+
 /** The \`./$types\` module for one route directory. */
 export function generateRouteTypes(node: RouteNode, chain: DataChain, paths: GenPaths): string {
 	const params = paramsSpecifier(paths, node.dir);
@@ -368,8 +410,8 @@ export type RouteParams = ${paramsType(node.params, params, paths.appMatchers)};
 export type ServerParams = ${serverParamsType(node.params, params, paths.appMatchers)};
 export type LayoutParentData = ${dataType(node.dir, parentFiles(chain.layoutFiles, node.layoutServer))};
 export type PageParentData = ${dataType(node.dir, parentFiles(chain.pageFiles, node.pageServer))};
-export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;
-export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;
+${loadEventDoc(node)}export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;
+${LAYOUT_LOAD_EVENT_DOC}export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;
 export type RequestEvent = KitRequestEvent<ServerParams>;
 export type LayoutData = ${dataType(node.dir, chain.layoutFiles)};
 export type PageData = ${dataType(node.dir, chain.pageFiles)};

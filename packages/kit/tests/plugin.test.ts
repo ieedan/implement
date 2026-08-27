@@ -337,6 +337,28 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect(warned.filter((message) => message.includes("unknown file"))).toHaveLength(1);
 	});
 
+	it("warns about a layout.server.ts still typed with LoadEvent", () => {
+		// the fixture's `stale-load-event/layout.server.ts` annotates its load with
+		// `LoadEvent`, which fails as a TS2502 naming the parameter and nothing else
+		const warning = warned.find((message) => message.includes("imports LoadEvent"));
+		expect(warning).toBeDefined();
+		expect(warning).toContain('"src/routes/stale-load-event/layout.server.ts" imports LoadEvent');
+		expect(warning).toContain("takes LayoutLoadEvent");
+		expect(warning).toContain("TS2502");
+		expect(warning).toContain("[implement]");
+	});
+
+	it("deprecates LoadEvent in the $types of a directory that only loads a layout", () => {
+		const types = readFileSync(
+			join(fixture, ".implement/types/src/routes/stale-load-event/$types.d.ts"),
+			"utf8",
+		);
+		// the editor says what the compiler will not: strikethrough on the import,
+		// and the name of the type that belongs there in the tag
+		expect(types).toContain("@deprecated");
+		expect(types).toMatch(/@deprecated[^]*?LayoutLoadEvent[^]*?\n \*\/\nexport type LoadEvent =/);
+	});
+
 	it("prints a server error to the dev log, with the file it came from", async () => {
 		await withListener(async (origin) => {
 			logged.length = 0;
