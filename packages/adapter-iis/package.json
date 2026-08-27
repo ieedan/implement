@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/adapter-iis",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"description": "Builds an implement kit app for IIS on Windows Server.",
 	"keywords": [
 		"implement",
