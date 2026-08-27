@@ -122,4 +122,40 @@ describe("@implementjs/adapter-node", () => {
 		});
 		expect(response.status).toBe(200);
 	});
+
+	it("serves a socket route through the server it wrote, hooks and all", async () => {
+		// undici's `WebSocket` takes request headers as a second argument; the DOM
+		// types that ship with it only describe the subprotocol form
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The runtime accepts an init object here; only the bundled DOM types do not.
+		const init = { headers: { "x-user": "ada" } } as unknown as string[];
+		// the fixture's `handle` reads that header into `locals.user`, and the
+		// route's `upgrade` hook turns the connection down without it
+		const ws = new WebSocket(`${origin.replace("http://", "ws://")}/relay`, init);
+		await new Promise<void>((open, fail) => {
+			ws.addEventListener("open", () => open(), { once: true });
+			ws.addEventListener("error", () => fail(new Error("handshake failed")), { once: true });
+		});
+		const next = () =>
+			new Promise<string>((resolve) => {
+				ws.addEventListener("message", (event) => resolve(String(event.data)), { once: true });
+			});
+
+		// the hook's locals reached the peer, which is the whole point of routing
+		// an upgrade through the pipeline
+		expect(await next()).toBe("hello ada");
+		const echoed = next();
+		ws.send("relayed");
+		expect(await echoed).toBe("RELAYED");
+		ws.close();
+	});
+
+	it("refuses an upgrade the route turned down", async () => {
+		const ws = new WebSocket(`${origin.replace("http://", "ws://")}/relay`);
+		await expect(
+			new Promise<void>((open, fail) => {
+				ws.addEventListener("open", () => open(), { once: true });
+				ws.addEventListener("error", () => fail(new Error("handshake failed")), { once: true });
+			}),
+		).rejects.toThrow(/handshake failed/);
+	});
 });

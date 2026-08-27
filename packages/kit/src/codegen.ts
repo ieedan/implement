@@ -495,6 +495,8 @@ export type ServerRoute = {
 	params: RouteParam[];
 	/** Relative path of the `server.ts` file. */
 	file: string;
+	/** Whether the module exports a `SOCKET` handler — see {@link import("./scan.ts").exportsSocket}. */
+	socket: boolean;
 };
 
 /** Every `server.ts` endpoint in the tree, extension endpoints included. */
@@ -503,7 +505,13 @@ export function serverRoutes(tree: RouteTree): ServerRoute[] {
 	const walk = (node: RouteNode, prefix: string) => {
 		const pattern = prefix === "" ? "/" : prefix;
 		if (node.endpoint !== null) {
-			routes.push({ pattern, extension: null, params: node.params, file: node.endpoint });
+			routes.push({
+				pattern,
+				extension: null,
+				params: node.params,
+				file: node.endpoint,
+				socket: node.endpointSocket,
+			});
 		}
 		for (const extension of node.extensions) {
 			routes.push({
@@ -511,6 +519,7 @@ export function serverRoutes(tree: RouteTree): ServerRoute[] {
 				extension: extension.extension,
 				params: node.params,
 				file: extension.file,
+				socket: extension.socket,
 			});
 		}
 		for (const child of node.children) {

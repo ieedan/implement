@@ -114,6 +114,8 @@ export type ErrorSource =
 	| { kind: "load"; file: string }
 	/** A `server.ts` handler, by its routes-relative file and the method dispatched. */
 	| { kind: "endpoint"; file: string; method: string }
+	/** A `server.ts` socket handler, by its routes-relative file. */
+	| { kind: "socket"; file: string }
 	/** The page render — a component threw while the matched route rendered. */
 	| { kind: "render" }
 	/** The app's `error.ts`, which threw while rendering another error. */
@@ -190,6 +192,7 @@ function describeSource(
 	if (source === null) return route === null ? null : `route ${route}`;
 	if (source.kind === "load") return `load in ${routes}/${source.file}`;
 	if (source.kind === "endpoint") return `${source.method} handler in ${routes}/${source.file}`;
+	if (source.kind === "socket") return `the socket handler in ${routes}/${source.file}`;
 	if (source.kind === "error-page") return `the error page (${routes}/error.ts)`;
 	if (source.kind === "render") {
 		return route === null ? "the page render" : `the page render for ${route}`;

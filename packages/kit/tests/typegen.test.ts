@@ -47,6 +47,7 @@ const slugNode = {
 	pageServer: null,
 	layoutServer: null,
 	endpoint: null,
+	endpointSocket: false,
 	error: null,
 	extensions: [],
 	children: [],
@@ -128,7 +129,9 @@ describe("the handler export", () => {
 
 	it("is on an endpoint directory's $types, bound to that route's params", () => {
 		const types = generateRouteTypes(endpointNode, { layoutFiles: [], pageFiles: [] }, PATHS);
-		expect(types).toContain('import type { HandlerBuilder } from "@implementjs/kit/endpoint";');
+		expect(types).toContain(
+			'import type { HandlerBuilder, SocketBuilder, SocketPeer as KitSocketPeer } from "@implementjs/kit/endpoint";',
+		);
 		expect(types).toContain("export const handler: HandlerBuilder<ServerParams>;");
 	});
 

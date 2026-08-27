@@ -84,9 +84,13 @@ describe("@implementjs/adapter-iis", () => {
 	});
 
 	it("bundles the server's dependencies, so the folder is the whole deployment", () => {
-		// nothing is left for a node_modules that will not be copied to the server
+		// nothing is left for a node_modules that will not be copied to the server.
+		// Specifiers rather than the bare name: a bundled module may still *say*
+		// the package — kit keys its runtime symbols by it — and a name in a
+		// string is not something node has to resolve
 		const source = readFileSync(join(out, "server/index.js"), "utf8");
-		expect(source).not.toContain("@implementjs/kit");
+		expect(source).not.toMatch(/\bfrom\s*["']@implementjs\/kit/);
+		expect(source).not.toMatch(/\b(?:import|require)\s*\(\s*["']@implementjs\/kit/);
 	});
 
 	it("renders a page with a server load per request", async () => {

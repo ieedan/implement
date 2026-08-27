@@ -364,6 +364,7 @@ describe("the types a matched param gets", () => {
 		pageServer: null,
 		layoutServer: null,
 		endpoint: "posts/[id=integer]/server.ts",
+		endpointSocket: false,
 		error: null,
 		extensions: [],
 		children: [],

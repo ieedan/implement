@@ -44,6 +44,8 @@ export type RouteNode = {
 	layoutServer: string | null;
 	/** Relative path of this directory's `server.ts` endpoint, when present. */
 	endpoint: string | null;
+	/** Whether that `server.ts` exports a `SOCKET` handler. See {@link exportsSocket}. */
+	endpointSocket: boolean;
 	/**
 	 * Relative path of this directory's `error.ts`, when present — the error
 	 * page for everything routed at or below it.
@@ -62,6 +64,8 @@ export type ExtensionEndpoint = {
 	extension: string;
 	/** Relative path of the `.<ext>/server.ts` file. */
 	file: string;
+	/** Whether that `server.ts` exports a `SOCKET` handler. See {@link exportsSocket}. */
+	socket: boolean;
 };
 
 /**
@@ -236,6 +240,39 @@ export function importsLoadEvent(source: string): boolean {
 	return false;
 }
 
+/** `export const SOCKET`, and the other four ways to declare one. */
+const SOCKET_DECLARATION = /\bexport\s+(?:const|let|var|(?:async\s+)?function\s*\*?)\s+SOCKET\b/;
+
+/** The braces of every `export { … }` clause, re-export or not. */
+const NAMED_EXPORTS = /\bexport\s*\{([^}]*)\}/g;
+
+/**
+ * Whether a `server.ts` exports a `SOCKET` handler.
+ *
+ * Read rather than evaluated, for the same reason {@link importsLoadEvent} is:
+ * the scan builds the route tree from names on disk, and loading an endpoint
+ * module to answer one question would drag the app's database driver into
+ * every `vite.config.ts` that scans a route tree.
+ *
+ * The answer is used at build time only — to tell an adapter that cannot hold
+ * a connection open that this app is asking it to, before it deploys something
+ * that would 404 at runtime. Dispatch reads the real module, so a socket route
+ * this misses still serves; a route it invents would be refused a deploy it
+ * could have had, which is why the patterns below are the exact five ways a
+ * module can name an export and nothing looser.
+ */
+export function exportsSocket(source: string): boolean {
+	if (SOCKET_DECLARATION.test(source)) return true;
+	for (const match of source.matchAll(NAMED_EXPORTS)) {
+		for (const specifier of match[1]!.split(",")) {
+			// `x as SOCKET` exports `SOCKET`; `SOCKET as x` does not
+			const parts = specifier.split(/\s+as\s+/);
+			if (parts[parts.length - 1]!.trim() === "SOCKET") return true;
+		}
+	}
+	return false;
+}
+
 /**
  * A route file's source, or `""` when it will not read. Nothing but a warning
  * hangs on the answer, so a file that vanished between the readdir and the read
@@ -325,6 +362,7 @@ function scanDirectory(
 		pageServer: null,
 		layoutServer: null,
 		endpoint: null,
+		endpointSocket: false,
 		error: null,
 		extensions: [],
 		children: [],
@@ -343,6 +381,9 @@ function scanDirectory(
 			}
 			if (entry.name === ENDPOINT_FILE) {
 				node.endpoint = relative;
+				// which adapters may deploy this app depends on it, and nothing else
+				// in the tree can say — see `exportsSocket`
+				node.endpointSocket = exportsSocket(readSource(join(absolute, entry.name)));
 				continue;
 			}
 			if (entry.name === PAGE_SERVER_FILE) {
@@ -396,7 +437,11 @@ function scanDirectory(
 					(child) => child.isFile() && child.name === ENDPOINT_FILE,
 				)
 			) {
-				node.extensions.push({ extension: entry.name, file: `${relative}/${ENDPOINT_FILE}` });
+				node.extensions.push({
+					extension: entry.name,
+					file: `${relative}/${ENDPOINT_FILE}`,
+					socket: exportsSocket(readSource(join(absolute, entry.name, ENDPOINT_FILE))),
+				});
 			}
 			continue;
 		}

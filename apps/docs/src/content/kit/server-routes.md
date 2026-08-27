@@ -94,7 +94,7 @@ It also negotiates: a [server hook](/kit/hooks) redirects any request for a docs
 
 A handler's `Response` reaches the client untouched, so a body that is a `ReadableStream` stays one: kit never buffers it, and neither does the `hooks.server.ts` around it. An endpoint can answer a request now and keep writing to it for as long as it likes.
 
-The long-lived case with a format of its own is **server-sent events**, and `sse` builds one:
+The long-lived case with a format of its own is **server-sent events**, and `sse` builds one. It is one-way — when you need both directions of one connection, reach for a [WebSocket](/kit/websockets) instead:
 
 ```ts
 // src/routes/api/inbox/stream/server.ts
@@ -158,6 +158,8 @@ An open connection is a resource on whatever is holding it, and hosts differ on 
 | [`adapter-cloudflare`](/kit/adapters#cloudflare) | yes; waiting costs no CPU time, and a worker is billed for what it uses     |
 | [`adapter-vercel`](/kit/adapters#vercel)         | yes, until `maxDuration` — the function is stopped at the limit, mid-stream |
 | [`adapter-static`](/kit/adapters#static)         | no: nothing is running to hold one                                          |
+
+A [socket route](/kit/websockets#where-a-socket-can-live) reads slightly differently. Vercel will hold a streaming response open, but there is no upgrade path into a serverless function — so that adapter and the static one both fail the build on a socket route rather than deploying one that answers with a 404.
 
 A streaming endpoint must also never be prerendered — a file is a body with an end, and a live stream has none. With a server that is already the default; a static build prerenders `GET` endpoints, so say so:
 

@@ -142,6 +142,9 @@ function entryServer(dynamicPublicEnv: string | undefined): string {
 		"",
 		"export const render = server.render;",
 		"export const respond = server.respond;",
+		"// the socket half of the pipeline, for an adapter whose host can hold one open",
+		"export const upgrade = server.upgrade;",
+		"export const hasSockets = server.hasSockets;",
 	].join("\n")}\n`;
 }
 
@@ -331,10 +334,12 @@ function dataType(dir: string, files: string[]): string {
  */
 const HANDLER_EXPORT = `
 export const handler: HandlerBuilder<ServerParams>;
+export const socket: SocketBuilder<ServerParams>;
+export type SocketPeer = KitSocketPeer<ServerParams>;
 export { json, sse } from "@implementjs/kit/endpoint";
 `;
 
-const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/endpoint";
+const HANDLER_IMPORT = `import type { HandlerBuilder, SocketBuilder, SocketPeer as KitSocketPeer } from "@implementjs/kit/endpoint";
 `;
 
 /**

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { errorPatterns, pageRoutes, staticRoutePaths } from "../src/codegen.ts";
 import {
+	exportsSocket,
 	formatRouteWarning,
 	importsLoadEvent,
 	parseSegment,
@@ -203,7 +204,9 @@ describe("scanRoutes", () => {
 		const api = tree.root.children.find((child) => child.dir === "api")!;
 		expect(api.endpoint).toBe("api/server.ts");
 		const slug = tree.root.children.find((child) => child.dir === "docs")!.children[0]!;
-		expect(slug.extensions).toEqual([{ extension: ".md", file: "docs/[...slug]/.md/server.ts" }]);
+		expect(slug.extensions).toEqual([
+			{ extension: ".md", file: "docs/[...slug]/.md/server.ts", socket: false },
+		]);
 	});
 
 	it("keeps a directory holding only server files", () => {
@@ -377,5 +380,42 @@ describe("formatRouteWarning", () => {
 		expect(message).toContain('"src/routes/app/layout.server.ts"');
 		expect(message).toContain("LayoutLoadEvent");
 		expect(message).toContain("TS2502");
+	});
+});
+
+describe("exportsSocket", () => {
+	it("finds every way a module can declare one", () => {
+		expect(exportsSocket("export const SOCKET = socket({});")).toBe(true);
+		expect(exportsSocket("export let SOCKET = socket({});")).toBe(true);
+		expect(exportsSocket("export var SOCKET = socket({});")).toBe(true);
+		expect(exportsSocket("export function SOCKET() {}")).toBe(true);
+		expect(exportsSocket("export async function SOCKET() {}")).toBe(true);
+		expect(exportsSocket("const SOCKET = socket({});\nexport { SOCKET };")).toBe(true);
+		expect(exportsSocket("export { relay as SOCKET };")).toBe(true);
+		expect(exportsSocket('export { SOCKET } from "./relay.ts";')).toBe(true);
+	});
+
+	it("says no to a module that only mentions the name", () => {
+		expect(exportsSocket("export const GET = handler({});")).toBe(false);
+		// exported under another name, so nothing routes to it
+		expect(exportsSocket("export { SOCKET as relay };")).toBe(false);
+		expect(exportsSocket("const SOCKET = socket({});")).toBe(false);
+		expect(exportsSocket('import { SOCKET } from "./elsewhere.ts";')).toBe(false);
+		expect(exportsSocket("// export const SOCKETS = 1;\nexport const SOCKETS = 1;")).toBe(false);
+	});
+
+	it("is read off the endpoint files the scan walks", () => {
+		const tree = scanRoutes(
+			makeRoutes({
+				"page.ts": "export default () => null;\n",
+				"ws/server.ts": "export const SOCKET = socket({});\n",
+				"api/server.ts": "export const GET = () => new Response(null);\n",
+				"docs/.md/server.ts": "export const SOCKET = socket({});\n",
+			}),
+		);
+		const child = (dir: string) => tree.root.children.find((entry) => entry.dir === dir)!;
+		expect(child("ws").endpointSocket).toBe(true);
+		expect(child("api").endpointSocket).toBe(false);
+		expect(child("docs").extensions[0]?.socket).toBe(true);
 	});
 });

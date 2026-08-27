@@ -22,6 +22,7 @@ import {
 import {
 	ENDPOINTS_ID,
 	handleServerRequest,
+	handleUpgrade,
 	HOOKS_ID,
 	PAGES_ID,
 	prerenderServerFiles,
@@ -89,6 +90,7 @@ export type {
 	BuiltRoutes,
 	Prerendered,
 } from "./adapter.ts";
+export { assertNoSockets } from "./adapter.ts";
 export type { ClientStyle, DataChain, PageRoute, ServerRoute } from "./codegen.ts";
 export type { OpenApiDocument, OpenApiOptions, ToJsonSchema } from "./openapi.ts";
 export type { PreloadCodeKind, PreloadDataKind, PreloadOptions } from "./preload-kinds.ts";
@@ -142,7 +144,7 @@ const CLIENT_ID = "$implement/client";
 const CONVERTERS_ID = "$implement/schema-converters";
 const RESOLVED_CONVERTERS_ID = `\0${CONVERTERS_ID}`;
 const TYPES_ID = "\0$implement/route-types";
-const TYPES_MODULE = 'export { handler, json, sse } from "@implementjs/kit/endpoint";\n';
+const TYPES_MODULE = 'export { handler, json, socket, sse } from "@implementjs/kit/endpoint";\n';
 const RESOLVED_ROUTER_ID = "\0$implement/router";
 const RESOLVED_PARAMS_ID = `\0${PARAMS_ID}`;
 const RESOLVED_NAVIGATION_ID = `\0${NAVIGATION_ID}`;
@@ -1085,6 +1087,22 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				}
 				server.ws.send({ type: "full-reload" });
 			};
+
+			// A route's `SOCKET` handler is served in dev the same way it is in
+			// production: the app's pipeline decides, and a path no socket route
+			// claims is left alone — Vite's own HMR channel is on this server too.
+			server.httpServer?.on("upgrade", (req, socket, head) => {
+				handleUpgrade({ server, req, socket, head, entry: ENTRY_SERVER, routes }).catch(
+					(error: unknown) => {
+						server.config.logger.error(
+							taggedWarning(
+								`websocket upgrade failed: ${error instanceof Error ? error.message : String(error)}`,
+							),
+						);
+						socket.destroy();
+					},
+				);
+			});
 
 			server.watcher.on("add", onFile);
 			server.watcher.on("unlink", onFile);

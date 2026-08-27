@@ -2,7 +2,7 @@
 title: MCP Server
 description: Your app as tools a model can call — declared like endpoints, validated by the same schemas, protocol handled once.
 section: Guides
-order: 16
+order: 17
 ---
 
 [MCP](https://modelcontextprotocol.io) is how AI clients — Claude, Cursor, and everything speaking the protocol — call your product: you expose _tools_, a model reads their descriptions and calls them. The protocol underneath is JSON-RPC over HTTP with its own handshake, version negotiation, security checks, and OAuth discovery dance, and none of it is specific to your app.

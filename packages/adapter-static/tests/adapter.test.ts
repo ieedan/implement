@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { kit, type KitOptions } from "@implementjs/kit";
 import { build } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
+import type { Builder } from "@implementjs/kit/adapter";
 import adapter, { type StaticAdapterOptions } from "../src/index.ts";
 
 const fixture = join(import.meta.dirname, "fixtures/app");
@@ -79,4 +80,34 @@ describe("@implementjs/adapter-static", () => {
 		// the default either way round
 		expect(existsSync(join(fixture, "dist/pinned/index.html"))).toBe(true);
 	}, 180_000);
+});
+
+/** A finished build, stubbed — enough for the checks `adapt` runs before it writes anything. */
+function stubBuilder(sockets: string[]): Builder {
+	return {
+		root: fixture,
+		outDir: join(fixture, ".implement/output"),
+		clientDir: join(fixture, ".implement/output/client"),
+		serverDir: join(fixture, ".implement/output/server"),
+		serverEntry: "index.js",
+		base: "/",
+		assetsDir: "assets",
+		template: "<!doctype html>",
+		prerendered: { pages: [], files: [] },
+		routes: { pages: [], endpoints: [], sockets, dynamic: true },
+		log: { info: () => undefined, warn: () => undefined, error: () => undefined },
+		rimraf: () => undefined,
+		mkdirp: () => undefined,
+		copy: () => [],
+		writeFile: () => undefined,
+	};
+}
+
+describe("a socket route", () => {
+	it("is refused at build time, naming the routes and where they can go instead", () => {
+		expect(() => adapter().adapt(stubBuilder(["relay/server.ts"]))).toThrow(/relay\/server\.ts/);
+		expect(() => adapter().adapt(stubBuilder(["relay/server.ts"]))).toThrow(
+			/@implementjs\/adapter-node/,
+		);
+	});
 });

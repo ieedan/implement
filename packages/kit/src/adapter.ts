@@ -36,11 +36,51 @@ export type Prerendered = {
 export type BuiltRoutes = {
 	/** Every page pattern (`/docs/:...slug`). */
 	pages: string[];
-	/** Every `server.ts` endpoint. */
-	endpoints: { pattern: string; extension: string | null }[];
+	/** Every `server.ts` endpoint. `socket` is whether it accepts WebSocket upgrades. */
+	endpoints: { pattern: string; extension: string | null; socket: boolean }[];
+	/**
+	 * The routes-relative `server.ts` of every route declaring a socket handler.
+	 *
+	 * An adapter whose host cannot hold a connection open must refuse to build
+	 * an app that has one — see {@link assertNoSockets}. A serverless function
+	 * deployed with a socket route in it does not fail at deploy time; it
+	 * answers the upgrade with a 404 in production, which is a worse way to
+	 * find out.
+	 */
+	sockets: string[];
 	/** Whether any route has a server load, an endpoint, or hooks. */
 	dynamic: boolean;
 };
+
+/**
+ * Refuses a build whose app declares a socket route, for an adapter whose host
+ * cannot serve one.
+ *
+ * ```ts
+ * adapt(builder) {
+ * 	assertNoSockets(builder, "@implementjs/adapter-vercel", "a serverless function cannot hold a socket open");
+ * 	…
+ * }
+ * ```
+ */
+export function assertNoSockets(
+	builder: { routes: BuiltRoutes },
+	adapter: string,
+	because: string,
+): void {
+	const { sockets } = builder.routes;
+	if (sockets.length === 0) return;
+	throw new Error(
+		[
+			`${adapter}: this app declares WebSocket routes, and ${because}:`,
+			...sockets.map((file) => `  ${file}`),
+			"",
+			"Deploy the socket routes behind an adapter whose host can hold a connection",
+			"open (@implementjs/adapter-node, @implementjs/adapter-iis,",
+			"@implementjs/adapter-cloudflare), or drop the SOCKET export.",
+		].join("\n"),
+	);
+}
 
 /** How kit should build the server bundle for an adapter. */
 export type AdapterBuild = {

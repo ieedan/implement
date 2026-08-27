@@ -57,6 +57,12 @@ export type CloudflareAdapterOptions = {
  * The worker is bundled for `workerd`, so an app that reaches for `node:*`
  * needs the `nodejs_compat` flag — and a dependency that cannot run on workers
  * at all will fail this build rather than the deploy.
+ *
+ * WebSocket routes are served through the runtime's own `WebSocketPair`: the
+ * worker keeps one half and hands the other back in the `101`. A worker is
+ * billed for CPU rather than for waiting, so an idle connection costs nothing
+ * — but it lives only as long as the worker instance does, and nothing keeps
+ * it across a deploy.
  */
 export default function adapter(options: CloudflareAdapterOptions = {}): Adapter {
 	const out = options.out ?? "dist";
@@ -104,8 +110,65 @@ function routes(builder: Builder, exclude: string[]): unknown {
  * Workers provide — a prerendered page is a file, and serving it from the
  * assets is both cheaper and the same answer the app would give.
  */
-const ENTRY = `import { handler } from "$implement/handler";
+const ENTRY = `import { handler, hasSockets, upgrade } from "$implement/handler";
 import { setDynamicEnv } from "@implementjs/kit/env";
+
+const report = ({ error, event, status }) => {
+	console.error(\`[implement] \${event.request.method} \${event.url.pathname} -> \${status}\`);
+	console.error(error);
+};
+
+/**
+ * A worker's WebSocket model is its own: the runtime hands out a pair of
+ * sockets, the worker keeps one and returns the other to the client in a 101.
+ * There is no framing to do and no \`bufferedAmount\` to read — which is why
+ * \`peer.drained()\` resolves at once here, and flow control has to be a credit
+ * scheme over the channel rather than a look at the socket.
+ */
+async function serveSocket(request, env, context) {
+	const result = await upgrade(request, {
+		platform: { env, context, caches },
+		getClientAddress: () => request.headers.get("cf-connecting-ip") ?? "",
+		onError: report,
+	});
+	// no socket route here — fall through and let the request be handled as the
+	// ordinary GET it also is
+	if (result === null) return null;
+	if (!result.accepted) return result.response;
+
+	const pair = new WebSocketPair();
+	const client = pair[0];
+	const server = pair[1];
+	server.accept();
+
+	const session = result.accept({
+		send: (data) => server.send(data),
+		close: (code, reason) => server.close(code, reason),
+		// workerd queues for the socket and reports nothing about it
+		get bufferedAmount() {
+			return 0;
+		},
+		get readyState() {
+			return server.readyState;
+		},
+	});
+
+	server.addEventListener("message", (event) => {
+		session.message(
+			typeof event.data === "string" ? event.data : new Uint8Array(event.data),
+		);
+	});
+	server.addEventListener("close", (event) => {
+		session.closed({ code: event.code, reason: event.reason, clean: event.wasClean });
+	});
+	server.addEventListener("error", (event) => {
+		session.failed(event.error ?? new Error("websocket error"));
+	});
+	session.open();
+
+	const headers = new Headers(result.headers);
+	return new Response(null, { status: 101, webSocket: client, headers });
+}
 
 export default {
 	async fetch(request, env, context) {
@@ -113,6 +176,12 @@ export default {
 		// request, so this is where \`env.dynamic.server.ts\` gets pointed at them.
 		// One assignment, and kit re-validates only when the object changes
 		setDynamicEnv(env);
+		// before the assets, and before the app: an upgrade is a GET, and letting
+		// the static binding answer it first would 404 a route that is there
+		if (hasSockets && request.headers.get("upgrade")?.toLowerCase() === "websocket") {
+			const response = await serveSocket(request, env, context);
+			if (response !== null) return response;
+		}
 		if (env.ASSETS !== undefined) {
 			const response = await env.ASSETS.fetch(request);
 			if (response.status !== 404) return response;
@@ -120,10 +189,7 @@ export default {
 		return await handler(request, {
 			platform: { env, context, caches },
 			getClientAddress: () => request.headers.get("cf-connecting-ip") ?? "",
-			onError: ({ error, event, status }) => {
-				console.error(\`[implement] \${event.request.method} \${event.url.pathname} -> \${status}\`);
-				console.error(error);
-			},
+			onError: report,
 		});
 	},
 };

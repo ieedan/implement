@@ -26,8 +26,14 @@ export type EntrySettings = {
 export function entrySource(settings: EntrySettings): string {
 	return `import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { handler as app } from "$implement/handler";
-import { compose, serveApp, servePrerendered, serveStatic } from "@implementjs/kit/node";
+import { handler as app, hasSockets, upgrade } from "$implement/handler";
+import {
+	compose,
+	serveApp,
+	servePrerendered,
+	serveSockets,
+	serveStatic,
+} from "@implementjs/kit/node";
 
 const IMMUTABLE = ${JSON.stringify(settings.immutable)};
 const PAGES = ${JSON.stringify(settings.pages)};
@@ -70,6 +76,54 @@ export const handler = compose([
 	}),
 ]);
 
+/**
+ * The app's WebSocket routes as an \`upgrade\` listener, or \`null\` when the app
+ * declares none. Attach it with {@link attachSockets}.
+ */
+export const sockets = hasSockets
+	? serveSockets(upgrade, {
+			origin: ORIGIN,
+			protocolHeader: PROTOCOL_HEADER,
+			hostHeader: HOST_HEADER,
+			address: { header: env("ADDRESS_HEADER", undefined), depth: number("XFF_DEPTH", 1) },
+			onError: ({ error, event, status }) => {
+				console.error(\`[implement] socket \${event.url.pathname} -> \${status}\`);
+				console.error(error);
+			},
+		})
+	: null;
+
+/**
+ * Attaches the app's socket routes to a \`node:http\` server — the seam for
+ * mounting this app inside a server you already have:
+ *
+ * \`\`\`js
+ * import { attachSockets, handler } from "./dist/handler.js";
+ * const server = createServer(app);
+ * attachSockets(server);
+ * \`\`\`
+ *
+ * A path no socket route claims is left alone, so a server with an upgrade
+ * path of its own keeps it.
+ */
+export function attachSockets(server) {
+	if (sockets === null) return server;
+	server.on("upgrade", (req, socket, head) => {
+		sockets(req, socket, head).then(
+			(handled) => {
+				// nothing here answers this path, and nothing else on this server
+				// did either — a socket left open would wait forever
+				if (!handled) socket.destroy();
+			},
+			(error) => {
+				console.error(error);
+				socket.destroy();
+			},
+		);
+	});
+	return server;
+}
+
 /** Starts the server. \`PORT\`, \`HOST\`, and \`SOCKET_PATH\` come from the environment. */
 export function start(options = {}) {
 	const server = createServer((req, res) => {
@@ -84,6 +138,7 @@ export function start(options = {}) {
 			res.end("Not Found");
 		});
 	});
+	attachSockets(server);
 
 	const socket = options.socketPath ?? env("SOCKET_PATH", undefined);
 	const port = options.port ?? number("PORT", 3000);
