@@ -166,6 +166,31 @@ describe("buildOpenApiDocument", () => {
 		});
 	});
 
+	it("warns rather than failing the build when a converter it does know throws", async () => {
+		// a schema wearing zod's vendor that zod's own converter cannot read: the
+		// document keeps its posture of documenting what it can and saying what it
+		// could not, which is what makes it useful at all
+		const broken = {
+			"~standard": {
+				version: 1 as const,
+				vendor: "zod",
+				validate: (value: unknown) => ({ value }),
+			},
+		};
+		const { document, warnings } = await buildOpenApiDocument(
+			[{ ...plain, module: { POST: handler({ body: broken, handle: () => ({ ok: true }) }) } }],
+			{ info: INFO },
+		);
+		expect(warnings).toHaveLength(1);
+		expect(warnings[0]).toContain("search/.json/server.ts");
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Reading back the document this test just built.
+		const post = document.paths["/search.json"]!["post"] as { requestBody: unknown };
+		expect(post.requestBody).toEqual({
+			required: true,
+			content: { "application/json": { schema: {} } },
+		});
+	});
+
 	it("converts a valibot schema through the vendor's own package", async () => {
 		const search: OpenApiEndpoint = {
 			key: "/search.json",

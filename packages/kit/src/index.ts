@@ -7,6 +7,8 @@ import type { Adapter } from "./adapter.ts";
 import { OUTPUT_DIR, runAdapter } from "./build.ts";
 import {
 	apiRoutes,
+	EMPTY_CONVERTERS,
+	generateConvertersModule,
 	generateEndpointsModule,
 	generateHooksModule,
 	generatePagesModule,
@@ -121,6 +123,24 @@ const CLIENT_ID = "$implement/client";
  * is per-route (`.implement/types/…/$types.d.ts`); the runtime half is the same
  * for every route, because params are purely type-level.
  */
+/**
+ * The JSON-Schema converters the app has installed, each behind a static
+ * import so the bundler writes them into the server bundle.
+ *
+ * Kit converts a Standard Schema to JSON Schema through the vendor's own
+ * converter package, and two of those conversions happen at runtime rather than
+ * at build time: an MCP route's `tools/list`, and the live `api.openapi.path`.
+ * Reached through a variable specifier, the converter is invisible to the
+ * bundler and never ships — and an adapter's output has no `node_modules` for a
+ * bare specifier to fall back on, so the import fails on every request.
+ * Statically importing them from kit is not an option either: an app that uses
+ * one vendor does not have the other's converter installed, and the build would
+ * fail on a package it has no reason to own.
+ *
+ * So the list is decided here, per app, from what actually resolves.
+ */
+const CONVERTERS_ID = "$implement/schema-converters";
+const RESOLVED_CONVERTERS_ID = `\0${CONVERTERS_ID}`;
 const TYPES_ID = "\0$implement/route-types";
 const TYPES_MODULE = 'export { handler, json, sse } from "@implementjs/kit/endpoint";\n';
 const RESOLVED_ROUTER_ID = "\0$implement/router";
@@ -888,9 +908,25 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			if (id === PAGES_ID) return RESOLVED_PAGES_ID;
 			if (id === ENDPOINTS_ID) return RESOLVED_ENDPOINTS_ID;
 			if (id === HOOKS_ID) return RESOLVED_HOOKS_ID;
+			if (id === CONVERTERS_ID) return RESOLVED_CONVERTERS_ID;
 			return null;
 		},
-		load(id, loadOptions) {
+		async load(id, loadOptions) {
+			if (id === RESOLVED_CONVERTERS_ID) {
+				// nothing in a browser converts a schema to JSON Schema, and shipping
+				// a converter there would be pure weight
+				if (isClientGraph(this.environment, loadOptions?.ssr)) return EMPTY_CONVERTERS;
+				// resolved the way the build itself would, so an alias, a workspace
+				// link, and a pnpm store all answer the same. A package Vite decides
+				// to leave external stays a bare specifier in the output, which is
+				// exactly what it was before — never worse, and better wherever the
+				// adapter bundles
+				const importer = join(root, "package.json");
+				return await generateConvertersModule(
+					async (specifier) =>
+						(await this.resolve(specifier, importer, { skipSelf: true })) !== null,
+				);
+			}
 			if (id === RESOLVED_ROUTER_ID) {
 				return generateRouterModule(tree ?? scan(), routesBase);
 			}

@@ -179,6 +179,10 @@ function branded(result: ToolResult): ToolResult {
 	return result;
 }
 
+function messageOf(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
 function isToolResult(value: unknown): value is ToolResult {
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The brand is this module's own symbol, only ever set by branded().
 	return isRecord(value) && (value as Record<symbol, unknown>)[TOOL_RESULT] === true;
@@ -259,9 +263,31 @@ export type McpTool = {
 	/** The input schema, validated on every call and converted for `tools/list`. */
 	input?: StandardSchemaV1;
 	/**
-	 * Builds the `inputSchema` for `tools/list` instead of converting `input` —
-	 * for a tool whose input is not one schema, like the endpoint bridge's
-	 * params/query/body envelope.
+	 * Builds the `inputSchema` for `tools/list` instead of converting `input`,
+	 * and takes precedence over it.
+	 *
+	 * Two uses. One is a tool whose input is not a single schema — the endpoint
+	 * bridge's params/query/body envelope. The other is the escape hatch for a
+	 * schema kit cannot convert for itself: a vendor it does not know, or a
+	 * conversion you would rather do yourself. Convert it in your own code, with
+	 * a static import so the bundler ships the converter, and hand the finished
+	 * document over:
+	 *
+	 * ```ts
+	 * import { toJsonSchema } from "@valibot/to-json-schema";
+	 *
+	 * const input = v.object({ id: v.string() });
+	 * const getPost = tool({
+	 * 	name: "get_post",
+	 * 	description: "Fetch one post by its id.",
+	 * 	input,
+	 * 	inputJsonSchema: async () => toJsonSchema(input, { errorMode: "ignore" }),
+	 * 	handle: async ({ input }) => await db.post(input.id),
+	 * });
+	 * ```
+	 *
+	 * `input` still validates every call — this only changes what `tools/list`
+	 * publishes.
 	 */
 	inputJsonSchema?: () => Promise<JsonSchema>;
 	handle: (context: ToolEvent<unknown>) => unknown;
@@ -819,14 +845,24 @@ export function mcp(options: McpOptions): McpHandlers {
 	// assembled on the first `tools/list` and held: the schemas cannot change
 	// under a running server, and the vendor converters import lazily
 	let described: Promise<ToolDescription[]> | undefined;
-	const describedTools = (): Promise<ToolDescription[]> => {
-		described ??= Promise.all([...byName.values()].map(describeTool));
-		return described;
-	};
-
 	// the same descriptions `tools/list` answers with, by name: a call reads
 	// its tool's JSON Schema to know which arguments a model sent as text
 	let schemas: Promise<Map<string, JsonSchema>> | undefined;
+
+	const describedTools = (): Promise<ToolDescription[]> => {
+		described ??= Promise.all([...byName.values()].map(describeTool)).catch(
+			(error: unknown): never => {
+				// a held rejection would answer every later request with the first
+				// failure; dropping it lets the next `tools/list` fail freshly, and
+				// recover if whatever was missing has since arrived
+				described = undefined;
+				schemas = undefined;
+				throw error;
+			},
+		);
+		return described;
+	};
+
 	const inputSchemas = (): Promise<Map<string, JsonSchema>> => {
 		schemas ??= describedTools().then(
 			(tools) => new Map(tools.map((entry) => [entry.name, entry.inputSchema])),
@@ -882,10 +918,25 @@ export function mcp(options: McpOptions): McpHandlers {
 				return json(rpcResult(id, initializeResult(options, params)));
 			case "ping":
 				return json(rpcResult(id, {}));
+			// a tool whose schema will not convert takes the whole listing down
+			// with it, loudly and on every request. Serving a tool the model
+			// cannot call correctly is worse than not serving it, and a
+			// `console.warn` in a serverless log is nobody's idea of a signal
 			case "tools/list":
-				return json(rpcResult(id, { tools: await describedTools() }));
-			case "tools/call":
-				return json(rpcResult(id, await callTool(byName, await inputSchemas(), event, params)));
+				try {
+					return json(rpcResult(id, { tools: await describedTools() }));
+				} catch (error) {
+					return json(rpcError(id, JSON_RPC_ERRORS.internalError, reportDescribeFailure(error)));
+				}
+			case "tools/call": {
+				let schemas: Map<string, JsonSchema>;
+				try {
+					schemas = await inputSchemas();
+				} catch (error) {
+					return json(rpcError(id, JSON_RPC_ERRORS.internalError, reportDescribeFailure(error)));
+				}
+				return json(rpcResult(id, await callTool(byName, schemas, event, params)));
+			}
 			default:
 				return json(rpcError(id, JSON_RPC_ERRORS.methodNotFound, `Unknown method: ${method}`));
 		}
@@ -910,6 +961,17 @@ export function mcp(options: McpOptions): McpHandlers {
 	return { POST, GET, DELETE };
 }
 
+/**
+ * A failed description, said in both directions: to the log, where an operator
+ * reading a deploy will see it, and back to the client as the error message,
+ * where the person wiring the server up will.
+ */
+function reportDescribeFailure(error: unknown): string {
+	const message = messageOf(error);
+	console.error(`[implement] mcp — ${message}`);
+	return message;
+}
+
 function initializeResult(options: McpOptions, params: Record<string, unknown>): unknown {
 	// Answer in the client's version when it is one we speak, so an older
 	// client is not forced to downgrade the connection itself.
@@ -928,15 +990,35 @@ function initializeResult(options: McpOptions, params: Record<string, unknown>):
 async function describeTool(entry: McpTool): Promise<ToolDescription> {
 	let inputSchema: JsonSchema;
 	if (entry.inputJsonSchema !== undefined) {
-		inputSchema = await entry.inputJsonSchema();
+		try {
+			inputSchema = await entry.inputJsonSchema();
+		} catch (error) {
+			// `tool.fromEndpoint` builds its envelope through the same converters,
+			// so it fails the same way and is worth naming the same way
+			throw new Error(`mcp: tool "${entry.name}"'s inputJsonSchema failed — ${messageOf(error)}`, {
+				cause: error,
+			});
+		}
 	} else if (entry.input !== undefined) {
-		const converted = await convertStandardSchema(entry.input, "input");
+		let converted: JsonSchema | null;
+		try {
+			converted = await convertStandardSchema(entry.input, "input");
+		} catch (error) {
+			// the converter is there and it failed, or it is not there at all —
+			// either way this is the build or the deployment being wrong, and a
+			// tool listed with no arguments is one the model calls incorrectly
+			// forever. Better to say so than to serve it.
+			throw new Error(
+				`mcp: tool "${entry.name}"'s input schema (vendor "${entry.input["~standard"].vendor}") could not be converted to JSON Schema — ${messageOf(error)} Give the tool an \`inputJsonSchema\` to publish the schema yourself.`,
+				{ cause: error },
+			);
+		}
 		if (converted === null) {
-			// the same posture as the OpenAPI document: an unconvertible schema
-			// lists as unconstrained and says so, and validation still runs the
-			// real schema on every call
+			// a vendor kit has no converter for: there is nothing kit can do about
+			// it, so the tool lists as unconstrained and says so, and validation
+			// still runs the real schema on every call
 			console.warn(
-				`[implement] mcp — cannot convert tool "${entry.name}"'s input schema (vendor "${entry.input["~standard"].vendor}") to JSON Schema; listing it as unconstrained`,
+				`[implement] mcp — cannot convert tool "${entry.name}"'s input schema (vendor "${entry.input["~standard"].vendor}") to JSON Schema; listing it as unconstrained. Give the tool an \`inputJsonSchema\` to publish one yourself.`,
 			);
 			inputSchema = { type: "object" };
 		} else {

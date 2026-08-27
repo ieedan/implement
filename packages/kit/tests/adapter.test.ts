@@ -233,3 +233,69 @@ describe("the OpenAPI document with prerendering off", () => {
 		expect(builder().prerendered.files).toContain("/openapi.json");
 	});
 });
+
+/**
+ * The bug this guards: an MCP route converts its tools' input schemas at
+ * runtime, through the vendor's own converter package. Reached by a variable
+ * specifier that was the point of, the converter is invisible to the bundler
+ * and never ships — and a bundling adapter's output has no `node_modules` to
+ * fall back on, so every tool went out as an unconstrained `{"type":"object"}`
+ * that the model could see but never call correctly. Locally it all looked
+ * right, because dev resolves the package from disk.
+ */
+describe("an MCP route in a bundled server", () => {
+	const mcpFixture = join(import.meta.dirname, "fixtures/mcp-app");
+	const { adapter, builder } = recorder({ build: { bundle: true } });
+	let bundled: string;
+
+	beforeAll(async () => {
+		await build({
+			root: mcpFixture,
+			configFile: false,
+			logLevel: "silent",
+			plugins: [kit({ adapter })],
+		});
+		const { serverDir, serverEntry } = builder();
+		bundled = readFileSync(join(serverDir!, serverEntry), "utf8");
+	}, 120_000);
+
+	afterAll(() => {
+		rmSync(join(mcpFixture, ".implement"), { recursive: true, force: true });
+	});
+
+	it("bundles the converter instead of leaving a specifier nothing can resolve", () => {
+		// a string only `@valibot/to-json-schema` emits — the converter's own code,
+		// in the one file the adapter deploys
+		expect(bundled).toContain("cannot be converted to JSON Schema");
+		expect(bundled).not.toMatch(/from\s*["']@valibot\/to-json-schema["']/);
+	});
+
+	it("lists every tool's arguments through the built server", async () => {
+		const { serverDir, serverEntry } = builder();
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The built entry exports kit's request handler.
+		const { handler } = (await import(join(serverDir!, serverEntry))) as {
+			handler: (request: Request) => Promise<Response>;
+		};
+		const response = await handler(
+			new Request("https://example.com/mcp", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+			}),
+		);
+		expect(response.status).toBe(200);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Reading a JSON-RPC envelope back out of the response.
+		const { result } = (await response.json()) as {
+			result: { tools: { name: string; inputSchema: Record<string, unknown> }[] };
+		};
+		expect(result.tools).toHaveLength(1);
+		expect(result.tools[0]).toMatchObject({
+			name: "create_issue",
+			inputSchema: {
+				type: "object",
+				properties: { title: { type: "string" }, labels: { type: "array" } },
+				required: ["title"],
+			},
+		});
+	});
+});
