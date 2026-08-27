@@ -1,5 +1,12 @@
 # @implementjs/adapter-node
 
+## 0.0.15
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @implementjs/kit@0.0.15
+
 ## 0.0.14
 
 ### Patch Changes
