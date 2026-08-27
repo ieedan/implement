@@ -29,7 +29,7 @@ Start with **Introduction**, which covers project layout, `src/lib`, the generat
 - [Preloading](https://implementjs.dev/kit/preloading.md) — Warm a route's code and data while the pointer is still over the link.
 - [Server Routes](https://implementjs.dev/kit/server-routes.md) — server.ts endpoints serve raw responses — JSON, markdown, anything.
 - [API Routes](https://implementjs.dev/kit/api-routes.md) — Validated handlers, a generated typed client, and an optional OpenAPI document — off one definition.
-- [WebSockets](https://implementjs.dev/kit/websockets.md) — A duplex channel on a route — accept an upgrade, read and write messages, and know when the client is gone.
+- [WebSockets](https://implementjs.dev/kit/websockets.md) — A duplex channel on a route — schemas both ways, a generated client that reconnects, and a disconnect you can see.
 - [MCP Server](https://implementjs.dev/kit/mcp-server.md) — Your app as tools a model can call — declared like endpoints, validated by the same schemas, protocol handled once.
 - [Server Hooks](https://implementjs.dev/kit/hooks.md) — hooks.server.ts runs on every server request — middleware, locals, and error handling.
 - [Environment Variables](https://implementjs.dev/kit/environment-variables.md) — Typed environment variables that cannot leak — validated by schema, baked in at build time or read by the running server.

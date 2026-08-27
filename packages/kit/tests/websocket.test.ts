@@ -1,7 +1,10 @@
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Driving a real socket back through the app's types requires intentional narrowing. */
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import * as v from "valibot";
 import { describe, expect, it } from "vitest";
+import { createClient, type Operations, type SocketOf, type TypedClient } from "../src/client.ts";
+import type { SocketClient } from "../src/socket-client.ts";
 import type { EndpointRoute } from "../src/match.ts";
 import { serveSockets } from "../src/node.ts";
 import { createKitServer, error, socket, type KitServer } from "../src/server.ts";
@@ -340,3 +343,108 @@ describe("a socket route, end to end", () => {
 		}
 	});
 });
+
+// ---------------------------------------------------------------------------
+// A typed route and the generated client, over a real socket
+// ---------------------------------------------------------------------------
+
+const ClientMessage = v.variant("type", [
+	v.object({ type: v.literal("join"), user: v.string() }),
+	v.object({ type: v.literal("chat"), text: v.string() }),
+]);
+
+const ServerMessage = v.object({
+	type: v.literal("said"),
+	from: v.string(),
+	text: v.string(),
+});
+
+/** A room, declared the way an app declares one. */
+const typedRoom = {
+	SOCKET: socket({
+		incoming: ClientMessage,
+		outgoing: ServerMessage,
+		on: {
+			join: (peer, data) => peer.send({ type: "said", from: data.user, text: "joined" }),
+			chat: (peer, data) => peer.send({ type: "said", from: "them", text: data.text }),
+		},
+	}),
+};
+
+type RoomApi = {
+	"/ws": {
+		params: {};
+		operations: Operations<typeof typedRoom>;
+		socket: SocketOf<typeof typedRoom>;
+	};
+};
+
+describe("a typed socket route, end to end", () => {
+	it("carries schemas both ways: the client sends, the route dispatches, the client reads", async () => {
+		const kit = createKitServer({
+			hooks: {},
+			pages: [],
+			endpoints: [endpoint("/ws", typedRoom)],
+			renderPage: () => null,
+		});
+		const host = await listen(kit);
+		try {
+			const api = createClient<TypedClient<RoomApi>>({
+				baseUrl: host.url,
+				socket: { reconnect: false },
+			});
+			const room = api.SOCKET("/ws");
+			await room.opened;
+
+			// serialized by the client, validated by the route, dispatched by `on`,
+			// serialized back by `peer.send`, and parsed here — all from the schemas
+			room.send({ type: "join", user: "ada" });
+			const joined = await nextTyped(room);
+			expect(joined).toEqual({ type: "said", from: "ada", text: "joined" });
+
+			room.send({ type: "chat", text: "hello" });
+			expect(await nextTyped(room)).toEqual({ type: "said", from: "them", text: "hello" });
+
+			room.close();
+		} finally {
+			host.stop();
+		}
+	});
+
+	it("closes the connection on a message the route's schema rejects", async () => {
+		const kit = createKitServer({
+			hooks: {},
+			pages: [],
+			endpoints: [endpoint("/ws", typedRoom)],
+			renderPage: () => null,
+		});
+		const host = await listen(kit);
+		try {
+			const api = createClient<TypedClient<RoomApi>>({
+				baseUrl: host.url,
+				socket: { reconnect: false },
+			});
+			const room = api.SOCKET("/ws");
+			await room.opened;
+			const closed = new Promise<number>((resolve) => {
+				room.onClose((details) => resolve(details.code));
+			});
+			// the types refuse this, which is the point — a client that ignores them
+			// is exactly what the server-side validation is for
+			room.sendRaw(JSON.stringify({ type: "shout", volume: 11 }));
+			expect(await closed).toBe(1008);
+		} finally {
+			host.stop();
+		}
+	});
+});
+
+/** The next message a typed connection carries. */
+function nextTyped<S, R>(client: SocketClient<S, R>): Promise<R> {
+	return new Promise((resolve) => {
+		const stop = client.onMessage((message) => {
+			stop();
+			resolve(message);
+		});
+	});
+}

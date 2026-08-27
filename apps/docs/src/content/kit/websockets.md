@@ -1,6 +1,6 @@
 ---
 title: WebSockets
-description: A duplex channel on a route — accept an upgrade, read and write messages, and know when the client is gone.
+description: A duplex channel on a route — schemas both ways, a generated client that reconnects, and a disconnect you can see.
 section: Guides
 order: 16
 ---
@@ -43,12 +43,13 @@ Every connection is a **peer**, and it is what a handler holds on to.
 | `readyState`            | the four states `WebSocket` itself defines                              |
 | `bufferedAmount`        | bytes sent but not yet written out                                      |
 | `send(data)`            | queues a message; answers with `bufferedAmount` after queueing          |
+| `sendRaw(data)`         | queues a frame as-is, whatever the route's `outgoing` schema says       |
 | `close(code?, reason?)` | starts the close handshake                                              |
 | `drained(limit?)`       | resolves once `bufferedAmount` is at or under `limit`                   |
 
 Two connections from the same browser are two peers. That is the point — `id` is what a room, a presence list, or a job table is keyed by.
 
-`send` takes a string or bytes, and the distinction survives the wire: a string arrives as a text frame and a `Uint8Array` or `ArrayBuffer` as a binary one. A message read back keeps the same distinction — `message.data` is a `string` or a `Uint8Array`, `message.binary` says which, and `text()`, `json<T>()`, `uint8Array()`, and `arrayBuffer()` convert on demand, so a relay that only forwards bytes never pays to decode them.
+Without a schema, `send` takes a string or bytes and the distinction survives the wire: a string arrives as a text frame and a `Uint8Array` or `ArrayBuffer` as a binary one. A message read back keeps the same distinction — `message.data` is a `string` or a `Uint8Array`, `message.binary` says which, and `text()`, `json<T>()`, `uint8Array()`, and `arrayBuffer()` convert on demand, so a relay that only forwards bytes never pays to decode them. Declare the schemas below and `send` takes the value instead, and `message.data` is the parsed one; `message.raw` is always the frame itself either way.
 
 Sending on a peer that has already gone is a no-op rather than an error. The client hanging up is not the sender's bug, and there is no useful way to have handled it.
 
@@ -90,6 +91,147 @@ export const SOCKET = socket({
 ```
 
 Cookies a hook set on the way in go out with the handshake. So does anything a route added through `event.setHeaders`, which is how a route selects a `Sec-WebSocket-Protocol`.
+
+## Typing the messages
+
+A route can declare what each end may send, with the same [Standard Schema](https://standardschema.dev) contract `handler()` uses for `body` and `response`:
+
+```ts
+// src/routes/api/room/[id]/server.ts
+import * as v from "valibot";
+import { socket } from "./$types";
+
+const ClientMessage = v.variant("type", [
+	v.object({ type: v.literal("join"), user: v.string() }),
+	v.object({ type: v.literal("chat"), text: v.string() }),
+]);
+
+const ServerMessage = v.variant("type", [
+	v.object({ type: v.literal("joined"), users: v.array(v.string()) }),
+	v.object({ type: v.literal("said"), from: v.string(), text: v.string() }),
+]);
+
+export const SOCKET = socket({
+	incoming: ClientMessage,
+	outgoing: ServerMessage,
+	message: (peer, message) => {
+		//                       ^? ClientMessage
+		if (message.data.type === "chat") broadcast(peer.params.id, message.data.text);
+	},
+});
+```
+
+`incoming` is validated on the server, because it is the untrusted half: `message.data` is the schema's output, narrowed. `outgoing` types `peer.send` and serializes what it is given as JSON.
+
+`outgoing` is **type-only at runtime**, and deliberately so — unlike `handler()`'s `response`, which is checked in dev. `send` is synchronous because it answers with `bufferedAmount` for backpressure, and a Standard Schema may validate asynchronously; making every call site `await` to re-check what the types already state is a bad trade. `peer.sendRaw` goes past the schema either way, which is how the binary half of a mostly-text protocol gets sent.
+
+There is no envelope. SSE has an `event` field because the format defines one; WebSocket does not, so kit inventing a `{ event, data }` wrapper would mean kit owning a sub-protocol you would then have to speak from every other client. A tagged union over plain JSON gets the same ergonomics and stays something `wscat` can read.
+
+### Dispatching by kind
+
+A `switch` over the discriminant works, and gets old. `on` does it for you, one handler per member:
+
+```ts
+export const SOCKET = socket({
+	incoming: ClientMessage,
+	outgoing: ServerMessage,
+	on: {
+		join: (peer, data) => join(peer.params.id, data.user),
+		//                        ^? { type: "join"; user: string }
+		chat: (peer, data) => broadcast(peer.params.id, data.text),
+	},
+});
+```
+
+Every member is required. Adding a message kind to `ClientMessage` is a build error until it is handled — which is the whole reason to prefer this over a `switch` that quietly falls through. The key defaults to `type`; `discriminant: "kind"` picks another.
+
+`message` still runs for every frame when both are declared, before `on` dispatches the one that matched — so logging or counting every message does not mean giving up the dispatch.
+
+### A message that does not fit
+
+A frame the `incoming` schema rejects — or one that is not JSON at all — is the peer talking a protocol this route does not speak. The route's `error` handler hears about it, and then the connection closes with `1008`:
+
+```ts
+export const SOCKET = socket({
+	incoming: ClientMessage,
+	error: (peer, cause) => log.warn(`${peer.id} sent something odd`, cause),
+	on: { join: onJoin, chat: onChat },
+});
+```
+
+Continuing would mean acting on assumptions the wire has just contradicted, so this mirrors what a bad `body` does to a request: that request ends with a `400`, and this connection ends.
+
+## The typed client
+
+The generated client knows about socket routes the same way it knows about endpoints — off the module's _type_, with nothing evaluated:
+
+```ts
+import { api } from "$implement/client";
+
+const room = api.SOCKET("/api/room/[id]", { params: { id } });
+
+room.send({ type: "chat", text }); // ← the route's `incoming` schema
+for await (const message of room) {
+	// ← its `outgoing` schema
+	if (message.type === "said") append(message.from, message.text);
+}
+```
+
+`SOCKET` sits beside the seven HTTP methods because that is the name the route exports it under, and `api.SOCKET("` offers only the routes that actually serve one. Unlike the others it answers with a connection rather than a promise of a result — there is no single result to wait for. The [nested style](/kit/api-routes) has it too, at the route's own leaf: `api.api.room["[id]"].SOCKET({ params })`.
+
+Async iteration is the primary way to read, the same way the client reads an [`sse`](/kit/server-routes#streaming) response back; `break` closes the connection. `onMessage(listener)` is the callback form for code that cannot await — use one or the other on a given connection, since a message goes to whichever asked for it first.
+
+|                         |                                                                       |
+| ----------------------- | --------------------------------------------------------------------- |
+| `status`                | `Readable<"connecting" \| "open" \| "closed">`                        |
+| `opened`                | resolves on the first open, rejects when the first attempt is refused |
+| `send(message)`         | typed by `incoming`; answers with `bufferedAmount`                    |
+| `sendRaw(data)`         | a frame as-is                                                         |
+| `onMessage(fn)`         | every message; returns the function that stops it                     |
+| `onClose(fn)`           | every close, retried or final                                         |
+| `close(code?, reason?)` | closes for good — no retry follows                                    |
+| `bufferedAmount`        | what the browser has queued                                           |
+
+`status` is a readable, so a connection indicator is a binding rather than a listener and a piece of state:
+
+```ts
+Span(
+	{ "data-status": room.status },
+	room.status.bind((s) => (s === "open" ? "live" : "reconnecting…")),
+);
+```
+
+### Reconnecting
+
+A browser's `WebSocket` never reconnects, unlike `EventSource`. The client does, with an exponential backoff:
+
+```ts
+const room = api.SOCKET("/api/room/[id]", {
+	params: { id },
+	reconnect: { retries: Infinity, delay: 500, maxDelay: 10_000 },
+	onReconnect: (room) => room.send({ type: "join", user }),
+});
+```
+
+**Reconnecting is not transparent, and the client does not pretend otherwise.** A message sent while the socket was down is dropped rather than queued: silently re-sending a `join` after a gap is a correctness bug, not a convenience. Whatever the old connection had established server-side went with it — the peer is gone, its `close` ran, and the new connection arrives as a new peer with a new `id`. `onReconnect` is where the app puts that back, and `status` is how the UI says so meanwhile.
+
+`reconnect: false` turns it off, and the default is ten tries.
+
+### What a refused upgrade looks like here
+
+`opened` rejects when the first attempt never connects, which is where a `401` from the route's `upgrade` hook surfaces — as far as a browser lets it. This is the one genuinely awkward corner of the platform: a browser's `WebSocket` reports a failed handshake as a contentless `error` event, so the status and body the server sent are not readable from script. A machine client — kit's own, `curl`, a service — sees them fine.
+
+When the client has to _know_ why, accept the upgrade and close instead:
+
+```ts
+export const SOCKET = socket({
+	open: (peer) => {
+		if (peer.locals.user === null) peer.close(4401, "sign in first");
+	},
+});
+```
+
+A close code in the `4000`–`4999` range is yours, and it reaches `onClose` with its reason intact.
 
 ## Lifecycle
 

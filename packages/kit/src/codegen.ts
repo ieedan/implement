@@ -809,11 +809,19 @@ export function generateClientModule(
 			`\t${JSON.stringify(route.key)}: {`,
 			`\t\tparams: ${clientParamsType(route.params, paramsSpecifier, tree.matchers)};`,
 			`\t\toperations: Operations<typeof import(${specifier})>;`,
+			// `undefined` for a route with no `SOCKET` export, which is what keeps
+			// that route off `api.SOCKET`
+			`\t\tsocket: SocketOf<typeof import(${specifier})>;`,
 			"\t};",
 		].join("\n");
 	});
 	const names = client.wrapper === null ? [client.name] : [client.name, client.wrapper];
-	const imported = ["createClient as create", "type ClientOptions", "type Operations"]
+	const imported = [
+		"createClient as create",
+		"type ClientOptions",
+		"type Operations",
+		"type SocketOf",
+	]
 		.concat(names.map((name) => `type ${name}`))
 		.join(",\n\t");
 	// whatever the app fixed in its config, the generated `createClient` fixes
