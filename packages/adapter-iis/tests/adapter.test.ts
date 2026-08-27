@@ -1,5 +1,6 @@
+import { spawn } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
-import type { Server } from "node:http";
+import { type Server, request } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -70,17 +71,22 @@ describe("@implementjs/adapter-iis", () => {
 		expect(JSON.parse(readFileSync(join(out, "package.json"), "utf8"))).toMatchObject({
 			type: "module",
 		});
+		// HttpPlatformHandler runs the ESM entry as a process, so there is nothing
+		// for the CommonJS shim iisnode needs to do here
+		expect(existsSync(join(out, "index.cjs"))).toBe(false);
 	});
 
 	it("writes a web.config carrying the adapter's options to IIS", () => {
 		const xml = readFileSync(join(out, "web.config"), "utf8");
-		expect(xml).toContain('<add name="iisnode" path="index.js" verb="*" modules="iisnode" />');
-		expect(xml).toContain('<add key="ORIGIN" value="https://intranet.example.com" />');
-		expect(xml).toContain('<add key="NODE_ENV" value="production" />');
-		expect(xml).toContain('<add key="ADDRESS_HEADER" value="x-forwarded-for" />');
+		expect(xml).toContain('modules="httpPlatformHandler"');
+		expect(xml).toContain('arguments=".\\index.js"');
+		expect(xml).toContain(
+			'<environmentVariable name="ORIGIN" value="https://intranet.example.com" />',
+		);
+		expect(xml).toContain('<environmentVariable name="NODE_ENV" value="production" />');
 		expect(xml).toContain('<match url="^(reports)(/.*)?$" />');
 		// an unescaped & here is a 500.19 before a single request is served
-		expect(xml).toContain('<add key="FEATURE_FLAGS" value="a&amp;b" />');
+		expect(xml).toContain('<environmentVariable name="FEATURE_FLAGS" value="a&amp;b" />');
 	});
 
 	it("bundles the server's dependencies, so the folder is the whole deployment", () => {
@@ -193,4 +199,103 @@ describe("@implementjs/adapter-iis", () => {
 			rmSync(socket, { force: true });
 		}
 	});
+});
+
+/** A GET over a pipe, which is the only way to reach a server listening on one. */
+function overSocket(socketPath: string, path: string): Promise<{ status: number; body: string }> {
+	return new Promise((resolve, reject) => {
+		const req = request({ socketPath, path, method: "GET" }, (res) => {
+			let body = "";
+			res.setEncoding("utf8");
+			res.on("data", (chunk: string) => (body += chunk));
+			res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
+		});
+		req.on("error", reject);
+		req.end();
+	});
+}
+
+describe("@implementjs/adapter-iis, hosted by iisnode", () => {
+	const iisOut = join(fixture, "dist-iisnode");
+
+	beforeAll(async () => {
+		await build({
+			root: fixture,
+			configFile: false,
+			logLevel: "silent",
+			plugins: [
+				kit({
+					adapter: adapter({
+						hosting: "iisnode",
+						out: "dist-iisnode",
+						origin: "https://intranet.example.com",
+					}),
+				}),
+			],
+		});
+	}, 180_000);
+
+	afterAll(() => {
+		rmSync(iisOut, { recursive: true, force: true });
+		rmSync(join(fixture, ".implement"), { recursive: true, force: true });
+	});
+
+	it("points iisnode at a CommonJS entry, which is the only kind it can require", () => {
+		const xml = readFileSync(join(iisOut, "web.config"), "utf8");
+		expect(xml).toContain('<add name="iisnode" path="index.cjs" verb="*" modules="iisnode" />');
+		// every path is rewritten onto the file iisnode is mapped to, so the
+		// rewrite has to name the same one
+		expect(xml).toContain('<action type="Rewrite" url="index.cjs" />');
+		expect(xml).toContain('<add key="ORIGIN" value="https://intranet.example.com" />');
+		expect(xml).toContain('<add key="ADDRESS_HEADER" value="x-forwarded-for" />');
+
+		// the shim reaches the ESM entry the way CommonJS is allowed to
+		const shim = readFileSync(join(iisOut, "index.cjs"), "utf8");
+		expect(shim).toContain('import("./index.js")');
+		expect(shim).not.toMatch(/^\s*import\s+[^(]/m);
+	});
+
+	it("serves on the named pipe once loaded as CommonJS, which is how iisnode loads it", async () => {
+		// node loads a .cjs as CommonJS whatever package.json says — so this
+		// runs the entry the way iisnode's interceptor does, on every Node
+		// version. (Whether `require()` of the ESM entry beside it works at all
+		// depends on the Node the server has: it is ERR_REQUIRE_ESM before 22,
+		// and ERR_REQUIRE_ASYNC_MODULE after it for a graph with a top-level
+		// await. The shim is what makes the answer not depend on that.)
+		const socket = join(tmpdir(), `implement-iisnode-${process.pid}.sock`);
+		rmSync(socket, { force: true });
+		const child = spawn(process.execPath, [join(iisOut, "index.cjs")], {
+			// what iisnode copies out of the web.config appSettings above
+			env: {
+				...process.env,
+				PORT: socket,
+				NODE_ENV: "production",
+				ORIGIN: "https://intranet.example.com",
+			},
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		let output = "";
+		child.stdout.setEncoding("utf8");
+		child.stderr.setEncoding("utf8");
+		child.stdout.on("data", (chunk: string) => (output += chunk));
+		child.stderr.on("data", (chunk: string) => (output += chunk));
+
+		try {
+			await new Promise<void>((ready, failed) => {
+				child.stdout.on("data", () => {
+					if (output.includes("listening on")) ready();
+				});
+				child.on("exit", (code) => {
+					failed(new Error(`the entry exited with ${code}:\n${output}`));
+				});
+			});
+
+			expect(output).not.toContain("ERR_REQUIRE_ESM");
+			expect(await overSocket(socket, "/healthcheck")).toEqual({ status: 200, body: "ok" });
+		} finally {
+			child.kill("SIGKILL");
+			rmSync(socket, { force: true });
+		}
+	}, 30_000);
 });

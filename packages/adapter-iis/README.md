@@ -26,10 +26,10 @@ server, point a site at it, and it runs.
 
 IIS does not run JavaScript itself, so the server needs one of two modules installed:
 
-- [**iisnode**](https://github.com/Azure/iisnode) with
-  [URL Rewrite](https://www.iis.net/downloads/microsoft/url-rewrite) — the default, and what most
-  existing IIS-and-Node servers already have.
 - [**HttpPlatformHandler**](https://learn.microsoft.com/iis/extensions/httpplatformhandler/httpplatformhandler-configuration-reference)
-  — Microsoft's own, still supported, and `adapter({ hosting: "httpPlatform" })`.
+  — Microsoft's own, still supported, and the default.
+- [**iisnode**](https://github.com/Azure/iisnode) with
+  [URL Rewrite](https://www.iis.net/downloads/microsoft/url-rewrite) — what most existing
+  IIS-and-Node servers already have, and `adapter({ hosting: "iisnode" })`.
 
 Full documentation: [implementjs.dev/kit/adapters](https://implementjs.dev/kit/adapters)
