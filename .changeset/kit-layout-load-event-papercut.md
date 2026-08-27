@@ -19,18 +19,11 @@ pointed at the destructured parameter, naming neither `LoadEvent` nor the
 right up to the upgrade, and then failed with the one message that says nothing
 about why.
 
-Two things say it now:
+The dev server, the build, and `implement-kit sync` now warn when a
+`layout.server.ts` imports `LoadEvent` from its `$types`, naming the file and
+the type it wants. The scan already knew the file was there; now it reads what
+it asked for.
 
-- The dev server, the build, and `implement-kit sync` warn when a
-  `layout.server.ts` imports `LoadEvent` from its `$types`, naming the file and
-  the type it wants. The scan already knew the file was there; now it reads what
-  it asked for.
-- A route's generated `LoadEvent` carries a `@deprecated` tag naming
-  `LayoutLoadEvent` where nothing in the directory could want it — a
-  `layout.server.ts` and no `page.server.ts` beside it. The import is struck
-  through in the editor, at the line the compiler never points at. A directory
-  with a `page.server.ts` keeps its `LoadEvent` unmarked, because there it is
-  exactly right.
-
-Both load events are documented in `$types` either way, so which file takes
-which is answerable from the hover.
+Both load events carry a doc comment in the generated `$types` as well, so which
+file takes which is answerable from the hover rather than from the names, which
+differ by one word.

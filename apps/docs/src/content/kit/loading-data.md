@@ -103,7 +103,7 @@ That matters most for decisions rather than data. A membership check that lives 
 - `LoadEvent` — for `page.server.ts`. `parent()` is every layout above the page, this directory's own included.
 - `LayoutLoadEvent` — for `layout.server.ts`. `parent()` is the layouts above _it_.
 
-Give a `layout.server.ts` a `LoadEvent` and `tsc` answers `TS2502: '{ locals }' is referenced directly or indirectly in its own type annotation` — pointed at the destructured parameter, naming neither type. It is the annotation that is wrong, not the load: `LoadEvent` carries the data of every load above the _page_, this layout's own included, so a layout typed with it is inside its own type. The fix is the one word. Kit says so in the terminal too — the dev server and `implement-kit sync` warn when a `layout.server.ts` imports `LoadEvent` from its `$types`, and that route's `LoadEvent` is marked `@deprecated` where nothing in the directory could want it.
+Give a `layout.server.ts` a `LoadEvent` and `tsc` answers `TS2502: '{ locals }' is referenced directly or indirectly in its own type annotation` — pointed at the destructured parameter, naming neither type. It is the annotation that is wrong, not the load: `LoadEvent` carries the data of every load above the _page_, this layout's own included, so a layout typed with it is inside its own type. The fix is the one word. Kit says so in the terminal too — the dev server and `implement-kit sync` warn when a `layout.server.ts` imports `LoadEvent` from its `$types`.
 
 ### Loads run concurrently
 

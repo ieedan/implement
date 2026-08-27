@@ -111,44 +111,15 @@ describe("generateRouteTypes", () => {
 		);
 	});
 
-	it("deprecates LoadEvent where the only load in the directory is a layout's", () => {
-		const types = generateRouteTypes(
-			{
-				...slugNode,
-				page: null,
-				layout: "docs/[...slug]/layout.ts",
-				pageServer: null,
-				layoutServer: "docs/[...slug]/layout.server.ts",
-			},
-			{ layoutFiles: ["docs/[...slug]/layout.server.ts"], pageFiles: [] },
-			PATHS,
-		);
-		// the one word TS2502 does not say, said where the editor shows it
-		expect(types).toMatch(/@deprecated[^]*?LayoutLoadEvent[^]*?\n \*\/\nexport type LoadEvent =/);
-	});
-
-	it("leaves LoadEvent alone where a page.server.ts wants it", () => {
-		const types = generateRouteTypes(
-			{
-				...slugNode,
-				layoutServer: "docs/[...slug]/layout.server.ts",
-				pageServer: "docs/[...slug]/page.server.ts",
-			},
-			{
-				layoutFiles: ["docs/[...slug]/layout.server.ts"],
-				pageFiles: ["docs/[...slug]/layout.server.ts", "docs/[...slug]/page.server.ts"],
-			},
-			PATHS,
-		);
-		expect(types).not.toContain("@deprecated");
-		// still documented, so which file takes which is answerable from either one
-		expect(types).toContain("The event a `page.server.ts` load receives.");
-		expect(types).toContain("The event a `layout.server.ts` load receives");
-	});
-
-	it("leaves LoadEvent alone in a directory with no layout load at all", () => {
+	it("documents which file each load event belongs to", () => {
+		// the two differ by one word, so the hover is what settles which is which
 		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] }, PATHS);
-		expect(types).not.toContain("@deprecated");
+		expect(types).toMatch(
+			/The event a `page\.server\.ts` load receives\.[^]*?\n \*\/\nexport type LoadEvent =/,
+		);
+		expect(types).toMatch(
+			/The event a `layout\.server\.ts` load receives[^]*?\n \*\/\nexport type LayoutLoadEvent =/,
+		);
 	});
 });
 

@@ -348,15 +348,13 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect(warning).toContain("[implement]");
 	});
 
-	it("deprecates LoadEvent in the $types of a directory that only loads a layout", () => {
+	it("documents both load events in a route's generated $types", () => {
 		const types = readFileSync(
 			join(fixture, ".implement/types/src/routes/stale-load-event/$types.d.ts"),
 			"utf8",
 		);
-		// the editor says what the compiler will not: strikethrough on the import,
-		// and the name of the type that belongs there in the tag
-		expect(types).toContain("@deprecated");
-		expect(types).toMatch(/@deprecated[^]*?LayoutLoadEvent[^]*?\n \*\/\nexport type LoadEvent =/);
+		expect(types).toContain("The event a `page.server.ts` load receives.");
+		expect(types).toContain("The event a `layout.server.ts` load receives");
 	});
 
 	it("prints a server error to the dev log, with the file it came from", async () => {
