@@ -31,6 +31,7 @@ import {
 	type SocketConnection,
 	type SocketDefinition,
 	type SocketSession,
+	type SocketUpgradeEvent,
 } from "./socket.ts";
 
 /**
@@ -825,7 +826,8 @@ async function acceptUpgrade(intent: UpgradeIntent, event: RequestEvent): Promis
 	const params = await validateSocketParams(intent.definition, intent.params);
 	let refusal: void | Response;
 	try {
-		refusal = await intent.definition.upgrade?.({ ...event, params });
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The route's own `params` schema decided this type; the erased definition cannot name it.
+		refusal = await intent.definition.upgrade?.({ ...event, params } as SocketUpgradeEvent<never>);
 	} catch (thrown) {
 		throw markErrorSource(thrown, { kind: "socket", file: intent.file });
 	}

@@ -1,4 +1,5 @@
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Reading locals and peer params back requires intentional narrowing. */
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { describe, expect, it, vi } from "vitest";
 import type { EndpointRoute, RequestEvent } from "../src/match.ts";
 import {
@@ -507,5 +508,143 @@ describe("createKitServer().upgrade", () => {
 		await settle();
 		expect(reports[0]?.source).toEqual({ kind: "socket", file: "ws/server.ts" });
 		expect((reports[0]!.error as Error).message).toBe("relay failed");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Typed messages
+// ---------------------------------------------------------------------------
+
+/** A tiny Standard Schema, so these tests carry no schema-library dependency. */
+function schema<T>(check: (value: unknown) => T | string): StandardSchemaV1<T, T> {
+	return {
+		"~standard": {
+			version: 1,
+			vendor: "test",
+			validate: (value) => {
+				const result = check(value);
+				return typeof result === "string" ? { issues: [{ message: result }] } : { value: result };
+			},
+		},
+	};
+}
+
+type Chat = { type: "chat"; text: string };
+type Join = { type: "join"; user: string };
+
+const ClientMessage = schema<Chat | Join>((value) => {
+	if (typeof value !== "object" || value === null) return "expected an object";
+	const message = value as Record<string, unknown>;
+	if (message.type === "chat" && typeof message.text === "string") {
+		return { type: "chat", text: message.text };
+	}
+	if (message.type === "join" && typeof message.user === "string") {
+		return { type: "join", user: message.user };
+	}
+	return "unknown message";
+});
+
+describe("an incoming schema", () => {
+	it("parses the frame and hands the route the value, keeping the frame beside it", async () => {
+		const seen: unknown[] = [];
+		const run = session({
+			incoming: ClientMessage,
+			message: (_peer, message) => {
+				seen.push(message.data);
+				seen.push(message.raw);
+			},
+		});
+		run.driver.message('{"type":"chat","text":"hi"}');
+		await settle();
+		expect(seen).toEqual([{ type: "chat", text: "hi" }, '{"type":"chat","text":"hi"}']);
+	});
+
+	it("closes with 1008 on a message it rejects, after the route hears about it", async () => {
+		const failures: unknown[] = [];
+		const run = session({
+			incoming: ClientMessage,
+			message: () => failures.push("should not run"),
+			error: (_peer, thrown) => failures.push(thrown),
+		});
+		run.driver.message('{"type":"shout"}');
+		await settle();
+		expect((failures[0] as Error).message).toContain("unknown message");
+		// the peer is talking a protocol this route does not speak
+		expect(run.closed).toEqual([{ code: 1008, reason: expect.any(String) }]);
+		expect(failures).toHaveLength(1);
+	});
+
+	it("treats a frame that is not JSON at all the same way", async () => {
+		const failures: unknown[] = [];
+		const run = session({
+			incoming: ClientMessage,
+			error: (_peer, thrown) => failures.push(thrown),
+			message: () => undefined,
+		});
+		run.driver.message("not json");
+		await settle();
+		expect((failures[0] as Error).message).toContain("not valid JSON");
+		expect(run.closed[0]?.code).toBe(1008);
+	});
+
+	it("leaves a route with no schema reading the raw frame", async () => {
+		const seen: unknown[] = [];
+		const run = session({ message: (_peer, message) => seen.push(message.data) });
+		run.driver.message("plain text");
+		await settle();
+		expect(seen).toEqual(["plain text"]);
+	});
+});
+
+describe("an outgoing schema", () => {
+	it("serializes what send is given as JSON", () => {
+		const run = session({ outgoing: ClientMessage, open: () => undefined });
+		run.peer.send({ type: "chat", text: "hi" } as never);
+		expect(run.sent).toEqual(['{"type":"chat","text":"hi"}']);
+	});
+
+	it("leaves sendRaw alone, for the binary half of a typed protocol", () => {
+		const run = session({ outgoing: ClientMessage, open: () => undefined });
+		run.peer.sendRaw(new Uint8Array([1, 2]));
+		expect(run.sent.map((data) => [...(data as Uint8Array)])).toEqual([[1, 2]]);
+	});
+
+	it("sends a string as it is when the route declares no schema", () => {
+		const run = session({});
+		run.peer.send("already a frame");
+		expect(run.sent).toEqual(["already a frame"]);
+	});
+});
+
+describe("dispatching a tagged union", () => {
+	const handlers = (seen: string[]): SocketDefinition => ({
+		incoming: ClientMessage,
+		message: (_peer, message) => seen.push(`every:${(message.data as Chat | Join).type}`),
+		on: {
+			chat: (_peer, data) => seen.push(`chat:${(data as unknown as Chat).text}`),
+			join: (_peer, data) => seen.push(`join:${(data as unknown as Join).user}`),
+		},
+	});
+
+	it("routes each member to its own handler", async () => {
+		const seen: string[] = [];
+		const run = session(handlers(seen));
+		run.driver.message('{"type":"chat","text":"hi"}');
+		run.driver.message('{"type":"join","user":"ada"}');
+		await settle();
+		// `message` sees everything, and `on` dispatches after it
+		expect(seen).toEqual(["every:chat", "chat:hi", "every:join", "join:ada"]);
+	});
+
+	it("takes a discriminant of the route's choosing", async () => {
+		const seen: string[] = [];
+		const run = session({
+			incoming: schema<{ kind: "ping" }>(() => ({ kind: "ping" })),
+			discriminant: "kind",
+			on: { ping: () => seen.push("pinged") },
+		});
+		run.driver.message("{}");
+		await settle();
+		expect(seen).toEqual(["pinged"]);
 	});
 });

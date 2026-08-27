@@ -12,6 +12,7 @@ import type { Operations, TypedClient } from "./client.ts";
 import { json, type HandlerBuilder } from "./endpoint.ts";
 import type { LoadEvent, RequestEvent } from "./match.ts";
 import { matcher, type ParamType } from "./params.ts";
+import type { SocketBuilder, SocketHandler } from "./socket.ts";
 
 const integer = matcher(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number)));
 
@@ -169,3 +170,92 @@ const fromRaw: never = asData(raw);
 const dataIsNotAString: string = asData(created);
 
 void [fromPlain, fromCreated, fromEither, fromOrRaw, fromRaw, dataIsNotAString];
+
+// --- what a socket route's schemas say each end may send -------------------
+
+const ClientMessage = v.variant("type", [
+	v.object({ type: v.literal("join"), user: v.string() }),
+	v.object({ type: v.literal("chat"), text: v.string() }),
+]);
+
+const ServerMessage = v.object({
+	type: v.literal("chat"),
+	from: v.string(),
+	text: v.string(),
+});
+
+declare const openSocket: SocketBuilder;
+
+/** Both directions declared, dispatched member by member. */
+const typedSocket = openSocket({
+	incoming: ClientMessage,
+	outgoing: ServerMessage,
+	on: {
+		join: (peer, data) => peer.send({ type: "chat", from: data.user, text: "joined" }),
+		chat: (peer, data) => peer.send({ type: "chat", from: "them", text: data.text }),
+	},
+	// `message` sees every frame, whatever `on` does with it
+	message: (_peer, message) => (message.data.type === "chat" ? message.data.text : message.raw),
+});
+
+declare const sends: <H>(handler: H) => H extends SocketHandler<infer S> ? S["send"] : never;
+declare const receives: <H>(handler: H) => H extends SocketHandler<infer S> ? S["receive"] : never;
+
+/** The client sends the `incoming` schema's input and receives the `outgoing` schema's output. */
+const clientSends: { type: "join"; user: string } | { type: "chat"; text: string } =
+	sends(typedSocket);
+const clientReceives: { type: "chat"; from: string; text: string } = receives(typedSocket);
+// @ts-expect-error the route never sends a bare string once `outgoing` is declared
+const receiveIsNotAString: string = receives(typedSocket);
+
+/**
+ * A member the schema declares and the map forgets is a build error — which is
+ * the whole reason to prefer `on` over a `switch`. The map is what makes the
+ * overload match, so the error lands on the call rather than on the property.
+ */
+const missingMember = openSocket({
+	incoming: ClientMessage,
+	// @ts-expect-error `chat` has no handler
+	on: { join: () => undefined },
+});
+
+/** A member the schema does not declare is one too. */
+const strayMember = openSocket({
+	incoming: ClientMessage,
+	on: {
+		join: () => undefined,
+		chat: () => undefined,
+		// @ts-expect-error `leave` is not in the union
+		leave: () => undefined,
+	},
+});
+
+/** With no schemas the route keeps the raw frame, and sends raw frames back. */
+const rawSocket = openSocket({
+	message: (peer, message) => peer.send(message.text().toUpperCase()),
+});
+const rawReceives: string | Uint8Array = receives(rawSocket);
+
+/** An outgoing message the schema does not accept is refused at the call site. */
+openSocket({
+	outgoing: ServerMessage,
+	// @ts-expect-error `from` is missing
+	open: (peer) => peer.send({ type: "chat", text: "hi" }),
+});
+
+/** `sendRaw` is the way past a declared schema, for the binary half of a protocol. */
+openSocket({
+	outgoing: ServerMessage,
+	open: (peer) => peer.sendRaw(new Uint8Array([1, 2, 3])),
+});
+
+/** A `params` schema narrows `peer.params`, exactly as it does for a handler. */
+openSocket({
+	params: v.object({ id: v.pipe(v.string(), v.transform(Number)) }),
+	open: (peer) => {
+		const roomId: number = peer.params.id;
+		return roomId;
+	},
+});
+
+void [clientSends, clientReceives, receiveIsNotAString, missingMember, strayMember, rawReceives];
