@@ -55,6 +55,8 @@ export class InteractOutsideEvent extends Event {
 
 class DismissableLayerState {
 	private dismissableChildren = new Map<string, DismissableLayerState>();
+	/** Tears down the listeners of an outside press waiting on its click. */
+	private pendingDismiss: (() => void) | null = null;
 	openUnsubscribe: () => void;
 	constructor(
 		readonly parent: DismissableLayerState | null,
@@ -191,21 +193,71 @@ class DismissableLayerState {
 		const isRightClick = e.button === 2 || (e.button === 0 && e.ctrlKey);
 		if (isRightClick) return;
 
-		const event = new InteractOutsideEvent(
-			getReadableValue(this.opts.onInteractOutsideBehavior),
-			"pointer",
-			e,
-		);
-		this.onInteractOutside(event);
+		// a press that never became a click is over the moment the next one starts
+		this.cancelPendingDismiss();
+
+		const dismiss = () => {
+			this.cancelPendingDismiss();
+			this.onInteractOutside(
+				new InteractOutsideEvent(
+					getReadableValue(this.opts.onInteractOutsideBehavior),
+					"pointer",
+					e,
+				),
+			);
+		};
+
+		// A touch or pen dispatches its `click` on release, at whatever sits under
+		// the finger then. Dismissing on `pointerdown` uncovers the page while the
+		// finger is still down, so the same tap falls through onto whatever the
+		// layer was covering — and the scrim cannot defend the gap, because a
+		// browser stops hit-testing an element whose `display` is transitioning to
+		// `none` from the first frame. Dismissing from the click instead makes the
+		// dismissal and the click one event, landing on the layer that is still
+		// there. A mouse doesn't need it: its click goes to the common ancestor of
+		// `mousedown` and `mouseup`.
+		if (!isDeferredPointerType(e.pointerType)) {
+			dismiss();
+			return;
+		}
+
+		// capture, so a handler on the way down cannot stop the dismissal by
+		// stopping the click's propagation
+		const onClick = () => dismiss();
+		// a press that turns into a scroll or a drag off the target never becomes a
+		// click; drop it rather than leave it to fire on the next unrelated one
+		const onCancel = () => this.cancelPendingDismiss();
+		document.addEventListener("click", onClick, { once: true, capture: true });
+		document.addEventListener("pointercancel", onCancel, { once: true });
+		this.pendingDismiss = () => {
+			document.removeEventListener("click", onClick, { capture: true });
+			document.removeEventListener("pointercancel", onCancel);
+		};
+	}
+
+	private cancelPendingDismiss() {
+		const pending = this.pendingDismiss;
+		this.pendingDismiss = null;
+		pending?.();
 	}
 
 	dispose() {
+		this.cancelPendingDismiss();
 		this.openUnsubscribe();
 		// an open layer is registered above; unmounting it without taking the
 		// registration back leaves the parent forwarding escape and outside
 		// clicks to a layer that is gone, and never dismissing itself again
 		this.parent?.removeDismissableLayer(this.opts.id);
 	}
+}
+
+/**
+ * Whether a press of this pointer type has to wait for its click before the
+ * layer is dismissed. A mouse does not — and neither does a synthetic event
+ * with no pointer type, which has no release to wait for.
+ */
+function isDeferredPointerType(pointerType: string): boolean {
+	return pointerType === "touch" || pointerType === "pen";
 }
 
 function isInteractionWithOutsideElement(
