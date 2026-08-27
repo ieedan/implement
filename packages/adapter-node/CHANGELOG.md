@@ -1,5 +1,12 @@
 # @implementjs/adapter-node
 
+## 0.0.18
+
+### Patch Changes
+
+- Updated dependencies [[`a16600b`](https://github.com/ieedan/implement/commit/a16600b3170dc5d5df2638a92adee86f80506ee0)]:
+  - @implementjs/kit@0.0.18
+
 ## 0.0.17
 
 ### Patch Changes
