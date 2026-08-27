@@ -154,7 +154,9 @@ function hosting(settings: WebConfigSettings): string {
 			// iisnode's logs are written per process and never rotated, so they
 			// grow without bound on a site that recycles
 			loggingEnabled: false,
-			watchedFiles: "web.config;*.js",
+			// the entry iisnode is pointed at is `.cjs`, since it loads it with
+			// require() — so watching `*.js` alone would miss the file that changes
+			watchedFiles: "web.config;*.js;*.cjs",
 			...settings.iisnode,
 		});
 		return [
@@ -172,8 +174,11 @@ function hosting(settings: WebConfigSettings): string {
 		stdoutLogFile: ".\\logs\\stdout",
 		startupTimeLimit: 60,
 		// IIS gives up on a request after this; a streaming endpoint that holds
-		// its connection longer is cut here rather than by the app
-		requestTimeout: "00:04:00",
+		// its connection longer is cut here rather than by the app. The four
+		// minutes this used to be is a cut an SSE stream or a long download
+		// reaches while it is still working, so it is twenty — and an app that
+		// streams for longer than that passes its own
+		requestTimeout: "00:20:00",
 		...settings.httpPlatform,
 	});
 	return [

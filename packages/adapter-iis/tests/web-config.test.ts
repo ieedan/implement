@@ -30,6 +30,12 @@ describe("webConfig", () => {
 		expect(xml).toContain('enableXFF="true"');
 	});
 
+	it("watches the .cjs entry too, since that is the file iisnode is pointed at", () => {
+		expect(webConfig(settings({ entry: "index.cjs" }))).toContain(
+			'watchedFiles="web.config;*.js;*.cjs"',
+		);
+	});
+
 	it("passes the app's own error bodies through instead of IIS's error pages", () => {
 		expect(webConfig(settings())).toContain('<httpErrors existingResponse="PassThrough" />');
 	});
@@ -86,6 +92,10 @@ describe("webConfig", () => {
 		expect(xml).not.toContain('modules="iisnode"');
 	});
 
+	it("gives a stream longer than four minutes to finish before IIS cuts it", () => {
+		expect(webConfig(settings({ hosting: "httpPlatform" }))).toContain('requestTimeout="00:20:00"');
+	});
+
 	it("takes the node executable the site was told to run", () => {
 		expect(webConfig(settings({ nodeExe: "C:\\Program Files\\nodejs\\node.exe" }))).toContain(
 			'nodeProcessCommandLine="C:\\Program Files\\nodejs\\node.exe"',
@@ -99,9 +109,9 @@ describe("webConfig", () => {
 		expect(node).not.toContain('node_env="production"');
 
 		const platform = webConfig(
-			settings({ hosting: "httpPlatform", httpPlatform: { requestTimeout: "00:20:00" } }),
+			settings({ hosting: "httpPlatform", httpPlatform: { requestTimeout: "01:00:00" } }),
 		);
-		expect(platform).toContain('requestTimeout="00:20:00"');
-		expect(platform).not.toContain('requestTimeout="00:04:00"');
+		expect(platform).toContain('requestTimeout="01:00:00"');
+		expect(platform).not.toContain('requestTimeout="00:20:00"');
 	});
 });
