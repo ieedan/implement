@@ -159,9 +159,29 @@ The challenge points at `/.well-known/oauth-protected-resource` by default (`res
 - **Origin checking.** The DNS-rebinding protection the transport spec requires — with the nuance that native clients are not websites: `vscode-file://vscode-app`, a literal `"null"`, and an absent header all pass, because answering them `403` is what makes a client show "connected, zero tools" instead of starting OAuth.
 - **The stateless posture.** `GET` and `DELETE` answer `405` — the spec's way of saying "no server-initiated stream, no session", which clients treat as a description, not a failure. Notifications get the bare `202` the spec asks for; batched requests are rejected, as the current protocol requires.
 - **Arguments a model sent as text are read back.** Models often spell a nested argument as the JSON text of that structure — `changes: "{\"status\":\"in_progress\"}"` where the schema asks for an object — because the tool call is itself generated as text. The client cannot fix it; it has no schema. kit does, so a value is re-read as JSON when the schema leaves no room for doubt: the schema cannot accept a string there, and the parse lands on a kind it can accept. A `v.string()` field holding `"{"` stays that string, a `v.union([v.string(), v.object(…)])` keeps the caller's spelling, and text that parses to the wrong kind is left alone so the schema rejects it with its own message.
-- **Unconvertible schemas degrade, validation does not.** A schema whose vendor kit cannot convert lists as unconstrained with a warning naming the tool — same posture as the OpenAPI document — while every call is still validated against the real schema.
+- **A vendor kit does not know degrades; a converter that fails does not.** A schema whose vendor kit has no converter for lists as unconstrained with a warning naming the tool — there is nothing kit can do about that one, and every call is still validated against the real schema. A converter kit _does_ know that cannot be reached or that throws is a different thing: that is the build or the deployment being wrong, so `tools/list` fails with the tool's name and the reason rather than serving arguments the model cannot see. A tool listed as `{"type":"object"}` is one the model calls incorrectly forever, and a `console.warn` in a serverless log is nobody's idea of a signal.
 
-One cost to know about, the same one as `api.openapi.path`: a route defining tools pulls your schema library and its JSON-Schema converter into the production server bundle, because `tools/call` validates at runtime. That is inherent to being an MCP server, not overhead kit adds.
+One cost to know about, the same one as `api.openapi.path`: a route defining tools pulls your schema library and its JSON-Schema converter into the production server bundle, because `tools/list` converts and `tools/call` validates at runtime. kit's Vite plugin puts the converter there for you — it emits a static import of every converter package your app has installed (`zod`, `@valibot/to-json-schema`), which is what makes an adapter that ships a self-contained bundle with no `node_modules` work at all. Install the converter your schema library needs; a devDependency is enough, since the build is what reads it.
+
+### Publishing a schema yourself
+
+`inputJsonSchema` overrides `input` for `tools/list`, and is the escape hatch when kit's own conversion is not what you want — a vendor it does not know, or options it does not pass. Convert with a static import, so the bundler ships the converter, and hand the finished document over:
+
+```ts
+import { toJsonSchema } from "@valibot/to-json-schema";
+
+const input = v.object({ id: v.string() });
+
+const getPost = tool({
+	name: "get_post",
+	description: "Fetch one post by its id.",
+	input,
+	inputJsonSchema: async () => toJsonSchema(input, { errorMode: "ignore" }),
+	handle: async ({ input }) => await db.post(input.id),
+});
+```
+
+`input` still validates every call — this only changes what the model is told.
 
 ## Connecting a client
 

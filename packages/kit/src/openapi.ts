@@ -28,7 +28,22 @@
  * Standard Schema has no JSON-Schema introspection of its own, so the
  * conversion is per-vendor and detected from `~standard.vendor`. Anything kit
  * does not recognize documents as an unconstrained schema and says so.
+ *
+ * The converter a vendor needs is a package of its own (`zod`'s own entry,
+ * `@valibot/to-json-schema`), and the runtime paths — the live `path` route and
+ * every MCP `tools/list` — need it *in the bundle*. Reaching it through a
+ * variable specifier would leave it out of one, so kit's Vite plugin builds
+ * `$implement/schema-converters` out of the converter packages the app has
+ * installed, with a static import each. See {@link CONVERTER_PACKAGES}.
  */
+
+// `$implement/schema-converters` exists only inside a kit build, so its
+// declaration travels with the one file that names it — anything compiling this
+// source, kit's own tsconfig or a package that consumes `src/`, gets it here.
+// An ambient module declaration is not something an `import` can carry, which is
+// the one case the rule below is not written for.
+// oxlint-disable-next-line typescript/triple-slash-reference -- Declares a module that exists only at build time; an import cannot bring an ambient declaration along.
+/// <reference path="./schema-converters.d.ts" />
 
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { handlerDefinition, type HandlerDefinition, type Method } from "./endpoint.ts";
@@ -353,31 +368,82 @@ function inlinable(schema: JsonSchema): JsonSchema {
 }
 
 /**
- * The import specifier is a variable, so nothing tries to resolve these at
- * bundle time — they are only ever reachable for an app that actually uses
- * that library.
+ * The converter packages kit knows how to reach, by the vendor that needs one.
+ * `arktype` is absent on purpose: its types carry their own converter, so there
+ * is nothing to import.
+ */
+export const CONVERTER_PACKAGES: Readonly<Record<string, string>> = {
+	zod: "zod",
+	valibot: "@valibot/to-json-schema",
+};
+
+/**
+ * The converters the build bundled, keyed by package name.
+ *
+ * This is the whole reason the registry exists. A converter reached only
+ * through `import(someVariable)` is invisible to the bundler, so it is never
+ * written into the server bundle — and a serverless adapter ships that bundle
+ * with no `node_modules` beside it, so nothing can resolve the specifier at
+ * runtime either. Every conversion then fails, and an MCP server serves 30
+ * tools the model cannot call.
+ *
+ * So kit's Vite plugin builds this module out of the converter packages the app
+ * actually has installed, with a static import each — the bundler sees those,
+ * and what it sees, it ships.
+ */
+type ConverterModules = Record<string, Record<string, unknown>>;
+
+let bundled: Promise<ConverterModules> | undefined;
+
+function bundledConverters(): Promise<ConverterModules> {
+	// the specifier is a literal so Vite's import analysis rewrites it; outside a
+	// kit build — Node, vitest, the build-time module runner — it resolves to
+	// nothing and `loadModule` falls back to resolving the package itself
+	bundled ??= import("$implement/schema-converters").then(
+		(module) => module.converters,
+		() => ({}),
+	);
+	return bundled;
+}
+
+/**
+ * A vendor's converter package: the copy the build bundled, else the one the
+ * runtime can resolve for itself. A deployed bundle only ever has the first —
+ * see {@link CONVERTER_PACKAGES} — and a failure here is a real one, so it is
+ * thrown rather than swallowed into an unconstrained schema nobody notices.
  */
 async function loadModule(name: string): Promise<Record<string, unknown>> {
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- A dynamic import's namespace is only ever a record of exports.
-	return (await import(/* @vite-ignore */ name)) as Record<string, unknown>;
+	const inBundle = (await bundledConverters())[name];
+	if (inBundle !== undefined) return inBundle;
+	try {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- A dynamic import's namespace is only ever a record of exports.
+		return (await import(/* @vite-ignore */ name)) as Record<string, unknown>;
+	} catch (error) {
+		throw new Error(
+			`kit needs "${name}" to convert this schema to JSON Schema and cannot reach it. Install it as a dependency of the app so the build can bundle it, or build the JSON Schema yourself — a tool's \`inputJsonSchema\` for an MCP route, \`api.openapi.toJsonSchema\` for the document.`,
+			{ cause: error },
+		);
+	}
 }
 
 /**
  * One schema converted outside the document builder — what the MCP route uses
  * to build a tool's `inputSchema` from the same declarations the endpoints
- * carry. `null` when the vendor is not one kit knows or its converter failed;
- * the caller decides what an unconstrained schema looks like in its document.
+ * carry.
+ *
+ * `null` means only one thing: the vendor is not one kit knows, so there is no
+ * conversion to attempt and the caller decides what an unconstrained schema
+ * looks like in its document. A converter that cannot be reached or that fails
+ * on the schema throws instead — that is a build or a deployment being wrong,
+ * not a schema with no JSON-Schema spelling, and answering it with an
+ * unconstrained schema hides it behind a tool the model cannot call.
  */
 export async function convertStandardSchema(
 	schema: StandardSchemaV1,
 	io: SchemaIo,
 ): Promise<JsonSchema | null> {
-	try {
-		const convert = await vendorConverter(schema["~standard"].vendor);
-		return convert === null ? null : await convert(schema, io);
-	} catch {
-		return null;
-	}
+	const convert = await vendorConverter(schema["~standard"].vendor);
+	return convert === null ? null : await convert(schema, io);
 }
 
 /** The JSON-Schema converter for a Standard Schema vendor, or `null` for one kit does not know. */
@@ -392,7 +458,7 @@ async function vendorConverter(vendor: string): Promise<ToJsonSchema | null> {
 		return (schema) => (schema as { [JSON_SCHEMA]?: JsonSchema })[JSON_SCHEMA] ?? {};
 	}
 	if (vendor === "zod") {
-		const zod = await loadModule("zod");
+		const zod = await loadModule(CONVERTER_PACKAGES["zod"]!);
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- zod's own converter, reached through a dynamic import.
 		const toJSONSchema = zod["toJSONSchema"] as (schema: unknown, options: unknown) => JsonSchema;
 		// `unrepresentable: "any"` because a transform or a `Date` is a perfectly
@@ -405,7 +471,7 @@ async function vendorConverter(vendor: string): Promise<ToJsonSchema | null> {
 		return (schema) => (schema as unknown as { toJsonSchema: () => JsonSchema }).toJsonSchema();
 	}
 	if (vendor === "valibot") {
-		const valibot = await loadModule("@valibot/to-json-schema");
+		const valibot = await loadModule(CONVERTER_PACKAGES["valibot"]!);
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- valibot's converter ships in its own package.
 		const toJsonSchema = valibot["toJsonSchema"] as (
 			schema: unknown,
