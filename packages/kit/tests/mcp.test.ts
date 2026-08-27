@@ -58,7 +58,12 @@ async function envelope(response: Response): Promise<RpcEnvelope> {
 	return (await response.json()) as RpcEnvelope;
 }
 
-type CallResult = { content: { type: "text"; text: string }[]; isError?: boolean };
+/** A result read back out of JSON: every block's fields optional, whatever its type. */
+type CallResult = {
+	content: { type: string; text?: string; data?: string; mimeType?: string }[];
+	structuredContent?: Record<string, unknown>;
+	isError?: boolean;
+};
 
 /** One `tools/call`, unwrapped to the tool result. */
 async function call(
@@ -254,6 +259,79 @@ describe("tools", () => {
 			isError: true,
 		});
 		expect((await call(post, "broken")).content[0]?.text).toBe("boom");
+	});
+
+	it("answers with image and audio blocks, encoding bytes as the protocol's base64", async () => {
+		// a one-pixel GIF, as bytes the way a tool would have read them off disk
+		const bytes = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]);
+		const screenshot = tool({
+			name: "screenshot",
+			description: "An image.",
+			handle: () => tool.image(bytes, "image/gif"),
+		});
+		const recording = tool({
+			name: "recording",
+			description: "Audio, already base64.",
+			handle: () => tool.audio("QUJD", "audio/wav"),
+		});
+		const attachment = tool({
+			name: "attachment",
+			description: "A caption and the file it describes.",
+			handle: () =>
+				tool.content(
+					{ type: "text", text: "logo.gif" },
+					{ type: "image", data: bytes.buffer, mimeType: "image/gif" },
+				),
+		});
+		const post = server({ serverInfo: INFO, tools: [screenshot, recording, attachment] });
+
+		expect(await call(post, "screenshot")).toEqual({
+			content: [{ type: "image", data: "R0lGODlh", mimeType: "image/gif" }],
+		});
+		expect(await call(post, "recording")).toEqual({
+			content: [{ type: "audio", data: "QUJD", mimeType: "audio/wav" }],
+		});
+		expect(await call(post, "attachment")).toEqual({
+			content: [
+				{ type: "text", text: "logo.gif" },
+				{ type: "image", data: "R0lGODlh", mimeType: "image/gif" },
+			],
+		});
+	});
+
+	it("encodes bytes too large to spread in one call", async () => {
+		const bytes = new Uint8Array(200_000).fill(0x41);
+		const big = tool({
+			name: "big",
+			description: "A large file.",
+			handle: () => tool.image(bytes, "application/octet-stream"),
+		});
+		const post = server({ serverInfo: INFO, tools: [big] });
+		const result = await call(post, "big");
+		expect(result.content[0]?.data).toBe(btoa("A".repeat(200_000)));
+	});
+
+	it("carries structuredContent, with the JSON as text for a client that reads only content", async () => {
+		const stats = tool({
+			name: "stats",
+			description: "Data as data.",
+			handle: () => tool.structured({ open: 3 }),
+		});
+		const captioned = tool({
+			name: "captioned",
+			description: "Data, said differently in text.",
+			handle: () => tool.structured({ open: 3 }, { type: "text", text: "3 open issues" }),
+		});
+		const post = server({ serverInfo: INFO, tools: [stats, captioned] });
+
+		expect(await call(post, "stats")).toEqual({
+			content: [{ type: "text", text: '{"open":3}' }],
+			structuredContent: { open: 3 },
+		});
+		expect(await call(post, "captioned")).toEqual({
+			content: [{ type: "text", text: "3 open issues" }],
+			structuredContent: { open: 3 },
+		});
 	});
 
 	it("hands handle the schema's output, and the route's own event", async () => {

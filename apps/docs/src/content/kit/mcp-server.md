@@ -68,12 +68,51 @@ The `description` is the part to spend time on. A schema says what the arguments
 | any value                  | the value, serialized as JSON                            |
 | a `string`                 | the text, as it is                                       |
 | `undefined` / `null`       | success, with nothing to say                             |
+| `tool.image(bytes, "…")`   | an image it can look at                                  |
+| `tool.audio(bytes, "…")`   | audio it can listen to                                   |
+| `tool.content(…blocks)`    | those blocks, in that order                              |
+| `tool.structured({ … })`   | the data as `structuredContent`, and as text             |
 | `tool.failure("…")`        | a failed result carrying the message                     |
 | a thrown `error(404, "…")` | a failed result: `… (HTTP 404)` — same as in an endpoint |
 
 Failures a model can act on are failed _results_, not protocol errors: input the schema rejects comes back naming every issue, the same formatting an endpoint's `400` uses, so the model corrects the call and retries instead of guessing. A protocol error is reserved for a conversation that is actually broken — malformed JSON, an unknown method.
 
 Prefer `tool.failure()` for the failures a tool expects — an issue that does not exist, a name already taken. Throwing works, but a return says the failure was part of the tool's contract.
+
+### Images and audio
+
+A tool that answers with bytes — a screenshot hanging off an issue, a generated chart, a clip — returns them as the block the protocol has for them, and the model sees the picture:
+
+```ts
+const readAttachment = tool({
+	name: "read_attachment",
+	description: "Read the file behind an attachment id, rather than its metadata.",
+	input: v.object({ id: v.string() }),
+	handle: async ({ input }) => {
+		const file = await db.attachment(input.id);
+		return tool.image(file.bytes, file.mimeType);
+	},
+});
+```
+
+`data` is base64 as a string, or `Uint8Array`/`ArrayBuffer` bytes kit encodes for you. `tool.audio()` is the same for a clip, and `tool.content()` takes as many blocks as the answer needs — a caption and the image it describes:
+
+```ts
+return tool.content(
+	{ type: "text", text: file.name },
+	{ type: "image", data: file.bytes, mimeType: file.mimeType },
+);
+```
+
+The distinction is worth the call: base64 inside a `text` block is a wall of characters the model cannot read, which is the whole value of a tool that hands back a file.
+
+### Structured content
+
+`tool.structured(value)` puts the answer in `structuredContent` — the same data as fields, for a client that would rather read them than parse them back out of the text. The JSON goes through as a text block too, which the spec asks for so a client reading only `content` still sees it; pass blocks after the value to say it differently there:
+
+```ts
+handle: async () => tool.structured(await db.counts(), { type: "text", text: "3 open issues" });
+```
 
 ## Reusing endpoints
 
