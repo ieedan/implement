@@ -1,5 +1,35 @@
 # @implementjs/kit
 
+## 0.0.16
+
+### Patch Changes
+
+- [#87](https://github.com/ieedan/implement/pull/87) [`c3136ff`](https://github.com/ieedan/implement/commit/c3136ff24c5cdbda4aad32fc5662f909aeed8887) Thanks [@ieedan](https://github.com/ieedan)! - `@implementjs/kit/mcp`: a tool can answer with image and audio content, not only text. `tool.image(data, mimeType)` and `tool.audio(data, mimeType)` build the blocks the protocol has for bytes — base64 as a string, or `Uint8Array`/`ArrayBuffer` kit encodes — so a tool handing back a screenshot gives the model a picture to look at instead of characters it cannot read. `tool.content(...blocks)` answers with as many blocks as the answer needs, `tool.structured(value, ...blocks)` carries `structuredContent` alongside them, and the exported `ToolResult` widens from text-only to the three block types the spec defines.
+
+- [`589641f`](https://github.com/ieedan/implement/commit/589641fc1e8bbea1b732e12db8953cb9868bb5b5) Thanks [@ieedan](https://github.com/ieedan)! - `mcp()` reads an argument the model sent as JSON text.
+
+  A tool call is generated as text, and nesting does not always survive that: a
+  model asked for `changes: { status: "in_progress" }` routinely sends
+  `changes: "{\"status\":\"in_progress\"}"` instead. The client cannot repair it —
+  it has no schema — so every such call came back as `invalid input — changes:
+Invalid type: Expected Object but received "{…}"`, and the model had no spelling
+  left to try.
+
+  `tools/call` now coerces against the tool's own JSON Schema before validating,
+  and only where the schema leaves no room for doubt: a value is re-read as JSON
+  when the schema cannot accept a string in that position and the parse lands on a
+  kind it can accept. A `v.string()` field holding `"{"` stays that string, a
+  `v.union([v.string(), v.object(…)])` keeps the caller's spelling, and text that
+  parses to the wrong kind is left alone so the schema rejects it with its own
+  message. The walk follows `$ref` into `$defs`, reaches values nested inside a
+  structure that arrived correctly, and covers `tool.fromEndpoint()`'s
+  `params`/`query`/`body` envelope — including the envelope itself, which a model
+  sometimes stringifies whole and which used to be dropped silently.
+
+- Updated dependencies [[`19a54ae`](https://github.com/ieedan/implement/commit/19a54ae2508e2d65e9f5505685a7d3d1f1738895)]:
+  - @implementjs/core@0.0.11
+  - @implementjs/router@0.0.13
+
 ## 0.0.15
 
 ### Patch Changes
