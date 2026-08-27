@@ -310,12 +310,13 @@ import adapter from "@implementjs/adapter-node";
 export default defineConfig({ plugins: [kit({ adapter: adapter() })] });
 ```
 
-Four adapters ship: `@implementjs/adapter-static` (plain files, with an SPA
+Five adapters ship: `@implementjs/adapter-static` (plain files, with an SPA
 fallback and a check that no route was left without one),
 `@implementjs/adapter-node` (a directory `node dist` serves),
-`@implementjs/adapter-vercel` (Build Output API v3), and
+`@implementjs/adapter-vercel` (Build Output API v3),
 `@implementjs/adapter-cloudflare` (a module worker bundled for `workerd`, with
-the worker's bindings on `event.platform`).
+the worker's bindings on `event.platform`), and `@implementjs/adapter-iis` (the
+same Node server plus the `web.config` that has IIS start it).
 
 The server build runs on the same config as the client one, so the app's
 plugins, aliases, and env replacement apply to both. What differs is the entry,
