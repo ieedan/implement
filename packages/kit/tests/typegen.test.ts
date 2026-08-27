@@ -110,6 +110,17 @@ describe("generateRouteTypes", () => {
 			"export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;",
 		);
 	});
+
+	it("documents which file each load event belongs to", () => {
+		// the two differ by one word, so the hover is what settles which is which
+		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] }, PATHS);
+		expect(types).toMatch(
+			/The event a `page\.server\.ts` load receives\.[^]*?\n \*\/\nexport type LoadEvent =/,
+		);
+		expect(types).toMatch(
+			/The event a `layout\.server\.ts` load receives[^]*?\n \*\/\nexport type LayoutLoadEvent =/,
+		);
+	});
 });
 
 describe("the handler export", () => {

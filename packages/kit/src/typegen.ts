@@ -346,6 +346,27 @@ function parentFiles(files: string[], own: string | null): string[] {
 	return own === null ? files : files.slice(0, -1);
 }
 
+/**
+ * The doc comments over a route's two load events.
+ *
+ * They differ by one word, and a directory's own layout is a parent of its page
+ * but not of itself, so which one a file wants is not something the names
+ * settle. The hover says it, in the editor, before the load is written.
+ */
+const LOAD_EVENT_DOC = `/**
+ * The event a \`page.server.ts\` load receives. Its \`parent()\` resolves to what
+ * the loads above the page returned — this directory's own layout included.
+ */
+`;
+
+/** @see {@link LOAD_EVENT_DOC} */
+const LAYOUT_LOAD_EVENT_DOC = `/**
+ * The event a \`layout.server.ts\` load receives — the one a layout load takes,
+ * rather than \`LoadEvent\`. Its \`parent()\` resolves to what the loads above
+ * *this layout* returned, its own excluded.
+ */
+`;
+
 /** The \`./$types\` module for one route directory. */
 export function generateRouteTypes(node: RouteNode, chain: DataChain, paths: GenPaths): string {
 	const params = paramsSpecifier(paths, node.dir);
@@ -368,8 +389,8 @@ export type RouteParams = ${paramsType(node.params, params, paths.appMatchers)};
 export type ServerParams = ${serverParamsType(node.params, params, paths.appMatchers)};
 export type LayoutParentData = ${dataType(node.dir, parentFiles(chain.layoutFiles, node.layoutServer))};
 export type PageParentData = ${dataType(node.dir, parentFiles(chain.pageFiles, node.pageServer))};
-export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;
-export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;
+${LOAD_EVENT_DOC}export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;
+${LAYOUT_LOAD_EVENT_DOC}export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;
 export type RequestEvent = KitRequestEvent<ServerParams>;
 export type LayoutData = ${dataType(node.dir, chain.layoutFiles)};
 export type PageData = ${dataType(node.dir, chain.pageFiles)};

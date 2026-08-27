@@ -19,6 +19,7 @@ import { join, relative, resolve } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
 import type { Plugin, PluginOption, UserConfig } from "vite";
+import { formatRouteWarning } from "./scan.ts";
 import { sync, type KitPluginApi } from "./sync.ts";
 
 const help = `
@@ -136,7 +137,17 @@ async function runSync(options: { config?: string; mode: string }): Promise<void
 	// vite resolves a relative root against the working directory rather than
 	// the config file, so this has to as well or the two disagree about where
 	// `.implement/` and the routes directory are
-	sync(resolve(loaded.config.root ?? "."), generated);
+	const tree = sync(resolve(loaded.config.root ?? "."), generated);
+
+	// the dev server and the build say these as they scan; a `check` script runs
+	// neither, and CI is exactly where a misnamed route or a layout load typed
+	// with `LoadEvent` is worth hearing about. Not fatal — the generated files
+	// are written either way, and what they warn about is what the app compiles
+	// to next.
+	const routes = generated.routes ?? "src/routes";
+	for (const warning of tree.warnings) {
+		console.warn(`> ${formatRouteWarning(warning, routes)}`);
+	}
 }
 
 const parsed = (() => {
