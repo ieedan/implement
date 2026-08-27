@@ -430,6 +430,217 @@ function propertiesOf(schema: JsonSchema | null): Record<string, unknown> {
 }
 
 // ---------------------------------------------------------------------------
+// Arguments a model sent as text
+// ---------------------------------------------------------------------------
+
+/**
+ * Models routinely send a structured argument as the JSON *text* of that
+ * structure — `changes: "{\"status\":\"in_progress\"}"` where the schema asks
+ * for an object — because a tool call is itself generated as text and the
+ * nesting does not always survive it. The client cannot fix this: it has no
+ * schema. The server does, so it reads the text back before validating, and
+ * only where the schema leaves no room for doubt.
+ *
+ * "No room for doubt" is the whole safety argument: a value is re-read only
+ * when the schema cannot accept a string there and the parse produces a kind
+ * it can accept. A `v.string()` field holding `"{"` stays the string it is,
+ * a `v.union([v.string(), v.object(…)])` keeps the caller's spelling, and a
+ * parse that fails or lands on the wrong kind leaves the original value for
+ * the schema to reject with its own message.
+ */
+
+/** The JSON Schema type names — what a schema declares, and what a value is. */
+type JsonKind = "string" | "number" | "integer" | "boolean" | "object" | "array" | "null";
+
+const ALL_KINDS: readonly JsonKind[] = [
+	"string",
+	"number",
+	"integer",
+	"boolean",
+	"object",
+	"array",
+	"null",
+];
+
+/** Guards both the walk and `$ref` following against a schema that cycles. */
+const MAX_DEPTH = 16;
+
+function isKind(value: unknown): value is JsonKind {
+	return typeof value === "string" && (ALL_KINDS as readonly string[]).includes(value);
+}
+
+/** The kinds a value satisfies — an integer is also a `number`, as JSON Schema counts it. */
+function kindsOf(value: unknown): JsonKind[] {
+	if (value === null) return ["null"];
+	if (Array.isArray(value)) return ["array"];
+	if (typeof value === "object") return ["object"];
+	if (typeof value === "number") {
+		return Number.isInteger(value) ? ["number", "integer"] : ["number"];
+	}
+	if (typeof value === "string") return ["string"];
+	if (typeof value === "boolean") return ["boolean"];
+	return [];
+}
+
+function admits(kinds: Set<JsonKind>, value: unknown): boolean {
+	return kindsOf(value).some((kind) => kinds.has(kind));
+}
+
+/**
+ * A `$ref` followed to what it points at. Converters emit one for a type used
+ * twice — the `changes` and `defaults` of a tool sharing an object — so a
+ * document walked without resolving them sees `{ $ref }` and learns nothing
+ * about the shape. Only same-document pointers resolve; anything else, and
+ * anything that cycles, comes back as it was.
+ */
+function resolveSchema(schema: unknown, root: unknown): unknown {
+	let current = schema;
+	for (let hop = 0; hop < MAX_DEPTH; hop++) {
+		if (!isRecord(current)) return current;
+		const ref = current["$ref"];
+		if (typeof ref !== "string" || !ref.startsWith("#")) return current;
+		const target = pointer(ref.slice(1), root);
+		if (target === undefined) return current;
+		current = target;
+	}
+	return current;
+}
+
+/** A JSON Pointer resolved against the document, or `undefined` when it leads nowhere. */
+function pointer(path: string, root: unknown): unknown {
+	if (path === "" || path === "/") return root;
+	let current: unknown = root;
+	for (const segment of path.replace(/^\//, "").split("/")) {
+		const key = decodeURIComponent(segment).replaceAll("~1", "/").replaceAll("~0", "~");
+		if (isRecord(current)) current = current[key];
+		else if (Array.isArray(current)) current = current[Number(key)];
+		else return undefined;
+		if (current === undefined) return undefined;
+	}
+	return current;
+}
+
+/**
+ * The kinds a schema accepts. Everything it does not constrain is accepted —
+ * an unconvertible or empty schema admits a string, which is what stops
+ * coercion from touching it.
+ */
+function acceptedKinds(schema: unknown, root: unknown, depth = 0): Set<JsonKind> {
+	const resolved = resolveSchema(schema, root);
+	if (!isRecord(resolved) || depth >= MAX_DEPTH) return new Set(ALL_KINDS);
+
+	let accepted: Set<JsonKind> | null = null;
+	const narrow = (kinds: Set<JsonKind>): void => {
+		accepted = accepted === null ? kinds : intersect(accepted, kinds);
+	};
+
+	// a union accepts what any branch accepts; `allOf` only what all of them do
+	const union = resolved["anyOf"] ?? resolved["oneOf"];
+	if (Array.isArray(union)) {
+		const branches = new Set<JsonKind>();
+		for (const branch of union) {
+			for (const kind of acceptedKinds(branch, root, depth + 1)) branches.add(kind);
+		}
+		narrow(branches);
+	}
+	if (Array.isArray(resolved["allOf"])) {
+		for (const branch of resolved["allOf"]) narrow(acceptedKinds(branch, root, depth + 1));
+	}
+
+	const declared = resolved["type"];
+	if (isKind(declared)) narrow(new Set([declared]));
+	else if (Array.isArray(declared)) narrow(new Set(declared.filter(isKind)));
+
+	// an enum or a const is the tightest statement of kind a schema can make
+	const literals = Array.isArray(resolved["enum"])
+		? resolved["enum"]
+		: "const" in resolved
+			? [resolved["const"]]
+			: null;
+	if (literals !== null) narrow(new Set(literals.flatMap(kindsOf)));
+
+	// no `type`, but keywords only one kind has: zod and valibot both emit
+	// object schemas without a `type` under some options
+	if (accepted === null) {
+		if ("properties" in resolved || "additionalProperties" in resolved || "required" in resolved) {
+			narrow(new Set<JsonKind>(["object"]));
+		} else if ("items" in resolved || "prefixItems" in resolved) {
+			narrow(new Set<JsonKind>(["array"]));
+		}
+	}
+
+	return accepted ?? new Set(ALL_KINDS);
+}
+
+function intersect(left: Set<JsonKind>, right: Set<JsonKind>): Set<JsonKind> {
+	return new Set([...left].filter((kind) => right.has(kind)));
+}
+
+/** The text as the JSON value it spells, or `undefined` when it is not JSON. */
+function parseJson(text: string): unknown {
+	try {
+		return JSON.parse(text) as unknown;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * One value against its schema: a string the schema cannot hold is re-read as
+ * JSON, and objects and arrays are walked so a structure nested inside an
+ * already-correct one is reached too.
+ */
+function coerceValue(value: unknown, schema: unknown, root: unknown, depth: number): unknown {
+	if (depth >= MAX_DEPTH) return value;
+	const resolved = resolveSchema(schema, root);
+
+	if (typeof value === "string") {
+		const kinds = acceptedKinds(resolved, root);
+		if (kinds.has("string")) return value;
+		const parsed = parseJson(value);
+		if (parsed === undefined || !admits(kinds, parsed)) return value;
+		return coerceValue(parsed, resolved, root, depth + 1);
+	}
+
+	if (!isRecord(resolved)) return value;
+
+	if (Array.isArray(value)) {
+		const tuple = Array.isArray(resolved["prefixItems"]) ? resolved["prefixItems"] : null;
+		const items = resolved["items"];
+		return value.map((entry, index) =>
+			coerceValue(entry, tuple?.[index] ?? items, root, depth + 1),
+		);
+	}
+
+	if (isRecord(value)) {
+		const properties = isRecord(resolved["properties"]) ? resolved["properties"] : {};
+		const additional = resolved["additionalProperties"];
+		const coerced: Record<string, unknown> = {};
+		for (const [key, entry] of Object.entries(value)) {
+			const property = key in properties ? properties[key] : additional;
+			coerced[key] = property === undefined ? entry : coerceValue(entry, property, root, depth + 1);
+		}
+		return coerced;
+	}
+
+	return value;
+}
+
+/**
+ * A call's `arguments` as the tool's schema describes them. The envelope
+ * itself is re-read the same way — a model that sent the whole argument
+ * object as text is the same mistake one level up, and dropping it silently
+ * (which is what "not a record" used to mean) is the worst way to answer it.
+ */
+function coerceArguments(args: unknown, schema: JsonSchema | undefined): Record<string, unknown> {
+	const envelope = typeof args === "string" ? parseJson(args) : args;
+	const record = isRecord(envelope) ? envelope : {};
+	if (schema === undefined) return record;
+	const coerced = coerceValue(record, schema, schema, 0);
+	return isRecord(coerced) ? coerced : record;
+}
+
+// ---------------------------------------------------------------------------
 // The server
 // ---------------------------------------------------------------------------
 
@@ -503,6 +714,16 @@ export function mcp(options: McpOptions): McpHandlers {
 		return described;
 	};
 
+	// the same descriptions `tools/list` answers with, by name: a call reads
+	// its tool's JSON Schema to know which arguments a model sent as text
+	let schemas: Promise<Map<string, JsonSchema>> | undefined;
+	const inputSchemas = (): Promise<Map<string, JsonSchema>> => {
+		schemas ??= describedTools().then(
+			(tools) => new Map(tools.map((entry) => [entry.name, entry.inputSchema])),
+		);
+		return schemas;
+	};
+
 	const authorized = async (event: RequestEvent): Promise<Response | null> => {
 		if (options.authorize === undefined) return null;
 		if (await options.authorize(event)) return null;
@@ -554,7 +775,7 @@ export function mcp(options: McpOptions): McpHandlers {
 			case "tools/list":
 				return json(rpcResult(id, { tools: await describedTools() }));
 			case "tools/call":
-				return json(rpcResult(id, await callTool(byName, event, params)));
+				return json(rpcResult(id, await callTool(byName, await inputSchemas(), event, params)));
 			default:
 				return json(rpcError(id, JSON_RPC_ERRORS.methodNotFound, `Unknown method: ${method}`));
 		}
@@ -631,6 +852,7 @@ async function describeTool(entry: McpTool): Promise<ToolDescription> {
  */
 async function callTool(
 	byName: Map<string, McpTool>,
+	schemas: Map<string, JsonSchema>,
 	event: RequestEvent,
 	params: Record<string, unknown>,
 ): Promise<ToolResult> {
@@ -638,7 +860,7 @@ async function callTool(
 	const entry = byName.get(name);
 	if (entry === undefined) return failure(`Unknown tool: ${name}`);
 
-	const args = isRecord(params["arguments"]) ? params["arguments"] : {};
+	const args = coerceArguments(params["arguments"], schemas.get(name));
 	let input: unknown;
 	if (entry.input !== undefined) {
 		const result = await entry.input["~standard"].validate(args);

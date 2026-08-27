@@ -1,6 +1,7 @@
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Reading JSON-RPC envelopes back out of responses requires intentional narrowing. */
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { error } from "../src/errors.ts";
 import { handler } from "../src/endpoint.ts";
 import type { EndpointRoute } from "../src/match.ts";
@@ -341,5 +342,138 @@ describe("tool.fromEndpoint", () => {
 		const unfilled = await call(post, "update_post", { body: { title: "renamed" } });
 		expect(unfilled.isError).toBe(true);
 		expect(unfilled.content[0]?.text).toContain("path param");
+	});
+});
+
+describe("arguments a model sent as text", () => {
+	const updateIssue = tool({
+		name: "update_issue",
+		description: "Change one issue.",
+		input: v.object({
+			id: v.string(),
+			changes: v.object({
+				status: v.optional(v.string()),
+				labels: v.optional(v.array(v.string())),
+				priority: v.optional(v.number()),
+				pinned: v.optional(v.boolean()),
+			}),
+		}),
+		handle: ({ input }) => input,
+	});
+
+	const post = server({ serverInfo: INFO, tools: [updateIssue] });
+
+	it("reads a structure the model spelled as JSON text", async () => {
+		const updated = await call(post, "update_issue", {
+			id: "ENG-27",
+			changes: '{"status":"in_progress","labels":["bug"]}',
+		});
+		expect(updated.isError).toBeUndefined();
+		expect(JSON.parse(updated.content[0]?.text ?? "null")).toEqual({
+			id: "ENG-27",
+			changes: { status: "in_progress", labels: ["bug"] },
+		});
+	});
+
+	it("reaches values nested inside a structure that arrived correctly", async () => {
+		const updated = await call(post, "update_issue", {
+			id: "ENG-27",
+			changes: { status: "done", labels: '["bug","ui"]', priority: "2", pinned: "true" },
+		});
+		expect(JSON.parse(updated.content[0]?.text ?? "null")).toEqual({
+			id: "ENG-27",
+			changes: { status: "done", labels: ["bug", "ui"], priority: 2, pinned: true },
+		});
+	});
+
+	it("reads the whole envelope when that is what was stringified", async () => {
+		const updated = await call(
+			post,
+			"update_issue",
+			JSON.stringify({ id: "ENG-27", changes: { status: "done" } }),
+		);
+		expect(JSON.parse(updated.content[0]?.text ?? "null")).toEqual({
+			id: "ENG-27",
+			changes: { status: "done" },
+		});
+	});
+
+	it("leaves a string where the schema takes one, however much it looks like JSON", async () => {
+		const comment = tool({
+			name: "comment",
+			description: "Adds a comment.",
+			input: v.object({
+				body: v.string(),
+				// a field that genuinely accepts either spelling keeps the caller's
+				meta: v.union([v.string(), v.object({ kind: v.string() })]),
+			}),
+			handle: ({ input }) => input,
+		});
+		const commenting = server({ serverInfo: INFO, tools: [comment] });
+		const added = await call(commenting, "comment", {
+			body: '{"not":"an object"}',
+			meta: '{"kind":"note"}',
+		});
+		expect(JSON.parse(added.content[0]?.text ?? "null")).toEqual({
+			body: '{"not":"an object"}',
+			meta: '{"kind":"note"}',
+		});
+	});
+
+	it("leaves text the schema cannot hold for the schema to reject", async () => {
+		// parses, but to the wrong kind — the string stays, and the message is
+		// the schema's own rather than a parse error the model cannot act on
+		const wrongKind = await call(post, "update_issue", { id: "ENG-27", changes: "[1,2]" });
+		expect(wrongKind.isError).toBe(true);
+		expect(wrongKind.content[0]?.text).toContain("changes");
+
+		const notJson = await call(post, "update_issue", { id: "ENG-27", changes: "in_progress" });
+		expect(notJson.isError).toBe(true);
+		expect(notJson.content[0]?.text).toContain("changes");
+	});
+
+	it("follows a $ref, including one that points at itself", async () => {
+		const node = z.object({
+			name: z.string(),
+			get child() {
+				return z.optional(node);
+			},
+		});
+		const plant = tool({
+			name: "plant",
+			description: "Plants a tree.",
+			input: z.object({ tree: node }),
+			handle: ({ input }) => input,
+		});
+		const planting = server({ serverInfo: INFO, tools: [plant] });
+
+		// `tree` is a `$ref` into `$defs`, and `child` refs the same definition
+		const planted = await call(planting, "plant", {
+			tree: { name: "root", child: '{"name":"leaf"}' },
+		});
+		expect(JSON.parse(planted.content[0]?.text ?? "null")).toEqual({
+			tree: { name: "root", child: { name: "leaf" } },
+		});
+	});
+
+	it("reads a stringified part of an endpoint tool's envelope", async () => {
+		const PUT = handler({
+			params: v.object({ id: v.string() }),
+			body: v.object({ title: v.string() }),
+			handle: ({ params, body }) => ({ id: params.id, ...body }),
+		});
+		const rename = tool.fromEndpoint(PUT, {
+			name: "rename_post",
+			description: "Rename one post.",
+			path: "/api/posts/[id]",
+		});
+		const renaming = server({ serverInfo: INFO, tools: [rename] });
+		const renamed = await call(renaming, "rename_post", {
+			params: '{"id":"7"}',
+			body: '{"title":"renamed"}',
+		});
+		expect(renamed).toEqual({
+			content: [{ type: "text", text: '{"id":"7","title":"renamed"}' }],
+		});
 	});
 });
