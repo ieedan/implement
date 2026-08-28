@@ -111,6 +111,94 @@ describe("the request pipeline", () => {
 	});
 });
 
+/** A form-encoded body, the way a `<form>` on a page at `origin` would send one. */
+const form = (origin: string | null): RequestInit => ({
+	method: "POST",
+	headers: {
+		"content-type": "application/x-www-form-urlencoded",
+		...(origin === null ? {} : { origin }),
+	},
+	body: "title=hi",
+});
+
+describe("cross-site form submissions", () => {
+	it("lets a same-origin form submission through", async () => {
+		expect((await get(server(), "/write", form("http://localhost"))).status).toBe(204);
+	});
+
+	it("rejects one from another origin", async () => {
+		const rejected = await get(server(), "/write", form("https://evil.example.com"));
+		expect(rejected.status).toBe(403);
+		expect(rejected.headers.get("content-type")).toContain("text/plain");
+		expect(await rejected.text()).toBe("Cross-site POST form submissions are forbidden");
+	});
+
+	it("rejects one carrying no origin at all", async () => {
+		expect((await get(server(), "/write", form(null))).status).toBe(403);
+	});
+
+	it("answers a caller that asked for JSON in JSON", async () => {
+		const init = form("https://evil.example.com");
+		const rejected = await get(server(), "/write", {
+			...init,
+			headers: { ...(init.headers as Record<string, string>), accept: "application/json" },
+		});
+		expect(rejected.status).toBe(403);
+		expect(await rejected.json()).toEqual({
+			message: "Cross-site POST form submissions are forbidden",
+		});
+	});
+
+	it("leaves everything else alone — a cross-origin GET, and a JSON body", async () => {
+		const kit = server();
+		const read = await get(kit, "/api", { headers: { origin: "https://evil.example.com" } });
+		expect(read.status).toBe(200);
+
+		const posted = await get(kit, "/write", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				origin: "https://evil.example.com",
+			},
+			body: "{}",
+		});
+		expect(posted.status).toBe(204);
+	});
+
+	it("lets a trusted origin post forms", async () => {
+		const kit = server({}, { csrf: { trustedOrigins: ["https://admin.example.com"] } });
+		expect((await get(kit, "/write", form("https://admin.example.com"))).status).toBe(204);
+		expect((await get(kit, "/write", form("https://evil.example.com"))).status).toBe(403);
+	});
+
+	it("does nothing at all when the check is turned off", async () => {
+		const kit = server({}, { csrf: { checkOrigin: false } });
+		expect((await get(kit, "/write", form("https://evil.example.com"))).status).toBe(204);
+		expect((await get(kit, "/write", form(null))).status).toBe(204);
+	});
+
+	it("never gates a request the pipeline dispatched to itself", async () => {
+		const kit = createKitServer({
+			hooks: {},
+			pages: [],
+			endpoints: [
+				endpoint("/write", { POST: () => new Response(null, { status: 204 }) }),
+				endpoint("/relay", {
+					GET: (event: RequestEvent) =>
+						event.fetch("/write", {
+							method: "POST",
+							headers: { "content-type": "application/x-www-form-urlencoded" },
+							body: "title=hi",
+						}),
+				}),
+			],
+			renderPage: () => null,
+		});
+		const relayed = await kit.respond(new Request("http://localhost/relay"));
+		expect(relayed.status).toBe(204);
+	});
+});
+
 describe("the load chain", () => {
 	/** A server over one page at `/section/:slug/page`, fed by the chain given. */
 	const chained = (files: PageRoute["files"]) =>

@@ -59,6 +59,8 @@ import { builtinMatchers, matcherTable, type ParamMatchers } from "./params.ts";
 import type { PreloadOptions } from "./preload-kinds.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
+// type-only, so the plugin does not pull the request pipeline into a config file
+import type { CsrfOptions } from "./server.ts";
 import type { KitPluginApi } from "./sync.ts";
 import {
 	ENDPOINT_FILE,
@@ -95,6 +97,7 @@ export type { ClientStyle, DataChain, PageRoute, ServerRoute } from "./codegen.t
 export type { OpenApiDocument, OpenApiOptions, ToJsonSchema } from "./openapi.ts";
 export type { PreloadCodeKind, PreloadDataKind, PreloadOptions } from "./preload-kinds.ts";
 export type { PrerenderDefault } from "./prerender.ts";
+export type { CsrfOptions } from "./server.ts";
 export {
 	isParamMatcher,
 	matcher,
@@ -329,6 +332,26 @@ export type KitOptions = {
 	 * @default { data: "hover", code: "hover" }
 	 */
 	preload?: PreloadOptions;
+	/**
+	 * The one thing kit does about where a request came from: reject a
+	 * cross-site **form** submission that mutates — a `POST`, `PUT`, `PATCH`, or
+	 * `DELETE` carrying `application/x-www-form-urlencoded`, `multipart/form-data`,
+	 * or `text/plain`, the content types a page on another origin can send at
+	 * your app with no preflight and no opt-in from you.
+	 *
+	 * Nothing else is gated. Kit adds no `access-control-*` headers to anything,
+	 * so a `GET` endpoint is reachable cross-origin and a browser reads its body
+	 * only if the endpoint says so itself — see
+	 * [server routes](https://implementjs.dev/kit/server-routes#cross-origin-requests).
+	 *
+	 * ```ts
+	 * // let one other origin post forms here
+	 * kit({ csrf: { trustedOrigins: ["https://admin.example.com"] } });
+	 * ```
+	 *
+	 * @default { checkOrigin: true, trustedOrigins: [] }
+	 */
+	csrf?: CsrfOptions;
 };
 
 export type KitApiOptions = {
@@ -533,6 +556,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		alias: options.alias,
 		client: options.api?.client,
 		preload: options.preload,
+		csrf: options.csrf,
 		dynamicPublicEnv: normalizeFile(options.env?.dynamicPublic ?? DEFAULT_ENV_DYNAMIC_PUBLIC),
 	};
 	let root = process.cwd();

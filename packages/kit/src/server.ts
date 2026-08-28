@@ -398,7 +398,81 @@ export type KitServerOptions = {
 	 * prerendered without one.
 	 */
 	publicEnv?: Record<string, unknown>;
+	/**
+	 * Cross-site request forgery protection — `KitOptions.csrf`, passed through
+	 * by the generated `.implement/entry-server.ts`.
+	 */
+	csrf?: CsrfOptions;
 };
+
+/**
+ * The one origin gate kit has. Everything else about cross-origin is the app's:
+ * kit adds no `access-control-*` headers to anything, so an endpoint is as open
+ * as the headers it sets for itself — see
+ * [server routes](https://implementjs.dev/kit/server-routes#cross-origin-requests).
+ */
+export type CsrfOptions = {
+	/**
+	 * Reject a cross-site request whose method mutates *and* whose content type
+	 * a browser can send from a plain `<form>` — the shape a page on another
+	 * origin can submit at your app without ever reading a response. Nothing
+	 * else is touched: a cross-origin `GET`, or a `POST` of
+	 * `application/json`, is preflighted by the browser and needs no gate here.
+	 *
+	 * @default true
+	 */
+	checkOrigin?: boolean;
+	/**
+	 * Origins allowed to make those requests anyway — `["https://admin.example.com"]`.
+	 * Compared whole, so scheme and port count.
+	 *
+	 * @default []
+	 */
+	trustedOrigins?: string[];
+};
+
+/** The methods a cross-site form submission can use to change something. */
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * The content types a `<form>` can produce, which is what makes them the ones
+ * worth checking: a browser sends them cross-origin with no preflight and no
+ * opt-in from the receiving app.
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/enctype
+ */
+const FORM_CONTENT_TYPES = new Set([
+	"application/x-www-form-urlencoded",
+	"multipart/form-data",
+	"text/plain",
+]);
+
+/**
+ * The CSRF rejection for a request that earns one, or `null` — which is nearly
+ * always, since the check is deliberately narrow.
+ *
+ * It runs before hooks and before routing: a request this rejects never reaches
+ * the app, so there is nothing for `handle` to decide about it.
+ */
+function csrfRejection(request: Request, url: URL, options: CsrfOptions): Response | null {
+	if (options.checkOrigin === false) return null;
+	if (!MUTATING_METHODS.has(request.method)) return null;
+	const contentType = (request.headers.get("content-type") ?? "").split(";", 1)[0]!.trim();
+	if (!FORM_CONTENT_TYPES.has(contentType.toLowerCase())) return null;
+	const origin = request.headers.get("origin");
+	if (origin === url.origin) return null;
+	if (origin !== null && (options.trustedOrigins ?? []).includes(origin)) return null;
+	const message = `Cross-site ${request.method} form submissions are forbidden`;
+	// the same split SvelteKit makes: a caller that asked for JSON is a caller
+	// that will try to parse whatever comes back
+	if (request.headers.get("accept") === "application/json") {
+		return Response.json({ message }, { status: 403 });
+	}
+	return new Response(message, {
+		status: 403,
+		headers: { "content-type": "text/plain; charset=utf-8" },
+	});
+}
 
 /**
  * What a host gets back for an upgrade request: the handshake response, and —
@@ -481,6 +555,7 @@ export function createKitServer(options: KitServerOptions): KitServer {
 	const { hooks, pages, endpoints, renderPage, createApiClient, publicEnv } = options;
 	const errors = options.errors ?? [];
 	const matchers = options.matchers ?? {};
+	const csrf = options.csrf ?? {};
 	let started: Promise<void> | undefined;
 	const serveEnv = publicEnv === undefined ? null : publicEnvRoute(publicEnv);
 
@@ -510,6 +585,15 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			? new URL(`${routePath}${requestUrl.search}${requestUrl.hash}`, requestUrl.origin)
 			: requestUrl;
 
+		const depth = respondOptions.depth ?? 0;
+		// a request the pipeline dispatched to itself never crossed a network, so
+		// it has no `Origin` to check and no browser to have forged one — the
+		// check is about what a *page on another origin* can make a browser send
+		if (depth === 0) {
+			const rejected = csrfRejection(request, url, csrf);
+			if (rejected !== null) return rejected;
+		}
+
 		// answered before anything else, hooks included: it is kit's own module, not
 		// the app's, and a page that was prerendered is waiting on it to boot
 		if (serveEnv !== null && path === `/${PUBLIC_ENV_ROUTE}`) return serveEnv(request);
@@ -519,7 +603,6 @@ export function createKitServer(options: KitServerOptions): KitServer {
 
 		const jar = createCookieJar(request, url);
 
-		const depth = respondOptions.depth ?? 0;
 		/**
 		 * `fetch` for this request. A cross-origin call goes out over the network
 		 * like any other; a same-origin one goes straight back through `respond`,

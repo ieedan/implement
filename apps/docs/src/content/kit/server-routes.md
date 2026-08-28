@@ -169,6 +169,54 @@ export const prerender = false;
 
 The build says the same thing if you forget, rather than hanging on a response that was never going to finish.
 
+## Cross-origin requests
+
+Kit adds no `access-control-*` headers to anything, and never has. An endpoint is reachable from any origin — a browser will send the request — and whether the page that sent it may _read_ the response is decided by the headers the endpoint sets for itself. So a route meant to be read cross-origin says so, in the response and in the preflight the browser sends ahead of it:
+
+```ts
+// src/routes/health/server.ts
+import { handler, json } from "./$types";
+import { broker } from "@/lib/server/broker";
+
+const cors = {
+	"access-control-allow-origin": "*",
+	"access-control-allow-headers": "content-type",
+};
+
+export const GET = handler({ handle: () => json(broker.stats(), { headers: cors }) });
+
+export const OPTIONS = handler({
+	handle: () => new Response(null, { status: 204, headers: cors }),
+});
+```
+
+That is the whole story for `GET`, and it is deliberate: a framework that guesses a policy is a framework that has to be argued out of one. Sharing the headers across routes is a `const` in `@/lib`, or a [`hooks.server.ts`](/kit/hooks) that sets them on everything under a prefix:
+
+```ts
+// src/hooks.server.ts
+export const handle: Handle = ({ event, resolve }) => {
+	if (event.url.pathname.startsWith("/api/public/")) {
+		event.setHeaders({ "access-control-allow-origin": "*" });
+	}
+	return resolve(event);
+};
+```
+
+### The one thing kit does check
+
+A **cross-site form submission that mutates** is rejected with a `403` before hooks run: a `POST`, `PUT`, `PATCH`, or `DELETE` carrying `application/x-www-form-urlencoded`, `multipart/form-data`, or `text/plain`, from an origin that is not yours. Those are the content types a `<form>` on someone else's page can send at your app with no preflight and no opt-in from you — everything else is either safe or already gated by the browser's own preflight, which your endpoint answers or doesn't.
+
+Nothing else is affected. A cross-origin `GET` is untouched, and so is a `POST` of `application/json` — a page on another origin cannot send one without a preflight your app has to allow first.
+
+A request carrying no `Origin` header at all counts as cross-site, which is worth knowing for a non-browser client: `fetch(url, { method: "POST", body: "…" })` with no `content-type` sends `text/plain`, so a script posting that way gets the `403` too. Send `application/json` — or name the origins allowed to post forms:
+
+```ts
+// vite.config.ts
+kit({ csrf: { trustedOrigins: ["https://admin.example.com"] } });
+```
+
+`csrf: { checkOrigin: false }` turns the check off entirely, for an app that is only ever an API and does its own thing about it.
+
 ## On build
 
 The prerender renders every `GET` endpoint into a real file in `dist/`, so the built site serves them statically:

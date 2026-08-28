@@ -36,6 +36,9 @@ function server(options: McpOptions, extra: EndpointRoute[] = []) {
 		kit.respond(new Request(`http://localhost${path}`, init));
 }
 
+/** The app's own origin, for a request whose content type the CSRF check looks at. */
+const LOCAL_ORIGIN = { origin: "http://localhost" };
+
 /** A JSON-RPC request as `fetch` would send it. */
 function rpc(body: unknown, headers: Record<string, string> = {}): RequestInit {
 	return {
@@ -130,7 +133,9 @@ describe("mcp() transport", () => {
 			authorize: (event) => event.request.headers.get("authorization") === "Bearer ok",
 		});
 		// before parsing: an unauthenticated client needs the challenge, not a parse error
-		const denied = await post({ method: "POST", body: "not json" });
+		// (`origin` because a bare string body is sent as `text/plain`, which the
+		// pipeline's CSRF check gates when it comes from nowhere)
+		const denied = await post({ method: "POST", body: "not json", headers: LOCAL_ORIGIN });
 		expect(denied.status).toBe(401);
 		expect(denied.headers.get("www-authenticate")).toBe(
 			'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource"',
@@ -155,7 +160,7 @@ describe("mcp() transport", () => {
 	it("answers protocol faults as JSON-RPC errors", async () => {
 		const post = server({ serverInfo: INFO, tools: [] });
 
-		const unparseable = await post({ method: "POST", body: "not json" });
+		const unparseable = await post({ method: "POST", body: "not json", headers: LOCAL_ORIGIN });
 		expect(unparseable.status).toBe(400);
 		expect((await envelope(unparseable)).error?.code).toBe(-32700);
 
