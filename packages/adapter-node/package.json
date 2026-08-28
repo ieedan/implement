@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/adapter-node",
-	"version": "0.0.19",
+	"version": "0.0.20",
 	"description": "Builds an implement kit app into a standalone Node server.",
 	"keywords": [
 		"implement",
