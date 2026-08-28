@@ -159,10 +159,11 @@ sync("/path/to/app", { alias: { "@/content": "src/content" } });
 
 ## Options
 
-`kit()` takes five options:
+`kit()` takes six options:
 
 - `routes` — the routes directory relative to your Vite root. Defaults to `"src/routes"`.
 - `hooks` — the [server hooks](/kit/hooks) file relative to your Vite root. Defaults to `"src/hooks.server.ts"`.
+- `csrf` — who may send your app a form submission that mutates. Defaults to your own origin only; kit does nothing else about where a request came from. Covered in [Server Routes](/kit/server-routes#cross-origin-requests).
 - `prerender` — `false` to skip prerendering on build, or `{ entries }` to add dynamic routes to it. Covered in [SSR & Prerendering](/kit/ssr-and-prerendering).
 - `env` — where the two environment-variable files live, relative to your Vite root. Defaults to `src/lib/env.public.ts` and `src/lib/env.server.ts`, and a file that isn't there turns that half off. Covered in [Environment Variables](/kit/environment-variables).
 - `alias` — extra import aliases on top of the automatic `@/lib`, mapped to paths relative to your Vite root. Like `@/lib`, each one is wired into both Vite and the generated tsconfig, so the bundler and the typechecker always agree:

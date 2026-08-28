@@ -289,6 +289,19 @@ describe("writeGenerated", () => {
 		);
 	});
 
+	it("bakes the app's csrf settings into the server entry, and nothing when it has none", () => {
+		const app = makeApp(["page.ts"]);
+		writeGenerated(app, scanRoutes(join(app, "src/routes")));
+		expect(readFileSync(join(app, ".implement/entry-server.ts"), "utf8")).not.toContain("csrf");
+
+		writeGenerated(app, scanRoutes(join(app, "src/routes")), {
+			csrf: { trustedOrigins: ["https://admin.example.com"] },
+		});
+		expect(readFileSync(join(app, ".implement/entry-server.ts"), "utf8")).toContain(
+			'csrf: {"trustedOrigins":["https://admin.example.com"]},',
+		);
+	});
+
 	it("writes $types for server-only and extension-endpoint directories", () => {
 		const app = makeApp([
 			"page.ts",
