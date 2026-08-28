@@ -2,6 +2,7 @@ import rehypeShiki from "@shikijs/rehype";
 import rehypeSlug from "rehype-slug";
 import { remarkAlert } from "remark-github-blockquote-alert";
 import { defineCollection, defineConfig, s } from "velite";
+import { rehypeTableScroll } from "./plugins/rehype-table-scroll";
 
 const markdown = s.object({
 	title: s.string().max(99),
@@ -220,6 +221,7 @@ export default defineConfig({
 		],
 		rehypePlugins: [
 			rehypeSlug,
+			rehypeTableScroll,
 			[
 				// @ts-expect-error
 				rehypeShiki,
