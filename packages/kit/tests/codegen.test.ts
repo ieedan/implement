@@ -3,6 +3,7 @@ import {
 	apiRoutes,
 	dataChains,
 	generateClientModule,
+	generateConvertersModule,
 	generateEndpointsModule,
 	generatePagesModule,
 	generateRouterModule,
@@ -22,6 +23,7 @@ function node(partial: Partial<RouteNode>): RouteNode {
 		pageServer: null,
 		layoutServer: null,
 		endpoint: null,
+		endpointSocket: false,
 		error: null,
 		extensions: [],
 		children: [],
@@ -270,14 +272,14 @@ const loaded: RouteTree = {
 				segment: { kind: "static", value: "docs" },
 				page: "docs/page.ts",
 				pageServer: "docs/page.server.ts",
-				extensions: [{ extension: ".md", file: "docs/.md/server.ts" }],
+				extensions: [{ extension: ".md", file: "docs/.md/server.ts", socket: false }],
 				children: [
 					node({
 						dir: "docs/[...slug]",
 						segment: { kind: "rest", name: "slug", matcher: null },
 						params: [{ name: "slug", matcher: null }],
 						page: "docs/[...slug]/page.ts",
-						extensions: [{ extension: ".md", file: "docs/[...slug]/.md/server.ts" }],
+						extensions: [{ extension: ".md", file: "docs/[...slug]/.md/server.ts", socket: false }],
 					}),
 				],
 			}),
@@ -366,14 +368,21 @@ describe("generateRouterModule with loads", () => {
 describe("serverRoutes", () => {
 	it("collects plain and extension endpoints with their patterns", () => {
 		expect(serverRoutes(loaded)).toEqual([
-			{ pattern: "/docs", extension: ".md", params: [], file: "docs/.md/server.ts" },
+			{
+				pattern: "/docs",
+				extension: ".md",
+				params: [],
+				file: "docs/.md/server.ts",
+				socket: false,
+			},
 			{
 				pattern: "/docs/:...slug",
 				extension: ".md",
 				params: [{ name: "slug", matcher: null }],
 				file: "docs/[...slug]/.md/server.ts",
+				socket: false,
 			},
-			{ pattern: "/api", extension: null, params: [], file: "api/server.ts" },
+			{ pattern: "/api", extension: null, params: [], file: "api/server.ts", socket: false },
 		]);
 	});
 });
@@ -493,6 +502,28 @@ describe("generateEndpointsModule", () => {
 		);
 		expect(code).toContain(
 			'{ pattern: "/api", id: "/api", extension: null, file: "api/server.ts", module: endpoint_2 }',
+		);
+	});
+});
+
+describe("generateConvertersModule", () => {
+	it("statically imports every converter the app has, so the bundler ships it", async () => {
+		const code = await generateConvertersModule(async () => true);
+		expect(code).toContain('import * as converter_0 from "@valibot/to-json-schema";');
+		expect(code).toContain('import * as converter_1 from "zod";');
+		expect(code).toContain('"@valibot/to-json-schema": converter_0,');
+		expect(code).toContain('"zod": converter_1,');
+	});
+
+	it("names only the packages that resolve — the others are not the app's to own", async () => {
+		const code = await generateConvertersModule(async (name) => name === "zod");
+		expect(code).toContain('import * as converter_0 from "zod";');
+		expect(code).not.toContain("@valibot/to-json-schema");
+	});
+
+	it("is an empty registry when the app has no converter at all", async () => {
+		expect(await generateConvertersModule(async () => false)).toBe(
+			"export const converters = {};\n",
 		);
 	});
 });

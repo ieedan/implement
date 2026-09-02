@@ -409,9 +409,11 @@
 			margin-block-end: 0;
 		}
 
-		/* Horizontal scroll for any wide block. Wrap it and the wrapper owns the
-         flow margin. Tables shrink to fit, so widen the table to make it scroll
-         instead of compress. */
+		/* Horizontal scroll for any wide block — every table is wrapped in one at
+         build time. Wrap it and the wrapper owns the flow margin. The block
+         keeps shrinking to fit as it does unwrapped; the wrapper only catches
+         what is left when it has run out of room to shrink into, so the block
+         scrolls instead of the page. */
 		&:where(.typeset-scroll) {
 			overflow-x: auto;
 			margin-block-start: var(--typeset-flow);
@@ -419,9 +421,12 @@
 		&:where(.typeset-scroll > *) {
 			margin-block-start: 0;
 		}
-		&:where(.typeset-scroll table) {
-			width: max-content;
-			max-width: none;
+		/* The wrapper is a tab stop, since a scrolled table has nothing else to
+         focus. Rounded to sit on the table's own corners. */
+		&:where(.typeset-scroll):focus-visible {
+			outline: 2px solid var(--color-ring, currentColor);
+			outline-offset: 2px;
+			border-radius: var(--radius, 0.5em);
 		}
 		&:where(thead th) {
 			font-weight: 500;

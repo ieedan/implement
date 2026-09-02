@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/adapter-vercel",
-	"version": "0.0.15",
+	"version": "0.0.20",
 	"description": "Builds an implement kit app for Vercel, through the Build Output API.",
 	"keywords": [
 		"implement",

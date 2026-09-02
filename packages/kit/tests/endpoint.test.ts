@@ -179,7 +179,12 @@ describe("handler()", () => {
 		});
 		const response = await server([endpoint("/posts", { POST })])("/posts", {
 			method: "POST",
-			headers: { "content-type": "application/x-www-form-urlencoded" },
+			// the origin a `<form>` on this app's own page would send: a form body
+			// from anywhere else is what the CSRF check rejects
+			headers: {
+				"content-type": "application/x-www-form-urlencoded",
+				origin: "http://localhost",
+			},
 			body: form.toString(),
 		});
 		expect(await response.json()).toEqual({ title: "hi", tag: ["a", "b"] });

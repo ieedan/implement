@@ -7,6 +7,8 @@ import type { Adapter } from "./adapter.ts";
 import { OUTPUT_DIR, runAdapter } from "./build.ts";
 import {
 	apiRoutes,
+	EMPTY_CONVERTERS,
+	generateConvertersModule,
 	generateEndpointsModule,
 	generateHooksModule,
 	generatePagesModule,
@@ -20,6 +22,7 @@ import {
 import {
 	ENDPOINTS_ID,
 	handleServerRequest,
+	handleUpgrade,
 	HOOKS_ID,
 	PAGES_ID,
 	prerenderServerFiles,
@@ -56,6 +59,8 @@ import { builtinMatchers, matcherTable, type ParamMatchers } from "./params.ts";
 import type { PreloadOptions } from "./preload-kinds.ts";
 import { manifestPath, preloadHints } from "./preload.ts";
 import { prerenderPolicy, type PrerenderDefault, type PrerenderPolicy } from "./prerender.ts";
+// type-only, so the plugin does not pull the request pipeline into a config file
+import type { CsrfOptions } from "./server.ts";
 import type { KitPluginApi } from "./sync.ts";
 import {
 	ENDPOINT_FILE,
@@ -87,10 +92,12 @@ export type {
 	BuiltRoutes,
 	Prerendered,
 } from "./adapter.ts";
+export { assertNoSockets } from "./adapter.ts";
 export type { ClientStyle, DataChain, PageRoute, ServerRoute } from "./codegen.ts";
 export type { OpenApiDocument, OpenApiOptions, ToJsonSchema } from "./openapi.ts";
 export type { PreloadCodeKind, PreloadDataKind, PreloadOptions } from "./preload-kinds.ts";
 export type { PrerenderDefault } from "./prerender.ts";
+export type { CsrfOptions } from "./server.ts";
 export {
 	isParamMatcher,
 	matcher,
@@ -121,8 +128,26 @@ const CLIENT_ID = "$implement/client";
  * is per-route (`.implement/types/…/$types.d.ts`); the runtime half is the same
  * for every route, because params are purely type-level.
  */
+/**
+ * The JSON-Schema converters the app has installed, each behind a static
+ * import so the bundler writes them into the server bundle.
+ *
+ * Kit converts a Standard Schema to JSON Schema through the vendor's own
+ * converter package, and two of those conversions happen at runtime rather than
+ * at build time: an MCP route's `tools/list`, and the live `api.openapi.path`.
+ * Reached through a variable specifier, the converter is invisible to the
+ * bundler and never ships — and an adapter's output has no `node_modules` for a
+ * bare specifier to fall back on, so the import fails on every request.
+ * Statically importing them from kit is not an option either: an app that uses
+ * one vendor does not have the other's converter installed, and the build would
+ * fail on a package it has no reason to own.
+ *
+ * So the list is decided here, per app, from what actually resolves.
+ */
+const CONVERTERS_ID = "$implement/schema-converters";
+const RESOLVED_CONVERTERS_ID = `\0${CONVERTERS_ID}`;
 const TYPES_ID = "\0$implement/route-types";
-const TYPES_MODULE = 'export { handler, json, sse } from "@implementjs/kit/endpoint";\n';
+const TYPES_MODULE = 'export { handler, json, socket, sse } from "@implementjs/kit/endpoint";\n';
 const RESOLVED_ROUTER_ID = "\0$implement/router";
 const RESOLVED_PARAMS_ID = `\0${PARAMS_ID}`;
 const RESOLVED_NAVIGATION_ID = `\0${NAVIGATION_ID}`;
@@ -307,6 +332,26 @@ export type KitOptions = {
 	 * @default { data: "hover", code: "hover" }
 	 */
 	preload?: PreloadOptions;
+	/**
+	 * The one thing kit does about where a request came from: reject a
+	 * cross-site **form** submission that mutates — a `POST`, `PUT`, `PATCH`, or
+	 * `DELETE` carrying `application/x-www-form-urlencoded`, `multipart/form-data`,
+	 * or `text/plain`, the content types a page on another origin can send at
+	 * your app with no preflight and no opt-in from you.
+	 *
+	 * Nothing else is gated. Kit adds no `access-control-*` headers to anything,
+	 * so a `GET` endpoint is reachable cross-origin and a browser reads its body
+	 * only if the endpoint says so itself — see
+	 * [server routes](https://implementjs.dev/kit/server-routes#cross-origin-requests).
+	 *
+	 * ```ts
+	 * // let one other origin post forms here
+	 * kit({ csrf: { trustedOrigins: ["https://admin.example.com"] } });
+	 * ```
+	 *
+	 * @default { checkOrigin: true, trustedOrigins: [] }
+	 */
+	csrf?: CsrfOptions;
 };
 
 export type KitApiOptions = {
@@ -511,6 +556,7 @@ export function kit(options: KitOptions = {}): Plugin[] {
 		alias: options.alias,
 		client: options.api?.client,
 		preload: options.preload,
+		csrf: options.csrf,
 		dynamicPublicEnv: normalizeFile(options.env?.dynamicPublic ?? DEFAULT_ENV_DYNAMIC_PUBLIC),
 	};
 	let root = process.cwd();
@@ -574,18 +620,21 @@ export function kit(options: KitOptions = {}): Plugin[] {
 	/**
 	 * A near miss (`+server.ts`, `page.tsx`) is colocated code as far as the scan
 	 * is concerned, so the route it was meant to be simply never exists and
-	 * nothing says why. Kit says it here instead, once per scan that turned the
-	 * warning up anew: a warning that is still there after an unrelated edit does
-	 * not repeat itself, and one that comes back after a rename is worth
-	 * repeating.
+	 * nothing says why; a `layout.server.ts` typed with `LoadEvent` fails with a
+	 * `TS2502` that names neither type. Kit says both here instead, once per scan
+	 * that turned the warning up anew: a warning that is still there after an
+	 * unrelated edit does not repeat itself, and one that comes back after a
+	 * rename — or after the wrong import goes back in — is worth repeating.
 	 */
 	const reportWarnings = (warnings: RouteWarning[]): void => {
 		const current = new Set<string>();
 		for (const warning of warnings) {
-			const key = `${warning.file} → ${warning.suggestion}`;
-			current.add(key);
-			if (reportedWarnings.has(key)) continue;
-			logger.warn(taggedWarning(formatRouteWarning(warning, routes)));
+			// the message is the identity: two warnings that read the same are the
+			// same warning, whatever kind they came from
+			const message = formatRouteWarning(warning, routes);
+			current.add(message);
+			if (reportedWarnings.has(message)) continue;
+			logger.warn(taggedWarning(message));
 		}
 		reportedWarnings = current;
 	};
@@ -885,9 +934,25 @@ export function kit(options: KitOptions = {}): Plugin[] {
 			if (id === PAGES_ID) return RESOLVED_PAGES_ID;
 			if (id === ENDPOINTS_ID) return RESOLVED_ENDPOINTS_ID;
 			if (id === HOOKS_ID) return RESOLVED_HOOKS_ID;
+			if (id === CONVERTERS_ID) return RESOLVED_CONVERTERS_ID;
 			return null;
 		},
-		load(id, loadOptions) {
+		async load(id, loadOptions) {
+			if (id === RESOLVED_CONVERTERS_ID) {
+				// nothing in a browser converts a schema to JSON Schema, and shipping
+				// a converter there would be pure weight
+				if (isClientGraph(this.environment, loadOptions?.ssr)) return EMPTY_CONVERTERS;
+				// resolved the way the build itself would, so an alias, a workspace
+				// link, and a pnpm store all answer the same. A package Vite decides
+				// to leave external stays a bare specifier in the output, which is
+				// exactly what it was before — never worse, and better wherever the
+				// adapter bundles
+				const importer = join(root, "package.json");
+				return await generateConvertersModule(
+					async (specifier) =>
+						(await this.resolve(specifier, importer, { skipSelf: true })) !== null,
+				);
+			}
 			if (id === RESOLVED_ROUTER_ID) {
 				return generateRouterModule(tree ?? scan(), routesBase);
 			}
@@ -1037,8 +1102,31 @@ export function kit(options: KitOptions = {}): Plugin[] {
 				const serverRouteFile =
 					name === ENDPOINT_FILE || name === PAGE_SERVER_FILE || name === LAYOUT_SERVER_FILE;
 				if (file !== hooksFile && !(file.startsWith(routesDir + sep) && serverRouteFile)) return;
+				// a `layout.server.ts` is the one routing file warned about for what it
+				// says rather than for existing, so an edit is what turns that warning
+				// on and off and only a rescan notices. `regenerate` reloads too.
+				if (name === LAYOUT_SERVER_FILE && file.startsWith(routesDir + sep)) {
+					regenerate();
+					return;
+				}
 				server.ws.send({ type: "full-reload" });
 			};
+
+			// A route's `SOCKET` handler is served in dev the same way it is in
+			// production: the app's pipeline decides, and a path no socket route
+			// claims is left alone — Vite's own HMR channel is on this server too.
+			server.httpServer?.on("upgrade", (req, socket, head) => {
+				handleUpgrade({ server, req, socket, head, entry: ENTRY_SERVER, routes }).catch(
+					(error: unknown) => {
+						server.config.logger.error(
+							taggedWarning(
+								`websocket upgrade failed: ${error instanceof Error ? error.message : String(error)}`,
+							),
+						);
+						socket.destroy();
+					},
+				);
+			});
 
 			server.watcher.on("add", onFile);
 			server.watcher.on("unlink", onFile);

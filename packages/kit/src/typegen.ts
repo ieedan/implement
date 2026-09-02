@@ -13,6 +13,9 @@ import {
 } from "./codegen.ts";
 import { BUILTIN_MATCHER_NAMES } from "./params.ts";
 import type { PreloadOptions } from "./preload-kinds.ts";
+// type-only: this is build-time code, and `./server.ts` is the runtime it
+// generates a call into
+import type { CsrfOptions } from "./server.ts";
 import { type RouteNode, type RouteParam, type RouteTree } from "./scan.ts";
 
 export const IMPLEMENT_DIR = ".implement";
@@ -85,18 +88,25 @@ preloadRoute(window.location.pathname).then(
 /**
  * The generated `entry-server.ts`.
  *
- * A function rather than a constant because the app decides one thing about
- * it: whether a dynamic public env snapshot is imported and embedded. Which
- * error page renders is not one of them any more — the boundary is resolved at
- * runtime, and `renderErrorPage` answers `null` for a path no `error.ts`
- * covers, so an app without one needs no different entry.
+ * A function rather than a constant because the app decides two things about
+ * it: whether a dynamic public env snapshot is imported and embedded, and what
+ * it configured for `csrf`. Which error page renders is not one of them any
+ * more — the boundary is resolved at runtime, and `renderErrorPage` answers
+ * `null` for a path no `error.ts` covers, so an app without one needs no
+ * different entry.
  */
-function entryServer(dynamicPublicEnv: string | undefined): string {
+function entryServer(dynamicPublicEnv: string | undefined, csrf: CsrfOptions | undefined): string {
 	// absent unless the app has the file: no import, no snapshot embedded in a
 	// page, and no `/_implement/env.js` route on the server
 	const envImport =
 		dynamicPublicEnv === undefined ? [] : [`import * as publicEnv from "/${dynamicPublicEnv}";`];
 	const envOption = dynamicPublicEnv === undefined ? [] : ["\tpublicEnv,"];
+	// the option lives in `vite.config.ts`, which the server bundle never
+	// imports — so it is baked in here, the same way `preload` is on the client
+	const csrfOption =
+		csrf === undefined || Object.keys(csrf).length === 0
+			? []
+			: [`\tcsrf: ${JSON.stringify(csrf)},`];
 	return `${[
 		'import { renderToString } from "@implementjs/core/server";',
 		'import { preloadErrorRoute, preloadRoute, renderErrorPage, seedData } from "@implementjs/kit/runtime";',
@@ -123,6 +133,7 @@ function entryServer(dynamicPublicEnv: string | undefined): string {
 		"\t// so `event.api` is this app's own client, bound to `event.fetch`",
 		"\tcreateApiClient: createClient,",
 		...envOption,
+		...csrfOption,
 		"\trenderPage: async ({ url, data, error }) => {",
 		"\t\tif (data !== null) seedData(data);",
 		"\t\t// renderToString walks the tree synchronously, so whatever renders has to",
@@ -142,6 +153,9 @@ function entryServer(dynamicPublicEnv: string | undefined): string {
 		"",
 		"export const render = server.render;",
 		"export const respond = server.respond;",
+		"// the socket half of the pipeline, for an adapter whose host can hold one open",
+		"export const upgrade = server.upgrade;",
+		"export const hasSockets = server.hasSockets;",
 	].join("\n")}\n`;
 }
 
@@ -331,10 +345,12 @@ function dataType(dir: string, files: string[]): string {
  */
 const HANDLER_EXPORT = `
 export const handler: HandlerBuilder<ServerParams>;
+export const socket: SocketBuilder<ServerParams>;
+export type SocketPeer = KitSocketPeer<ServerParams>;
 export { json, sse } from "@implementjs/kit/endpoint";
 `;
 
-const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/endpoint";
+const HANDLER_IMPORT = `import type { HandlerBuilder, SocketBuilder, SocketPeer as KitSocketPeer } from "@implementjs/kit/endpoint";
 `;
 
 /**
@@ -345,6 +361,27 @@ const HANDLER_IMPORT = `import type { HandlerBuilder } from "@implementjs/kit/en
 function parentFiles(files: string[], own: string | null): string[] {
 	return own === null ? files : files.slice(0, -1);
 }
+
+/**
+ * The doc comments over a route's two load events.
+ *
+ * They differ by one word, and a directory's own layout is a parent of its page
+ * but not of itself, so which one a file wants is not something the names
+ * settle. The hover says it, in the editor, before the load is written.
+ */
+const LOAD_EVENT_DOC = `/**
+ * The event a \`page.server.ts\` load receives. Its \`parent()\` resolves to what
+ * the loads above the page returned — this directory's own layout included.
+ */
+`;
+
+/** @see {@link LOAD_EVENT_DOC} */
+const LAYOUT_LOAD_EVENT_DOC = `/**
+ * The event a \`layout.server.ts\` load receives — the one a layout load takes,
+ * rather than \`LoadEvent\`. Its \`parent()\` resolves to what the loads above
+ * *this layout* returned, its own excluded.
+ */
+`;
 
 /** The \`./$types\` module for one route directory. */
 export function generateRouteTypes(node: RouteNode, chain: DataChain, paths: GenPaths): string {
@@ -368,8 +405,8 @@ export type RouteParams = ${paramsType(node.params, params, paths.appMatchers)};
 export type ServerParams = ${serverParamsType(node.params, params, paths.appMatchers)};
 export type LayoutParentData = ${dataType(node.dir, parentFiles(chain.layoutFiles, node.layoutServer))};
 export type PageParentData = ${dataType(node.dir, parentFiles(chain.pageFiles, node.pageServer))};
-export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;
-export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;
+${LOAD_EVENT_DOC}export type LoadEvent = KitLoadEvent<ServerParams, PageParentData>;
+${LAYOUT_LOAD_EVENT_DOC}export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;
 export type RequestEvent = KitRequestEvent<ServerParams>;
 export type LayoutData = ${dataType(node.dir, chain.layoutFiles)};
 export type PageData = ${dataType(node.dir, chain.pageFiles)};
@@ -558,6 +595,8 @@ export type SyncOptions = {
 	alias?: Record<string, string>;
 	/** What a link preloads when nothing above it says otherwise — \`KitOptions.preload\`. */
 	preload?: PreloadOptions;
+	/** Cross-site request forgery protection — \`KitOptions.csrf\`, baked into the generated server entry. */
+	csrf?: CsrfOptions;
 	/**
 	 * Where the app's public dynamic env file would be, relative to the app
 	 * root — \`KitOptions.env.dynamicPublic\`. The generated server entry imports
@@ -636,7 +675,7 @@ export function writeGenerated(root: string, tree: RouteTree, options: SyncOptio
 		options.dynamicPublicEnv !== undefined && existsSync(join(root, options.dynamicPublicEnv))
 			? options.dynamicPublicEnv
 			: undefined;
-	writeIfChanged(join(outDir, "entry-server.ts"), entryServer(dynamicPublicEnv));
+	writeIfChanged(join(outDir, "entry-server.ts"), entryServer(dynamicPublicEnv, options.csrf));
 	writeIfChanged(
 		join(outDir, "tsconfig.json"),
 		generateTsconfig({ ...DEFAULT_ALIASES, ...routerAliases().tsconfig, ...options.alias }),

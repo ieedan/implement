@@ -2,7 +2,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { build } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Adapter, Builder } from "../src/adapter.ts";
+import { assertNoSockets, type Adapter, type Builder, type BuiltRoutes } from "../src/adapter.ts";
 import { kit, type KitOptions } from "../src/index.ts";
 
 const fixture = join(import.meta.dirname, "fixtures/adapter-app");
@@ -63,7 +63,8 @@ describe("adapter builds", () => {
 	it("hands the adapter the route table", () => {
 		const { routes } = builder();
 		expect(routes.pages).toEqual(expect.arrayContaining(["/", "/dynamic", "/pinned"]));
-		expect(routes.endpoints).toEqual([{ pattern: "/api", extension: null }]);
+		expect(routes.endpoints).toEqual([{ pattern: "/api", extension: null, socket: false }]);
+		expect(routes.sockets).toEqual([]);
 		expect(routes.dynamic).toBe(true);
 	});
 
@@ -231,5 +232,101 @@ describe("the OpenAPI document with prerendering off", () => {
 	it("ships it with the build that produced it, and names it to the adapter", () => {
 		expect(readFileSync(join(builder().clientDir, "openapi.json"), "utf8")).toContain('"/api"');
 		expect(builder().prerendered.files).toContain("/openapi.json");
+	});
+});
+
+/**
+ * The bug this guards: an MCP route converts its tools' input schemas at
+ * runtime, through the vendor's own converter package. Reached by a variable
+ * specifier that was the point of, the converter is invisible to the bundler
+ * and never ships — and a bundling adapter's output has no `node_modules` to
+ * fall back on, so every tool went out as an unconstrained `{"type":"object"}`
+ * that the model could see but never call correctly. Locally it all looked
+ * right, because dev resolves the package from disk.
+ */
+describe("an MCP route in a bundled server", () => {
+	const mcpFixture = join(import.meta.dirname, "fixtures/mcp-app");
+	const { adapter, builder } = recorder({ build: { bundle: true } });
+	let bundled: string;
+
+	beforeAll(async () => {
+		await build({
+			root: mcpFixture,
+			configFile: false,
+			logLevel: "silent",
+			plugins: [kit({ adapter })],
+		});
+		const { serverDir, serverEntry } = builder();
+		bundled = readFileSync(join(serverDir!, serverEntry), "utf8");
+	}, 120_000);
+
+	afterAll(() => {
+		rmSync(join(mcpFixture, ".implement"), { recursive: true, force: true });
+	});
+
+	it("bundles the converter instead of leaving a specifier nothing can resolve", () => {
+		// a string only `@valibot/to-json-schema` emits — the converter's own code,
+		// in the one file the adapter deploys
+		expect(bundled).toContain("cannot be converted to JSON Schema");
+		expect(bundled).not.toMatch(/from\s*["']@valibot\/to-json-schema["']/);
+	});
+
+	it("lists every tool's arguments through the built server", async () => {
+		const { serverDir, serverEntry } = builder();
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The built entry exports kit's request handler.
+		const { handler } = (await import(join(serverDir!, serverEntry))) as {
+			handler: (request: Request) => Promise<Response>;
+		};
+		const response = await handler(
+			new Request("https://example.com/mcp", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+			}),
+		);
+		expect(response.status).toBe(200);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Reading a JSON-RPC envelope back out of the response.
+		const { result } = (await response.json()) as {
+			result: { tools: { name: string; inputSchema: Record<string, unknown> }[] };
+		};
+		expect(result.tools).toHaveLength(1);
+		expect(result.tools[0]).toMatchObject({
+			name: "create_issue",
+			inputSchema: {
+				type: "object",
+				properties: { title: { type: "string" }, labels: { type: "array" } },
+				required: ["title"],
+			},
+		});
+	});
+});
+
+/** A route table with nothing in it but the socket routes a case is about. */
+const routes = (sockets: string[]): { routes: BuiltRoutes } => ({
+	routes: { pages: [], endpoints: [], sockets, dynamic: true },
+});
+
+describe("assertNoSockets", () => {
+	it("passes an app with no socket routes", () => {
+		expect(() => assertNoSockets(routes([]), "test-adapter", "it cannot")).not.toThrow();
+	});
+
+	it("names the adapter, the reason, and every route the host cannot serve", () => {
+		let message = "";
+		try {
+			assertNoSockets(
+				routes(["relay/server.ts", "rooms/[id]/server.ts"]),
+				"@implementjs/adapter-vercel",
+				"a serverless function cannot hold a socket open",
+			);
+		} catch (error) {
+			message = error instanceof Error ? error.message : String(error);
+		}
+		expect(message).toContain("@implementjs/adapter-vercel");
+		expect(message).toContain("a serverless function cannot hold a socket open");
+		expect(message).toContain("relay/server.ts");
+		expect(message).toContain("rooms/[id]/server.ts");
+		// and where the app can put them instead
+		expect(message).toContain("@implementjs/adapter-node");
 	});
 });

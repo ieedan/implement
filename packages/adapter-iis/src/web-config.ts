@@ -28,6 +28,11 @@ export type WebConfigSettings = {
 	redirectToHttps: boolean;
 	/** The largest request body IIS lets through, in bytes. */
 	maxRequestBodySize: number;
+	/**
+	 * Whether the app declares WebSocket routes, which changes one thing in the
+	 * document — see the `<webSocket>` element in {@link webConfig}.
+	 */
+	sockets: boolean;
 	/** Extra `<iisnode>` attributes, overriding the defaults. */
 	iisnode: Attributes;
 	/** Extra `<httpPlatform>` attributes, overriding the defaults. */
@@ -154,7 +159,9 @@ function hosting(settings: WebConfigSettings): string {
 			// iisnode's logs are written per process and never rotated, so they
 			// grow without bound on a site that recycles
 			loggingEnabled: false,
-			watchedFiles: "web.config;*.js",
+			// the entry iisnode is pointed at is `.cjs`, since it loads it with
+			// require() — so watching `*.js` alone would miss the file that changes
+			watchedFiles: "web.config;*.js;*.cjs",
 			...settings.iisnode,
 		});
 		return [
@@ -172,8 +179,11 @@ function hosting(settings: WebConfigSettings): string {
 		stdoutLogFile: ".\\logs\\stdout",
 		startupTimeLimit: 60,
 		// IIS gives up on a request after this; a streaming endpoint that holds
-		// its connection longer is cut here rather than by the app
-		requestTimeout: "00:04:00",
+		// its connection longer is cut here rather than by the app. The four
+		// minutes this used to be is a cut an SSE stream or a long download
+		// reaches while it is still working, so it is twenty — and an app that
+		// streams for longer than that passes its own
+		requestTimeout: "00:20:00",
 		...settings.httpPlatform,
 	});
 	return [
@@ -192,6 +202,13 @@ export function webConfig(settings: WebConfigSettings): string {
 	const server = [
 		hosting(settings),
 		rewrite(settings),
+		// IIS ships its own WebSocket module, and while it is on it answers the
+		// handshake itself — the upgrade never reaches the process in front of
+		// Node, so the app's `SOCKET` route is never asked. Turning it off is what
+		// makes the handler proxy the connection through instead. The Windows
+		// feature still has to be installed; this only says IIS is not the one
+		// speaking the protocol.
+		...(settings.sockets ? ['<webSocket enabled="false" />'] : []),
 		// without this IIS replaces the app's own 404 and 500 bodies with its
 		// error pages, and the error route the app renders never reaches anyone
 		'<httpErrors existingResponse="PassThrough" />',

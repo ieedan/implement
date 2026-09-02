@@ -23,6 +23,16 @@ import {
 	type RouteData,
 } from "./match.ts";
 import type { ParamMatchers } from "./params.ts";
+import {
+	createSocketSession,
+	matchSocket,
+	SOCKET_EXPORT,
+	validateSocketParams,
+	type SocketConnection,
+	type SocketDefinition,
+	type SocketSession,
+	type SocketUpgradeEvent,
+} from "./socket.ts";
 
 /**
  * Kit's server request pipeline: the `src/hooks.server.ts` contract
@@ -87,6 +97,22 @@ export type { CookieOptions, Cookies, CookieScope } from "./cookies.ts";
 export { handler, json, type JsonResponse } from "./endpoint.ts";
 export { sse } from "./sse.ts";
 export type { ServerSentEvent, SseInit, SseResponse, SseSource } from "./sse.ts";
+
+// the socket half of a `server.ts`, re-exported the same way
+export { socket, isUpgradeRequest, SocketReadyState } from "./socket.ts";
+export type {
+	SocketBuilder,
+	SocketCloseDetails,
+	SocketConnection,
+	SocketData,
+	SocketHandler,
+	SocketHandlers,
+	SocketMessage,
+	SocketPeer,
+	SocketSession,
+	SocketSource,
+	SocketUpgradeEvent,
+} from "./socket.ts";
 export type {
 	EndpointSpec,
 	Handler,
@@ -372,14 +398,152 @@ export type KitServerOptions = {
 	 * prerendered without one.
 	 */
 	publicEnv?: Record<string, unknown>;
+	/**
+	 * Cross-site request forgery protection — `KitOptions.csrf`, passed through
+	 * by the generated `.implement/entry-server.ts`.
+	 */
+	csrf?: CsrfOptions;
 };
+
+/**
+ * The one origin gate kit has. Everything else about cross-origin is the app's:
+ * kit adds no `access-control-*` headers to anything, so an endpoint is as open
+ * as the headers it sets for itself — see
+ * [server routes](https://implementjs.dev/kit/server-routes#cross-origin-requests).
+ */
+export type CsrfOptions = {
+	/**
+	 * Reject a cross-site request whose method mutates *and* whose content type
+	 * a browser can send from a plain `<form>` — the shape a page on another
+	 * origin can submit at your app without ever reading a response. Nothing
+	 * else is touched: a cross-origin `GET`, or a `POST` of
+	 * `application/json`, is preflighted by the browser and needs no gate here.
+	 *
+	 * @default true
+	 */
+	checkOrigin?: boolean;
+	/**
+	 * Origins allowed to make those requests anyway — `["https://admin.example.com"]`.
+	 * Compared whole, so scheme and port count.
+	 *
+	 * @default []
+	 */
+	trustedOrigins?: string[];
+};
+
+/** The methods a cross-site form submission can use to change something. */
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * The content types a `<form>` can produce, which is what makes them the ones
+ * worth checking: a browser sends them cross-origin with no preflight and no
+ * opt-in from the receiving app.
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/enctype
+ */
+const FORM_CONTENT_TYPES = new Set([
+	"application/x-www-form-urlencoded",
+	"multipart/form-data",
+	"text/plain",
+]);
+
+/**
+ * The CSRF rejection for a request that earns one, or `null` — which is nearly
+ * always, since the check is deliberately narrow.
+ *
+ * It runs before hooks and before routing: a request this rejects never reaches
+ * the app, so there is nothing for `handle` to decide about it.
+ */
+function csrfRejection(request: Request, url: URL, options: CsrfOptions): Response | null {
+	if (options.checkOrigin === false) return null;
+	if (!MUTATING_METHODS.has(request.method)) return null;
+	const contentType = (request.headers.get("content-type") ?? "").split(";", 1)[0]!.trim();
+	if (!FORM_CONTENT_TYPES.has(contentType.toLowerCase())) return null;
+	const origin = request.headers.get("origin");
+	if (origin === url.origin) return null;
+	if (origin !== null && (options.trustedOrigins ?? []).includes(origin)) return null;
+	const message = `Cross-site ${request.method} form submissions are forbidden`;
+	// the same split SvelteKit makes: a caller that asked for JSON is a caller
+	// that will try to parse whatever comes back
+	if (request.headers.get("accept") === "application/json") {
+		return Response.json({ message }, { status: 403 });
+	}
+	return new Response(message, {
+		status: 403,
+		headers: { "content-type": "text/plain; charset=utf-8" },
+	});
+}
+
+/**
+ * What a host gets back for an upgrade request: the handshake response, and —
+ * when the app accepted — the function that binds the route's socket handlers
+ * to whatever transport the host produced.
+ *
+ * A refusal is an ordinary `Response`: the app's `401`, a `404` for a path no
+ * socket route serves, or whatever `hooks.server.ts` answered with instead of
+ * resolving. The host writes it and closes; the client sees a handshake that
+ * never completed, with the status on it.
+ */
+export type SocketUpgrade =
+	| {
+			accepted: true;
+			/**
+			 * Headers the handshake must carry: the `Set-Cookie` a hook issued, and
+			 * anything a route added through `event.setHeaders` — which is how a
+			 * route selects a `Sec-WebSocket-Protocol`.
+			 */
+			headers: Headers;
+			/** Binds the route's handlers to the transport the host produced. */
+			accept: (connection: SocketConnection) => SocketSession;
+	  }
+	| {
+			accepted: false;
+			/** Send this instead of completing the handshake. */
+			response: Response;
+	  };
 
 export type KitServer = {
 	/** Handles one request end to end, hooks included. */
 	respond: (request: Request, options?: RespondOptions) => Promise<Response>;
+	/**
+	 * Resolves a WebSocket upgrade through the same pipeline: `hooks.server.ts`
+	 * runs, cookies are read and written, `event.locals` is filled in, and the
+	 * route's own `upgrade` hook gets the last word. Adapters call this from
+	 * their host's upgrade path — see `@implementjs/kit/node`.
+	 *
+	 * `null` means no route here accepts upgrades, which is not the same as a
+	 * refusal: it leaves the socket for whatever else the host is listening for.
+	 */
+	upgrade: (request: Request, options?: RespondOptions) => Promise<SocketUpgrade | null>;
 	/** The prerenderer's entry: the page render for a path, hooks included. */
 	render: (url: string) => Promise<RenderResult>;
+	/** Whether any route in the app declares a socket handler. */
+	hasSockets: boolean;
 };
+
+/**
+ * A socket upgrade travelling through `respond`. The pipeline fills `accepted`
+ * in when the request reached the route with the app's hooks applied, which is
+ * the moment the connection may be accepted and not before.
+ */
+type UpgradeIntent = {
+	definition: SocketDefinition;
+	params: Record<string, unknown>;
+	/** The route's `server.ts`, routes-relative — for attributing what it throws. */
+	file: string;
+	accepted: { event: RequestEvent; params: unknown } | null;
+};
+
+/**
+ * The header the pipeline marks an accepted upgrade with.
+ *
+ * A `Response` cannot carry status `101` — the constructor refuses anything
+ * outside 200–599 — and `handle` may return a response of its own after
+ * calling `resolve`, so the fact that the route accepted is not enough on its
+ * own. The marker travels on the response `resolve` produced, which is what
+ * tells the two apart. It never reaches the wire: `upgrade` strips it.
+ */
+const UPGRADE_MARKER = "x-implement-upgrade";
 
 /**
  * Builds the request pipeline for an app. The generated
@@ -391,10 +555,15 @@ export function createKitServer(options: KitServerOptions): KitServer {
 	const { hooks, pages, endpoints, renderPage, createApiClient, publicEnv } = options;
 	const errors = options.errors ?? [];
 	const matchers = options.matchers ?? {};
+	const csrf = options.csrf ?? {};
 	let started: Promise<void> | undefined;
 	const serveEnv = publicEnv === undefined ? null : publicEnvRoute(publicEnv);
 
-	async function respond(request: Request, respondOptions: RespondOptions = {}): Promise<Response> {
+	async function respond(
+		request: Request,
+		respondOptions: RespondOptions = {},
+		intent?: UpgradeIntent,
+	): Promise<Response> {
 		const onError = respondOptions.onError;
 		// awaited inside the try below, so a failing init answers like any other
 		// error the pipeline catches rather than throwing out of `respond`
@@ -416,6 +585,15 @@ export function createKitServer(options: KitServerOptions): KitServer {
 			? new URL(`${routePath}${requestUrl.search}${requestUrl.hash}`, requestUrl.origin)
 			: requestUrl;
 
+		const depth = respondOptions.depth ?? 0;
+		// a request the pipeline dispatched to itself never crossed a network, so
+		// it has no `Origin` to check and no browser to have forged one — the
+		// check is about what a *page on another origin* can make a browser send
+		if (depth === 0) {
+			const rejected = csrfRejection(request, url, csrf);
+			if (rejected !== null) return rejected;
+		}
+
 		// answered before anything else, hooks included: it is kit's own module, not
 		// the app's, and a page that was prerendered is waiting on it to boot
 		if (serveEnv !== null && path === `/${PUBLIC_ENV_ROUTE}`) return serveEnv(request);
@@ -425,7 +603,6 @@ export function createKitServer(options: KitServerOptions): KitServer {
 
 		const jar = createCookieJar(request, url);
 
-		const depth = respondOptions.depth ?? 0;
 		/**
 		 * `fetch` for this request. A cross-origin call goes out over the network
 		 * like any other; a same-origin one goes straight back through `respond`,
@@ -500,6 +677,10 @@ export function createKitServer(options: KitServerOptions): KitServer {
 
 		/** The response the request would get with no hooks in the way. */
 		const produce = async (current: RequestEvent, transform: PageTransform): Promise<Response> => {
+			// an upgrade has reached its route with the app's hooks applied, so this
+			// is where the route decides — and where a `101` means "hand me the
+			// socket" rather than a body anyone will read
+			if (intent !== undefined) return await acceptUpgrade(intent, current);
 			if (current.isDataRequest) {
 				const data = page === null ? null : await runLoads(page.route, current);
 				return data === null
@@ -639,6 +820,59 @@ export function createKitServer(options: KitServerOptions): KitServer {
 		}
 	}
 
+	async function upgrade(
+		request: Request,
+		respondOptions: RespondOptions = {},
+	): Promise<SocketUpgrade | null> {
+		const match = matchSocket(endpoints, new URL(request.url).pathname, matchers);
+		// no route here accepts upgrades — said as `null` rather than as a `404`
+		// so a host with an upgrade path of its own (Vite's HMR socket, a proxy)
+		// can go on handling it
+		if (match === null) return null;
+		const intent: UpgradeIntent = {
+			definition: match.definition,
+			params: match.params,
+			file: match.route.file,
+			accepted: null,
+		};
+		const response = await respond(request, respondOptions, intent);
+		const accepted = intent.accepted;
+		// the route accepted *and* the response the hooks handed back is the one
+		// `resolve` produced — a `handle` that answered with something else of its
+		// own is refusing, however far the request got before it did
+		if (accepted === null || response.headers.get(UPGRADE_MARKER) !== "1") {
+			return { accepted: false, response };
+		}
+		const headers = new Headers(response.headers);
+		headers.delete(UPGRADE_MARKER);
+		return {
+			accepted: true,
+			headers,
+			accept: (connection) =>
+				createSocketSession({
+					definition: match.definition,
+					connection,
+					event: accepted.event,
+					params: accepted.params,
+					onError: (thrown) => {
+						const report = respondOptions.onError;
+						if (report === undefined) {
+							// nothing is collecting reports, and a socket has no response
+							// left to carry one — the operator's copy has to exist somewhere
+							console.error(thrown);
+							return;
+						}
+						report({
+							error: thrown,
+							event: accepted.event,
+							status: 500,
+							source: { kind: "socket", file: match.route.file },
+						});
+					},
+				}),
+		};
+	}
+
 	async function render(url: string): Promise<RenderResult> {
 		let captured: RenderResult | undefined;
 		const response = await respond(
@@ -658,7 +892,31 @@ export function createKitServer(options: KitServerOptions): KitServer {
 		return captured;
 	}
 
-	return { respond, render };
+	return {
+		respond,
+		upgrade,
+		render,
+		hasSockets: endpoints.some((route) => route.module[SOCKET_EXPORT] !== undefined),
+	};
+}
+
+/**
+ * The route's own say on an upgrade, run inside the pipeline so a thrown
+ * `error()` is answered exactly like an endpoint's — the handshake never
+ * completes and the client is told why.
+ */
+async function acceptUpgrade(intent: UpgradeIntent, event: RequestEvent): Promise<Response> {
+	const params = await validateSocketParams(intent.definition, intent.params);
+	let refusal: void | Response;
+	try {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The route's own `params` schema decided this type; the erased definition cannot name it.
+		refusal = await intent.definition.upgrade?.({ ...event, params } as SocketUpgradeEvent<never>);
+	} catch (thrown) {
+		throw markErrorSource(thrown, { kind: "socket", file: intent.file });
+	}
+	if (refusal instanceof Response) return refusal;
+	intent.accepted = { event, params };
+	return new Response(null, { headers: { [UPGRADE_MARKER]: "1" } });
 }
 
 /** What kit does with an unexpected error when the app has no `handleError` and nothing reports. */

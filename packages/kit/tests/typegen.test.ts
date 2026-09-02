@@ -47,6 +47,7 @@ const slugNode = {
 	pageServer: null,
 	layoutServer: null,
 	endpoint: null,
+	endpointSocket: false,
 	error: null,
 	extensions: [],
 	children: [],
@@ -110,6 +111,17 @@ describe("generateRouteTypes", () => {
 			"export type LayoutLoadEvent = KitLoadEvent<ServerParams, LayoutParentData>;",
 		);
 	});
+
+	it("documents which file each load event belongs to", () => {
+		// the two differ by one word, so the hover is what settles which is which
+		const types = generateRouteTypes(slugNode, { layoutFiles: [], pageFiles: [] }, PATHS);
+		expect(types).toMatch(
+			/The event a `page\.server\.ts` load receives\.[^]*?\n \*\/\nexport type LoadEvent =/,
+		);
+		expect(types).toMatch(
+			/The event a `layout\.server\.ts` load receives[^]*?\n \*\/\nexport type LayoutLoadEvent =/,
+		);
+	});
 });
 
 describe("the handler export", () => {
@@ -117,7 +129,9 @@ describe("the handler export", () => {
 
 	it("is on an endpoint directory's $types, bound to that route's params", () => {
 		const types = generateRouteTypes(endpointNode, { layoutFiles: [], pageFiles: [] }, PATHS);
-		expect(types).toContain('import type { HandlerBuilder } from "@implementjs/kit/endpoint";');
+		expect(types).toContain(
+			'import type { HandlerBuilder, SocketBuilder, SocketPeer as KitSocketPeer } from "@implementjs/kit/endpoint";',
+		);
 		expect(types).toContain("export const handler: HandlerBuilder<ServerParams>;");
 	});
 
@@ -272,6 +286,19 @@ describe("writeGenerated", () => {
 		expect(existsSync(join(app, ".implement/types/src/routes/$types.d.ts"))).toBe(true);
 		expect(existsSync(join(app, ".implement/types/src/routes/docs/[...slug]/$types.d.ts"))).toBe(
 			true,
+		);
+	});
+
+	it("bakes the app's csrf settings into the server entry, and nothing when it has none", () => {
+		const app = makeApp(["page.ts"]);
+		writeGenerated(app, scanRoutes(join(app, "src/routes")));
+		expect(readFileSync(join(app, ".implement/entry-server.ts"), "utf8")).not.toContain("csrf");
+
+		writeGenerated(app, scanRoutes(join(app, "src/routes")), {
+			csrf: { trustedOrigins: ["https://admin.example.com"] },
+		});
+		expect(readFileSync(join(app, ".implement/entry-server.ts"), "utf8")).toContain(
+			'csrf: {"trustedOrigins":["https://admin.example.com"]},',
 		);
 	});
 

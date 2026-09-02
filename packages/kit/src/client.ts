@@ -12,12 +12,19 @@
  * module's *type* through {@link Operations}, so nothing here evaluates a
  * `server.ts` — `typeof import(...)` is erased before the bundle exists.
  *
- * Browser-safe and dependency-free. The `neverthrow` variant lives in its own
- * entry (`@implementjs/kit/client/neverthrow`) so this one never pulls a
- * runtime dependency in.
+ * Browser-safe. The `neverthrow` variant lives in its own entry
+ * (`@implementjs/kit/client/neverthrow`) so this one never pulls an optional
+ * peer in; `./socket-client.ts` is the one thing here that reaches for
+ * `@implementjs/core`, and only for the readable `status` is.
  */
 
 import type { EndpointSpec, Method, SPEC } from "./endpoint.ts";
+import {
+	createSocketClient,
+	type SocketClient,
+	type SocketClientOptions,
+} from "./socket-client.ts";
+import type { SOCKET_SPEC, SocketSpec } from "./socket.ts";
 import { decodeEventStream } from "./sse.ts";
 
 export type { Method } from "./endpoint.ts";
@@ -38,6 +45,8 @@ export type ApiRoute = {
 	 */
 	params: Record<string, unknown>;
 	operations: Partial<Record<Method, EndpointSpec>>;
+	/** What the route's `SOCKET` handler carries, or `undefined` for a route with none. */
+	socket?: SocketSpec | undefined;
 };
 
 /**
@@ -62,6 +71,15 @@ export type Operations<M> = {
 };
 
 type SpecOf<H> = H extends { [SPEC]: infer S extends EndpointSpec } ? S : PlainSpec;
+
+/**
+ * The socket contract a `server.ts` declares, read off its type the way
+ * {@link Operations} reads its methods — `undefined` for a module with no
+ * `SOCKET` export, which is what keeps that route off `api.SOCKET`.
+ */
+export type SocketOf<M> = M extends { SOCKET: { [SOCKET_SPEC]: infer S extends SocketSpec } }
+	? S
+	: undefined;
 
 // ---------------------------------------------------------------------------
 // How a call's outcome reaches the caller
@@ -177,13 +195,56 @@ type DataOf<A extends ApiRoutes, K extends keyof A, M extends Method> = Operatio
 	M
 >["data"];
 
+/**
+ * The route keys that accept a WebSocket upgrade — so `api.SOCKET("` offers
+ * only the routes that serve one, and a route that does not is a type error
+ * rather than a connection that never opens.
+ */
+type SocketKey<A extends ApiRoutes> = {
+	[K in keyof A]: A[K]["socket"] extends SocketSpec ? K : never;
+}[keyof A];
+
+/** The contract the route at `K` declares, for the two message types. */
+type SocketAt<A extends ApiRoutes, K extends keyof A> = A[K]["socket"] extends infer S
+	? S extends SocketSpec
+		? S
+		: never
+	: never;
+
+/** Per-connection options, on top of the route's own `params`. */
+export type SocketCallOptions<A extends ApiRoutes, K extends keyof A> = ParamsField<
+	A[K]["params"]
+> &
+	Omit<SocketClientOptions<SocketAt<A, K>["send"], SocketAt<A, K>["receive"]>, "baseUrl"> & {
+		/** Appended to the URL — a token a browser cannot put in a header. */
+		query?: QueryInit;
+	};
+
+type SocketArgs<A extends ApiRoutes, K extends keyof A> =
+	EmptyObject extends SocketCallOptions<A, K>
+		? [options?: SocketCallOptions<A, K>]
+		: [options: SocketCallOptions<A, K>];
+
+/**
+ * Opening a socket, as the method-first client offers it.
+ *
+ * `SOCKET` sits beside the seven HTTP methods because that is the name the
+ * route exports it under — but unlike them it answers with a connection
+ * rather than a promise of a result, since there is no single result to wait
+ * for.
+ */
+export type SocketMethod<A extends ApiRoutes> = <K extends SocketKey<A> & keyof A>(
+	path: K,
+	...options: SocketArgs<A, K>
+) => SocketClient<SocketAt<A, K>["send"], SocketAt<A, K>["receive"]>;
+
 /** Method-first: `api.GET("/api/posts/[id]", { params })`. The default style. */
 export type MethodClient<A extends ApiRoutes, W extends Wrapper = ResultWrapper> = {
 	[M in Method]: <K extends KeyFor<A, M> & keyof A>(
 		path: K,
 		...options: CallArgs<A, K, M>
 	) => Apply<W, DataOf<A, K, M>>;
-};
+} & { SOCKET: SocketMethod<A> };
 
 /**
  * Route-first, nested by segment: `api.api.posts["[id]"].GET({ params })`.
@@ -221,7 +282,13 @@ type CallsAt<A extends ApiRoutes, W extends Wrapper, K extends string> = K exten
 			[M in Extract<keyof A[K]["operations"], Method>]: (
 				...options: CallArgs<A, K, M>
 			) => Apply<W, DataOf<A, K, M>>;
-		}
+		} & (A[K]["socket"] extends SocketSpec
+			? {
+					SOCKET: (
+						...options: SocketArgs<A, K>
+					) => SocketClient<SocketAt<A, K>["send"], SocketAt<A, K>["receive"]>;
+				}
+			: EmptyObject)
 	: EmptyObject;
 
 /** Every segment that follows `Prefix/` in some route key, up to the next `/`. */
@@ -299,6 +366,12 @@ export type ClientOptions = {
 	 * @default "method"
 	 */
 	style?: "method" | "nested";
+	/**
+	 * Defaults for every socket this client opens — the reconnect policy, the
+	 * subprotocols, the `WebSocket` implementation. A call may override any of
+	 * them, and `baseUrl` is the client's either way.
+	 */
+	socket?: Omit<SocketClientOptions, "baseUrl">;
 };
 
 /** The loosely-typed shape of one call's options, as the runtime sees it. */
@@ -324,15 +397,47 @@ export type CallInput = RequestOptions & {
 export function createClient<C>(options: ClientOptions = {}): C {
 	const send = (method: Method, path: string, input?: CallInput) =>
 		dispatch(method, path, input, options);
-	if (options.style === "nested") return createNested<C>(send);
+	const open = (path: string, input?: SocketInput) => openSocket(path, input, options);
+	if (options.style === "nested") return createNested<C>(send, open);
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The shape is fixed; the types come from the generated table.
-	return methodsFor(
-		(method) => (path: string, input?: CallInput) => send(method, path, input),
-	) as C;
+	return {
+		...methodsFor((method) => (path: string, input?: CallInput) => send(method, path, input)),
+		SOCKET: (path: string, input?: SocketInput) => open(path, input),
+	} as C;
 }
 
-/** The method names a nested level answers to rather than reading as a segment. */
+/** The loosely-typed shape of one socket call's options, as the runtime sees it. */
+export type SocketInput = Omit<SocketClientOptions, "baseUrl"> & {
+	params?: Record<string, unknown>;
+	query?: Record<string, unknown>;
+};
+
+/** One connection, with the client's socket defaults under the call's own. */
+function openSocket(
+	path: string,
+	input: SocketInput | undefined,
+	options: ClientOptions,
+): SocketClient<unknown, unknown> {
+	const { params, query, ...rest } = input ?? {};
+	return createSocketClient(
+		path,
+		{ params, query },
+		{
+			...options.socket,
+			...rest,
+			baseUrl: options.baseUrl,
+		},
+	);
+}
+
+/**
+ * The names a nested level answers to rather than reading as a segment. The
+ * seven methods, and `SOCKET` — which is the name the route exports its socket
+ * handler under, so a path segment spelled that way is not reachable this way
+ * either.
+ */
 const METHOD_NAMES = new Set<string>(METHODS);
+const SOCKET_NAME = "SOCKET";
 
 /**
  * The nested tree, over whatever one call turns out to be — both client entries
@@ -346,6 +451,7 @@ const METHOD_NAMES = new Set<string>(METHODS);
 // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- As with `createClient`: the tree's type comes from the call site's annotation.
 export function createNested<C>(
 	send: (method: Method, path: string, input?: CallInput) => unknown,
+	open: (path: string, input?: SocketInput) => unknown,
 	prefix = "",
 ): C {
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The generated table is what types this; the runtime is segment accumulation either way.
@@ -354,11 +460,12 @@ export function createNested<C>(
 		{
 			get: (_, key) => {
 				if (typeof key !== "string") return undefined;
-				if (!METHOD_NAMES.has(key)) return createNested(send, `${prefix}/${key}`);
-				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `METHOD_NAMES` is built from `METHODS`, so a hit is a `Method`.
-				const method = key as Method;
 				// a route at the root of the tree is keyed "/", not ""
 				const path = prefix === "" ? "/" : prefix;
+				if (key === SOCKET_NAME) return (input?: SocketInput) => open(path, input);
+				if (!METHOD_NAMES.has(key)) return createNested(send, open, `${prefix}/${key}`);
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `METHOD_NAMES` is built from `METHODS`, so a hit is a `Method`.
+				const method = key as Method;
 				return (input?: CallInput) => send(method, path, input);
 			},
 		},

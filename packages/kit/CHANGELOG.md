@@ -1,5 +1,129 @@
 # @implementjs/kit
 
+## 0.0.20
+
+### Patch Changes
+
+- [#101](https://github.com/ieedan/implement/pull/101) [`90a436e`](https://github.com/ieedan/implement/commit/90a436e8e898ee8bf74927954f14aab86b9d7988) Thanks [@ieedan](https://github.com/ieedan)! - Reject cross-site form submissions that mutate, and say out loud that kit does
+  nothing else about where a request came from.
+
+  Kit has never had built-in CORS, which was hard to tell from the outside: an
+  endpoint that wanted to be read cross-origin had to hand-roll its
+  `access-control-*` headers and an `OPTIONS` handler, and nothing said whether
+  it was working around a policy or filling in for the absence of one. It was the
+  absence of one — kit adds no `access-control-*` headers to anything, so a public
+  `GET` is as open as the headers it sets for itself. That is now written down,
+  with the pattern, in [Server
+  Routes](https://implementjs.dev/kit/server-routes#cross-origin-requests).
+
+  What was missing is the gate SvelteKit does have, and kit now has the same one.
+  A `POST`, `PUT`, `PATCH`, or `DELETE` carrying `application/x-www-form-urlencoded`,
+  `multipart/form-data`, or `text/plain` from an origin that is not yours is
+  answered `403` before hooks run — those are the content types a `<form>` on
+  someone else's page can send at your app with no preflight and no opt-in from
+  you. Everything else is untouched: a cross-origin `GET`, and a `POST` of
+  `application/json`, which a browser will not send cross-site until your endpoint
+  answers the preflight allowing it.
+
+  Two things to know if you have a non-browser client:
+
+  - A request with no `Origin` header counts as cross-site, so
+    `fetch(url, { method: "POST", body: "…" })` with no `content-type` — which
+    sends `text/plain` — now gets the `403`. Sending `application/json` is enough.
+  - `kit({ csrf: { trustedOrigins: ["https://admin.example.com"] } })` names
+    origins allowed to post forms anyway, and `csrf: { checkOrigin: false }` turns
+    the check off entirely.
+
+  Requests the pipeline dispatches to itself through `event.fetch` are never
+  gated: they never crossed a network, so there is no browser to have been made
+  to send them.
+
+## 0.0.19
+
+### Patch Changes
+
+- [#96](https://github.com/ieedan/implement/pull/96) [`08908b3`](https://github.com/ieedan/implement/commit/08908b347b9080f7bf808e43ddaa7853770ce9d0) Thanks [@ieedan](https://github.com/ieedan)! - Add WebSocket routes: a `server.ts` can export a `socket()` handler as `SOCKET` and accept an upgrade beside its method handlers.
+
+  An upgrade runs through the same pipeline a request does — `hooks.server.ts`, cookies, `event.locals` — and the route's own `upgrade` callback gets the last word, so refusing one is `error(401, …)`. Handlers receive a peer with `send`, `close`, `params`, `locals`, a `signal` that aborts on disconnect, and `bufferedAmount`/`drained()` for backpressure; messages are sequenced so a slow handler holds the next one.
+
+  Both directions can be typed. `socket({ incoming, outgoing })` takes Standard Schemas, the same contract `handler()` uses for `body` and `response`: `incoming` is validated on the server and types `message.data`, `outgoing` types `peer.send` and serializes as JSON, and an `on` map dispatches a tagged union member by member with every member required. No envelope is invented — it is a tagged union over plain JSON.
+
+  The generated client gains `api.SOCKET("/api/room/[id]", { params })`, typed off the route's schemas and offered only for paths that serve one. It builds the URL from the params, reads messages by async iteration (as it already does for `sse`), exposes `status` as a `Readable` to bind a connection indicator to, and reconnects with a backoff — without pretending that is transparent: unsent messages are dropped rather than replayed, and `onReconnect` is where per-connection state goes back.
+
+  `adapter-node` and `adapter-iis` serve sockets through a `node:http` upgrade listener (`attachSockets` mounts it on a server you built yourself, and the IIS `web.config` now hands the handshake to Node), and `adapter-cloudflare` through the runtime's `WebSocketPair`. `adapter-vercel` and `adapter-static` fail the build when an app declares a socket route, rather than deploying one that would 404.
+
+## 0.0.18
+
+### Patch Changes
+
+- [#92](https://github.com/ieedan/implement/pull/92) [`a16600b`](https://github.com/ieedan/implement/commit/a16600b3170dc5d5df2638a92adee86f80506ee0) Thanks [@ieedan](https://github.com/ieedan)! - Bundle the JSON-Schema converters an app has installed, so an MCP route serves real tool schemas in production
+
+  `tools/list` converts each tool's `input` through the vendor's own converter package (`zod`, `@valibot/to-json-schema`), reached by a dynamic import whose specifier was a variable. The bundler never saw it, so the converter was left out of the server bundle — and an adapter that ships a self-contained bundle has no `node_modules` for the bare specifier to resolve against, so every conversion failed. Each failure was swallowed into a `console.warn` and an unconstrained `{"type":"object"}`: the model saw every tool's name and description and not one of its arguments. Dev and `vite preview` resolved the package from disk, so it only happened once deployed.
+
+  Kit's Vite plugin now emits `$implement/schema-converters`, a static import of each converter package the app actually has, and the conversion reads from that — so what the build sees is what ships. The same path backs `tool.fromEndpoint` and the live `api.openapi.path` route.
+
+  A converter that cannot be reached, or that throws on a schema, now fails `tools/list` with the tool's name and the reason instead of listing the tool with no arguments. A vendor kit has no converter for still degrades to an unconstrained schema with a warning — nothing kit can do about that one — and `inputJsonSchema` is documented as the way to publish a schema yourself.
+
+## 0.0.17
+
+### Patch Changes
+
+- [#88](https://github.com/ieedan/implement/pull/88) [`598c071`](https://github.com/ieedan/implement/commit/598c071b3ce17de9aaaaab69ba443a6157197ea3) Thanks [@ieedan](https://github.com/ieedan)! - Say `LayoutLoadEvent` when a `layout.server.ts` is still typed with `LoadEvent`.
+
+  A route's `$types` used to export one load event, and it was right everywhere.
+  It exports two now — so a page load can see its parent's data — and `LoadEvent`
+  is the page's: it carries what every load above the page returned, this
+  directory's own layout load included. A `layout.server.ts` annotated with it is
+  inside its own type, which `tsc` reports as
+
+  ```
+  src/routes/app/layout.server.ts(13,36): error TS2502: '{ locals }' is referenced directly or indirectly in its own type annotation.
+  ```
+
+  pointed at the destructured parameter, naming neither `LoadEvent` nor the
+  `LayoutLoadEvent` that fixes it. A load written before the split kept compiling
+  right up to the upgrade, and then failed with the one message that says nothing
+  about why.
+
+  The dev server, the build, and `implement-kit sync` now warn when a
+  `layout.server.ts` imports `LoadEvent` from its `$types`, naming the file and
+  the type it wants. The scan already knew the file was there; now it reads what
+  it asked for.
+
+  Both load events carry a doc comment in the generated `$types` as well, so which
+  file takes which is answerable from the hover rather than from the names, which
+  differ by one word.
+
+## 0.0.16
+
+### Patch Changes
+
+- [#87](https://github.com/ieedan/implement/pull/87) [`c3136ff`](https://github.com/ieedan/implement/commit/c3136ff24c5cdbda4aad32fc5662f909aeed8887) Thanks [@ieedan](https://github.com/ieedan)! - `@implementjs/kit/mcp`: a tool can answer with image and audio content, not only text. `tool.image(data, mimeType)` and `tool.audio(data, mimeType)` build the blocks the protocol has for bytes — base64 as a string, or `Uint8Array`/`ArrayBuffer` kit encodes — so a tool handing back a screenshot gives the model a picture to look at instead of characters it cannot read. `tool.content(...blocks)` answers with as many blocks as the answer needs, `tool.structured(value, ...blocks)` carries `structuredContent` alongside them, and the exported `ToolResult` widens from text-only to the three block types the spec defines.
+
+- [`589641f`](https://github.com/ieedan/implement/commit/589641fc1e8bbea1b732e12db8953cb9868bb5b5) Thanks [@ieedan](https://github.com/ieedan)! - `mcp()` reads an argument the model sent as JSON text.
+
+  A tool call is generated as text, and nesting does not always survive that: a
+  model asked for `changes: { status: "in_progress" }` routinely sends
+  `changes: "{\"status\":\"in_progress\"}"` instead. The client cannot repair it —
+  it has no schema — so every such call came back as `invalid input — changes:
+Invalid type: Expected Object but received "{…}"`, and the model had no spelling
+  left to try.
+
+  `tools/call` now coerces against the tool's own JSON Schema before validating,
+  and only where the schema leaves no room for doubt: a value is re-read as JSON
+  when the schema cannot accept a string in that position and the parse lands on a
+  kind it can accept. A `v.string()` field holding `"{"` stays that string, a
+  `v.union([v.string(), v.object(…)])` keeps the caller's spelling, and text that
+  parses to the wrong kind is left alone so the schema rejects it with its own
+  message. The walk follows `$ref` into `$defs`, reaches values nested inside a
+  structure that arrived correctly, and covers `tool.fromEndpoint()`'s
+  `params`/`query`/`body` envelope — including the envelope itself, which a model
+  sometimes stringifies whole and which used to be dropped silently.
+
+- Updated dependencies [[`19a54ae`](https://github.com/ieedan/implement/commit/19a54ae2508e2d65e9f5505685a7d3d1f1738895)]:
+  - @implementjs/core@0.0.11
+  - @implementjs/router@0.0.13
+
 ## 0.0.15
 
 ### Patch Changes

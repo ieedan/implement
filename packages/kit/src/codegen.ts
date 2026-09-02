@@ -1,5 +1,5 @@
 import { routeId } from "./match.ts";
-import type { OpenApiRouteOptions } from "./openapi.ts";
+import { CONVERTER_PACKAGES, type OpenApiRouteOptions } from "./openapi.ts";
 import {
 	segmentKey,
 	type RouteNode,
@@ -495,6 +495,8 @@ export type ServerRoute = {
 	params: RouteParam[];
 	/** Relative path of the `server.ts` file. */
 	file: string;
+	/** Whether the module exports a `SOCKET` handler — see {@link import("./scan.ts").exportsSocket}. */
+	socket: boolean;
 };
 
 /** Every `server.ts` endpoint in the tree, extension endpoints included. */
@@ -503,7 +505,13 @@ export function serverRoutes(tree: RouteTree): ServerRoute[] {
 	const walk = (node: RouteNode, prefix: string) => {
 		const pattern = prefix === "" ? "/" : prefix;
 		if (node.endpoint !== null) {
-			routes.push({ pattern, extension: null, params: node.params, file: node.endpoint });
+			routes.push({
+				pattern,
+				extension: null,
+				params: node.params,
+				file: node.endpoint,
+				socket: node.endpointSocket,
+			});
 		}
 		for (const extension of node.extensions) {
 			routes.push({
@@ -511,6 +519,7 @@ export function serverRoutes(tree: RouteTree): ServerRoute[] {
 				extension: extension.extension,
 				params: node.params,
 				file: extension.file,
+				socket: extension.socket,
 			});
 		}
 		for (const child of node.children) {
@@ -615,6 +624,38 @@ export function generateEndpointsModule(
 	const header = imports.length === 0 ? "" : `${imports.join("\n")}\n\n`;
 	const body = entries.length === 0 ? "[]" : `[\n${entries.join("\n")}\n]`;
 	return `${header}export const endpoints = ${body};\n`;
+}
+
+/** The `$implement/schema-converters` module with nothing in it. */
+export const EMPTY_CONVERTERS = "export const converters = {};\n";
+
+/**
+ * The source of the `$implement/schema-converters` virtual module
+ * (server-only): every JSON-Schema converter package the app has installed,
+ * behind a static import so the bundler writes it into the server bundle.
+ *
+ * A converter reached through a variable specifier is one the bundler never
+ * sees, so it never ships — and an adapter's output has no `node_modules` for
+ * the bare specifier to resolve against at runtime. `tools/list` then converts
+ * nothing and every tool goes out unconstrained. Naming the packages here is
+ * what puts them in the bundle; naming only the installed ones is what keeps an
+ * app that uses valibot from having to own zod's converter.
+ */
+export async function generateConvertersModule(
+	installed: (specifier: string) => Promise<boolean>,
+): Promise<string> {
+	// sorted, so the module a build emits is a function of what is installed and
+	// nothing else — two vendors can name the same package
+	const packages = [...new Set(Object.values(CONVERTER_PACKAGES))].toSorted();
+	const present = (
+		await Promise.all(packages.map(async (name) => ((await installed(name)) ? name : null)))
+	).filter((name): name is string => name !== null);
+	if (present.length === 0) return EMPTY_CONVERTERS;
+	const imports = present.map(
+		(name, index) => `import * as converter_${index} from ${JSON.stringify(name)};`,
+	);
+	const entries = present.map((name, index) => `\t${JSON.stringify(name)}: converter_${index},`);
+	return `${imports.join("\n")}\n\nexport const converters = {\n${entries.join("\n")}\n};\n`;
 }
 
 /**
@@ -768,11 +809,19 @@ export function generateClientModule(
 			`\t${JSON.stringify(route.key)}: {`,
 			`\t\tparams: ${clientParamsType(route.params, paramsSpecifier, tree.matchers)};`,
 			`\t\toperations: Operations<typeof import(${specifier})>;`,
+			// `undefined` for a route with no `SOCKET` export, which is what keeps
+			// that route off `api.SOCKET`
+			`\t\tsocket: SocketOf<typeof import(${specifier})>;`,
 			"\t};",
 		].join("\n");
 	});
 	const names = client.wrapper === null ? [client.name] : [client.name, client.wrapper];
-	const imported = ["createClient as create", "type ClientOptions", "type Operations"]
+	const imported = [
+		"createClient as create",
+		"type ClientOptions",
+		"type Operations",
+		"type SocketOf",
+	]
 		.concat(names.map((name) => `type ${name}`))
 		.join(",\n\t");
 	// whatever the app fixed in its config, the generated `createClient` fixes

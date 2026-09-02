@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
-import type { Adapter, Builder } from "@implementjs/kit/adapter";
+import { assertNoSockets, type Adapter, type Builder } from "@implementjs/kit/adapter";
 
 export type StaticAdapterOptions = {
 	/** Where the prerendered documents go, relative to the app. @default "dist" */
@@ -79,6 +79,15 @@ export default function adapter(options: StaticAdapterOptions = {}): Adapter {
 		adapt(builder) {
 			const pages = join(builder.root, pagesDir);
 			const assets = join(builder.root, assetsDir);
+
+			// unconditional, `strict` and `fallback` notwithstanding: those are
+			// about a path a document could have covered, and nothing a static host
+			// serves can answer an upgrade
+			assertNoSockets(
+				builder,
+				"@implementjs/adapter-static",
+				"a static host has nothing running to hold a socket open",
+			);
 
 			// a fallback answers every path the build has no file for, so there is
 			// nothing left for this to catch

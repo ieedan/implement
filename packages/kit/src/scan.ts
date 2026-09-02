@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BUILTIN_MATCHER_NAMES } from "./params.ts";
 
@@ -44,6 +44,8 @@ export type RouteNode = {
 	layoutServer: string | null;
 	/** Relative path of this directory's `server.ts` endpoint, when present. */
 	endpoint: string | null;
+	/** Whether that `server.ts` exports a `SOCKET` handler. See {@link exportsSocket}. */
+	endpointSocket: boolean;
 	/**
 	 * Relative path of this directory's `error.ts`, when present — the error
 	 * page for everything routed at or below it.
@@ -62,19 +64,37 @@ export type ExtensionEndpoint = {
 	extension: string;
 	/** Relative path of the `.<ext>/server.ts` file. */
 	file: string;
+	/** Whether that `server.ts` exports a `SOCKET` handler. See {@link exportsSocket}. */
+	socket: boolean;
 };
 
 /**
- * A file in the routes tree that reads like a routing file but is not one —
- * `+server.ts` next to the `server.ts` kit was waiting for. It changes nothing
- * about the scan; it is what the dev server and the build warn about.
+ * Something the scan noticed that is worth saying out loud but is not an error
+ * — the tree is the same either way. It is what the dev server, the build, and
+ * `implement-kit sync` warn about.
  */
-export type RouteWarning = {
-	/** Path of the file relative to the routes dir. */
-	file: string;
-	/** The routing file name it was most likely reaching for. */
-	suggestion: string;
-};
+export type RouteWarning =
+	/**
+	 * A file in the routes tree that reads like a routing file but is not one —
+	 * `+server.ts` next to the `server.ts` kit was waiting for.
+	 */
+	| {
+			kind: "unknown-file";
+			/** Path of the file relative to the routes dir. */
+			file: string;
+			/** The routing file name it was most likely reaching for. */
+			suggestion: string;
+	  }
+	/**
+	 * A `layout.server.ts` annotating its load with `LoadEvent`, which belongs
+	 * to the page load one directory level down the chain. See
+	 * {@link importsLoadEvent}.
+	 */
+	| {
+			kind: "layout-load-event";
+			/** Path of the `layout.server.ts` relative to the routes dir. */
+			file: string;
+	  };
 
 export type RouteTree = {
 	root: RouteNode;
@@ -184,11 +204,98 @@ export function routeFileSuggestion(name: string): string | null {
 }
 
 /**
- * How a near miss reads in the terminal. It says why the file did nothing as
- * well as what to call it — a misnamed route is invisible otherwise, which is
- * the whole reason the warning exists.
+ * The named bindings of every `import … from "./$types"` in a module, as the
+ * text between the braces. Both spellings are here because either is how a
+ * route file names its event: `import type { X }` and `import { type X }`.
+ */
+const TYPES_IMPORT = /\bimport\s+(?:type\s+)?\{([^}]*)\}\s*from\s*(["'])\.\/\$types\2/g;
+
+/**
+ * Whether a module imports `LoadEvent` from its own `./$types`.
+ *
+ * Which is fine in a `page.server.ts` and circular in a `layout.server.ts`: a
+ * route's `$types` exports one load event per file that can load, and
+ * `LoadEvent` — the page's — carries the data of every load above the page,
+ * this directory's own layout load included. A layout load annotated with it
+ * is therefore referenced in its own type, which is what `TS2502` is reporting
+ * when it names the destructured parameter and nothing else.
+ *
+ * Read rather than parsed, because the question is narrow enough to answer off
+ * the import clause: the specifier is the literal `./$types`, and an alias
+ * (`LoadEvent as Event`) renames the local, not what was imported.
+ */
+export function importsLoadEvent(source: string): boolean {
+	for (const match of source.matchAll(TYPES_IMPORT)) {
+		for (const specifier of match[1]!.split(",")) {
+			if (
+				specifier
+					.replace(/^\s*type\s+/, "")
+					.split(/\s+as\s+/, 1)[0]!
+					.trim() === "LoadEvent"
+			) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+/** `export const SOCKET`, and the other four ways to declare one. */
+const SOCKET_DECLARATION = /\bexport\s+(?:const|let|var|(?:async\s+)?function\s*\*?)\s+SOCKET\b/;
+
+/** The braces of every `export { … }` clause, re-export or not. */
+const NAMED_EXPORTS = /\bexport\s*\{([^}]*)\}/g;
+
+/**
+ * Whether a `server.ts` exports a `SOCKET` handler.
+ *
+ * Read rather than evaluated, for the same reason {@link importsLoadEvent} is:
+ * the scan builds the route tree from names on disk, and loading an endpoint
+ * module to answer one question would drag the app's database driver into
+ * every `vite.config.ts` that scans a route tree.
+ *
+ * The answer is used at build time only — to tell an adapter that cannot hold
+ * a connection open that this app is asking it to, before it deploys something
+ * that would 404 at runtime. Dispatch reads the real module, so a socket route
+ * this misses still serves; a route it invents would be refused a deploy it
+ * could have had, which is why the patterns below are the exact five ways a
+ * module can name an export and nothing looser.
+ */
+export function exportsSocket(source: string): boolean {
+	if (SOCKET_DECLARATION.test(source)) return true;
+	for (const match of source.matchAll(NAMED_EXPORTS)) {
+		for (const specifier of match[1]!.split(",")) {
+			// `x as SOCKET` exports `SOCKET`; `SOCKET as x` does not
+			const parts = specifier.split(/\s+as\s+/);
+			if (parts[parts.length - 1]!.trim() === "SOCKET") return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * A route file's source, or `""` when it will not read. Nothing but a warning
+ * hangs on the answer, so a file that vanished between the readdir and the read
+ * is one there is nothing to say about rather than a failed scan.
+ */
+function readSource(file: string): string {
+	try {
+		return readFileSync(file, "utf8");
+	} catch {
+		return "";
+	}
+}
+
+/**
+ * How a warning reads in the terminal. A near miss says why the file did
+ * nothing as well as what to call it — a misnamed route is invisible otherwise,
+ * which is the whole reason the warning exists. A layout load typed with
+ * `LoadEvent` says the one word `TS2502` never gets to.
  */
 export function formatRouteWarning(warning: RouteWarning, routes: string): string {
+	if (warning.kind === "layout-load-event") {
+		return `"${routes}/${warning.file}" imports LoadEvent from "./$types" — a layout.server.ts load takes LayoutLoadEvent. LoadEvent belongs to the page load and carries the data of every load above the page, this layout's own included, so a layout load annotated with it is referenced in its own type. That is the TS2502 tsc reports at the load's parameter.`;
+	}
 	return `unknown file "${routes}/${warning.file}" — did you mean "${warning.suggestion}"? Anything else in the routes tree is colocated code, so this file routes nothing.`;
 }
 
@@ -255,6 +362,7 @@ function scanDirectory(
 		pageServer: null,
 		layoutServer: null,
 		endpoint: null,
+		endpointSocket: false,
 		error: null,
 		extensions: [],
 		children: [],
@@ -273,6 +381,9 @@ function scanDirectory(
 			}
 			if (entry.name === ENDPOINT_FILE) {
 				node.endpoint = relative;
+				// which adapters may deploy this app depends on it, and nothing else
+				// in the tree can say — see `exportsSocket`
+				node.endpointSocket = exportsSocket(readSource(join(absolute, entry.name)));
 				continue;
 			}
 			if (entry.name === PAGE_SERVER_FILE) {
@@ -281,12 +392,19 @@ function scanDirectory(
 			}
 			if (entry.name === LAYOUT_SERVER_FILE) {
 				node.layoutServer = relative;
+				// the only routing file whose *contents* are worth a word: it is the
+				// one place `LoadEvent` compiles nowhere and says nothing about why
+				if (importsLoadEvent(readSource(join(absolute, entry.name)))) {
+					warnings.push({ kind: "layout-load-event", file: relative });
+				}
 				continue;
 			}
 			const info = parseRouteFileName(entry.name);
 			if (info === null) {
 				const suggestion = routeFileSuggestion(entry.name);
-				if (suggestion !== null) warnings.push({ file: relative, suggestion });
+				if (suggestion !== null) {
+					warnings.push({ kind: "unknown-file", file: relative, suggestion });
+				}
 				continue;
 			}
 			if (info.resetTo !== null) validateResetTarget(info, dir, relative);
@@ -319,7 +437,11 @@ function scanDirectory(
 					(child) => child.isFile() && child.name === ENDPOINT_FILE,
 				)
 			) {
-				node.extensions.push({ extension: entry.name, file: `${relative}/${ENDPOINT_FILE}` });
+				node.extensions.push({
+					extension: entry.name,
+					file: `${relative}/${ENDPOINT_FILE}`,
+					socket: exportsSocket(readSource(join(absolute, entry.name, ENDPOINT_FILE))),
+				});
 			}
 			continue;
 		}

@@ -337,6 +337,26 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		expect(warned.filter((message) => message.includes("unknown file"))).toHaveLength(1);
 	});
 
+	it("warns about a layout.server.ts still typed with LoadEvent", () => {
+		// the fixture's `stale-load-event/layout.server.ts` annotates its load with
+		// `LoadEvent`, which fails as a TS2502 naming the parameter and nothing else
+		const warning = warned.find((message) => message.includes("imports LoadEvent"));
+		expect(warning).toBeDefined();
+		expect(warning).toContain('"src/routes/stale-load-event/layout.server.ts" imports LoadEvent');
+		expect(warning).toContain("takes LayoutLoadEvent");
+		expect(warning).toContain("TS2502");
+		expect(warning).toContain("[implement]");
+	});
+
+	it("documents both load events in a route's generated $types", () => {
+		const types = readFileSync(
+			join(fixture, ".implement/types/src/routes/stale-load-event/$types.d.ts"),
+			"utf8",
+		);
+		expect(types).toContain("The event a `page.server.ts` load receives.");
+		expect(types).toContain("The event a `layout.server.ts` load receives");
+	});
+
 	it("prints a server error to the dev log, with the file it came from", async () => {
 		await withListener(async (origin) => {
 			logged.length = 0;
@@ -646,5 +666,74 @@ describe("kit plugin (dev SSR through the generated entries)", () => {
 		} finally {
 			await custom.close();
 		}
+	});
+});
+
+/** Resolves when a socket opens, and rejects on anything else. */
+const opened = (ws: WebSocket): Promise<void> =>
+	new Promise((open, fail) => {
+		ws.addEventListener("open", () => open(), { once: true });
+		ws.addEventListener("error", () => fail(new Error("handshake failed")), { once: true });
+		ws.addEventListener("close", () => fail(new Error("handshake failed")), { once: true });
+	});
+
+/** The next message a socket carries, as text. */
+const nextMessage = (ws: WebSocket): Promise<string> =>
+	new Promise((resolve) => {
+		ws.addEventListener("message", (event) => resolve(String(event.data)), { once: true });
+	});
+
+/**
+ * The dev server's own socket path. It needs a real `httpServer` to attach an
+ * `upgrade` listener to, which middleware mode does not have — so this suite
+ * runs a listening dev server of its own rather than sharing the one above.
+ */
+describe("socket routes in dev", () => {
+	let server: ViteDevServer;
+	let origin: string;
+
+	beforeAll(async () => {
+		server = await createServer({
+			root: fixture,
+			configFile: false,
+			logLevel: "error",
+			server: { port: 0, host: "127.0.0.1", watch: null },
+			plugins: [kit()],
+		});
+		await server.listen();
+		const { port } = server.httpServer!.address() as AddressInfo;
+		origin = `ws://127.0.0.1:${port}`;
+	});
+
+	afterAll(async () => {
+		await server.close();
+		rmSync(join(fixture, ".implement"), { recursive: true, force: true });
+	});
+
+	it("serves an upgrade through the app's hooks, exactly as a request", async () => {
+		// undici's `WebSocket` takes request headers as a second argument; the DOM
+		// types that ship with it only describe the subprotocol form
+		const init = { headers: { "x-user": "ada" } } as unknown as string[];
+		const ws = new WebSocket(`${origin}/relay`, init);
+		await opened(ws);
+		expect(await nextMessage(ws)).toBe("hello ada");
+		const echoed = nextMessage(ws);
+		ws.send("in dev");
+		expect(await echoed).toBe("IN DEV");
+		ws.close();
+	});
+
+	it("refuses an upgrade the route turned down", async () => {
+		await expect(opened(new WebSocket(`${origin}/relay`))).rejects.toThrow(/handshake failed/);
+	});
+
+	it("drops an upgrade no socket route claims, rather than leaving it hanging", async () => {
+		await expect(opened(new WebSocket(`${origin}/api`))).rejects.toThrow(/handshake failed/);
+	});
+
+	it("leaves Vite's own HMR channel alone", async () => {
+		const hmr = new WebSocket(`${origin}/`, "vite-hmr");
+		await expect(opened(hmr)).resolves.toBeUndefined();
+		hmr.close();
 	});
 });

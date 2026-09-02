@@ -16,6 +16,7 @@ const tree: RouteTree = {
 		pageServer: null,
 		layoutServer: null,
 		endpoint: null,
+		endpointSocket: false,
 		error: null,
 		extensions: [],
 		children: [
@@ -30,6 +31,7 @@ const tree: RouteTree = {
 				pageServer: null,
 				layoutServer: null,
 				endpoint: "api/server.ts",
+				endpointSocket: false,
 				error: null,
 				extensions: [],
 				children: [],

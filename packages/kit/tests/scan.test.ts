@@ -3,16 +3,31 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { errorPatterns, pageRoutes, staticRoutePaths } from "../src/codegen.ts";
-import { formatRouteWarning, parseSegment, routeFileSuggestion, scanRoutes } from "../src/scan.ts";
+import {
+	exportsSocket,
+	formatRouteWarning,
+	importsLoadEvent,
+	parseSegment,
+	routeFileSuggestion,
+	scanRoutes,
+} from "../src/scan.ts";
 
 let dir: string | null = null;
 
-function makeRoutes(files: string[]): string {
+/**
+ * A routes tree in a temp directory. A list of paths gets placeholder contents,
+ * which is all the scan reads for most files; a map is for the one warning that
+ * is about what a file says rather than about its name.
+ */
+function makeRoutes(files: string[] | Record<string, string>): string {
 	dir = mkdtempSync(join(tmpdir(), "implement-kit-"));
-	for (const file of files) {
+	const entries = Array.isArray(files)
+		? files.map((file) => [file, "export default () => null;\n"] as const)
+		: Object.entries(files);
+	for (const [file, source] of entries) {
 		const path = join(dir, file);
 		mkdirSync(join(path, ".."), { recursive: true });
-		writeFileSync(path, "export default () => null;\n");
+		writeFileSync(path, source);
 	}
 	return dir;
 }
@@ -84,10 +99,10 @@ describe("scanRoutes", () => {
 			]),
 		);
 		expect(tree.warnings).toEqual([
-			{ file: "about/+page.svelte", suggestion: "page.ts" },
-			{ file: "api/+server.ts", suggestion: "server.ts" },
-			{ file: "docs/+page.server.js", suggestion: "page.server.ts" },
-			{ file: "docs/page.tsx", suggestion: "page.ts" },
+			{ kind: "unknown-file", file: "about/+page.svelte", suggestion: "page.ts" },
+			{ kind: "unknown-file", file: "api/+server.ts", suggestion: "server.ts" },
+			{ kind: "unknown-file", file: "docs/+page.server.js", suggestion: "page.server.ts" },
+			{ kind: "unknown-file", file: "docs/page.tsx", suggestion: "page.ts" },
 		]);
 		// the misnamed files route nothing, which is what the warning is for
 		expect(pageRoutes(tree)).toEqual([{ pattern: "/", params: [] }]);
@@ -96,7 +111,39 @@ describe("scanRoutes", () => {
 	it("warns from a directory the scan drops for having no routes", () => {
 		const tree = scanRoutes(makeRoutes(["page.ts", "api/+server.ts"]));
 		expect(tree.root.children).toEqual([]);
-		expect(tree.warnings).toEqual([{ file: "api/+server.ts", suggestion: "server.ts" }]);
+		expect(tree.warnings).toEqual([
+			{ kind: "unknown-file", file: "api/+server.ts", suggestion: "server.ts" },
+		]);
+	});
+
+	it("warns about a layout.server.ts typed with LoadEvent", () => {
+		const tree = scanRoutes(
+			makeRoutes({
+				"page.ts": "export default () => null;\n",
+				"app/layout.ts": "export default () => null;\n",
+				"app/layout.server.ts":
+					'import type { LoadEvent } from "./$types";\n\nexport default async function load({ locals }: LoadEvent) {\n\treturn { user: locals.user };\n}\n',
+			}),
+		);
+		expect(tree.warnings).toEqual([{ kind: "layout-load-event", file: "app/layout.server.ts" }]);
+		// the file still loads for the layout — it compiles wrong, it does not route wrong
+		expect(tree.root.children[0]!.layoutServer).toBe("app/layout.server.ts");
+	});
+
+	it("stays quiet for a layout.server.ts typed with LayoutLoadEvent", () => {
+		const tree = scanRoutes(
+			makeRoutes({
+				"page.ts": "export default () => null;\n",
+				"app/layout.ts": "export default () => null;\n",
+				"app/layout.server.ts":
+					'import type { LayoutLoadEvent } from "./$types";\n\nexport default async function load({ locals }: LayoutLoadEvent) {\n\treturn { user: locals.user };\n}\n',
+				// the page's own load is where `LoadEvent` belongs
+				"app/page.ts": "export default () => null;\n",
+				"app/page.server.ts":
+					'import type { LoadEvent } from "./$types";\n\nexport default async function load({ parent }: LoadEvent) {\n\treturn parent();\n}\n',
+			}),
+		);
+		expect(tree.warnings).toEqual([]);
 	});
 
 	it("rejects nested routes inside a catch-all directory", () => {
@@ -157,7 +204,9 @@ describe("scanRoutes", () => {
 		const api = tree.root.children.find((child) => child.dir === "api")!;
 		expect(api.endpoint).toBe("api/server.ts");
 		const slug = tree.root.children.find((child) => child.dir === "docs")!.children[0]!;
-		expect(slug.extensions).toEqual([{ extension: ".md", file: "docs/[...slug]/.md/server.ts" }]);
+		expect(slug.extensions).toEqual([
+			{ extension: ".md", file: "docs/[...slug]/.md/server.ts", socket: false },
+		]);
 	});
 
 	it("keeps a directory holding only server files", () => {
@@ -287,13 +336,86 @@ describe("routeFileSuggestion", () => {
 	});
 });
 
+describe("importsLoadEvent", () => {
+	it("recognizes every spelling of the import that goes wrong", () => {
+		expect(importsLoadEvent('import type { LoadEvent } from "./$types";')).toBe(true);
+		expect(importsLoadEvent("import type { LoadEvent } from './$types';")).toBe(true);
+		expect(importsLoadEvent('import { type LoadEvent } from "./$types";')).toBe(true);
+		expect(importsLoadEvent('import type {LoadEvent} from "./$types"')).toBe(true);
+		expect(importsLoadEvent('import type { LoadEvent as Event } from "./$types";')).toBe(true);
+		expect(importsLoadEvent('import type { RequestEvent, LoadEvent } from "./$types";')).toBe(true);
+		expect(importsLoadEvent('import type {\n\tLoadEvent,\n} from "./$types";')).toBe(true);
+	});
+
+	it("leaves the right import, and the same name from elsewhere, alone", () => {
+		// the fix for the warning is this one word, so it had better not warn too
+		expect(importsLoadEvent('import type { LayoutLoadEvent } from "./$types";')).toBe(false);
+		expect(importsLoadEvent('import type { PageProps } from "./$types";')).toBe(false);
+		// a `LoadEvent` that is not the route's own is not the route's problem
+		expect(importsLoadEvent('import type { LoadEvent } from "@implementjs/kit/server";')).toBe(
+			false,
+		);
+		expect(importsLoadEvent('import type { LayoutLoadEvent as LoadEvent } from "./$types";')).toBe(
+			false,
+		);
+		expect(importsLoadEvent("export default async function load() {}")).toBe(false);
+	});
+});
+
 describe("formatRouteWarning", () => {
 	it("points at the file it found and the name it wanted", () => {
 		const message = formatRouteWarning(
-			{ file: "api/+server.ts", suggestion: "server.ts" },
+			{ kind: "unknown-file", file: "api/+server.ts", suggestion: "server.ts" },
 			"src/routes",
 		);
 		expect(message).toContain('unknown file "src/routes/api/+server.ts"');
 		expect(message).toContain('did you mean "server.ts"?');
+	});
+
+	it("names LayoutLoadEvent, which the TS2502 it explains never does", () => {
+		const message = formatRouteWarning(
+			{ kind: "layout-load-event", file: "app/layout.server.ts" },
+			"src/routes",
+		);
+		expect(message).toContain('"src/routes/app/layout.server.ts"');
+		expect(message).toContain("LayoutLoadEvent");
+		expect(message).toContain("TS2502");
+	});
+});
+
+describe("exportsSocket", () => {
+	it("finds every way a module can declare one", () => {
+		expect(exportsSocket("export const SOCKET = socket({});")).toBe(true);
+		expect(exportsSocket("export let SOCKET = socket({});")).toBe(true);
+		expect(exportsSocket("export var SOCKET = socket({});")).toBe(true);
+		expect(exportsSocket("export function SOCKET() {}")).toBe(true);
+		expect(exportsSocket("export async function SOCKET() {}")).toBe(true);
+		expect(exportsSocket("const SOCKET = socket({});\nexport { SOCKET };")).toBe(true);
+		expect(exportsSocket("export { relay as SOCKET };")).toBe(true);
+		expect(exportsSocket('export { SOCKET } from "./relay.ts";')).toBe(true);
+	});
+
+	it("says no to a module that only mentions the name", () => {
+		expect(exportsSocket("export const GET = handler({});")).toBe(false);
+		// exported under another name, so nothing routes to it
+		expect(exportsSocket("export { SOCKET as relay };")).toBe(false);
+		expect(exportsSocket("const SOCKET = socket({});")).toBe(false);
+		expect(exportsSocket('import { SOCKET } from "./elsewhere.ts";')).toBe(false);
+		expect(exportsSocket("// export const SOCKETS = 1;\nexport const SOCKETS = 1;")).toBe(false);
+	});
+
+	it("is read off the endpoint files the scan walks", () => {
+		const tree = scanRoutes(
+			makeRoutes({
+				"page.ts": "export default () => null;\n",
+				"ws/server.ts": "export const SOCKET = socket({});\n",
+				"api/server.ts": "export const GET = () => new Response(null);\n",
+				"docs/.md/server.ts": "export const SOCKET = socket({});\n",
+			}),
+		);
+		const child = (dir: string) => tree.root.children.find((entry) => entry.dir === dir)!;
+		expect(child("ws").endpointSocket).toBe(true);
+		expect(child("api").endpointSocket).toBe(false);
+		expect(child("docs").extensions[0]?.socket).toBe(true);
 	});
 });

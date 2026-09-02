@@ -21,18 +21,20 @@ export type IISAdapterOptions = {
 	/**
 	 * Which IIS module runs the app.
 	 *
-	 * `"iisnode"` is the long-standing one: it starts `node.exe`, hands it a
-	 * named pipe, and manages the process alongside the app pool. It is a
-	 * separate download and has not seen a release in years, but it is what
-	 * most IIS-and-Node deployments already have installed.
-	 *
 	 * `"httpPlatform"` is Microsoft's own
 	 * [HttpPlatformHandler](https://learn.microsoft.com/iis/extensions/httpplatformhandler/httpplatformhandler-configuration-reference):
-	 * it starts the process on a port it picks and reverse-proxies to it. It is
-	 * still supported and does not care that the process is Node, so prefer it
-	 * on a server you are setting up now.
+	 * it starts the process on a port it picks and reverse-proxies to it over a
+	 * socket. It is still supported, it does not care that the process is Node,
+	 * and a streamed response reaches the visitor as it is written — so it is
+	 * the default.
 	 *
-	 * @default "iisnode"
+	 * `"iisnode"` is the long-standing one: it starts `node.exe`, hands it a
+	 * named pipe, and manages the process alongside the app pool. It is a
+	 * separate download, has not seen a release in years, and buffers responses
+	 * through the pipe, which stalls SSE and anything else streamed. Pick it
+	 * when it is what the server has.
+	 *
+	 * @default "httpPlatform"
 	 */
 	hosting?: Hosting;
 	/**
@@ -118,8 +120,47 @@ export type IISAdapterOptions = {
 	httpPlatform?: Attributes;
 };
 
-/** The file IIS is pointed at, at the root of the output. */
+/**
+ * The server itself, at the root of the output: ESM, like everything else the
+ * build writes, and what `node index.js` runs. HttpPlatformHandler starts it
+ * as a process, so this is the file it is pointed at.
+ */
 const ENTRY = "index.js";
+
+/**
+ * What iisnode is pointed at instead.
+ *
+ * iisnode's `interceptor.js` loads the app with `require()`, and the output is
+ * ESM under `"type": "module"` — so pointing it at {@link ENTRY} terminates the
+ * site on start with `ERR_REQUIRE_ESM`, on the Node most Windows servers are
+ * running. Node 22 does load ESM through `require()`, but only a graph with no
+ * top-level await anywhere in it, so that is a version and a bundle away from
+ * the same crash rather than a fix. iisnode predates ESM and has had no release
+ * in years, so it will not learn `import()` either.
+ *
+ * The way through is the extension: `.cjs` is CommonJS whatever the enclosing
+ * `package.json` says, so this file is one iisnode can require, and it reaches
+ * the real entry through a dynamic `import()` — which CommonJS has always been
+ * allowed to do. iisnode retries the named pipe until the process is listening,
+ * so the import resolving a tick later is not a race.
+ */
+const IISNODE_ENTRY = "index.cjs";
+
+/** The CommonJS shim above, as source. */
+function iisnodeEntrySource(): string {
+	return [
+		"// iisnode loads this file with require(). The entry beside it is ESM,",
+		"// which require() refuses on most versions of node — so this file is",
+		"// CommonJS, and the import() is how it reaches the real one.",
+		`import("./${ENTRY}").catch((error) => {`,
+		"\tconsole.error(error);",
+		"\t// a process that stays up with no server on the pipe is a site that",
+		"\t// hangs; exiting is what asks iisnode to start it again",
+		"\tprocess.exit(1);",
+		"});",
+		"",
+	].join("\n");
+}
 
 /**
  * Builds the app for [IIS](https://learn.microsoft.com/iis/), the web server
@@ -141,9 +182,10 @@ const ENTRY = "index.js";
  * to configure in IIS Manager beyond that.
  *
  * IIS does not run JavaScript itself, so something has to start the process
- * and proxy to it. That is `hosting`: iisnode, which most existing
- * IIS-and-Node servers already have, or Microsoft's HttpPlatformHandler, which
- * is still supported. Either one has to be installed on the server, along with
+ * and proxy to it. That is `hosting`: Microsoft's HttpPlatformHandler, which
+ * is still supported and is the default, or iisnode, which most existing
+ * IIS-and-Node servers already have. Either one has to be installed on the
+ * server, along with
  * [URL Rewrite](https://www.iis.net/downloads/microsoft/url-rewrite) for
  * iisnode, which is how requests reach the app at all.
  *
@@ -152,7 +194,7 @@ const ENTRY = "index.js";
  */
 export default function adapter(options: IISAdapterOptions = {}): Adapter {
 	const out = options.out ?? "dist";
-	const hosting = options.hosting ?? "iisnode";
+	const hosting = options.hosting ?? "httpPlatform";
 	const healthcheck = options.healthcheck ?? "/healthcheck";
 
 	return {
@@ -199,6 +241,11 @@ export default function adapter(options: IISAdapterOptions = {}): Adapter {
 				join(target, "handler.js"),
 				['export { handler, start } from "./server/index.js";', ""].join("\n"),
 			);
+			// only iisnode needs the CommonJS way in, and a `.cjs` in the output of
+			// a site HttpPlatformHandler starts is a file nothing loads
+			if (hosting === "iisnode") {
+				builder.writeFile(join(target, IISNODE_ENTRY), iisnodeEntrySource());
+			}
 
 			const env: Record<string, string> = {
 				// what the built server checks before it will serve a forgeable
@@ -215,16 +262,25 @@ export default function adapter(options: IISAdapterOptions = {}): Adapter {
 				join(target, "web.config"),
 				webConfig({
 					hosting,
-					entry: ENTRY,
+					entry: hosting === "iisnode" ? IISNODE_ENTRY : ENTRY,
 					nodeExe: options.nodeExe ?? "node.exe",
 					env,
 					externalRoutes: options.externalRoutes ?? [],
 					redirectToHttps: options.redirectToHttps ?? false,
 					maxRequestBodySize: options.maxRequestBodySize ?? 30_000_000,
+					sockets: builder.routes.sockets.length > 0,
 					iisnode: options.iisnode ?? {},
 					httpPlatform: options.httpPlatform ?? {},
 				}),
 			);
+
+			if (builder.routes.sockets.length > 0) {
+				builder.log.info(
+					`@implementjs/adapter-iis: ${builder.routes.sockets.length} socket route(s) — ` +
+						"web.config turns IIS's own WebSocket module off so the handshake reaches Node. " +
+						"The WebSocket Protocol Windows feature still has to be installed on the server.",
+				);
+			}
 
 			// the same three the built server checks for before it will start, so a
 			// deploy that is missing them hears about it here rather than as a site

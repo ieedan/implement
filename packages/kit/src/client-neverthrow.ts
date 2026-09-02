@@ -28,6 +28,7 @@ import {
 	type MethodClient,
 	type NestedClient,
 	type Outcome,
+	type SocketInput,
 	type Wrapper,
 } from "./client.ts";
 
@@ -40,6 +41,7 @@ export type {
 	Outcome,
 	PlainSpec,
 	RequestOptions,
+	SocketInput,
 } from "./client.ts";
 export { ApiError, buildUrl } from "./client.ts";
 
@@ -64,7 +66,11 @@ type Call = (...args: unknown[]) => Promise<Outcome<unknown>>;
  */
 // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- As in `./client.ts`: the client's type comes from the call site.
 export function createClient<C>(options: Omit<ClientOptions, "errors"> = {}): C {
-	const client = createResultClient<Record<Method, (path: string, input?: CallInput) => unknown>>({
+	const client = createResultClient<
+		Record<Method, (path: string, input?: CallInput) => unknown> & {
+			SOCKET: (path: string, input?: SocketInput) => unknown;
+		}
+	>({
 		...options,
 		errors: "result",
 		style: "method",
@@ -72,21 +78,28 @@ export function createClient<C>(options: Omit<ClientOptions, "errors"> = {}): C 
 	// the nested style hands back a fresh call per leaf, so the wrap has to
 	// happen on the way out of the proxy rather than once up front
 	if (options.style === "nested") {
-		return createNested<C>((method, path, input) =>
-			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `createClient` above is the method client, so every call answers with an `Outcome`.
-			wrap(client[method](path, input) as Promise<Outcome<unknown>>),
+		return createNested<C>(
+			(method, path, input) =>
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `createClient` above is the method client, so every call answers with an `Outcome`.
+				wrap(client[method](path, input) as Promise<Outcome<unknown>>),
+			(path, input) => client.SOCKET(path, input),
 		);
 	}
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Same.
 	return wrapAll(client) as C;
 }
 
-/** Every method of one client object, wrapped. */
+/**
+ * Every method of one client object, wrapped — every one but `SOCKET`, which
+ * answers with a live connection rather than with a call's outcome. There is
+ * no result to put in a `ResultAsync`, and the connection's own failure shows
+ * up on `opened` and `onClose`.
+ */
 function wrapAll(source: unknown): Record<string, unknown> {
 	const wrapped: Record<string, unknown> = {};
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Every client object is a record of method name → call; the generated types are what narrow it.
 	for (const [method, call] of Object.entries(source as Record<string, Call>)) {
-		wrapped[method] = (...args: unknown[]) => wrap(call(...args));
+		wrapped[method] = method === "SOCKET" ? call : (...args: unknown[]) => wrap(call(...args));
 	}
 	return wrapped;
 }

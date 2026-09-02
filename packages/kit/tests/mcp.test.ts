@@ -1,12 +1,13 @@
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Reading JSON-RPC envelopes back out of responses requires intentional narrowing. */
 import * as v from "valibot";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { error } from "../src/errors.ts";
 import { handler } from "../src/endpoint.ts";
 import type { EndpointRoute } from "../src/match.ts";
 import {
 	ASSUMED_PROTOCOL_VERSION,
+	JSON_RPC_ERRORS,
 	LATEST_PROTOCOL_VERSION,
 	mcp,
 	SUPPORTED_PROTOCOL_VERSIONS,
@@ -34,6 +35,9 @@ function server(options: McpOptions, extra: EndpointRoute[] = []) {
 	return (init?: RequestInit, path = "/mcp") =>
 		kit.respond(new Request(`http://localhost${path}`, init));
 }
+
+/** The app's own origin, for a request whose content type the CSRF check looks at. */
+const LOCAL_ORIGIN = { origin: "http://localhost" };
 
 /** A JSON-RPC request as `fetch` would send it. */
 function rpc(body: unknown, headers: Record<string, string> = {}): RequestInit {
@@ -129,7 +133,9 @@ describe("mcp() transport", () => {
 			authorize: (event) => event.request.headers.get("authorization") === "Bearer ok",
 		});
 		// before parsing: an unauthenticated client needs the challenge, not a parse error
-		const denied = await post({ method: "POST", body: "not json" });
+		// (`origin` because a bare string body is sent as `text/plain`, which the
+		// pipeline's CSRF check gates when it comes from nowhere)
+		const denied = await post({ method: "POST", body: "not json", headers: LOCAL_ORIGIN });
 		expect(denied.status).toBe(401);
 		expect(denied.headers.get("www-authenticate")).toBe(
 			'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource"',
@@ -154,7 +160,7 @@ describe("mcp() transport", () => {
 	it("answers protocol faults as JSON-RPC errors", async () => {
 		const post = server({ serverInfo: INFO, tools: [] });
 
-		const unparseable = await post({ method: "POST", body: "not json" });
+		const unparseable = await post({ method: "POST", body: "not json", headers: LOCAL_ORIGIN });
 		expect(unparseable.status).toBe(400);
 		expect((await envelope(unparseable)).error?.code).toBe(-32700);
 
@@ -211,6 +217,62 @@ describe("tools", () => {
 			inputSchema: { type: "object", properties: { id: { type: "string" } } },
 		});
 		expect(tools[1]?.["inputSchema"]).toEqual({ type: "object", properties: {} });
+	});
+
+	/** A schema claiming a vendor whose converter will not know what to do with it. */
+	const broken = {
+		"~standard": {
+			version: 1 as const,
+			vendor: "zod",
+			validate: (value: unknown) => ({ value }),
+		},
+	};
+
+	/** One whose vendor kit has no converter for at all. */
+	const foreign = { ...broken, "~standard": { ...broken["~standard"], vendor: "homegrown" } };
+
+	it("fails tools/list loudly when a schema will not convert, rather than serving it empty", async () => {
+		const post = server({
+			serverInfo: INFO,
+			tools: [echo, tool({ ...echo, name: "bad", input: broken })],
+		});
+		const { result, error } = await envelope(await post(rpc(request("tools/list"))));
+		expect(result).toBeUndefined();
+		expect(error?.code).toBe(JSON_RPC_ERRORS.internalError);
+		expect(error?.message).toContain('tool "bad"');
+		expect(error?.message).toContain("inputJsonSchema");
+	});
+
+	it("fails a call the same way, since it reads the same schemas", async () => {
+		const post = server({
+			serverInfo: INFO,
+			tools: [tool({ ...echo, name: "bad", input: broken })],
+		});
+		const { error } = await envelope(
+			await post(rpc(request("tools/call", { name: "bad", arguments: { id: "7" } }))),
+		);
+		expect(error?.code).toBe(JSON_RPC_ERRORS.internalError);
+		expect(error?.message).toContain('tool "bad"');
+	});
+
+	it("still degrades a vendor kit has no converter for, which no build can fix", async () => {
+		const warnings: string[] = [];
+		const warn = vi.spyOn(console, "warn").mockImplementation((message: string) => {
+			warnings.push(message);
+		});
+		try {
+			const post = server({
+				serverInfo: INFO,
+				tools: [tool({ ...echo, name: "odd", input: foreign })],
+			});
+			const { result } = await envelope(await post(rpc(request("tools/list"))));
+			const tools = result?.["tools"] as Record<string, unknown>[];
+			expect(tools[0]?.["inputSchema"]).toEqual({ type: "object" });
+			expect(warnings.join("\n")).toContain("homegrown");
+			expect(warnings.join("\n")).toContain("inputJsonSchema");
+		} finally {
+			warn.mockRestore();
+		}
 	});
 
 	it("answers a call with the result as JSON, and a returned string as itself", async () => {

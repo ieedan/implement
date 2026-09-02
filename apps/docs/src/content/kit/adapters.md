@@ -2,7 +2,7 @@
 title: Adapters
 description: Build the app for the place it runs — a static host, a Node server, Vercel, Cloudflare, IIS.
 section: Guides
-order: 19
+order: 20
 ---
 
 `vite build` on its own writes a static site: pages and `GET` endpoints become files, and anything that has to run when a request arrives — a `POST` endpoint, a webhook, an upload, a load that reads the session — has nowhere to go. An **adapter** is what gives it somewhere.
@@ -24,13 +24,15 @@ Nothing in your app changes when you swap adapters. The same `hooks.server.ts`, 
 
 ## The adapters
 
-| Package                                          | Deploys to                   | Output                        |
-| ------------------------------------------------ | ---------------------------- | ----------------------------- |
-| [`@implementjs/adapter-static`](#static)         | any static host              | `dist/`                       |
-| [`@implementjs/adapter-node`](#node)             | anywhere Node runs           | `dist/`, run with `node dist` |
-| [`@implementjs/adapter-vercel`](#vercel)         | Vercel                       | `.vercel/output/`             |
-| [`@implementjs/adapter-cloudflare`](#cloudflare) | Cloudflare Workers and Pages | `dist/`                       |
-| [`@implementjs/adapter-iis`](#iis)               | IIS on Windows Server        | `dist/`, with a `web.config`  |
+| Package                                          | Deploys to                   | Output                        | [Sockets](/kit/websockets) |
+| ------------------------------------------------ | ---------------------------- | ----------------------------- | -------------------------- |
+| [`@implementjs/adapter-static`](#static)         | any static host              | `dist/`                       | no                         |
+| [`@implementjs/adapter-node`](#node)             | anywhere Node runs           | `dist/`, run with `node dist` | yes                        |
+| [`@implementjs/adapter-vercel`](#vercel)         | Vercel                       | `.vercel/output/`             | no                         |
+| [`@implementjs/adapter-cloudflare`](#cloudflare) | Cloudflare Workers and Pages | `dist/`                       | yes                        |
+| [`@implementjs/adapter-iis`](#iis)               | IIS on Windows Server        | `dist/`, with a `web.config`  | yes                        |
+
+An adapter whose host cannot hold a connection open fails the build when the app declares a socket route, rather than deploying one that answers the upgrade with a 404.
 
 ### Static
 
@@ -187,15 +189,19 @@ IIS does not run JavaScript, so something has to start the process and proxy to 
 
 | `hosting`        | Needs                                                                                                                             |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `"iisnode"`      | [iisnode](https://github.com/Azure/iisnode) and [URL Rewrite](https://www.iis.net/downloads/microsoft/url-rewrite)                |
 | `"httpPlatform"` | [HttpPlatformHandler](https://learn.microsoft.com/iis/extensions/httpplatformhandler/httpplatformhandler-configuration-reference) |
+| `"iisnode"`      | [iisnode](https://github.com/Azure/iisnode) and [URL Rewrite](https://www.iis.net/downloads/microsoft/url-rewrite)                |
 
-`"iisnode"` is the default: it starts `node.exe`, hands it a named pipe, and manages the process alongside the app pool, and it is what most existing IIS-and-Node servers already have. It has not had a release in years, though, so on a server you are setting up now prefer HttpPlatformHandler — Microsoft's own, still supported, and indifferent to the fact that the process is Node.
+`"httpPlatform"` is the default: HttpPlatformHandler starts the process on a port it picks and reverse-proxies to it over a socket. It is Microsoft's own, still supported, indifferent to the fact that the process is Node, and a streamed response reaches the visitor as it is written.
+
+`"iisnode"` is the one most existing IIS-and-Node servers already have — it starts `node.exe`, hands it a named pipe, and manages the process alongside the app pool. It has had no release in years, and it proxies through a pipe that buffers, so [SSE](/kit/server-routes#streaming) and any other streamed body stall until the response ends. Pick it when it is what the server has.
+
+Under iisnode the file IIS is pointed at is `index.cjs` rather than `index.js`. iisnode loads the app with `require()`, and the build is ESM, so requiring the entry directly is an `ERR_REQUIRE_ESM` that terminates the site on its first request. `index.cjs` is CommonJS whatever the enclosing `package.json` says, and reaches the real entry through a dynamic `import()`. Nothing to configure — the adapter writes it and points `web.config` at it.
 
 | Option               | Default          |                                                         |
 | -------------------- | ---------------- | ------------------------------------------------------- |
 | `origin`             | —                | the origin the site is served from                      |
-| `hosting`            | `"iisnode"`      | which IIS module starts the process                     |
+| `hosting`            | `"httpPlatform"` | which IIS module starts the process                     |
 | `nodeExe`            | `"node.exe"`     | the Node the site runs on                               |
 | `env`                | —                | environment written into `web.config`                   |
 | `externalRoutes`     | —                | paths IIS answers itself                                |
@@ -225,7 +231,20 @@ kit({
 });
 ```
 
-A [streaming endpoint](/kit/server-routes#streaming) streams through either module, up to the request timeout the site is configured with — four minutes by default under HttpPlatformHandler, and IIS's own limit under iisnode. Raise it for the paths that stream.
+A [streaming endpoint](/kit/server-routes#streaming) reaches the visitor as it is written under HttpPlatformHandler, up to `requestTimeout` — which the adapter sets to twenty minutes, since a shorter cut is one an SSE stream reaches while it is still working. Raise it further for a stream that runs longer:
+
+```ts
+kit({
+	adapter: adapter({
+		origin: "https://intranet.example.com",
+		httpPlatform: { requestTimeout: "01:00:00" },
+	}),
+});
+```
+
+Under iisnode the same response is buffered by the named pipe in front of it, so it arrives when it ends rather than as it is written. That is the module, not the app — a site built on streaming wants `"httpPlatform"`.
+
+A [socket route](/kit/websockets) works through either module too, once IIS stops answering the handshake itself — the adapter writes `<webSocket enabled="false" />` for that when the app has one. See [IIS](/kit/websockets#iis).
 
 ## What still prerenders
 

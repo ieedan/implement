@@ -1,5 +1,58 @@
 # @implementjs/primitives
 
+## 0.0.14
+
+### Patch Changes
+
+- [#98](https://github.com/ieedan/implement/pull/98) [`020dc5d`](https://github.com/ieedan/implement/commit/020dc5d9bbdf980075d8e9d510181e62a68f1abf) Thanks [@ieedan](https://github.com/ieedan)! - Dismiss a layer on the click that ends an outside tap, so the tap does not fall through to the page behind it
+
+  A tap outside a modal dismissed it on `pointerdown`, while the finger was still down. The click the browser dispatches on release then landed on whatever was under the tap — on a phone, straight onto the element the scrim had been covering. A mouse hid the bug, because its click goes to the common ancestor of `mousedown` and `mouseup`.
+
+  The scrim could not defend the gap either. Recipes hide it with `transition-discrete` and `data-[state=closed]:hidden`, and a browser keeps _painting_ an element whose `display` is transitioning to `none` while it has already stopped _hit-testing_ it, from the first frame of the transition — so at press+0ms the point under the finger already resolves to the element beneath the scrim.
+
+  `DismissableLayer` now defers a touch or pen press: instead of dispatching the interact-outside event from `pointerdown`, it registers a one-shot document `click` listener and dispatches from there, so the dismissal and the click are the same event and the click lands on the layer that is still up. A mouse press still dismisses on the press itself, and a press that never becomes a click — a scroll, a drag off the target — is dropped rather than left to fire on the next unrelated one.
+
+  This covers every layer built on `DismissableLayer`: `Dialog`, `AlertDialog`, `Drawer`, and the menus, popovers and selects above them.
+
+## 0.0.13
+
+### Patch Changes
+
+- [#89](https://github.com/ieedan/implement/pull/89) [`19a54ae`](https://github.com/ieedan/implement/commit/19a54ae2508e2d65e9f5505685a7d3d1f1738895) Thanks [@ieedan](https://github.com/ieedan)! - A `DropdownMenu` keeps working after its subtree is unmounted and mounted again.
+
+  Handing one set of children to an `If` whose branches wrap them in different
+  roots — a `ResponsiveDialog` picking a `Dialog` or a `Drawer` off a media query
+  is the shape this came from — unmounts those children and mounts them again.
+  Every `DropdownMenu` among them was dead afterwards: the trigger's click opened
+  the menu and the same click closed it again before it finished bubbling, and
+  that instance never recovered.
+
+  The menu registers its content with the root state on every mount, and a
+  signal only notifies when its value changes. Change detection compared the two
+  registrations field by field, and at the moment of the swap they matched: same
+  options, same handlers, and two `ref()`s that were both empty — the one the
+  unmount had just cleared, and the one the new node had not attached to yet. So
+  the replacement was read as "no change" and dropped, leaving the root pointed
+  at the discarded instance and its ref empty for good. With no content element
+  to compare against, the dismissable layer counted every interaction as one
+  outside the menu, including the focus move into the menu's own content.
+
+  Change detection in `@implementjs/core` now compares anything holding state of
+  its own — a readable, a collection, a promise — by identity wherever it sits in
+  the value, not only when it _is_ the value. Values still compare structurally:
+  setting a signal to an equal object, or to a `Date` for the same instant, stays
+  a no-op.
+
+  Two dismissable-layer registrations that a remount could strand are fixed
+  alongside it. A layer unmounted while open now withdraws itself from the layer
+  above, which previously went on forwarding Escape to a layer that was gone and
+  so stopped closing itself; and a layer built around an already-open signal
+  registers where it stands, so a subtree swapped with its menu open still
+  dismisses the menu first.
+
+- Updated dependencies [[`19a54ae`](https://github.com/ieedan/implement/commit/19a54ae2508e2d65e9f5505685a7d3d1f1738895)]:
+  - @implementjs/core@0.0.11
+
 ## 0.0.12
 
 ### Patch Changes

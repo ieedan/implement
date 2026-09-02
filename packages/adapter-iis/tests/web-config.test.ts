@@ -10,6 +10,7 @@ function settings(overrides: Partial<WebConfigSettings> = {}): WebConfigSettings
 		externalRoutes: [],
 		redirectToHttps: false,
 		maxRequestBodySize: 30_000_000,
+		sockets: false,
 		iisnode: {},
 		httpPlatform: {},
 		...overrides,
@@ -28,6 +29,12 @@ describe("webConfig", () => {
 		expect(xml).toContain('<action type="Rewrite" url="index.js" />');
 		expect(xml).toContain('nodeProcessCommandLine="node.exe"');
 		expect(xml).toContain('enableXFF="true"');
+	});
+
+	it("watches the .cjs entry too, since that is the file iisnode is pointed at", () => {
+		expect(webConfig(settings({ entry: "index.cjs" }))).toContain(
+			'watchedFiles="web.config;*.js;*.cjs"',
+		);
 	});
 
 	it("passes the app's own error bodies through instead of IIS's error pages", () => {
@@ -86,6 +93,10 @@ describe("webConfig", () => {
 		expect(xml).not.toContain('modules="iisnode"');
 	});
 
+	it("gives a stream longer than four minutes to finish before IIS cuts it", () => {
+		expect(webConfig(settings({ hosting: "httpPlatform" }))).toContain('requestTimeout="00:20:00"');
+	});
+
 	it("takes the node executable the site was told to run", () => {
 		expect(webConfig(settings({ nodeExe: "C:\\Program Files\\nodejs\\node.exe" }))).toContain(
 			'nodeProcessCommandLine="C:\\Program Files\\nodejs\\node.exe"',
@@ -99,9 +110,19 @@ describe("webConfig", () => {
 		expect(node).not.toContain('node_env="production"');
 
 		const platform = webConfig(
-			settings({ hosting: "httpPlatform", httpPlatform: { requestTimeout: "00:20:00" } }),
+			settings({ hosting: "httpPlatform", httpPlatform: { requestTimeout: "01:00:00" } }),
 		);
-		expect(platform).toContain('requestTimeout="00:20:00"');
-		expect(platform).not.toContain('requestTimeout="00:04:00"');
+		expect(platform).toContain('requestTimeout="01:00:00"');
+		expect(platform).not.toContain('requestTimeout="00:20:00"');
+	});
+});
+
+describe("websocket routes", () => {
+	it("turns IIS's own WebSocket module off, so the handshake reaches Node", () => {
+		expect(webConfig(settings({ sockets: true }))).toContain('<webSocket enabled="false" />');
+	});
+
+	it("says nothing about it for an app with no socket routes", () => {
+		expect(webConfig(settings())).not.toContain("webSocket");
 	});
 });
