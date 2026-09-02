@@ -12,7 +12,7 @@
   <a href="https://www.npmjs.com/package/@implementjs/core"><img src="https://img.shields.io/npm/dm/@implementjs/core" alt="npm downloads"></a>
 </p>
 
-Implement is a ui library that truly is just JS. This is an experiment to see how ergonomic and performant a template-less approach to a UI library can be.
+Implement is a UI library that truly is just JS. This is an experiment to see how ergonomic and performant a template-less approach to a UI library can be.
 
 This approach is inspired by Swift UI with a lot of patterns and behaviors taken from Svelte.
 
