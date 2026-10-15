@@ -115,6 +115,16 @@ import SpinnerDemo from "./spinner-demo.ts";
 import spinnerSource from "./spinner-demo.ts?raw";
 import TextareaDemo from "./textarea-demo.ts";
 import textareaSource from "./textarea-demo.ts?raw";
+import TraceDemo from "./trace-demo.ts";
+import traceSource from "./trace-demo.ts?raw";
+import TraceStatusDemo from "./trace-status-demo.ts";
+import traceStatusSource from "./trace-status-demo.ts?raw";
+import CodeBlockDemo from "./code-block-demo.ts";
+import codeBlockSource from "./code-block-demo.ts?raw";
+import CodeBlockDiffDemo from "./code-block-diff-demo.ts";
+import codeBlockDiffSource from "./code-block-diff-demo.ts?raw";
+import CodeBlockStreamingDemo from "./code-block-streaming-demo.ts";
+import codeBlockStreamingSource from "./code-block-streaming-demo.ts?raw";
 
 export type Demo = {
 	/** The demo's source text: shown in the editor and, once edited, compiled and run live. */
@@ -222,4 +232,12 @@ export const demos: Record<string, Demo> = {
 	skeleton: { source: skeletonSource, component: SkeletonDemo },
 	spinner: { source: spinnerSource, component: SpinnerDemo },
 	textarea: { source: textareaSource, component: TextareaDemo },
+	trace: { source: traceSource, component: TraceDemo },
+	"trace-status": { source: traceStatusSource, component: TraceStatusDemo },
+	"code-block": { source: codeBlockSource, component: CodeBlockDemo },
+	"code-block-diff": { source: codeBlockDiffSource, component: CodeBlockDiffDemo },
+	"code-block-streaming": {
+		source: codeBlockStreamingSource,
+		component: CodeBlockStreamingDemo,
+	},
 };

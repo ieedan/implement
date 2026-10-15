@@ -257,3 +257,195 @@
 		display: none;
 	}
 }
+
+/* A thin scrollbar, for panels that scroll but should not be framed by one —
+   the code block's horizontal overflow. */
+@utility scrollbar-thin {
+	scrollbar-width: thin;
+}
+
+/* scroll-fade: a scroller fades its edges where there is more to scroll to,
+   and only there. The code block uses the inline pair, and the block pair once
+   it wraps. Ported from shadcn's `shadcn/tailwind.css`. */
+@property --scroll-fade-t {
+	syntax: "<length-percentage>";
+	inherits: false;
+	initial-value: 0px;
+}
+@property --scroll-fade-b {
+	syntax: "<length-percentage>";
+	inherits: false;
+	initial-value: 0px;
+}
+@property --scroll-fade-s {
+	syntax: "<length-percentage>";
+	inherits: false;
+	initial-value: 0px;
+}
+@property --scroll-fade-e {
+	syntax: "<length-percentage>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@theme inline {
+	@keyframes scroll-fade-reveal-t {
+		from {
+			--scroll-fade-t: 0px;
+		}
+		to {
+			--scroll-fade-t: var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)));
+		}
+	}
+	@keyframes scroll-fade-reveal-b {
+		from {
+			--scroll-fade-b: var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)));
+		}
+		to {
+			--scroll-fade-b: 0px;
+		}
+	}
+	@keyframes scroll-fade-reveal-s {
+		from {
+			--scroll-fade-s: 0px;
+		}
+		to {
+			--scroll-fade-s: var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)));
+		}
+	}
+	@keyframes scroll-fade-reveal-e {
+		from {
+			--scroll-fade-e: var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)));
+		}
+		to {
+			--scroll-fade-e: 0px;
+		}
+	}
+}
+
+@utility scroll-fade-x {
+	--scroll-fade-inline: linear-gradient(
+		to right,
+		transparent 0,
+		#000 var(--scroll-fade-s, 0px),
+		#000 calc(100% - var(--scroll-fade-e, 0px)),
+		transparent 100%
+	);
+	&:where([dir="rtl"], [dir="rtl"] *) {
+		--scroll-fade-inline: linear-gradient(
+			to left,
+			transparent 0,
+			#000 var(--scroll-fade-s, 0px),
+			#000 calc(100% - var(--scroll-fade-e, 0px)),
+			transparent 100%
+		);
+	}
+	mask-image: var(--scroll-fade-inline);
+	mask-repeat: no-repeat;
+
+	@supports (animation-timeline: scroll()) {
+		animation:
+			scroll-fade-reveal-s 1ms ease-in-out,
+			scroll-fade-reveal-e 1ms ease-in-out;
+		animation-timeline: scroll(self inline), scroll(self inline);
+		animation-range:
+			0 var(--scroll-fade-reveal, calc(var(--spacing) * 24)),
+			calc(100% - var(--scroll-fade-reveal, calc(var(--spacing) * 24))) 100%;
+		animation-fill-mode: both;
+	}
+}
+
+/* With both, the two masks intersect: `scroll-fade-x scroll-fade-y` fades all
+   four edges. */
+@utility scroll-fade-y {
+	--scroll-fade-block: linear-gradient(
+		to bottom,
+		transparent 0,
+		#000 var(--scroll-fade-t, 0px),
+		#000 calc(100% - var(--scroll-fade-b, 0px)),
+		transparent 100%
+	);
+	mask-image: var(--scroll-fade-inline, linear-gradient(#000, #000)), var(--scroll-fade-block);
+	mask-composite: intersect;
+	mask-repeat: no-repeat;
+
+	@supports (animation-timeline: scroll()) {
+		animation:
+			scroll-fade-reveal-s 1ms ease-in-out,
+			scroll-fade-reveal-e 1ms ease-in-out,
+			scroll-fade-reveal-t 1ms ease-in-out,
+			scroll-fade-reveal-b 1ms ease-in-out;
+		animation-timeline: scroll(self inline), scroll(self inline), scroll(self y), scroll(self y);
+		animation-range:
+			0 var(--scroll-fade-reveal, calc(var(--spacing) * 24)),
+			calc(100% - var(--scroll-fade-reveal, calc(var(--spacing) * 24))) 100%,
+			0 var(--scroll-fade-reveal, calc(var(--spacing) * 24)),
+			calc(100% - var(--scroll-fade-reveal, calc(var(--spacing) * 24))) 100%;
+		animation-fill-mode: both;
+	}
+}
+
+/* shimmer: a highlight that sweeps across text, for work in flight — the title
+   of a running trace line. Built on currentColor, so it takes on whatever
+   color the text already is. Ported from shadcn's `shadcn/tailwind.css`. */
+@property --shimmer-image {
+	syntax: "*";
+	inherits: false;
+}
+@property --shimmer-text-fill {
+	syntax: "*";
+	inherits: false;
+}
+
+@theme inline {
+	@keyframes shimmer {
+		from {
+			background-position: 100% 0;
+		}
+		to {
+			background-position: 0 0;
+		}
+	}
+}
+
+@utility shimmer {
+	--_spread: var(--shimmer-spread, calc(3ch + 40px));
+	--_base: currentColor;
+	--_highlight: var(--shimmer-color, oklch(from currentColor l c h / calc(alpha * 0.2)));
+
+	background-image: var(
+		--shimmer-image,
+		linear-gradient(
+			110deg,
+			var(--_base) calc(50% - var(--_spread)),
+			color-mix(in oklch, var(--_highlight), var(--_base) 50%) calc(50% - var(--_spread) * 0.5),
+			var(--_highlight) 50%,
+			color-mix(in oklch, var(--_highlight), var(--_base) 50%) calc(50% + var(--_spread) * 0.5),
+			var(--_base) calc(50% + var(--_spread))
+		)
+	);
+	background-repeat: no-repeat;
+	background-size: calc(200% + var(--_spread) * 2) 100%;
+	background-position: 0 0;
+	background-clip: text;
+	-webkit-text-fill-color: var(--shimmer-text-fill, transparent);
+	animation: shimmer var(--shimmer-duration, 2s) linear infinite;
+
+	@variant dark {
+		--_highlight: var(
+			--shimmer-color,
+			oklch(from currentColor max(0.8, calc(l + 0.4)) c h / calc(alpha + 0.4))
+		);
+	}
+
+	&:where([dir="rtl"], [dir="rtl"] *) {
+		animation-direction: reverse;
+	}
+}
+
+/* Turns a shimmer off and leaves the text plain. */
+@utility shimmer-none {
+	--shimmer-image: none;
+	--shimmer-text-fill: currentColor;
+	animation: none;
+}

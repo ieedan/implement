@@ -4426,6 +4426,148 @@ const styledReference: Record<string, ApiPart[]> = {
 				'A turning ring for work in flight. Carries role="status" and a default label; pass aria-label to say what is loading. Size and color it with classes, like any icon.',
 		},
 	],
+	"ui-trace": [
+		part(
+			"Trace",
+			"Div",
+			"A column of steps. A direct child that wraps a TraceLine — a link, a dialog trigger — takes the line's footprint and its focus ring, so the line inside stays text.",
+		),
+		{
+			name: "TraceLine",
+			element: "Span",
+			description:
+				"One step: an icon, a title, and an optional description. It brightens on hover once it sits inside an A or a button.",
+			props: [
+				{
+					name: "status",
+					type: 'Bindable<"running" | "error" | "pending" | undefined>',
+					description:
+						"running shimmers the title, error turns the line destructive, pending dims it. Leave it unset for work that is done. Also set as data-status.",
+				},
+			],
+		},
+		part(
+			"TraceIcon",
+			"Span",
+			"A 16px slot for an icon, before the title or after it. Sets aria-hidden, and sizes an svg inside it unless the svg has a size class of its own.",
+		),
+		part(
+			"TraceTitle",
+			"Span",
+			"What the step did, on one line. Truncates rather than wrapping, and shimmers while its line is running — unless the reader prefers reduced motion.",
+		),
+		part(
+			"TraceDescription",
+			"Span",
+			"A short aside after the title — a duration, a count, a diff stat. It does not shrink, so the title truncates first.",
+		),
+		...styledParts("collapsible").map((section) => ({
+			...section,
+			name: section.name.replace(/^Collapsible/, "TraceCollapsible"),
+			description:
+				{
+					Collapsible:
+						"A step that expands. Every prop is the Collapsible primitive's, open and onOpenChange included.",
+					CollapsibleTrigger:
+						"Wraps the step's TraceLine, and puts a chevron after it that turns while the step is open. Turns destructive when the line inside it has an error status.",
+					CollapsibleContent:
+						"The detail under a step, indented behind a rule. class lands on an inner Div, so the animated element keeps the overflow and height classes it needs. The slide comes from the collapsible keyframes in your stylesheet.",
+				}[section.name] ?? section.description,
+		})),
+	],
+	"ui-code-block": [
+		{
+			name: "CodeBlock",
+			element: "Div",
+			description: "The bordered panel. It shows a focus ring while the code inside it has focus.",
+			props: [
+				variantProp(
+					'"default" | "destructive"',
+					"default",
+					"destructive is for a failure — an error log, a stack trace. Also set as data-variant.",
+				),
+				{
+					name: "size",
+					type: '"default" | "sm"',
+					default: '"default"',
+					description:
+						"sm tightens the padding and the type, for tool output inside a Trace. Also set as data-size.",
+				},
+			],
+		},
+		part("CodeBlockHeader", "Div", "A row above the code for a title and actions."),
+		part(
+			"CodeBlockTitle",
+			"Div",
+			"The file name or command. Truncates, and sizes an svg in front of it.",
+		),
+		part(
+			"CodeBlockActions",
+			"Div",
+			"Buttons for the code. In a header they sit at its end; as a direct child of CodeBlock they float over the top corner and show on hover or focus — always, on a touch screen.",
+		),
+		{
+			name: "CodeBlockCopyButton",
+			element: "Button",
+			description:
+				"Copies value, then shows a check for two seconds and announces the copy to screen readers. Every other prop is the Button's.",
+			props: [
+				{
+					name: "value",
+					type: "string | Readable<string>",
+					required: true,
+					description:
+						"The text written to the clipboard. Pass a readable for code that streams in.",
+				},
+				...buttonStyleProps("ghost", "icon-xs"),
+			],
+		},
+		{
+			name: "CodeBlockContent",
+			element: "Pre",
+			description:
+				"The code, in a focusable Pre that scrolls sideways and fades its edges where there is more to see. Its children land in a Code inside it.",
+			props: [
+				{
+					name: "wrap",
+					type: "boolean",
+					default: "false",
+					description: "Wrap long lines instead of scrolling sideways. Also set as data-wrap.",
+				},
+				{
+					name: "lineNumbers",
+					type: "boolean",
+					default: "false",
+					description:
+						"Number the lines. Text passed as the only child — a string, or a readable one — is split into CodeBlockLines for you. Also set as data-numbered.",
+				},
+				{
+					name: "startLine",
+					type: "number",
+					default: "1",
+					description: "The number the first line gets.",
+				},
+			],
+		},
+		{
+			name: "CodeBlockLine",
+			element: "Span",
+			description:
+				"One line of code. An empty line holds a newline, so copying a selection keeps it.",
+			props: [
+				variantProp(
+					'"default" | "added" | "removed" | "highlighted"',
+					"default",
+					"added and removed mark a diff line with a tint and a + or − in the gutter; highlighted only tints it. Also set as data-variant.",
+				),
+			],
+		},
+		part(
+			"CodeBlockFooter",
+			"Div",
+			"A row under the code, for a caption, a status, or more actions.",
+		),
+	],
 	"ui-sidebar": [
 		{
 			name: "SidebarProvider",

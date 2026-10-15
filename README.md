@@ -22,13 +22,13 @@ import { App, Button, Div, P, signal, derived } from "@implementjs/core";
 const app = App({ target: document.body });
 
 function Counter() {
-    const count = signal(0);
-    const doubled = derived([count], (c) => c * 2);
+	const count = signal(0);
+	const doubled = derived([count], (c) => c * 2);
 
-    return Div(
-        Button({ onClick: () => count.increment() }, "Count: ", count),
-        P("Doubled: ", doubled)
-    );
+	return Div(
+		Button({ onClick: () => count.increment() }, "Count: ", count),
+		P("Doubled: ", doubled),
+	);
 }
 
 app.render(Counter());
@@ -51,6 +51,7 @@ npm create implement-app@latest
 You can either start with `@implementjs/kit` (A fullstack framework built on top of Vite) or just start with a static site.
 
 If you are building with agents you may also want to add our skills. Our skills are essentially just a collection of links to [our documentation](https://implementjs.dev/docs).
+
 ```sh
 npx skills add ieedan/implement
 ```

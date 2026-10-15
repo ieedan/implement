@@ -472,6 +472,59 @@
 			]
 		},
 		{
+			"name": "code-block",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"button",
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "tailwind-variants",
+					"version": "^3.3.1"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "code-block.ts",
+					"relativePath": "src/lib/components/ui/code-block.ts",
+					"_imports_": [
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
 			"name": "collapsible",
 			"type": "ui",
 			"add": "when-added",
@@ -823,6 +876,32 @@
 							"meta": {}
 						}
 					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "highlighted-code",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "shiki",
+					"version": "^4.4.3"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "highlighted-code.ts",
+					"relativePath": "src/lib/components/ui/highlighted-code.ts",
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1852,6 +1931,44 @@
 							},
 							"meta": {}
 						},
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "trace",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "~0.0.11"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "trace.ts",
+					"relativePath": "src/lib/components/ui/trace.ts",
+					"_imports_": [
 						{
 							"import": "@/lib/utils",
 							"item": "utils",
