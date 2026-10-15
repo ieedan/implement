@@ -148,7 +148,7 @@ The values shipped here are the dark palette these components were tuned against
 
 ### Animation keyframes
 
-[Accordion](/ui/accordion) and [Collapsible](/ui/collapsible) animate to a height they only learn at runtime. The primitives measure the content and write it onto the element as `--ip-accordion-content-height` / `--ip-collapsible-content-height`; the keyframes that read it belong in your stylesheet, inside `@theme inline`:
+[Accordion](/ui/accordion), [Collapsible](/ui/collapsible), and the expanding steps of a [Trace](/ui/trace) animate to a height they only learn at runtime. The primitives measure the content and write it onto the element as `--ip-accordion-content-height` / `--ip-collapsible-content-height`; the keyframes that read it belong in your stylesheet, inside `@theme inline`:
 
 ```css
 @theme inline {
