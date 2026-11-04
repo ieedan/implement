@@ -1,5 +1,11 @@
 # @implementjs/primitives
 
+## 0.0.15
+
+### Patch Changes
+
+- [`a8e52d9`](https://github.com/ieedan/implement/commit/a8e52d90c2e4cc47e2e6f87cb41dffd4ab0dade0) Thanks [@ieedan](https://github.com/ieedan)! - Add `InputOTP`, `InputOTPGroup`, `InputOTPSlot`, and `InputOTPSeparator` to the primitives, and a styled `input-otp` to the `@implementjs/ui` registry. One real input takes the typing, pasting, and autofill while the slots draw the code, with `pattern`, `onComplete`, and `REGEXP_ONLY_*` helpers.
+
 ## 0.0.14
 
 ### Patch Changes
