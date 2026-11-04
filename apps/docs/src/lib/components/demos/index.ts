@@ -29,6 +29,8 @@ import PopoverTriggersDemo from "./popover-triggers-demo.ts";
 import popoverTriggersSource from "./popover-triggers-demo.ts?raw";
 import ProgressDemo from "./progress-demo.ts";
 import progressSource from "./progress-demo.ts?raw";
+import InputOTPDemo from "./input-otp-demo.ts";
+import inputOtpSource from "./input-otp-demo.ts?raw";
 import RadioGroupDemo from "./radio-group-demo.ts";
 import radioGroupSource from "./radio-group-demo.ts?raw";
 import RatingGroupDemo from "./rating-group-demo.ts";
@@ -178,6 +180,7 @@ export const demos: Record<string, Demo> = {
 		component: PopoverNestedDemo,
 	},
 	progress: { source: progressSource, component: ProgressDemo },
+	"input-otp": { source: inputOtpSource, component: InputOTPDemo },
 	"radio-group": { source: radioGroupSource, component: RadioGroupDemo },
 	"rating-group": { source: ratingGroupSource, component: RatingGroupDemo },
 	select: { source: selectSource, component: SelectDemo },

@@ -1977,6 +1977,116 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			],
 		},
 	],
+	"input-otp": [
+		{
+			name: "InputOTP",
+			element: "Div",
+			description:
+				"The root. Draws the slots and renders one real input over them, which takes the typing, pasting, autofill, and form submission.",
+			props: [
+				{
+					name: "value",
+					type: "Signal<string> | string",
+					default: '""',
+					description:
+						"The code typed so far. Pass a signal to control it from outside; a string seeds uncontrolled state.",
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string) => void",
+					description: "Runs whenever the code changes.",
+				},
+				{
+					name: "onComplete",
+					type: "(value: string) => void",
+					description: "Runs once the last slot has been filled.",
+				},
+				{
+					name: "maxLength",
+					type: "number",
+					default: "6",
+					description: "How many characters the code has.",
+				},
+				{
+					name: "pattern",
+					type: "RegExp | string",
+					description:
+						"What the whole value must match. A change that would break it is refused. REGEXP_ONLY_DIGITS, REGEXP_ONLY_CHARS, and REGEXP_ONLY_DIGITS_AND_CHARS cover the usual cases.",
+				},
+				{
+					name: "disabled",
+					type: "Readable<boolean> | boolean",
+					default: "false",
+					description: "Disables the input.",
+				},
+				{
+					name: "name",
+					type: "string",
+					description: "Submits the code with a form under this name.",
+				},
+				{
+					name: "required",
+					type: "boolean",
+					description: "Marks the input required for form validation.",
+				},
+				{
+					name: "inputMode",
+					type: '"numeric" | "text" | "decimal" | "tel" | "search" | "email" | "url" | "none"',
+					default: '"numeric"',
+					description: "Which keyboard a touch device shows.",
+				},
+				{
+					name: "inputProps",
+					type: 'ElementProps<"input">',
+					description:
+						'Props for the real input — an aria-label, aria-invalid, or an event handler. It defaults to aria-label "One-time code".',
+				},
+				{
+					name: "id",
+					type: "string",
+					description: "Set on the real input, so a label's `for` reaches it.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-input-otp-root", value: "Present" },
+				{ name: "data-focused", value: "Present while the input has focus" },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+		{
+			name: "InputOTPGroup",
+			element: "Div",
+			description: 'A run of slots. Sets role="group".',
+			dataAttributes: [{ name: "data-input-otp-group", value: "Present" }],
+		},
+		{
+			name: "InputOTPSlot",
+			element: "Div",
+			description:
+				"One character of the code. Draws the character and a caret; children render after them. Hidden from assistive tech — the real input carries the value.",
+			props: [
+				{
+					name: "index",
+					type: "number",
+					required: true,
+					description: "Zero-based position of the character the slot shows.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-input-otp-slot", value: "Present" },
+				{ name: "data-index", value: "The slot's index" },
+				{ name: "data-active", value: "Present while it is the slot the next character lands in" },
+				{ name: "data-filled", value: "Present when it holds a character" },
+				{ name: "data-disabled", value: "Present when disabled" },
+			],
+		},
+		{
+			name: "InputOTPSeparator",
+			element: "Div",
+			description: 'A divider between groups. Sets role="separator".',
+			dataAttributes: [{ name: "data-input-otp-separator", value: "Present" }],
+		},
+	],
 	"rating-group": [
 		{
 			name: "RatingGroup",
@@ -3996,6 +4106,13 @@ const styledReference: Record<string, ApiPart[]> = {
 			RangeCalendar: {
 				description:
 					"A range calendar, fully assembled: month navigation, the weekday header, and the day grid are built in, with day styling for the start, middle, and end of a range. Every root prop below is forwarded.",
+			},
+		},
+	}),
+	"ui-input-otp": styledParts("input-otp", {
+		parts: {
+			InputOTPSeparator: {
+				note: "Renders a minus icon unless you pass children of your own.",
 			},
 		},
 	}),

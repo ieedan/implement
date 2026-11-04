@@ -178,6 +178,19 @@ export {
 	type RadioGroupItemProps,
 } from "./lib/components/primitives/radio-group";
 export {
+	InputOTP,
+	InputOTPGroup,
+	InputOTPSlot,
+	InputOTPSeparator,
+	REGEXP_ONLY_DIGITS,
+	REGEXP_ONLY_CHARS,
+	REGEXP_ONLY_DIGITS_AND_CHARS,
+	type InputOTPRootProps,
+	type InputOTPGroupProps,
+	type InputOTPSlotProps,
+	type InputOTPSeparatorProps,
+} from "./lib/components/primitives/input-otp";
+export {
 	RatingGroup,
 	RatingGroupItem,
 	type RatingGroupRootProps,

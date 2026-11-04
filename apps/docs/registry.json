@@ -909,6 +909,44 @@
 			]
 		},
 		{
+			"name": "input-otp",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "~0.0.11"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "input-otp.ts",
+					"relativePath": "src/lib/components/ui/input-otp.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
 			"name": "input",
 			"type": "ui",
 			"add": "when-added",
