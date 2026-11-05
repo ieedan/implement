@@ -1,5 +1,11 @@
 # @implementjs/kit
 
+## 0.0.21
+
+### Patch Changes
+
+- [`a05a0fe`](https://github.com/ieedan/implement/commit/a05a0fecba22b694967eed81dd5e6f59059f97f6) Thanks [@ieedan](https://github.com/ieedan)! - Prebundle `@implementjs/core` in dev alongside the router and runtime. In a workspace where core is linked, the prebundled router carried its own copy of it, so a link changed the URL but the router never rendered the new page, and every server render was discarded as a hydration mismatch.
+
 ## 0.0.20
 
 ### Patch Changes

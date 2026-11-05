@@ -1,5 +1,12 @@
 # @implementjs/adapter-cloudflare
 
+## 0.0.21
+
+### Patch Changes
+
+- Updated dependencies [[`a05a0fe`](https://github.com/ieedan/implement/commit/a05a0fecba22b694967eed81dd5e6f59059f97f6)]:
+  - @implementjs/kit@0.0.21
+
 ## 0.0.20
 
 ### Patch Changes

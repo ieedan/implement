@@ -1,5 +1,13 @@
 # @implementjs/primitives
 
+## 0.0.16
+
+### Patch Changes
+
+- [`a05a0fe`](https://github.com/ieedan/implement/commit/a05a0fecba22b694967eed81dd5e6f59059f97f6) Thanks [@ieedan](https://github.com/ieedan)! - Add `ImageCropper`, `ImageCropperTrigger`, `ImageCropperCropper`, `ImageCropperCrop`, and `ImageCropperCancel` to the primitives, and a styled `image-cropper` to the `@implementjs/ui` registry. Choose a file, pan and zoom it under a fixed crop area with the mouse, touch, or keyboard, and get the cropped PNG back as an object URL. Also exports `getFileFromUrl` and `ImageCropperContext`.
+
+- [`a05a0fe`](https://github.com/ieedan/implement/commit/a05a0fecba22b694967eed81dd5e6f59059f97f6) Thanks [@ieedan](https://github.com/ieedan)! - Add `PhoneInput` and `PhoneInputField` to the primitives, and a styled `phone-input` to the `@implementjs/ui` registry. The field formats as you type, reports the number in E.164 form, and detects the country from a typed `+`; the styled version adds a searchable country picker with flags. Also exports `getPhoneCountries` and `PhoneInputContext` for building your own picker.
+
 ## 0.0.15
 
 ### Patch Changes
