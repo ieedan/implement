@@ -2087,6 +2087,187 @@ const primitiveReference: Record<string, ApiPart[]> = {
 			dataAttributes: [{ name: "data-input-otp-separator", value: "Present" }],
 		},
 	],
+	"image-cropper": [
+		{
+			name: "ImageCropper",
+			description:
+				"The root. It renders no element of its own — only the hidden file input every trigger points at — and holds the picture, the crop, and the open state.",
+			props: [
+				{
+					name: "src",
+					type: "Signal<string> | string",
+					default: '""',
+					description:
+						"The current image URL. A confirmed crop writes its object URL here; pass a signal to read it.",
+				},
+				{
+					name: "onSrcChange",
+					type: "(src: string) => void",
+					description: "Runs whenever the image URL changes.",
+				},
+				{
+					name: "onCropped",
+					type: "(url: string) => void",
+					description: "Runs with the object URL of the cropped image once a crop is confirmed.",
+				},
+				{
+					name: "onUnsupportedFile",
+					type: "(file: File) => void",
+					description: "Runs when the chosen file is not an image a browser can draw.",
+				},
+				{
+					name: "open",
+					type: "Signal<boolean> | boolean",
+					default: "false",
+					description:
+						"Whether the crop dialog is open. It opens itself when a file is chosen; pass a signal to control it.",
+				},
+				{
+					name: "onOpenChange",
+					type: "(open: boolean) => void",
+					description: "Runs whenever the open state changes.",
+				},
+				{
+					name: "id",
+					type: "string",
+					description: "Set on the file input, so a trigger's `for` reaches it.",
+				},
+				{
+					name: "inputProps",
+					type: 'ElementProps<"input">',
+					description: "Props for the hidden file input.",
+				},
+			],
+			dataAttributes: [{ name: "data-image-cropper-input", value: "Present, on the file input" }],
+		},
+		{
+			name: "ImageCropperTrigger",
+			element: "Label",
+			description: "A label for the file input. Clicking anything inside it opens the file picker.",
+			dataAttributes: [{ name: "data-image-cropper-trigger", value: "Present" }],
+		},
+		{
+			name: "ImageCropperCropper",
+			element: "Div",
+			description:
+				"The surface the picture is moved and zoomed on under a fixed crop area. Drag to pan, scroll or pinch to zoom; with focus, arrow keys pan and + / - zoom. It has no size of its own, so give it a width and a height.",
+			props: [
+				{
+					name: "aspect",
+					type: "number",
+					default: "1",
+					description: "Width over height of the area that is kept.",
+				},
+				{
+					name: "shape",
+					type: '"round" | "rect"',
+					default: '"round"',
+					description:
+						"Sets data-shape on the surface and the area, so the outline can be styled. The saved image is always a rectangle.",
+				},
+				{
+					name: "zoom",
+					type: "Signal<number> | number",
+					default: "1",
+					description: "How far in the picture is zoomed. 1 just covers the crop area.",
+				},
+				{
+					name: "onZoomChange",
+					type: "(zoom: number) => void",
+					description: "Runs whenever the zoom changes.",
+				},
+				{ name: "minZoom", type: "number", default: "1", description: "The lowest zoom." },
+				{ name: "maxZoom", type: "number", default: "3", description: "The highest zoom." },
+				{ name: "alt", type: "string", default: '""', description: "Alt text for the picture." },
+			],
+			dataAttributes: [
+				{ name: "data-image-cropper-cropper", value: "Present" },
+				{ name: "data-image-cropper-area", value: "Present, on the crop area inside" },
+				{ name: "data-shape", value: '"round" | "rect"' },
+			],
+		},
+		{
+			name: "ImageCropperCrop",
+			element: "Button",
+			description: "Confirms the crop: the picture becomes the root's src and the dialog closes.",
+			dataAttributes: [{ name: "data-image-cropper-crop", value: "Present" }],
+		},
+		{
+			name: "ImageCropperCancel",
+			element: "Button",
+			description: "Throws the picture away and closes the dialog.",
+			dataAttributes: [{ name: "data-image-cropper-cancel", value: "Present" }],
+		},
+	],
+	"phone-input": [
+		{
+			name: "PhoneInput",
+			element: "Div",
+			description:
+				"The root. Owns the country and the number, and provides them to the field and to any country picker you write.",
+			props: [
+				{
+					name: "country",
+					type: "Signal<CountryCode | null> | CountryCode | null",
+					default: "null",
+					description:
+						"The selected country, as an ISO 3166-1 alpha-2 code. Pass a signal to control it from outside. Typing a number that starts with + sets it.",
+				},
+				{
+					name: "onCountryChange",
+					type: "(country: CountryCode | null) => void",
+					description: "Runs whenever the country changes.",
+				},
+				{
+					name: "value",
+					type: "Signal<string> | string",
+					default: '""',
+					description:
+						'The number in E.164 form, like "+15551234567". Pass a signal to control it from outside.',
+				},
+				{
+					name: "onValueChange",
+					type: "(value: string) => void",
+					description: "Runs whenever the number changes.",
+				},
+				{
+					name: "valid",
+					type: "Signal<boolean>",
+					description:
+						"Receives whether the number is complete and valid for its country. An empty field counts as valid.",
+				},
+				{
+					name: "disabled",
+					type: "Readable<boolean> | boolean",
+					default: "false",
+					description: "Disables the field.",
+				},
+				{
+					name: "readOnly",
+					type: "boolean",
+					default: "false",
+					description: "Makes the field read-only.",
+				},
+				{
+					name: "name",
+					type: "string",
+					description: "Submits the E.164 number with a form under this name.",
+				},
+			],
+			dataAttributes: [
+				{ name: "data-phone-input-root", value: "Present" },
+				{ name: "data-disabled", value: "Present when disabled" },
+				{ name: "data-valid", value: '"false" when the number is not valid' },
+			],
+		},
+		{
+			name: "PhoneInputField",
+			element: "Input",
+			description:
+				'The text field. Formats as you type and sets the root\'s number and country. Renders type="tel".',
+			dataAttributes: [{ name: "data-phone-input-field", value: "Present" }],
+		},
+	],
 	"rating-group": [
 		{
 			name: "RatingGroup",
@@ -4113,6 +4294,71 @@ const styledReference: Record<string, ApiPart[]> = {
 		parts: {
 			InputOTPSeparator: {
 				note: "Renders a minus icon unless you pass children of your own.",
+			},
+		},
+	}),
+	"ui-image-cropper": [
+		...styledParts("image-cropper", {
+			parts: {
+				ImageCropperCrop: {
+					note: "Renders a crop icon and a label unless you pass children of your own.",
+				},
+				ImageCropperCancel: {
+					note: "Renders a trash icon and a label unless you pass children of your own.",
+				},
+			},
+		}),
+		{
+			name: "ImageCropperPreview",
+			element: "Div",
+			description:
+				"What the trigger shows: the current src in a round avatar, with an upload icon until there is one. Every Avatar prop is forwarded.",
+			props: [
+				{
+					name: "child",
+					type: "(src: Readable<string>) => Child",
+					description:
+						"Draw the picture yourself instead of in an avatar. It is handed the current src.",
+				},
+			],
+		},
+		{
+			name: "ImageCropperDialog",
+			element: "Div",
+			description:
+				"The modal the picture is cropped in. It opens when a file is chosen and closes on crop or cancel. Every DialogContent prop is forwarded.",
+		},
+		{
+			name: "ImageCropperControls",
+			element: "Div",
+			description: "A centred row for the crop and cancel buttons.",
+		},
+	],
+	"ui-phone-input": styledParts("phone-input", {
+		keep: ["PhoneInput"],
+		parts: {
+			PhoneInput: {
+				description:
+					"A phone input, fully assembled: a searchable country picker beside the number field. Every root prop below is forwarded.",
+				props: [
+					{
+						name: "placeholder",
+						type: "string",
+						description: "Placeholder for the number field.",
+					},
+					{
+						name: "inputProps",
+						type: 'ElementProps<"input">',
+						description:
+							"Props for the number field — an aria-label, aria-invalid, or an event handler.",
+					},
+					{
+						name: "countries",
+						type: "PhoneCountry[]",
+						description:
+							"The countries to offer, in the order to show them. Defaults to getPhoneCountries(), every country sorted by name.",
+					},
+				],
 			},
 		},
 	}),

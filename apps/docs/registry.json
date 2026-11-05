@@ -909,6 +909,74 @@
 			]
 		},
 		{
+			"name": "image-cropper",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils",
+				"avatar",
+				"button",
+				"dialog"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "~0.0.11"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "image-cropper.ts",
+					"relativePath": "src/lib/components/ui/image-cropper.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./avatar",
+							"item": "avatar",
+							"file": {
+								"type": "ui",
+								"path": "avatar.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./button",
+							"item": "button",
+							"file": {
+								"type": "ui",
+								"path": "button.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./dialog",
+							"item": "dialog",
+							"file": {
+								"type": "ui",
+								"path": "dialog.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
 			"name": "input-otp",
 			"type": "ui",
 			"add": "when-added",
@@ -1172,6 +1240,69 @@
 							"file": {
 								"type": "lib",
 								"path": "utils.ts"
+							},
+							"meta": {}
+						}
+					],
+					"registryDependencies": [],
+					"dependencies": [],
+					"devDependencies": []
+				}
+			]
+		},
+		{
+			"name": "phone-input",
+			"type": "ui",
+			"add": "when-added",
+			"registryDependencies": [
+				"utils",
+				"command",
+				"popover"
+			],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/lucide",
+					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "country-flag-icons",
+					"version": "^1.6.20"
+				}
+			],
+			"devDependencies": [],
+			"files": [
+				{
+					"type": "ui",
+					"role": "file",
+					"path": "phone-input.ts",
+					"relativePath": "src/lib/components/ui/phone-input.ts",
+					"_imports_": [
+						{
+							"import": "@/lib/utils",
+							"item": "utils",
+							"file": {
+								"type": "lib",
+								"path": "utils.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./command",
+							"item": "command",
+							"file": {
+								"type": "ui",
+								"path": "command.ts"
+							},
+							"meta": {}
+						},
+						{
+							"import": "./popover",
+							"item": "popover",
+							"file": {
+								"type": "ui",
+								"path": "popover.ts"
 							},
 							"meta": {}
 						}

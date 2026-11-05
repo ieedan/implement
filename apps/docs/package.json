@@ -29,6 +29,7 @@
 		"@implementjs/router": "workspace:~",
 		"@lezer/highlight": "^1.2.3",
 		"codemirror": "^6.0.2",
+		"country-flag-icons": "^1.6.20",
 		"shiki": "^4.4.3",
 		"sucrase": "^3.35.1",
 		"tailwind-merge": "^3.6.0",
@@ -36,9 +37,9 @@
 		"valibot": "^1.4.1"
 	},
 	"devDependencies": {
+		"@fontsource/inter": "^5.3.0",
 		"@implementjs/adapter-vercel": "workspace:*",
 		"@implementjs/kit": "workspace:*",
-		"@fontsource/inter": "^5.3.0",
 		"@jsrepo/pnpm": "^3.0.1",
 		"@shikijs/rehype": "^4.4.3",
 		"@tailwindcss/vite": "^4.3.3",

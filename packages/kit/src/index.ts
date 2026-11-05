@@ -184,6 +184,14 @@ const NOT_FOUND_ROUTE = "/__implement__/not-found";
  * `runtime`, and the route tables the router registers would be registered
  * into a module instance the preloader cannot see. Every preload would then
  * quietly no-op: two registries, one of them empty.
+ *
+ * `@implementjs/core` is here for the same reason, and it bites a workspace
+ * harder: a linked core is source the app imports directly, while the
+ * prebundled router and runtime carry a copy of their own. Two cores are two
+ * location signals — a link changes the URL through one and the router, reading
+ * the other, never renders the page — and two hydration supports, so every
+ * server render is thrown away as a mismatch. Prebundling core makes them
+ * share one.
  */
 /**
  * Never pre-bundled for a browser: the plugin entry is a build tool, imported
@@ -193,6 +201,8 @@ const NOT_FOUND_ROUTE = "/__implement__/not-found";
 const OPTIMIZE_EXCLUDE = ["@implementjs/kit"];
 
 const OPTIMIZE_INCLUDE = [
+	"@implementjs/core",
+	"@implementjs/core/hydrate",
 	ROUTER_PACKAGE,
 	"@implementjs/kit/navigation",
 	"@implementjs/kit/params",

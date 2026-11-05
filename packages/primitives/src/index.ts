@@ -191,6 +191,35 @@ export {
 	type InputOTPSeparatorProps,
 } from "./lib/components/primitives/input-otp";
 export {
+	ImageCropper,
+	ImageCropperTrigger,
+	ImageCropperCropper,
+	ImageCropperCrop,
+	ImageCropperCancel,
+	ImageCropperContext,
+	ImageCropperState,
+	VALID_IMAGE_TYPES,
+	getFileFromUrl,
+	getCroppedImage,
+	type CropArea,
+	type ImageCropperRootProps,
+	type ImageCropperTriggerProps,
+	type ImageCropperCropperProps,
+	type ImageCropperCropProps,
+	type ImageCropperCancelProps,
+} from "./lib/components/primitives/image-cropper";
+export {
+	PhoneInput,
+	PhoneInputField,
+	PhoneInputContext,
+	PhoneInputState,
+	getPhoneCountries,
+	type CountryCode,
+	type PhoneCountry,
+	type PhoneInputRootProps,
+	type PhoneInputFieldProps,
+} from "./lib/components/primitives/phone-input";
+export {
 	RatingGroup,
 	RatingGroupItem,
 	type RatingGroupRootProps,

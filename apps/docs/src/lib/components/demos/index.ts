@@ -31,6 +31,12 @@ import ProgressDemo from "./progress-demo.ts";
 import progressSource from "./progress-demo.ts?raw";
 import InputOTPDemo from "./input-otp-demo.ts";
 import inputOtpSource from "./input-otp-demo.ts?raw";
+import ImageCropperDemo from "./image-cropper-demo.ts";
+import imageCropperSource from "./image-cropper-demo.ts?raw";
+import ImageCropperWideDemo from "./image-cropper-wide-demo.ts";
+import imageCropperWideSource from "./image-cropper-wide-demo.ts?raw";
+import PhoneInputDemo from "./phone-input-demo.ts";
+import phoneInputSource from "./phone-input-demo.ts?raw";
 import RadioGroupDemo from "./radio-group-demo.ts";
 import radioGroupSource from "./radio-group-demo.ts?raw";
 import RatingGroupDemo from "./rating-group-demo.ts";
@@ -181,6 +187,9 @@ export const demos: Record<string, Demo> = {
 	},
 	progress: { source: progressSource, component: ProgressDemo },
 	"input-otp": { source: inputOtpSource, component: InputOTPDemo },
+	"image-cropper": { source: imageCropperSource, component: ImageCropperDemo },
+	"image-cropper-wide": { source: imageCropperWideSource, component: ImageCropperWideDemo },
+	"phone-input": { source: phoneInputSource, component: PhoneInputDemo },
 	"radio-group": { source: radioGroupSource, component: RadioGroupDemo },
 	"rating-group": { source: ratingGroupSource, component: RatingGroupDemo },
 	select: { source: selectSource, component: SelectDemo },
