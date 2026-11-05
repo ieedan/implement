@@ -1,5 +1,46 @@
 # @implementjs/ui
 
+## 0.0.7
+
+### Patch Changes
+
+- [`a8e52d9`](https://github.com/ieedan/implement/commit/a8e52d90c2e4cc47e2e6f87cb41dffd4ab0dade0) Thanks [@ieedan](https://github.com/ieedan)! - Add `InputOTP`, `InputOTPGroup`, `InputOTPSlot`, and `InputOTPSeparator` to the primitives, and a styled `input-otp` to the `@implementjs/ui` registry. One real input takes the typing, pasting, and autofill while the slots draw the code, with `pattern`, `onComplete`, and `REGEXP_ONLY_*` helpers.
+
+- [#103](https://github.com/ieedan/implement/pull/103) [`eb487d1`](https://github.com/ieedan/implement/commit/eb487d1fb55f8b204337a620c36d6bdc95dc453a) Thanks [@ieedan](https://github.com/ieedan)! - Add `trace` and `code-block`, ported from shadcn/ui's October 2026 release, and
+  `highlighted-code` for syntax highlighting them.
+
+  `Trace` is one row for everything an agent shows while it works — a thought, a
+  search, a command, a file it edited, a step of its plan. A `TraceLine` takes a
+  `status` (`running`, `error`, or `pending`), and since it takes a readable a
+  step can move along as the work does. Wrap a line in a `TraceCollapsible` to
+  expand it into its output.
+
+  `CodeBlock` shows code, terminal output, logs, and diffs, with a header, line
+  numbers, `added` / `removed` / `highlighted` lines, wrapping, and a copy
+  button. Pass a readable string as its content and it follows the string as it
+  grows, numbering each line as it arrives:
+
+  ```ts
+  const log = signal("");
+
+  CodeBlock(
+  	CodeBlockHeader(
+  		CodeBlockTitle(TerminalIcon(), "Terminal"),
+  		CodeBlockActions(CodeBlockCopyButton({ value: log })),
+  	),
+  	CodeBlockContent({ lineNumbers: true }, log),
+  );
+  ```
+
+  `highlightedCode(code, language)` highlights with Shiki and hands back a
+  readable of lines — plain on the server and until the grammar loads, then
+  highlighted. It is its own registry item, so a block that only shows plain
+  output does not install `shiki`.
+
+  Both components lean on a few Tailwind utilities — `shimmer` for a running
+  step, `scroll-fade-x` / `scroll-fade-y` for a block's edges — which their
+  pages give you to paste into your stylesheet.
+
 ## 0.0.6
 
 ### Patch Changes
