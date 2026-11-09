@@ -18,6 +18,14 @@ vi.mock("@clack/prompts", async (importOriginal) => ({
 	...prompts,
 }));
 
+// an install is a real package manager run, which none of these tests are here to exercise
+const commands = vi.hoisted(() => ({ runCommands: vi.fn() }));
+
+vi.mock("@/utils/prompts", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@/utils/prompts")>()),
+	...commands,
+}));
+
 let cwd: AbsolutePath;
 const wasTTY = process.stdout.isTTY;
 
@@ -118,5 +126,68 @@ describe("runCreate (interactive)", () => {
 		const result = await runCreate("my-app", options());
 
 		expect(unwrapErr(result).toString()).toContain("is not empty");
+	});
+
+	it("creates the app in the current directory when the directory prompt is left empty", async () => {
+		// clack hands back the default value when nothing is typed
+		prompts.text.mockImplementation(async ({ defaultValue }) => defaultValue);
+
+		const result = await runCreate(undefined, options());
+
+		const value = unwrap(result);
+		expect(value.directory).toBe(cwd);
+		expect(prompts.text).toHaveBeenCalledWith(expect.objectContaining({ defaultValue: "." }));
+	});
+
+	it("asks whether to install when no flag answered it", async () => {
+		const result = await runCreate(
+			"my-app",
+			options({ install: undefined, packageManager: "pnpm" }),
+		);
+
+		expect(prompts.confirm).toHaveBeenCalledWith(
+			expect.objectContaining({ message: expect.stringContaining("pnpm"), initialValue: true }),
+		);
+		expect(unwrap(result).installed).toBe(true);
+	});
+
+	it("doesn't install when the prompt is declined", async () => {
+		prompts.confirm.mockResolvedValue(false);
+
+		const result = await runCreate("my-app", options({ install: undefined }));
+
+		expect(unwrap(result).installed).toBe(false);
+	});
+
+	it("doesn't ask about installing when --install or --no-install was passed", async () => {
+		await runCreate("my-app", options({ install: false }));
+
+		expect(prompts.confirm).not.toHaveBeenCalled();
+	});
+
+	it("doesn't ask about installing with --yes", async () => {
+		const result = await runCreate("my-app", options({ install: undefined, yes: true }));
+
+		expect(prompts.confirm).not.toHaveBeenCalled();
+		expect(unwrap(result).installed).toBe(false);
+	});
+
+	it("installs without asking when the ui addon needs jsrepo to fetch its components", async () => {
+		prompts.multiselect.mockResolvedValue(["ui"]);
+
+		const result = await runCreate("my-app", options({ install: undefined, yes: false }));
+
+		expect(prompts.confirm).not.toHaveBeenCalled();
+		expect(unwrap(result).installed).toBe(true);
+		const titles = commands.runCommands.mock.calls.map(([{ title }]) => title);
+		expect(titles).toContainEqual(expect.stringContaining("Adding button"));
+	});
+
+	it("still honors --no-install with the ui addon", async () => {
+		prompts.multiselect.mockResolvedValue(["ui"]);
+
+		const result = await runCreate("my-app", options({ install: false }));
+
+		expect(unwrap(result).installed).toBe(false);
 	});
 });

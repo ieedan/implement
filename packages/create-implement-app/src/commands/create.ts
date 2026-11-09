@@ -42,8 +42,11 @@ import type { AbsolutePath } from "@/utils/types";
 /** The file the adders fold their dependencies and scripts into. */
 const PACKAGE_JSON = "package.json";
 
-/** Used when nothing else says where the app goes. */
+/** Used when nothing else says where the app goes and there is no one to ask. */
 export const DEFAULT_DIRECTORY = "implement-app";
+
+/** What an empty answer to "where should we create your app?" means: right where the user is. */
+export const PROMPT_DEFAULT_DIRECTORY = ".";
 
 export const DEFAULT_TEMPLATE: TemplateId = "kit";
 
@@ -74,7 +77,8 @@ export const schema = v.object({
 	oxlint: v.optional(v.boolean()),
 	packageManager: v.optional(v.picklist(PACKAGE_MANAGERS)),
 	link: v.optional(v.string()),
-	install: v.boolean(),
+	/** Left unset when no flag was passed, so an interactive run knows to ask. */
+	install: v.optional(v.boolean()),
 	git: v.boolean(),
 	workspace: v.boolean(),
 	overwrite: v.boolean(),
@@ -135,7 +139,8 @@ export function addCreateCommand(cmd: Command): Command {
 			"--link <path>",
 			"Link every implement package the app needs to a local clone of the implement repo.",
 		)
-		.option("--install", "Install dependencies after scaffolding.", false)
+		.option("--install", "Install dependencies after scaffolding.")
+		.option("--no-install", "Don't install dependencies after scaffolding.")
 		.option("--git", "Initialize a git repository.", false)
 		.option(
 			"--workspace",
@@ -173,8 +178,8 @@ export async function runCreate(
 			? unwrapPrompt(
 					await text({
 						message: "Where should we create your app?",
-						placeholder: DEFAULT_DIRECTORY,
-						defaultValue: DEFAULT_DIRECTORY,
+						placeholder: PROMPT_DEFAULT_DIRECTORY,
+						defaultValue: PROMPT_DEFAULT_DIRECTORY,
 					}),
 				)
 			: DEFAULT_DIRECTORY);
@@ -221,6 +226,23 @@ export async function runCreate(
 	// the package manager decides how a linked path is spelled, so it has to be settled before the
 	// package.json is written
 	const packageManager = options.packageManager ?? (await detectPackageManager(options.cwd));
+
+	// the starter page renders the styled `Button`, and jsrepo can only copy it out of the registry
+	// once its own dependency is on disk — so `ui` installs unless the flag explicitly said not to.
+	// Otherwise it is asked once the package manager is known so the question can name it, and a run
+	// with no one to answer (or `--yes`) leaves the install to the user.
+	const install =
+		options.install ??
+		(addons.includes("ui")
+			? true
+			: interactive
+				? unwrapPrompt(
+						await confirm({
+							message: `Install dependencies with ${pc.cyan(packageManager)}?`,
+							initialValue: true,
+						}),
+					)
+				: false);
 
 	const linkResult = resolveLink({
 		cwd: options.cwd,
@@ -298,7 +320,7 @@ export async function runCreate(
 		});
 	}
 
-	if (options.install) {
+	if (install) {
 		await runCommands({
 			title: `Installing dependencies with ${packageManager}`,
 			commands: [installCommand(packageManager)],
@@ -313,7 +335,7 @@ export async function runCreate(
 	// kit only typechecks once `.implement/` exists (generated entries, the tsconfig the app extends,
 	// and a `./$types` per route) and nothing has run vite yet — sync now so the editor and `check`
 	// work the moment the app is opened. It needs the deps, so it waits on the install.
-	const synced = template === "kit" && options.install;
+	const synced = template === "kit" && install;
 	if (synced) {
 		await runCommands({
 			title: "Syncing .implement/",
@@ -328,7 +350,7 @@ export async function runCreate(
 
 	// jsrepo copies the components out of the registry, so it needs its own dependency on disk —
 	// which means this waits on the install the same way the sync above does
-	const components = ui && options.install ? UI_ITEMS : [];
+	const components = ui && install ? UI_ITEMS : [];
 	if (components.length > 0) {
 		await runCommands({
 			title: `Adding ${components.join(", ")} from ${UI_REGISTRY}`,
@@ -343,7 +365,7 @@ export async function runCreate(
 
 	// an adder's dependencies only exist once the install has run, so anything it wants to run over
 	// the app it was just added to waits for it the same way the sync above does
-	if (options.install) {
+	if (install) {
 		for (const id of adders) {
 			const script = ADDER_REGISTRY[id].postInstallScript;
 			if (script === undefined) continue;
@@ -363,9 +385,9 @@ export async function runCreate(
 		cwd: options.cwd,
 		directory,
 		packageManager,
-		installed: options.install,
+		installed: install,
 		// without an install the components were never fetched, and the counter imports one
-		components: ui && !options.install ? UI_ITEMS : [],
+		components: ui && !install ? UI_ITEMS : [],
 	});
 
 	return ok({
@@ -376,7 +398,7 @@ export async function runCreate(
 		adders,
 		files: files.map((file) => file.path),
 		packageManager,
-		installed: options.install,
+		installed: install,
 		synced,
 		components,
 		linked: link?.specifiers,

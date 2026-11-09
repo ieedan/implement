@@ -98,7 +98,7 @@ The `ui` addon sets the app up as a consumer of the `@implementjs/ui` [jsrepo](h
 pnpm run ui dialog select    # npm run ui -- dialog select
 ```
 
-`--install` also runs `jsrepo add button`, so the counter's buttons — which the starter page renders through the styled `Button` — are on disk before the first `dev`. Without it the components are one command away, and the next steps printed at the end of the run name it.
+With `ui` the CLI installs dependencies and runs `jsrepo add button` on its own, so the counter's buttons — which the starter page renders through the styled `Button` — are on disk before the first `dev`. jsrepo can't run before its own dependency is installed, which is why `ui` implies `--install`. Pass `--no-install` to skip both; the components are then one command away, and the next steps printed at the end of the run name it.
 
 ## Installing with pnpm
 
@@ -121,26 +121,26 @@ pnpm create implement-app my-app --template kit --tailwind --primitives --no-ico
 
 Anything a flag didn't answer falls back to the defaults: the `kit` template, tailwind on, the other addons off, and the directory `implement-app`.
 
-| Flag                     | Default            | What it does                                                  |
-| ------------------------ | ------------------ | ------------------------------------------------------------- |
-| `[directory]`            | `implement-app`    | Where the app is created, relative to `--cwd`                 |
-| `--name <name>`          | the directory name | The name written into `package.json`                          |
-| `-t, --template <t>`     | `kit`              | `kit` or `csr`                                                |
-| `--tailwind`             | on                 | Set up tailwindcss (`--no-tailwind` to skip)                  |
-| `--primitives`           | off                | Add `@implementjs/primitives` (`--no-primitives` to skip)     |
-| `--ui`                   | off                | Add `@implementjs/ui` (`--no-ui` to skip)                     |
-| `--icons`                | off                | Add `@implementjs/lucide` (`--no-icons` to skip)              |
-| `--forms`                | off                | Add `@implementjs/formish` (`--no-forms` to skip)             |
-| `--mode-watcher`         | off                | Add `@implementjs/mode-watcher` (`--no-mode-watcher` to skip) |
-| `--oxlint`               | off                | Set up oxlint and oxfmt (`--no-oxlint` to skip)               |
-| `--package-manager <pm>` | detected           | `npm`, `pnpm`, `yarn`, `bun`, or `deno`                       |
-| `--install`              | off                | Install dependencies after scaffolding                        |
-| `--git`                  | off                | Run `git init` in the new app                                 |
-| `--workspace`            | off                | Depend on the implement packages with `workspace:*`           |
-| `--overwrite`            | off                | Scaffold into a directory that isn't empty                    |
-| `-y, --yes`              | off                | Skip every prompt                                             |
-| `--cwd <path>`           | `process.cwd()`    | The directory `[directory]` resolves against                  |
-| `--verbose`              | off                | Log every file as it's written instead of showing a spinner   |
+| Flag                     | Default                                   | What it does                                                    |
+| ------------------------ | ----------------------------------------- | --------------------------------------------------------------- |
+| `[directory]`            | `.` (prompted), `implement-app` (`--yes`) | Where the app is created, relative to `--cwd`                   |
+| `--name <name>`          | the directory name                        | The name written into `package.json`                            |
+| `-t, --template <t>`     | `kit`                                     | `kit` or `csr`                                                  |
+| `--tailwind`             | on                                        | Set up tailwindcss (`--no-tailwind` to skip)                    |
+| `--primitives`           | off                                       | Add `@implementjs/primitives` (`--no-primitives` to skip)       |
+| `--ui`                   | off                                       | Add `@implementjs/ui` (`--no-ui` to skip)                       |
+| `--icons`                | off                                       | Add `@implementjs/lucide` (`--no-icons` to skip)                |
+| `--forms`                | off                                       | Add `@implementjs/formish` (`--no-forms` to skip)               |
+| `--mode-watcher`         | off                                       | Add `@implementjs/mode-watcher` (`--no-mode-watcher` to skip)   |
+| `--oxlint`               | off                                       | Set up oxlint and oxfmt (`--no-oxlint` to skip)                 |
+| `--package-manager <pm>` | detected                                  | `npm`, `pnpm`, `yarn`, `bun`, or `deno`                         |
+| `--install`              | prompted, off with `--yes`                | Install dependencies after scaffolding (`--no-install` to skip) |
+| `--git`                  | off                                       | Run `git init` in the new app                                   |
+| `--workspace`            | off                                       | Depend on the implement packages with `workspace:*`             |
+| `--overwrite`            | off                                       | Scaffold into a directory that isn't empty                      |
+| `-y, --yes`              | off                                       | Skip every prompt                                               |
+| `--cwd <path>`           | `process.cwd()`                           | The directory `[directory]` resolves against                    |
+| `--verbose`              | off                                       | Log every file as it's written instead of showing a spinner     |
 
 Errors exit non-zero with a message on stderr. Set `CREATE_IMPLEMENT_APP_TRACE=1` for a stack trace.
 
