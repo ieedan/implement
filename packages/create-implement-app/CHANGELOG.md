@@ -1,5 +1,13 @@
 # create-implement-app
 
+## 0.0.9
+
+### Patch Changes
+
+- [`3a58d3f`](https://github.com/ieedan/implement/commit/3a58d3febc128447ee3ede5a584290538530ad60) Thanks [@ieedan](https://github.com/ieedan)! - Leaving "Where should we create your app?" empty now creates the app in the current directory, and the CLI asks whether to install dependencies with the detected package manager unless `--install`, `--no-install`, or `--yes` is passed.
+
+  Choosing the `ui` addon now installs dependencies and adds the `button` component for you, since the starter page imports it and jsrepo can't run before it is installed. `--no-install` still skips both.
+
 ## 0.0.8
 
 ### Patch Changes
