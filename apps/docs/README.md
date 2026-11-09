@@ -24,7 +24,7 @@ npm install @implementjs/core @implementjs/primitives
 ```
 
 Those two are the only thing `jsrepo add` will not install for you. Everything else a component
-reaches for — `tailwind-merge`, `tailwind-variants`, `@implementjs/lucide` — comes down with it.
+reaches for — `@implementjs/cn`, `tailwind-variants`, `@implementjs/lucide` — comes down with it.
 
 The components never name a color directly: every class goes through a token, so the stylesheet
 that defines them has to be in place before anything renders correctly.

@@ -1,7 +1,7 @@
 import { A, Li, Nav, Ol, Span, type Child, type ElementProps } from "@implementjs/core";
 import { ChevronRightIcon, EllipsisIcon } from "@implementjs/lucide";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type BreadcrumbProps = ElementProps<"nav">;
 export type BreadcrumbListProps = ElementProps<"ol">;

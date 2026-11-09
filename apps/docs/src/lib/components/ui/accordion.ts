@@ -8,7 +8,7 @@ import {
 	AccordionTrigger as AccordionTriggerPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type AccordionProps = ComponentProps<typeof AccordionPrimitive>;
 export type AccordionItemProps = ComponentProps<typeof AccordionItemPrimitive>;

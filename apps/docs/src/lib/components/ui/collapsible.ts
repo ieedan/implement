@@ -5,7 +5,7 @@ import {
 	CollapsibleTrigger as CollapsibleTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 import { createComponent } from "@implementjs/primitives";
 
 export type CollapsibleProps = ComponentProps<typeof CollapsiblePrimitive>;

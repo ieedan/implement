@@ -18,7 +18,7 @@ jsrepo pulls [`label`](/ui/label) and [`separator`](/ui/separator) along with it
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/field.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`, and [`label`](/ui/label) and [`separator`](/ui/separator) from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/field.ts`. It imports [`cn`](/ui#merging-classes) from `@implementjs/cn`, and [`label`](/ui/label) and [`separator`](/ui/separator) from the same directory — copy those in beside it too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install tailwind-variants

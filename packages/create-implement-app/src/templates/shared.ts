@@ -10,7 +10,6 @@ export const UI_REGISTRY = "@implementjs/ui";
 
 /** Where the generated `jsrepo.config.ts` puts each type of item, in both templates. */
 export const UI_PATH = "src/lib/components/ui";
-export const UI_LIB_PATH = "src/lib";
 
 /**
  * Where the registry is built inside a clone of the implement repo. It is configured from the docs
@@ -57,10 +56,8 @@ export function jsrepoConfig(ctx: TemplateContext): string {
 			: []),
 		`\tregistries: [${JSON.stringify(uiRegistry(ctx))}],`,
 		...(linked ? [`\tproviders: [...DEFAULT_PROVIDERS, fs()],`] : []),
-		`\t// every component is typed \`ui\`, and the \`cn\` they all share is a \`lib\``,
 		`\tpaths: {`,
 		`\t\tui: ${JSON.stringify(UI_PATH)},`,
-		`\t\tlib: ${JSON.stringify(UI_LIB_PATH)},`,
 		`\t},`,
 		`});`,
 	].join("\n")}\n`;

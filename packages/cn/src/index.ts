@@ -1,5 +1,11 @@
 import { isReadable, type ClassReadable, type ClassValue, type Readable } from "@implementjs/core";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge, twMerge } from "tailwind-merge";
+
+/** Resolves the conflicts in a space-separated class list: the earlier of a conflicting pair goes. */
+type Merger = (classes: string) => string;
+
+/** What {@link createCn} takes: the same config tailwind-merge's `extendTailwindMerge` does. */
+export type CnConfig = Parameters<typeof extendTailwindMerge>[0];
 
 /**
  * Merge tailwind classes so the last one wins.
@@ -11,16 +17,37 @@ import { twMerge } from "tailwind-merge";
  * [tailwind-merge](https://github.com/dcastil/tailwind-merge), which drops the earlier class of any
  * conflicting pair — which is what makes every component on this page overridable.
  *
+ * Signals keep working: a plain string comes back unless one was passed in, and then the result is
+ * a readable that re-merges whenever any signal in the list changes.
+ *
  * @example
  * Div({ class: cn("rounded-xl border p-6", className) });
  */
-export function cn(...inputs: ClassValue[]): ClassValue {
-	const found = new Set<Readable<unknown>>();
-	const merged = merge(inputs, found);
+export const cn: (...inputs: ClassValue[]) => ClassValue = build(twMerge);
 
-	// A plain string covers almost every call. Only hand back something reactive when a signal
-	// was actually passed in, so the merge re-runs on change rather than freezing at this value.
-	return found.size === 0 ? merged : reactive(inputs);
+/**
+ * A `cn` that merges with your own tailwind-merge config — for a theme with utilities of its own,
+ * like an `elevation-2` from a Tailwind `@utility`, which the default config has never heard of and
+ * so never treats as conflicting with another.
+ *
+ * @example
+ * export const cn = createCn({
+ *   extend: { classGroups: { elevation: [{ elevation: ["1", "2", "3"] }] } },
+ * });
+ */
+export function createCn(config: CnConfig): (...inputs: ClassValue[]) => ClassValue {
+	return build(extendTailwindMerge(config));
+}
+
+function build(mergeClasses: Merger): (...inputs: ClassValue[]) => ClassValue {
+	return (...inputs) => {
+		const found = new Set<Readable<unknown>>();
+		const merged = merge(mergeClasses, inputs, found);
+
+		// A plain string covers almost every call. Only hand back something reactive when a signal
+		// was actually passed in, so the merge re-runs on change rather than freezing at this value.
+		return found.size === 0 ? merged : reactive(mergeClasses, inputs);
+	};
 }
 
 /**
@@ -31,9 +58,9 @@ export function cn(...inputs: ClassValue[]): ClassValue {
  * into one string and freeze the dependencies at whatever was present the first time, so this does
  * the same bookkeeping `class` does: re-walk, then subscribe to exactly what the walk just read.
  */
-function reactive(inputs: ClassValue[]): ClassReadable {
+function reactive(mergeClasses: Merger, inputs: ClassValue[]): ClassReadable {
 	return {
-		get: () => merge(inputs, new Set()),
+		get: () => merge(mergeClasses, inputs, new Set()),
 
 		subscribe(callback) {
 			const subscriptions = new Map<Readable<unknown>, () => void>();
@@ -43,7 +70,7 @@ function reactive(inputs: ClassValue[]): ClassReadable {
 
 			const apply = () => {
 				const found = new Set<Readable<unknown>>();
-				const next = merge(inputs, found);
+				const next = merge(mergeClasses, inputs, found);
 
 				// Only the signals that came or went are touched. One still in the list keeps the
 				// subscription it already had, so the signal currently notifying is never re-added
@@ -76,10 +103,10 @@ function reactive(inputs: ClassValue[]): ClassReadable {
 }
 
 /** The class list as one merged string, recording the signals it had to read along the way. */
-function merge(inputs: ClassValue[], found: Set<Readable<unknown>>): string {
+function merge(mergeClasses: Merger, inputs: ClassValue[], found: Set<Readable<unknown>>): string {
 	const parts: string[] = [];
 	resolve(inputs, found, parts);
-	return twMerge(parts.join(" "));
+	return mergeClasses(parts.join(" "));
 }
 
 /** The same walk `class` itself does: flatten a clsx-shaped value into the names it stands for. */

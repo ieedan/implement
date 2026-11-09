@@ -18,7 +18,7 @@ import {
 	MenubarTrigger as MenubarTriggerPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type MenubarProps = ComponentProps<typeof MenubarPrimitive>;
 

@@ -18,6 +18,7 @@ import type { TemplateContext } from "@/templates/types";
  * neither reads a version at all.
  */
 export const IMPLEMENT_VERSIONS = {
+	"@implementjs/cn": "~0.0.1",
 	"@implementjs/core": "~0.0.3",
 	"@implementjs/eslint": "~0.0.1",
 	"@implementjs/formish": "~0.0.3",
@@ -36,7 +37,6 @@ export const VERSIONS = {
 	jsrepo: "^3.8.1",
 	oxfmt: "^0.63.0",
 	oxlint: "^1.78.0",
-	"tailwind-merge": "^3.6.0",
 	"tailwind-variants": "^3.3.1",
 	tailwindcss: "^4.3.3",
 	typescript: "^7.0.2",

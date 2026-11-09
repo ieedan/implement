@@ -18,7 +18,7 @@ It installs `tailwind-variants` and the [spinner](/ui/spinner) at the same time 
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/button.ts`. It imports `cn` and the spinner, so copy [`utils.ts`](/ui#merging-classes) to `src/lib/utils.ts` and [`spinner.ts`](/ui/spinner) to `src/lib/components/ui/spinner.ts` too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/button.ts`. It imports [`cn`](/ui#merging-classes) from `@implementjs/cn` and the spinner, so copy [`spinner.ts`](/ui/spinner) to `src/lib/components/ui/spinner.ts` too. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install tailwind-variants @implementjs/lucide

@@ -15,7 +15,7 @@ import {
 	CommandViewport as CommandViewportPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type CommandProps = ComponentProps<typeof CommandPrimitive>;
 export type CommandInputProps = ComponentProps<typeof CommandInputPrimitive>;

@@ -1,7 +1,7 @@
 import type { SvgProps } from "@implementjs/core";
 import { LoaderCircleIcon } from "@implementjs/lucide";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type SpinnerProps = SvgProps;
 

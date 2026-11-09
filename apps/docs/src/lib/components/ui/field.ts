@@ -3,7 +3,7 @@ import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
 import { Label } from "./label";
 import { Separator } from "./separator";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export const fieldVariants = tv({
 	base: "group/field flex w-full gap-3 data-[invalid=true]:text-destructive",

@@ -1,0 +1,60 @@
+{
+	"name": "@implementjs/cn",
+	"version": "0.0.0",
+	"description": "Merge tailwind classes so the last one wins, for implement's clsx-shaped class values — signals included.",
+	"keywords": [
+		"implement",
+		"implementjs",
+		"tailwind",
+		"tailwind-merge",
+		"classnames"
+	],
+	"license": "MIT",
+	"author": "Aidan Bleser",
+	"homepage": "https://implementjs.dev/ui#merging-classes",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ieedan/implement.git",
+		"directory": "packages/cn"
+	},
+	"bugs": {
+		"url": "https://github.com/ieedan/implement/issues"
+	},
+	"type": "module",
+	"sideEffects": false,
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			}
+		}
+	},
+	"scripts": {
+		"dev": "tsdown --watch",
+		"build": "tsdown",
+		"check": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@implementjs/core": "workspace:*",
+		"tailwind-merge": "^3.6.0"
+	},
+	"devDependencies": {
+		"@types/node": "^26.2.0",
+		"tsdown": "^0.22.14",
+		"typescript": "^7.0.2",
+		"vite": "^7.3.0",
+		"vitest": "^4.0.18"
+	}
+}

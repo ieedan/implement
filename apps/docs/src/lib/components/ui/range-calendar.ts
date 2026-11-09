@@ -16,7 +16,7 @@ import {
 	type RangeCalendarRootProps,
 } from "@implementjs/primitives";
 import { buttonVariants } from "./button";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 import { createComponent } from "@implementjs/primitives";
 
 export type RangeCalendarProps = RangeCalendarRootProps;

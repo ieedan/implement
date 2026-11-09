@@ -4,7 +4,7 @@ import {
 	ToggleGroupItem as ToggleGroupItemPrimitive,
 } from "@implementjs/primitives";
 import { toggleVariants, type ToggleSize, type ToggleVariant } from "./toggle";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 import { createComponent } from "@implementjs/primitives";
 
 export type ToggleGroupProps = ComponentProps<typeof ToggleGroupPrimitive>;

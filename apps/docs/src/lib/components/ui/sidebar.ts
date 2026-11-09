@@ -31,7 +31,7 @@ import { Separator } from "./separator";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "./drawer";
 import { Skeleton } from "./skeleton";
 import { TooltipContent } from "./tooltip";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 /**
  * A collapsible application sidebar. `SidebarProvider` owns the open state and

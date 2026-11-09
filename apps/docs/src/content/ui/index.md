@@ -27,10 +27,10 @@ An implement app with [Tailwind CSS v4](https://tailwindcss.com). [`create-imple
 Then three packages:
 
 ```sh
-npm install @implementjs/core @implementjs/primitives tailwind-merge
+npm install @implementjs/core @implementjs/primitives @implementjs/cn
 ```
 
-`tailwind-merge` is what [`cn`](#merging-classes) is built on, and every component in the registry routes its classes through it. Some components also want `tailwind-variants`, which is where `tv()` comes from — the variant tables in `button.ts`, `toggle.ts`, and `tabs.ts`:
+[`@implementjs/cn`](#merging-classes) is the helper every component in the registry routes its classes through. Some components also want `tailwind-variants`, which is where `tv()` comes from — the variant tables in `button.ts`, `toggle.ts`, and `tabs.ts`:
 
 ```sh
 npm install tailwind-variants
@@ -200,9 +200,11 @@ Without them those two components still open and close correctly — they just s
 
 ## Merging classes
 
-Every component takes a `class`, and every component merges it with `cn` — the one helper the registry shares, in `utils.ts` beside the component files:
+Every component takes a `class`, and every component merges it with `cn` — the one helper the registry shares, from [`@implementjs/cn`](https://www.npmjs.com/package/@implementjs/cn):
 
 ```ts
+import { cn } from "@implementjs/cn";
+
 Div({ ...props, "data-slot": "card", class: cn("rounded-xl border p-6", className) });
 ```
 
@@ -221,9 +223,19 @@ Button({ class: count.bind((c) => c > 2 && "size-16 rounded-full") });
 
 The upshot is that a reactive class behaves the same whether it goes through `cn` or not — including a list whose signals change over time.
 
-`utils.ts` is a `lib` item rather than a `ui` one, so it lands beside your own helpers — `src/lib/utils.ts` by default — instead of among the components. It arrives on its own with the first component you add, so it never needs asking for by name, and jsrepo writes each component's import to match wherever your config puts the two. It is a normal file once it lands: `cn` is yours to extend, and a project that already has one can point the components at it instead.
+`cn` is a package rather than a file in your project because a fix to how it follows signals should reach you with a version bump instead of a diff against a copy. It arrives with the first component you add — jsrepo installs it like any other dependency, the way it does `@implementjs/lucide` — so it never needs asking for by name.
 
-<div data-source="utils"></div>
+If your theme has utilities of its own — an `elevation-2` from a Tailwind `@utility`, say — tailwind-merge has never heard of them, so it never treats two of them as conflicting. `createCn` takes the same config as tailwind-merge's [`extendTailwindMerge`](https://github.com/dcastil/tailwind-merge/blob/v3.6.0/docs/configuration.md#extending-the-tailwind-merge-config) and returns a `cn` that merges with it. Put it in your own `src/lib/utils.ts` and point the components' imports at it:
+
+```ts
+import { createCn } from "@implementjs/cn";
+
+export const cn = createCn({
+	extend: {
+		classGroups: { elevation: [{ elevation: ["1", "2", "3"] }] },
+	},
+});
+```
 
 ## Installing components
 
@@ -248,7 +260,7 @@ npx jsrepo add dialog button
 npx jsrepo add --registry @implementjs/ui
 ```
 
-Where the files land is `paths` in your `jsrepo.config.ts`. Every component in this registry is typed `ui`, so one entry places all of them; [`cn`](#merging-classes) is a `lib`:
+Where the files land is `paths` in your `jsrepo.config.ts`. Every component in this registry is typed `ui`, so one entry places all of them:
 
 ```ts
 import { defineConfig } from "jsrepo";
@@ -256,12 +268,9 @@ import { defineConfig } from "jsrepo";
 export default defineConfig({
 	paths: {
 		ui: "src/lib/components/ui",
-		lib: "src/lib",
 	},
 });
 ```
-
-Those two are free to point anywhere — jsrepo rewrites each component's import of `cn` to match where you put them.
 
 The type is the only thing the old `<category>/<name>` specifier is still good for. In jsrepo v3 it decides the destination directory and stays out of the command.
 
@@ -275,7 +284,7 @@ Every component is one file with no build step, so a manual install is a copy an
 
 Two things to get right:
 
-- **`utils.ts` first.** Every component imports `cn`, so copy that file to `src/lib/utils.ts` before anything else — its source is under [Merging classes](#merging-classes). The components on this site import it as `@/lib/utils`; the CLI rewrites that to a relative path, so rewrite it yourself if your project has no `@/` alias.
+- **`@implementjs/cn` first.** Every component imports `cn` from it, so it is the one package every manual install needs — it is in the install line at the top of this page.
 - **Local imports.** A component that builds on another imports it as `./button` — keep the files in one directory and those resolve on their own.
 - **The `@/` alias.** The demos on this site import `@/lib/components/ui/button`. That is the docs app's own alias for `src`; if your project does not have one, rewrite the specifier to a relative path.
 

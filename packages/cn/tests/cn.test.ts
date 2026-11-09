@@ -1,7 +1,6 @@
-import { isReadable, signal } from "@implementjs/core";
+import { isReadable, signal, type ClassValue } from "@implementjs/core";
 import { expect, it } from "vitest";
-import { buttonVariants } from "../src/lib/components/ui/button";
-import { cn } from "../src/lib/utils";
+import { cn, createCn } from "../src";
 
 /** `cn` only hands back a readable when a signal is in the list, which every test here relies on. */
 function readable(value: unknown) {
@@ -20,7 +19,9 @@ it("lets a later class win over a conflicting earlier one", () => {
 });
 
 it("makes a variant table overridable", () => {
-	const merged = cn(buttonVariants({ variant: "outline", size: "icon" }), "size-20");
+	// what a `tv()` variant table resolves to: the base classes followed by the chosen variants
+	const variants = "inline-flex items-center rounded-md text-sm border bg-background size-9";
+	const merged = cn(variants, "size-20");
 
 	expect(merged).toContain("size-20");
 	expect(merged).not.toContain("size-9");
@@ -56,7 +57,7 @@ it("reads a signal used as an object condition", () => {
 // precisely because a signal can appear or disappear inside another one's value, and merging has
 // to keep doing the same or it silently stops following the list it was given.
 it("picks up a signal that joins the list later", () => {
-	const list = signal<unknown>(["m-1"]);
+	const list = signal<ClassValue>(["m-1"]);
 	const merged = readable(cn("p-6", list));
 	const seen: unknown[] = [];
 	merged.subscribe((value) => seen.push(value));
@@ -72,7 +73,7 @@ it("picks up a signal that joins the list later", () => {
 
 it("drops a signal that leaves the list", () => {
 	const nested = signal("p-2");
-	const list = signal<unknown>(["m-1", nested]);
+	const list = signal<ClassValue>(["m-1", nested]);
 	const merged = readable(cn("p-6", list));
 	const seen: unknown[] = [];
 	merged.subscribe((value) => seen.push(value));
@@ -124,4 +125,23 @@ it("serves more than one subscriber, and detaches on unsubscribe", () => {
 
 	expect(one).toEqual(["p-10"]);
 	expect(two).toEqual(["p-10", "p-20"]);
+});
+
+it("merges with a config of its own", () => {
+	const custom = createCn({
+		extend: { classGroups: { elevation: [{ elevation: ["1", "2", "3"] }] } },
+	});
+
+	// the default config has never heard of `elevation-*`, so it can't tell these conflict
+	expect(cn("elevation-1", "elevation-3")).toBe("elevation-1 elevation-3");
+	expect(custom("elevation-1", "elevation-3")).toBe("elevation-3");
+});
+
+it("keeps a custom cn reactive", () => {
+	const custom = createCn({ extend: {} });
+	const extra = signal("p-2");
+	const merged = readable(custom("p-6", extra));
+
+	extra.set("p-10");
+	expect(merged.get()).toBe("p-10");
 });

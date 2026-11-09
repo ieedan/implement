@@ -10,7 +10,7 @@ import {
 	SelectTrigger as SelectTriggerPrimitive,
 	SelectValue as SelectValuePrimitive,
 } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 import { createComponent } from "@implementjs/primitives";
 
 export type SelectProps = ComponentProps<typeof SelectPrimitive>;

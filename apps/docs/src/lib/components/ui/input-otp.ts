@@ -7,7 +7,7 @@ import {
 	InputOTPSeparator as InputOTPSeparatorPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export {
 	REGEXP_ONLY_DIGITS,

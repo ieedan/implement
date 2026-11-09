@@ -6,7 +6,7 @@ import {
 	LinkPreviewTrigger as LinkPreviewTriggerPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type LinkPreviewProps = ComponentProps<typeof LinkPreviewPrimitive>;
 export type LinkPreviewTriggerProps = ComponentProps<typeof LinkPreviewTriggerPrimitive>;

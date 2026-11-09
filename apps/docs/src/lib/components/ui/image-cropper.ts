@@ -9,7 +9,7 @@ import {
 	ImageCropperCropper as ImageCropperCropperPrimitive,
 	ImageCropperTrigger as ImageCropperTriggerPrimitive,
 } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
 import { Dialog, DialogContent, DialogTitle } from "./dialog";

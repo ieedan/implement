@@ -119,7 +119,7 @@ describe("--link", () => {
 	});
 
 	it("points the ui registry at the clone, through jsrepo's fs provider", async () => {
-		const repo = fakeRepo(["core", "kit", "router", "primitives"]);
+		const repo = fakeRepo(["core", "kit", "router", "primitives", "cn"]);
 		// the registry is built from the docs app, not the repository root
 		mkdirSync(join(cwd, repo, "apps/docs"), { recursive: true });
 		writeFileSync(

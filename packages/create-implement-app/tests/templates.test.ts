@@ -353,9 +353,10 @@ describe("templates", () => {
 
 		const withUi = fileMap(id, ctx({ addons: ["tailwind", "primitives", "ui"] }));
 		expect(withUi.get("jsrepo.config.ts")).toContain('registries: ["@implementjs/ui"]');
-		// the components are `ui` items, and the `cn` they share is a `lib`
 		expect(withUi.get("jsrepo.config.ts")).toContain('ui: "src/lib/components/ui"');
-		expect(withUi.get("jsrepo.config.ts")).toContain('lib: "src/lib"');
+		// `cn` is a package, so nothing lands in `src/lib` besides the components
+		expect(withUi.get("jsrepo.config.ts")).not.toContain("lib:");
+		expect(pkg(withUi).dependencies["@implementjs/cn"]).toBeDefined();
 		expect(pkg(withUi).devDependencies.jsrepo).toBeDefined();
 		expect(pkg(withUi).dependencies["tailwind-variants"]).toBeDefined();
 		expect(pkg(withUi).scripts.ui).toBe("jsrepo add");

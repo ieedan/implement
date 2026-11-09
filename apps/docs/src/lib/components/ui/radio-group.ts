@@ -5,7 +5,7 @@ import {
 	RadioGroupItem as RadioGroupItemPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type RadioGroupProps = ComponentProps<typeof RadioGroupPrimitive>;
 export type RadioGroupItemProps = ComponentProps<typeof RadioGroupItemPrimitive>;

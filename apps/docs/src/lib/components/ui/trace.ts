@@ -13,7 +13,7 @@ import {
 	CollapsibleTrigger as CollapsibleTriggerPrimitive,
 	createComponent,
 } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 /**
  * Where a step stands. Leave it unset for work that is done: the line reads

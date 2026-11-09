@@ -9,7 +9,7 @@ import {
 	DropdownMenuGroupHeading,
 	DropdownMenuTrigger,
 } from "@/lib/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 const LABELS = [
 	{ value: "ui-fix", name: "UI Fix", emoji: "🎨", dot: "bg-orange-400" },

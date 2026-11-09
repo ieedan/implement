@@ -28,7 +28,7 @@ import {
 	type ToastManager,
 } from "@implementjs/primitives";
 import { buttonVariants } from "./button";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 import { createComponent } from "@implementjs/primitives";
 
 export { createToastManager, type ToastData, type ToastManager };

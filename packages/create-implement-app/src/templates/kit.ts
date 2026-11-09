@@ -83,8 +83,8 @@ function pkg(ctx: TemplateContext): string {
 	if (hasAddon(ctx, "forms")) deps.push("@implementjs/formish", "valibot");
 	if (hasAddon(ctx, "modeWatcher")) deps.push("@implementjs/mode-watcher");
 	// what the styled components are built out of: `tv()` for the variant tables, and the
-	// tailwind-merge behind `cn()` that makes a class passed in override the one baked in
-	if (hasAddon(ctx, "ui")) deps.push("tailwind-merge", "tailwind-variants");
+	// `cn()` that makes a class passed in override the one baked in
+	if (hasAddon(ctx, "ui")) deps.push("@implementjs/cn", "tailwind-variants");
 
 	// valibot is a devDependency on purpose: kit evaluates the env files at build time and
 	// inlines the results, so the schemas never reach a bundle

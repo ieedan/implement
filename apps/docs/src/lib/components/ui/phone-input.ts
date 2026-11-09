@@ -19,7 +19,7 @@ import {
 	type PhoneCountry,
 	type PhoneInputFieldProps,
 } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "./command";
 import { Popover, PopoverContent, PopoverPortal, PopoverTrigger } from "./popover";
 
@@ -48,7 +48,8 @@ function Flag(country: Readable<CountryCode | null> | CountryCode | null) {
 	return Span(
 		{
 			"data-slot": "phone-input-flag",
-			class: "flex h-4 w-6 shrink-0 overflow-clip rounded-sm bg-foreground/20 [&>svg]:h-full! [&>svg]:w-full!",
+			class:
+				"flex h-4 w-6 shrink-0 overflow-clip rounded-sm bg-foreground/20 [&>svg]:h-full! [&>svg]:w-full!",
 		},
 		ImplementEffect([code], (current) => {
 			if (current === null) {

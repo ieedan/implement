@@ -18,7 +18,7 @@ It installs `@implementjs/lucide` at the same time, plus the [avatar](/ui/avatar
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/image-cropper.ts`, along with [`avatar.ts`](/ui/avatar), [`button.ts`](/ui/button), [`dialog.ts`](/ui/dialog), and [`utils.ts`](/ui#merging-classes) (and what they need). Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/image-cropper.ts`, along with [`avatar.ts`](/ui/avatar), [`button.ts`](/ui/button), and [`dialog.ts`](/ui/dialog) (and what they need). It imports [`cn`](/ui#merging-classes) from `@implementjs/cn`. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide

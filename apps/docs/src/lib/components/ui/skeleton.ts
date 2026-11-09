@@ -1,6 +1,6 @@
 import { Div, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type SkeletonProps = ElementProps<"div">;
 

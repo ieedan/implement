@@ -8,7 +8,7 @@ import {
 } from "@implementjs/core";
 import { Meter as MeterPrimitive } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type MeterProps = ComponentProps<typeof MeterPrimitive>;
 

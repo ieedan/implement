@@ -5,7 +5,7 @@ import {
 	RatingGroupItem as RatingGroupItemPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type RatingGroupProps = ComponentProps<typeof RatingGroupPrimitive>;
 export type RatingGroupItemProps = ComponentProps<typeof RatingGroupItemPrimitive>;

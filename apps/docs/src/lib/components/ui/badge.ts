@@ -1,7 +1,7 @@
 import { Span, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export const badgeVariants = tv({
 	base: "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3",

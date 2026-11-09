@@ -15,7 +15,7 @@ import {
 	type DrawerDirection,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 /**
  * A drawer is a panel you can throw back out. It is the dialog's focus trap,

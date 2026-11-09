@@ -18,7 +18,7 @@ It installs `@implementjs/lucide` for the chevron on an expanding row.
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/trace.ts`. It imports `cn` from [`utils.ts`](/ui#merging-classes), which belongs at `src/lib/utils.ts`. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/trace.ts`. It imports [`cn`](/ui#merging-classes) from `@implementjs/cn`. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide

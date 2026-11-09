@@ -17,7 +17,7 @@ import {
 	ContextMenuTrigger as ContextMenuTriggerPrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type ContextMenuProps = ComponentProps<typeof ContextMenuPrimitive>;
 export const ContextMenu = ContextMenuPrimitive;

@@ -18,7 +18,7 @@ import { CheckIcon, CopyIcon } from "@implementjs/lucide";
 import { createComponent, mergeProps } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
 import { Button, type ButtonProps } from "./button";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export const codeBlockVariants = tv({
 	base: "group/code-block relative flex w-full min-w-0 flex-col overflow-hidden rounded-lg text-sm has-[>[data-slot=code-block-content]:focus-visible]:ring-[3px] has-[>[data-slot=code-block-content]:focus-visible]:ring-ring/50 data-[size=sm]:text-xs",

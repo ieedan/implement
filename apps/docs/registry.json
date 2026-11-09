@@ -7,22 +7,24 @@
 	"version": "0.0.8",
 	"type": "repository",
 	"defaultPaths": {
-		"ui": "src/lib/components/ui",
-		"lib": "src/lib"
+		"ui": "src/lib/components/ui"
 	},
 	"items": [
 		{
 			"name": "accordion",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -32,17 +34,7 @@
 					"role": "file",
 					"path": "accordion.ts",
 					"relativePath": "src/lib/components/ui/accordion.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -54,10 +46,15 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
-			"dependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
+			],
 			"devDependencies": [],
 			"files": [
 				{
@@ -74,15 +71,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -95,14 +83,17 @@
 			"name": "alert",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -112,17 +103,7 @@
 					"role": "file",
 					"path": "alert.ts",
 					"relativePath": "src/lib/components/ui/alert.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -153,10 +134,14 @@
 			"name": "avatar",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -164,17 +149,7 @@
 					"role": "file",
 					"path": "avatar.ts",
 					"relativePath": "src/lib/components/ui/avatar.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -185,14 +160,17 @@
 			"name": "badge",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -202,17 +180,7 @@
 					"role": "file",
 					"path": "badge.ts",
 					"relativePath": "src/lib/components/ui/badge.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -223,14 +191,17 @@
 			"name": "breadcrumb",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -240,17 +211,7 @@
 					"role": "file",
 					"path": "breadcrumb.ts",
 					"relativePath": "src/lib/components/ui/breadcrumb.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -262,14 +223,18 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"separator",
-				"utils"
+				"separator"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -288,15 +253,6 @@
 								"path": "separator.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -310,14 +266,18 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"spinner",
-				"utils"
+				"spinner"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -336,15 +296,6 @@
 								"path": "spinner.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -358,14 +309,18 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -384,15 +339,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -405,10 +351,14 @@
 			"name": "card",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -416,17 +366,7 @@
 					"role": "file",
 					"path": "card.ts",
 					"relativePath": "src/lib/components/ui/card.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -437,14 +377,17 @@
 			"name": "checkbox",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -454,17 +397,7 @@
 					"role": "file",
 					"path": "checkbox.ts",
 					"relativePath": "src/lib/components/ui/checkbox.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -476,8 +409,7 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
 			"dependencies": [
 				{
@@ -489,6 +421,11 @@
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -507,15 +444,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -529,10 +457,15 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
-			"dependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
+			],
 			"devDependencies": [],
 			"files": [
 				{
@@ -549,15 +482,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -570,14 +494,17 @@
 			"name": "command",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -587,17 +514,7 @@
 					"role": "file",
 					"path": "command.ts",
 					"relativePath": "src/lib/components/ui/command.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -608,14 +525,17 @@
 			"name": "context-menu",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -625,17 +545,7 @@
 					"role": "file",
 					"path": "context-menu.ts",
 					"relativePath": "src/lib/components/ui/context-menu.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -647,14 +557,18 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -673,15 +587,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -695,14 +600,18 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -721,15 +630,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -743,14 +643,18 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -769,15 +673,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -790,14 +685,17 @@
 			"name": "empty",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -807,17 +705,7 @@
 					"role": "file",
 					"path": "empty.ts",
 					"relativePath": "src/lib/components/ui/empty.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -830,14 +718,18 @@
 			"add": "when-added",
 			"registryDependencies": [
 				"label",
-				"separator",
-				"utils"
+				"separator"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -863,15 +755,6 @@
 							"file": {
 								"type": "ui",
 								"path": "separator.ts"
-							},
-							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
 							},
 							"meta": {}
 						}
@@ -913,7 +796,6 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"utils",
 				"avatar",
 				"button",
 				"dialog"
@@ -923,6 +805,11 @@
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -933,15 +820,6 @@
 					"path": "image-cropper.ts",
 					"relativePath": "src/lib/components/ui/image-cropper.ts",
 					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						},
 						{
 							"import": "./avatar",
 							"item": "avatar",
@@ -980,14 +858,17 @@
 			"name": "input-otp",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -997,17 +878,7 @@
 					"role": "file",
 					"path": "input-otp.ts",
 					"relativePath": "src/lib/components/ui/input-otp.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1018,10 +889,14 @@
 			"name": "input",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1029,17 +904,7 @@
 					"role": "file",
 					"path": "input.ts",
 					"relativePath": "src/lib/components/ui/input.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1050,14 +915,17 @@
 			"name": "item",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1067,17 +935,7 @@
 					"role": "file",
 					"path": "item.ts",
 					"relativePath": "src/lib/components/ui/item.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1088,10 +946,14 @@
 			"name": "kbd",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1099,17 +961,7 @@
 					"role": "file",
 					"path": "kbd.ts",
 					"relativePath": "src/lib/components/ui/kbd.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1120,10 +972,14 @@
 			"name": "label",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1131,17 +987,7 @@
 					"role": "file",
 					"path": "label.ts",
 					"relativePath": "src/lib/components/ui/label.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1152,10 +998,14 @@
 			"name": "link-preview",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1163,17 +1013,7 @@
 					"role": "file",
 					"path": "link-preview.ts",
 					"relativePath": "src/lib/components/ui/link-preview.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1184,14 +1024,17 @@
 			"name": "menubar",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1201,17 +1044,7 @@
 					"role": "file",
 					"path": "menubar.ts",
 					"relativePath": "src/lib/components/ui/menubar.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1222,10 +1055,14 @@
 			"name": "meter",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1233,17 +1070,7 @@
 					"role": "file",
 					"path": "meter.ts",
 					"relativePath": "src/lib/components/ui/meter.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1255,7 +1082,6 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"utils",
 				"command",
 				"popover"
 			],
@@ -1264,6 +1090,11 @@
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				},
 				{
 					"ecosystem": "js",
@@ -1279,15 +1110,6 @@
 					"path": "phone-input.ts",
 					"relativePath": "src/lib/components/ui/phone-input.ts",
 					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						},
 						{
 							"import": "./command",
 							"item": "command",
@@ -1318,10 +1140,15 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
-			"dependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
+			],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1338,15 +1165,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -1359,10 +1177,14 @@
 			"name": "progress",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1370,17 +1192,7 @@
 					"role": "file",
 					"path": "progress.ts",
 					"relativePath": "src/lib/components/ui/progress.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1391,14 +1203,17 @@
 			"name": "radio-group",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1408,17 +1223,7 @@
 					"role": "file",
 					"path": "radio-group.ts",
 					"relativePath": "src/lib/components/ui/radio-group.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1430,14 +1235,18 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1456,15 +1265,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -1477,14 +1277,17 @@
 			"name": "rating-group",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1494,17 +1297,7 @@
 					"role": "file",
 					"path": "rating-group.ts",
 					"relativePath": "src/lib/components/ui/rating-group.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1557,14 +1350,17 @@
 			"name": "select",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1574,17 +1370,7 @@
 					"role": "file",
 					"path": "select.ts",
 					"relativePath": "src/lib/components/ui/select.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1595,10 +1381,14 @@
 			"name": "separator",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1606,17 +1396,7 @@
 					"role": "file",
 					"path": "separator.ts",
 					"relativePath": "src/lib/components/ui/separator.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1628,14 +1408,18 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1652,15 +1436,6 @@
 							"file": {
 								"type": "ui",
 								"path": "button.ts"
-							},
-							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
 							},
 							"meta": {}
 						}
@@ -1681,8 +1456,7 @@
 				"separator",
 				"drawer",
 				"skeleton",
-				"tooltip",
-				"utils"
+				"tooltip"
 			],
 			"dependencies": [
 				{
@@ -1694,6 +1468,11 @@
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1757,15 +1536,6 @@
 								"path": "tooltip.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -1778,10 +1548,14 @@
 			"name": "skeleton",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1789,17 +1563,7 @@
 					"role": "file",
 					"path": "skeleton.ts",
 					"relativePath": "src/lib/components/ui/skeleton.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1810,14 +1574,17 @@
 			"name": "spinner",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1827,17 +1594,7 @@
 					"role": "file",
 					"path": "spinner.ts",
 					"relativePath": "src/lib/components/ui/spinner.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1848,10 +1605,14 @@
 			"name": "switch",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1859,17 +1620,7 @@
 					"role": "file",
 					"path": "switch.ts",
 					"relativePath": "src/lib/components/ui/switch.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1880,14 +1631,17 @@
 			"name": "tabs",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1897,17 +1651,7 @@
 					"role": "file",
 					"path": "tabs.ts",
 					"relativePath": "src/lib/components/ui/tabs.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1918,10 +1662,14 @@
 			"name": "textarea",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
+			"registryDependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
 			],
-			"dependencies": [],
 			"devDependencies": [],
 			"files": [
 				{
@@ -1929,17 +1677,7 @@
 					"role": "file",
 					"path": "textarea.ts",
 					"relativePath": "src/lib/components/ui/textarea.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -1951,14 +1689,18 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -1977,15 +1719,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -1999,10 +1732,15 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"toggle",
-				"utils"
+				"toggle"
 			],
-			"dependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
+			],
 			"devDependencies": [],
 			"files": [
 				{
@@ -2019,15 +1757,6 @@
 								"path": "toggle.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -2040,14 +1769,17 @@
 			"name": "toggle",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "tailwind-variants",
 					"version": "^3.3.1"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -2057,17 +1789,7 @@
 					"role": "file",
 					"path": "toggle.ts",
 					"relativePath": "src/lib/components/ui/toggle.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
+					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],
 					"devDependencies": []
@@ -2079,10 +1801,15 @@
 			"type": "ui",
 			"add": "when-added",
 			"registryDependencies": [
-				"button",
-				"utils"
+				"button"
 			],
-			"dependencies": [],
+			"dependencies": [
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
+				}
+			],
 			"devDependencies": [],
 			"files": [
 				{
@@ -2099,15 +1826,6 @@
 								"path": "button.ts"
 							},
 							"meta": {}
-						},
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
 						}
 					],
 					"registryDependencies": [],
@@ -2120,14 +1838,17 @@
 			"name": "trace",
 			"type": "ui",
 			"add": "when-added",
-			"registryDependencies": [
-				"utils"
-			],
+			"registryDependencies": [],
 			"dependencies": [
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
 					"version": "~0.0.11"
+				},
+				{
+					"ecosystem": "js",
+					"name": "@implementjs/cn",
+					"version": "~0.0.0"
 				}
 			],
 			"devDependencies": [],
@@ -2137,42 +1858,6 @@
 					"role": "file",
 					"path": "trace.ts",
 					"relativePath": "src/lib/components/ui/trace.ts",
-					"_imports_": [
-						{
-							"import": "@/lib/utils",
-							"item": "utils",
-							"file": {
-								"type": "lib",
-								"path": "utils.ts"
-							},
-							"meta": {}
-						}
-					],
-					"registryDependencies": [],
-					"dependencies": [],
-					"devDependencies": []
-				}
-			]
-		},
-		{
-			"name": "utils",
-			"type": "lib",
-			"add": "when-needed",
-			"registryDependencies": [],
-			"dependencies": [
-				{
-					"ecosystem": "js",
-					"name": "tailwind-merge",
-					"version": "^3.6.0"
-				}
-			],
-			"devDependencies": [],
-			"files": [
-				{
-					"type": "lib",
-					"role": "file",
-					"path": "utils.ts",
-					"relativePath": "src/lib/utils.ts",
 					"_imports_": [],
 					"registryDependencies": [],
 					"dependencies": [],

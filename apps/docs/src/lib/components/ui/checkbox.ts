@@ -2,7 +2,7 @@ import { Span, type Child, type ComponentProps } from "@implementjs/core";
 import { CheckIcon, MinusIcon } from "@implementjs/lucide";
 import { Checkbox as CheckboxPrimitive } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type CheckboxProps = ComponentProps<typeof CheckboxPrimitive>;
 

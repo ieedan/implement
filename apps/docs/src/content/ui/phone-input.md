@@ -18,7 +18,7 @@ It installs `@implementjs/lucide` and `country-flag-icons` at the same time, plu
 
 <div data-tab="Manual"></div>
 
-Copy the file below to `src/lib/components/ui/phone-input.ts`, along with [`popover.ts`](/ui/popover), [`command.ts`](/ui/command), and [`utils.ts`](/ui#merging-classes) (and what they need). Then, on top of `@implementjs/core` and `@implementjs/primitives`:
+Copy the file below to `src/lib/components/ui/phone-input.ts`, along with [`popover.ts`](/ui/popover) and [`command.ts`](/ui/command) (and what they need). It imports [`cn`](/ui#merging-classes) from `@implementjs/cn`. Then, on top of `@implementjs/core` and `@implementjs/primitives`:
 
 ```sh
 npm install @implementjs/lucide country-flag-icons

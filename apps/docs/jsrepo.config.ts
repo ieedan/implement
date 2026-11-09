@@ -7,16 +7,13 @@ import { fs as filesystem } from "jsrepo/providers";
 
 /**
  * The registry is configured from inside the docs app rather than the workspace root so that it
- * resolves against this project: the `@/` alias its components import `cn` through, and the
+ * resolves against this project: the `@/` alias its components import each other through, and the
  * `package.json` the versions of what they pull in come from, are both here.
  */
 const UI_DIR = "src/lib/components/ui";
 
-/** `cn`, the one thing every component shares. A `lib` item, so it lands next to a project's own. */
-const LIB_FILE = "src/lib/utils.ts";
-
 /** Where `jsrepo add` puts each type of item, unless the consuming project's config says otherwise. */
-const DEFAULT_PATHS = { ui: UI_DIR, lib: "src/lib" };
+const DEFAULT_PATHS = { ui: UI_DIR };
 
 /**
  * `packages/ui`, which holds no code — only the version line and changelog changesets keeps for
@@ -52,15 +49,12 @@ function registryVersion(cwd: string): string {
 }
 
 /**
- * One item per file in {@link UI_DIR}, plus the `utils` they all import. jsrepo reads the imports
- * itself, so `popover` pulling in `button`, `button` pulling in `utils`, and `accordion`
- * installing `@implementjs/lucide`, all fall out of the source rather than being listed here.
- *
- * `utils` is `when-needed`: nobody adds `cn` on purpose, it arrives with the first component that
- * imports it.
+ * One item per file in {@link UI_DIR}. jsrepo reads the imports itself, so `popover` pulling in
+ * `button`, `button` pulling in `@implementjs/cn`, and `accordion` installing `@implementjs/lucide`,
+ * all fall out of the source rather than being listed here.
  */
 function items(cwd: string): RegistryItem[] {
-	const components = fs
+	return fs
 		.readdirSync(path.join(cwd, UI_DIR))
 		.filter((file) => file.endsWith(".ts"))
 		.toSorted()
@@ -69,11 +63,6 @@ function items(cwd: string): RegistryItem[] {
 			type: "ui",
 			files: [{ path: `${UI_DIR}/${file}` }],
 		}));
-
-	return [
-		...components,
-		{ name: "utils", type: "lib", add: "when-needed", files: [{ path: LIB_FILE }] },
-	];
 }
 
 export default defineConfig({

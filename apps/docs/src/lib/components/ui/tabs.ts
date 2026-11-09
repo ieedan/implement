@@ -7,7 +7,7 @@ import {
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 /**
  * `default` is the segmented control — triggers sit in a filled track. `underline`

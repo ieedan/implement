@@ -11,7 +11,7 @@ import {
 	AlertDialogTrigger as AlertDialogTriggerPrimitive,
 } from "@implementjs/primitives";
 import { buttonVariants, type ButtonSize, type ButtonVariant } from "./button";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 import { createComponent } from "@implementjs/primitives";
 
 export type AlertDialogProps = ComponentProps<typeof AlertDialogPrimitive>;

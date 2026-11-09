@@ -1,7 +1,7 @@
 import { Div, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export const itemVariants = tv({
 	base: "group/item flex flex-wrap items-center rounded-md border border-transparent text-sm outline-none transition-colors duration-100 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a&]:hover:bg-accent/50 [a&]:transition-colors",

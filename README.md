@@ -71,6 +71,7 @@ npx skills add ieedan/implement
 - `@implementjs/ui` - A shadcn/ui style library built with implementjs distributed with jsrepo.
 - `@implementjs/primitives` - A headless UI library built with implementjs.
 - `@implementjs/formish` - A port of the formish library for implementjs.
+- `@implementjs/cn` - Merge tailwind classes so the last one wins, signals included.
 - `@implementjs/lucide` - Lucide icons for implementjs.
 - `@implementjs/mode-watcher` - A port of [svecosystem/mode-watcher](https://github.com/svecosystem/mode-watcher) for implementjs.
 - `@implementjs/eslint` - Lint rules to catch some common implementjs mistakes.

@@ -1,7 +1,7 @@
 import { Div, type Child, type ElementProps } from "@implementjs/core";
 import { createComponent } from "@implementjs/primitives";
 import { tv, type VariantProps } from "tailwind-variants";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export const emptyMediaVariants = tv({
 	base: "mb-2 flex shrink-0 items-center justify-center [&_svg:not([class*='size-'])]:size-6",

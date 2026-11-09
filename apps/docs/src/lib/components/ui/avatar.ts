@@ -5,7 +5,7 @@ import {
 	AvatarImage as AvatarImagePrimitive,
 } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type AvatarProps = ComponentProps<typeof AvatarPrimitive>;
 export type AvatarImageProps = ComponentProps<typeof AvatarImagePrimitive>;

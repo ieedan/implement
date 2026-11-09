@@ -1,7 +1,7 @@
 import type { ComponentProps } from "@implementjs/core";
 import { Separator as SeparatorPrimitive } from "@implementjs/primitives";
 import { createComponent } from "@implementjs/primitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@implementjs/cn";
 
 export type SeparatorProps = ComponentProps<typeof SeparatorPrimitive>;
 
