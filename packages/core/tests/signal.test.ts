@@ -384,3 +384,48 @@ describe("change detection", () => {
 		expect(el.get()).toBe(node);
 	});
 });
+
+describe("derived getter calls", () => {
+	it("does not run the getter until the value is read", () => {
+		let calls = 0;
+		derived([signal(1)], (n) => {
+			calls++;
+			return n;
+		});
+		expect(calls).toBe(0);
+	});
+
+	it("runs the getter once to start listening", () => {
+		const source = signal(1);
+		let calls = 0;
+		const view = derived([source], (n) => {
+			calls++;
+			return n * 2;
+		});
+
+		const seen: number[] = [];
+		const stop = view.subscribe((value) => seen.push(value));
+		expect(calls).toBe(1);
+
+		source.set(2);
+		expect(calls).toBe(2);
+		expect(seen).toEqual([4]);
+		stop();
+	});
+
+	it("runs a multi-source getter once to start listening", () => {
+		const a = signal(1);
+		const b = signal(2);
+		let calls = 0;
+		const view = derived([a, b], (x, y) => {
+			calls++;
+			return x + y;
+		});
+
+		const stop = view.subscribe(() => {});
+		expect(calls).toBe(1);
+		expect(view.get()).toBe(3);
+		expect(calls).toBe(1);
+		stop();
+	});
+});

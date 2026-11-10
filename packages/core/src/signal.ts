@@ -110,28 +110,38 @@ export function subscribe<T, Signals extends readonly ReadableSource<any>[]>(
 		const source = signals[0] as ReadableSource;
 		const call = getter as unknown as (value: unknown) => T;
 		/* oxlint-enable typescript/no-unsafe-type-assertion */
-		let value = source.get();
+		let value: unknown;
+		// Subscribe before reading: a lazy source computes its value when it
+		// activates, so reading first would compute it once to read and again
+		// to start listening — twice per subscriber, and for a getter that
+		// starts a request, twice the requests.
 		const unsubscribe = source.subscribe((next: unknown) => {
 			if (next === value) return;
 			value = next;
 			call(value);
 		});
+		value = source.get();
 		call(value);
 		return unsubscribe;
 	}
 
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tuple typing: mapped signal values align with getter rest args.
-	const values = signals.map((signal) => signal.get()) as SignalValues<Signals>;
+	// Subscribed before read for the reason above.
+	const values: unknown[] = [];
 	const unsubscribers = signals.map((signal, i) =>
 		signal.subscribe((newValue) => {
 			const changed = values[i] !== newValue;
 			if (!changed) return;
 			values[i] = newValue;
-			getter(...values);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tuple typing: mapped signal values align with getter rest args.
+			getter(...(values as SignalValues<Signals>));
 		}),
 	);
+	signals.forEach((signal, i) => {
+		values[i] = signal.get();
+	});
 	// populate initial value
-	getter(...values);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tuple typing: mapped signal values align with getter rest args.
+	getter(...(values as SignalValues<Signals>));
 
 	// unsubscribe
 	return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
@@ -914,7 +924,8 @@ export class Derived<T, Signals extends readonly Readable<any>[]> extends LazyRe
 	) {
 		super();
 		this.only = signals.length === 1 ? (signals[0] ?? null) : null;
-		this.value = this.read();
+		// No read here: nothing has asked for the value yet, and a getter that
+		// starts a request should not start one for a derived nobody reads.
 	}
 
 	/* oxlint-disable typescript/no-unsafe-type-assertion -- Tuple typing cannot express "this getter takes exactly one value". */
@@ -927,17 +938,26 @@ export class Derived<T, Signals extends readonly Readable<any>[]> extends LazyRe
 	}
 
 	protected watch(onValue: (value: T) => void): Unsubscribe {
+		// `subscribe` reports the current values once before it returns, which
+		// `activate` has just computed with `read`. Dropping that report keeps
+		// the getter to one call per distinct value.
+		let seeding = true;
+		let unsubscribe: Unsubscribe;
 		if (this.only !== null) {
 			const call = this.getter as unknown as (value: unknown) => T;
 			// `this.signals` as-is: wrapping the one source in a fresh array would
 			// allocate once per derived, which is the opposite of the point.
-			const forward = ((value: unknown) => onValue(call(value))) as unknown as Getter<
-				void,
-				Signals
-			>;
-			return subscribe(this.signals, forward);
+			const forward = ((value: unknown) => {
+				if (!seeding) onValue(call(value));
+			}) as unknown as Getter<void, Signals>;
+			unsubscribe = subscribe(this.signals, forward);
+		} else {
+			unsubscribe = subscribe(this.signals, (...values) => {
+				if (!seeding) onValue(this.getter(...values));
+			});
 		}
-		return subscribe(this.signals, (...values) => onValue(this.getter(...values)));
+		seeding = false;
+		return unsubscribe;
 	}
 	/* oxlint-enable typescript/no-unsafe-type-assertion */
 }

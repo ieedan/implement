@@ -156,11 +156,11 @@ export function Await<T>(
 				);
 			};
 
-			if (readable) {
-				follow(source.get());
-			} else {
-				follow(source);
-			}
+			// A readable is followed from `mount`, where `subscribe` reads it once.
+			// Reading it here as well would compute a lazy source — a `derived`
+			// whose getter starts a request — a second time for a promise that
+			// the mount-time one immediately replaces.
+			if (!readable) follow(source);
 
 			node = {
 				mount(p: HTMLElement) {
