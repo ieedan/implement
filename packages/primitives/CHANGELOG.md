@@ -1,5 +1,12 @@
 # @implementjs/primitives
 
+## 0.0.17
+
+### Patch Changes
+
+- Updated dependencies [[`cf779ce`](https://github.com/ieedan/implement/commit/cf779cec932d7742daa059fb882883c0e8e7af2f)]:
+  - @implementjs/core@0.0.12
+
 ## 0.0.16
 
 ### Patch Changes

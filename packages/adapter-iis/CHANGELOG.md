@@ -1,5 +1,12 @@
 # @implementjs/adapter-iis
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @implementjs/kit@0.0.22
+
 ## 0.0.8
 
 ### Patch Changes

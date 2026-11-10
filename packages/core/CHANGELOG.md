@@ -1,5 +1,11 @@
 # @implementjs/core
 
+## 0.0.12
+
+### Patch Changes
+
+- [`cf779ce`](https://github.com/ieedan/implement/commit/cf779cec932d7742daa059fb882883c0e8e7af2f) Thanks [@ieedan](https://github.com/ieedan)! - A `derived` no longer runs its getter more than once to start listening, and no longer runs it at construction. `Await` over a `derived` whose getter returns a promise now starts one request per source value instead of three to five.
+
 ## 0.0.11
 
 ### Patch Changes
