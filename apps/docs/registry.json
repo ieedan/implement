@@ -19,12 +19,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -52,7 +52,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -93,7 +93,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -139,7 +139,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -170,7 +170,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -196,12 +196,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -234,7 +234,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -277,7 +277,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -315,12 +315,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -356,7 +356,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -382,12 +382,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -415,7 +415,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
@@ -425,7 +425,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -463,7 +463,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -499,12 +499,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -530,12 +530,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -563,12 +563,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -606,12 +606,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -649,12 +649,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -695,7 +695,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -729,7 +729,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -804,12 +804,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -863,12 +863,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -894,7 +894,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -925,7 +925,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -951,7 +951,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -977,7 +977,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1003,7 +1003,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1029,12 +1029,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1060,7 +1060,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1089,12 +1089,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				},
 				{
 					"ecosystem": "js",
@@ -1146,7 +1146,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1182,7 +1182,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1208,12 +1208,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1241,12 +1241,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1282,12 +1282,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1355,12 +1355,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1386,7 +1386,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1414,12 +1414,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1462,7 +1462,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
@@ -1472,7 +1472,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1553,7 +1553,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1579,12 +1579,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1610,7 +1610,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1641,7 +1641,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1667,7 +1667,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1695,12 +1695,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1738,7 +1738,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1779,7 +1779,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1807,7 +1807,7 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
@@ -1843,12 +1843,12 @@
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/lucide",
-					"version": "~0.0.11"
+					"version": "~0.0.12"
 				},
 				{
 					"ecosystem": "js",
 					"name": "@implementjs/cn",
-					"version": "~0.0.1"
+					"version": "~0.0.2"
 				}
 			],
 			"devDependencies": [],
