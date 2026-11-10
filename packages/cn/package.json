@@ -1,6 +1,6 @@
 {
 	"name": "@implementjs/cn",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Merge tailwind classes so the last one wins, for implement's clsx-shaped class values — signals included.",
 	"keywords": [
 		"implement",
